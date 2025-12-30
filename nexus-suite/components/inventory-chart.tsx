@@ -1,13 +1,12 @@
 "use client";
 
-import { Calendar, TrendingUp } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
@@ -20,6 +19,11 @@ import {
   type ChartConfig
 } from "@/components/ui/chart";
 import { Button } from "./ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+
+import { type DateRange } from "react-day-picker";
+import { useState } from "react";
+import { Calendar } from "./ui/calendar";
 
 export const description = "A stacked bar chart with a legend";
 
@@ -44,6 +48,78 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function ChartBarStacked() {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(2025, 11, 1),
+    to: new Date(2025, 11, 30)
+  });
+
+  const getDateRangeForOption = (option: string): DateRange => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    const lastMonthStart = new Date(
+      today.getFullYear(),
+      today.getMonth() - 1,
+      1
+    );
+    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    const yearEnd = new Date(today.getFullYear(), 11, 31);
+
+    switch (option) {
+      case "Today":
+        return { from: today, to: today };
+      case "Yesterday":
+        return { from: yesterday, to: yesterday };
+      case "This Week":
+        return { from: weekStart, to: today };
+      case "Last 7 days":
+        return { from: sevenDaysAgo, to: today };
+      case "Last 30 days":
+        return { from: thirtyDaysAgo, to: today };
+      case "This month":
+        return { from: monthStart, to: monthEnd };
+      case "Last month":
+        return { from: lastMonthStart, to: lastMonthEnd };
+      case "This year":
+        return { from: yearStart, to: yearEnd };
+      default:
+        return { from: today, to: today };
+    }
+  };
+
+  const formatDateRange = (range: DateRange | undefined): string => {
+    if (!range?.from || !range?.to) return "Select date range";
+
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      });
+    };
+
+    return `${formatDate(range.from)} - ${formatDate(range.to)}`;
+  };
+
+  const handleDateRangeSelect = (option: string) => {
+    setDateRange(getDateRangeForOption(option));
+  };
+
   return (
     <Card className="flex-1 p-4">
       <CardHeader className="p-0">
@@ -53,10 +129,85 @@ export function ChartBarStacked() {
             <CardDescription>January - June 2024</CardDescription>
           </div>
           <div className="">
-            <Button variant="outline">
-              <Calendar className="mr-2 size-4" />
-              <p>Dec 1 - Dec 30, 2025</p>
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <CalendarIcon className="mr-2 size-4" />
+                  <p>{formatDateRange(dateRange)}</p>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-2">
+                <div className="flex">
+                  <div className="flex flex-col text-muted-foreground text-sm">
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("Today")}
+                    >
+                      <p>Today</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("Yesterday")}
+                    >
+                      <p>Yesterday</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("This Week")}
+                    >
+                      <p>This Week</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("Last 7 days")}
+                    >
+                      <p>Last 7 days</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("Last 30 days")}
+                    >
+                      <p>Last 30 days</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("This month")}
+                    >
+                      <p>This month</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("Last month")}
+                    >
+                      <p>Last month</p>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleDateRangeSelect("This year")}
+                    >
+                      <p>This year</p>
+                    </Button>
+                  </div>
+                  <hr />
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={1}
+                    className=""
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </CardHeader>

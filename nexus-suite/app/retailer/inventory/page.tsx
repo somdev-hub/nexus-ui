@@ -7,20 +7,18 @@ import { Card } from "@/components/ui/card";
 import { FieldSeparator } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
 import {
-  TableCaption,
   TableHeader,
   TableRow,
   TableHead,
   TableBody,
   TableCell,
-  TableFooter,
   Table
 } from "@/components/ui/table";
 import {
   ArrowRight,
-  ChevronRight,
   ChevronsRight,
   EllipsisVertical,
+  PlusIcon,
   Stone
 } from "lucide-react";
 import React, { useEffect } from "react";
@@ -97,8 +95,11 @@ const Page = () => {
         <div className="@container/main flex flex-1 justify-between gap-2 p-4 md:gap-6 md:p-6 lg:flex-row">
           <div className="w-full">
             <div className="flex justify-between w-full">
-              <h2 className="text-lg font-semibold">Orders</h2>
-              <Button>Inventory</Button>
+              <h2 className="text-lg font-semibold">Inventory</h2>
+              <Button>
+                <PlusIcon className="size-4" />
+                Add
+              </Button>
             </div>
             <div className="flex gap-4 mt-4">
               <Card className="p-4 gap-2 w-[calc(50%-8px)]">
