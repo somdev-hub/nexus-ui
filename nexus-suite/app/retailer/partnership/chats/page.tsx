@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { SiteHeader } from "@/components/site-header";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -177,7 +177,6 @@ export default function ChatsPage() {
 
   return (
     <>
-      <SiteHeader />
       <div className="flex h-[calc(100vh-60px)]">
         {/* Sidebar - Conversations List */}
         <div className="w-100 border-r flex flex-col bg-card/50">

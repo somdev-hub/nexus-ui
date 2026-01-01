@@ -1,4 +1,3 @@
-import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
@@ -16,7 +15,6 @@ import Image from "next/image";
 const page = () => {
   return (
     <>
-      <SiteHeader />
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 justify-between gap-2 p-4 md:gap-6 md:p-6 lg:flex-row">
           <div className="w-full">

@@ -1,6 +1,5 @@
 "use client";
 
-import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +57,6 @@ const SupplierDetailsPage = ({ params }: { params: { id: string } }) => {
 
   return (
     <>
-      <SiteHeader />
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <div className="border-b bg-linear-to-r from-blue-50 to-indigo-50 p-4 md:p-6">

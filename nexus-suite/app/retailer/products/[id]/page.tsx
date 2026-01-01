@@ -1,6 +1,5 @@
 "use client";
 
-import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { IconEdit } from "@tabler/icons-react";
@@ -11,13 +10,13 @@ import {
   CarouselContent,
   CarouselItem,
   CarouselNext,
-  CarouselPrevious
+  CarouselPrevious,
+  type CarouselApi
 } from "@/components/ui/carousel";
 
 const page = () => {
   return (
     <>
-      <SiteHeader />
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 justify-between gap-2 p-4 md:gap-6 md:p-6 lg:flex-row">
           <div className="">
@@ -115,7 +114,7 @@ const page = () => {
 // Product Carousel Component
 const ProductCarousel = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [emblaApi, setEmblaApi] = useState(null);
+  const [emblaApi, setEmblaApi] = useState<CarouselApi>(undefined);
 
   const productImages = [
     {

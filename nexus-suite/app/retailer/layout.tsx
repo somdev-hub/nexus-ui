@@ -1,4 +1,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default function RetailerLayout({
@@ -16,7 +18,10 @@ export default function RetailerLayout({
       }
     >
       <AppSidebar variant="inset" />
-      <SidebarInset >{children}</SidebarInset>
+      <SidebarInset>
+        <SiteHeader />
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import {
   IconChartBar,
   IconDashboard,
@@ -10,21 +11,39 @@ import {
   IconInnerShadowTop,
   IconListDetails,
   IconReport,
-  IconUsers
+  IconUsers,
+  IconCirclePlusFilled,
+  IconMail,
+  IconDots,
+  IconShare3,
+  IconTrash,
+  type Icon
 } from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/nav-documents";
-import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
-  SidebarMenuItem
+  SidebarMenuItem,
+  useSidebar
 } from "@/components/ui/sidebar";
+import Link from "next/link";
 
 const data = {
   user: {
@@ -32,52 +51,230 @@ const data = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg"
   },
-  navMain: [
+  sidebarSections: [
     {
-      title: "Dashboard",
-      url: "#",
-      icon: IconDashboard
+      id: "main",
+      label: null,
+      showHeader: true,
+      showActions: false,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/retailer/dashboard",
+          icon: IconDashboard
+        },
+        {
+          title: "Analytics",
+          url: "#",
+          icon: IconChartBar
+        },
+        {
+          title: "Sales",
+          url: "#",
+          icon: IconFolder
+        },
+        {
+          title: "Team",
+          url: "#",
+          icon: IconUsers
+        }
+      ]
     },
     {
-      title: "Products",
-      url: "/retailer/products",
-      icon: IconListDetails
+      id: "Products",
+      label: "Products",
+      showHeader: false,
+      showActions: true,
+      items: [
+        {
+          title: "All Products",
+          url: "/retailer/products",
+          icon: IconListDetails
+        },
+        {
+          title: "Add Product",
+          url: "/retailer/products/add",
+          icon: IconCirclePlusFilled
+        },
+        {
+          title: "Board",
+          url: "/retailer/products/board",
+          icon: IconReport
+        }
+      ]
     },
     {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar
+      id: "materials",
+      label: "Materials",
+      showHeader: false,
+      showActions: true,
+      items: [
+        {
+          title: "Orders",
+          url: "/retailer/materials/orders",
+          icon: IconListDetails
+        },
+        {
+          title: "Inventory",
+          url: "/retailer/materials/inventory",
+          icon: IconDatabase
+        }
+      ]
     },
     {
-      title: "Sales",
-      url: "#",
-      icon: IconFolder
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers
-    }
-  ],
-
-  partnerships: [
-    {
-      name: "Suppliers",
-      url: "#",
-      icon: IconDatabase
-    },
-    {
-      name: "Logistics",
-      url: "#",
-      icon: IconReport
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconFileWord
+      id: "partnerships",
+      label: "Partnerships",
+      showHeader: false,
+      showActions: true,
+      items: [
+        {
+          title: "Suppliers",
+          url: "/retailer/partnership/supplier-market",
+          icon: IconDatabase
+        },
+        {
+          title: "Logistics",
+          url: "/retailer/partnership/logistic-market",
+          icon: IconReport
+        },
+        {
+          title: "Partnership management",
+          url: "/retailer/partnership/management",
+          icon: IconFileWord
+        },
+        {
+          title: "Chats",
+          url: "/retailer/partnership/chats",
+          icon: IconMail
+        }
+      ]
     }
   ]
 };
+
+// Generic sidebar navigation section component
+interface SidebarNavItem {
+  title: string;
+  url: string;
+  icon?: Icon;
+}
+
+interface SidebarSection {
+  id: string;
+  label: string | null;
+  showHeader: boolean;
+  showActions: boolean;
+  items: SidebarNavItem[];
+}
+
+interface SidebarNavSectionProps {
+  section: SidebarSection;
+}
+
+function SidebarNavSection({ section }: SidebarNavSectionProps) {
+  const { isMobile } = useSidebar();
+  const pathname = usePathname();
+  const { items, label, showHeader, showActions } = section;
+
+  const isActive = (url: string) => {
+    return pathname === url || pathname.startsWith(url + "/");
+  };
+
+  return (
+    <SidebarGroup
+      className={!showActions ? "" : "group-data-[collapsible=icon]:hidden"}
+    >
+      {showHeader && (
+        <SidebarGroupContent className="flex flex-col gap-2 mb-2">
+          <SidebarMenu>
+            <SidebarMenuItem className="flex items-center gap-2">
+              <SidebarMenuButton
+                tooltip="Quick Create"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+              >
+                <IconCirclePlusFilled />
+                <span>Quick Create</span>
+              </SidebarMenuButton>
+              <Button
+                size="icon"
+                className="size-8 group-data-[collapsible=icon]:opacity-0"
+                variant="outline"
+              >
+                <IconMail />
+                <span className="sr-only">Inbox</span>
+              </Button>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      )}
+      {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
+      <SidebarMenu>
+        {items.map((item) => (
+          <SidebarMenuItem key={item.title}>
+            {showActions ? (
+              <>
+                <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                  <a href={item.url}>
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuAction
+                      showOnHover
+                      className="data-[state=open]:bg-accent rounded-sm"
+                    >
+                      <IconDots />
+                      <span className="sr-only">More</span>
+                    </SidebarMenuAction>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-24 rounded-lg"
+                    side={isMobile ? "bottom" : "right"}
+                    align={isMobile ? "end" : "start"}
+                  >
+                    <DropdownMenuItem>
+                      <IconFolder />
+                      <span>Open</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <IconShare3 />
+                      <span>Share</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive">
+                      <IconTrash />
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Link href={item.url}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={isActive(item.url)}
+                >
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              </Link>
+            )}
+          </SidebarMenuItem>
+        ))}
+        {showActions && (
+          <SidebarMenuItem>
+            <SidebarMenuButton className="text-sidebar-foreground/70">
+              <IconDots className="text-sidebar-foreground/70" />
+              <span>More</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -98,9 +295,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.partnerships} />
-        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        {data.sidebarSections.map((section) => (
+          <SidebarNavSection key={section.id} section={section} />
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
