@@ -17,6 +17,10 @@ import {
   IconDots,
   IconShare3,
   IconTrash,
+  IconClock,
+  IconMoneybag,
+  IconUserPlus,
+  IconClipboard,
   type Icon
 } from "@tabler/icons-react";
 
@@ -67,16 +71,6 @@ const data = {
           title: "Analytics",
           url: "#",
           icon: IconChartBar
-        },
-        {
-          title: "Sales",
-          url: "#",
-          icon: IconFolder
-        },
-        {
-          title: "Team",
-          url: "#",
-          icon: IconUsers
         }
       ]
     },
@@ -146,6 +140,49 @@ const data = {
           title: "Chats",
           url: "/retailer/partnership/chats",
           icon: IconMail
+        }
+      ]
+    },
+    {
+      id: "hr",
+      label: "HR Management",
+      showHeader: false,
+      showActions: true,
+      items: [
+        {
+          title: "HR Dashboard",
+          url: "/hr",
+          icon: IconDashboard
+        },
+        {
+          title: "Employees",
+          url: "/hr/employees",
+          icon: IconUsers
+        },
+        {
+          title: "Add Employee",
+          url: "/hr/employees/add",
+          icon: IconUserPlus
+        },
+        {
+          title: "Payroll",
+          url: "/hr/payroll",
+          icon: IconMoneybag
+        },
+        {
+          title: "Attendance",
+          url: "/hr/attendance",
+          icon: IconClock
+        },
+        {
+          title: "Roles & Permissions",
+          url: "/hr/roles",
+          icon: IconClipboard
+        },
+        {
+          title: "Work Monitoring",
+          url: "/hr/work-monitoring",
+          icon: IconListDetails
         }
       ]
     }
