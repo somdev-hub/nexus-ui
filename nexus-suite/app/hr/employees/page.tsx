@@ -93,14 +93,14 @@ export default function EmployeesPage() {
         />
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="p-4 gap-2">
+        <CardHeader className="p-0">
           <CardTitle>Employee Directory</CardTitle>
           <CardDescription>
             Total Employees: {filteredEmployees.length}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <HRTable columns={columns} data={filteredEmployees} />
         </CardContent>
       </Card>

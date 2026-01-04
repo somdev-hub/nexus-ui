@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import {
   IconChartBar,
   IconDashboard,
@@ -9,8 +10,6 @@ import {
   IconFileWord,
   IconFolder,
   IconInnerShadowTop,
-  IconListDetails,
-  IconReport,
   IconUsers,
   IconCirclePlusFilled,
   IconMail,
@@ -21,6 +20,13 @@ import {
   IconMoneybag,
   IconUserPlus,
   IconClipboard,
+  IconShoppingCart,
+  IconPackage,
+  IconTruck,
+  IconLink,
+  IconMessageCircle,
+  IconEye,
+  IconChecklist,
   type Icon
 } from "@tabler/icons-react";
 
@@ -83,7 +89,7 @@ const data = {
         {
           title: "All Products",
           url: "/retailer/products",
-          icon: IconListDetails
+          icon: IconPackage
         },
         {
           title: "Add Product",
@@ -93,7 +99,7 @@ const data = {
         {
           title: "Board",
           url: "/retailer/products/board",
-          icon: IconReport
+          icon: IconEye
         }
       ]
     },
@@ -106,7 +112,7 @@ const data = {
         {
           title: "Orders",
           url: "/retailer/materials/orders",
-          icon: IconListDetails
+          icon: IconShoppingCart
         },
         {
           title: "Inventory",
@@ -124,12 +130,12 @@ const data = {
         {
           title: "Suppliers",
           url: "/retailer/partnership/supplier-market",
-          icon: IconDatabase
+          icon: IconLink
         },
         {
           title: "Logistics",
           url: "/retailer/partnership/logistic-market",
-          icon: IconReport
+          icon: IconTruck
         },
         {
           title: "Partnership management",
@@ -139,7 +145,7 @@ const data = {
         {
           title: "Chats",
           url: "/retailer/partnership/chats",
-          icon: IconMail
+          icon: IconMessageCircle
         }
       ]
     },
@@ -182,7 +188,7 @@ const data = {
         {
           title: "Work Monitoring",
           url: "/hr/work-monitoring",
-          icon: IconListDetails
+          icon: IconChecklist
         }
       ]
     }
@@ -314,6 +320,66 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, isAuthenticated } = useAuth();
+
+  // Filter sidebar sections based on user role
+  const filteredSections = isAuthenticated
+    ? data.sidebarSections.filter((section) => {
+        if (!user) return false;
+
+        // All roles have access to all sections
+        const roleAccess: Record<string, string[]> = {
+          ROLE_ADMIN: ["main", "Products", "materials", "partnerships", "hr"],
+          ROLE_DIRECTOR: [
+            "main",
+            "Products",
+            "materials",
+            "partnerships",
+            "hr"
+          ],
+          ROLE_PRODUCT_MANAGER: [
+            "main",
+            "Products",
+            "materials",
+            "partnerships",
+            "hr"
+          ],
+          ROLE_ACCOUNT_MANAGER: [
+            "main",
+            "Products",
+            "materials",
+            "partnerships",
+            "hr"
+          ],
+          ROLE_OPERATION_MANAGER: [
+            "main",
+            "Products",
+            "materials",
+            "partnerships",
+            "hr"
+          ],
+          ROLE_WAREHOUSE_MANAGER: [
+            "main",
+            "Products",
+            "materials",
+            "partnerships",
+            "hr"
+          ],
+          ROLE_FLEET_MANAGER: [
+            "main",
+            "Products",
+            "materials",
+            "partnerships",
+            "hr"
+          ],
+          CLERK: ["main", "Products", "materials", "partnerships", "hr"],
+          DRIVER: ["main", "Products", "materials", "partnerships", "hr"]
+        };
+
+        return roleAccess[user.role]?.includes(section.id) ?? false;
+      })
+    : []; // Empty array if not authenticated
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -323,21 +389,39 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="#">
+              <Link href="/">
                 <IconInnerShadowTop className="size-5!" />
                 <span className="text-base font-semibold">Nexus Inc.</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {data.sidebarSections.map((section) => (
-          <SidebarNavSection key={section.id} section={section} />
-        ))}
+        {filteredSections.length > 0 ? (
+          filteredSections.map((section) => (
+            <SidebarNavSection key={section.id} section={section} />
+          ))
+        ) : (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            {!isAuthenticated
+              ? "Please log in to view menu items"
+              : "No menu items available"}
+          </div>
+        )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser
+          user={
+            user
+              ? {
+                  name: user.name,
+                  email: user.email,
+                  avatar: user.avatar || "/avatars/default.jpg"
+                }
+              : data.user
+          }
+        />
       </SidebarFooter>
     </Sidebar>
   );
