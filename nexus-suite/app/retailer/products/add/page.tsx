@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,7 +22,24 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-const page = () => {
+const Page = () => {
+  const [chargeTaxes, setChargeTaxes] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState("");
+  const [customMaterialName, setCustomMaterialName] = useState("");
+  const [customUnit, setCustomUnit] = useState("");
+
+  const predefinedMaterials = [
+    { value: "cotton", label: "Cotton" },
+    { value: "polyester", label: "Polyester" },
+    { value: "leather", label: "Leather" },
+    { value: "silk", label: "Silk" },
+    { value: "wool", label: "Wool" },
+    { value: "linen", label: "Linen" },
+    { value: "rubber", label: "Rubber" },
+    { value: "plastic", label: "Plastic" },
+    { value: "metal", label: "Metal" }
+  ];
+
   return (
     <>
       <div className="flex flex-1 flex-col">
@@ -96,9 +116,79 @@ const page = () => {
                 </Card>
                 <Card className="py-4">
                   <CardContent>
-                    <h2 className="text-lg font-semibold mb-2">Varients</h2>
+                    <h2 className="text-lg font-semibold mb-4">
+                      Add Required Materials
+                    </h2>
+                    <div className="space-y-4">
+                      <Field>
+                        <FieldLabel>Select Material</FieldLabel>
+                        <Select
+                          value={selectedMaterial}
+                          onValueChange={setSelectedMaterial}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select a material" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {predefinedMaterials.map((material) => (
+                              <SelectItem
+                                key={material.value}
+                                value={material.value}
+                              >
+                                {material.label}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="others">Others</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+
+                      {selectedMaterial === "others" && (
+                        <>
+                          <Field>
+                            <FieldLabel>Material Name</FieldLabel>
+                            <Input
+                              placeholder="Enter custom material name"
+                              value={customMaterialName}
+                              onChange={(e) =>
+                                setCustomMaterialName(e.target.value)
+                              }
+                              className="h-8 w-full"
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel>Unit</FieldLabel>
+                            <Input
+                              placeholder="Enter unit (e.g., kg, L, pcs)"
+                              value={customUnit}
+                              onChange={(e) => setCustomUnit(e.target.value)}
+                              className="h-8 w-full"
+                            />
+                          </Field>
+                        </>
+                      )}
+
+                      <Field>
+                        <FieldLabel>Quantity Required</FieldLabel>
+                        <Input
+                          placeholder="Enter quantity"
+                          type="number"
+                          className="h-8 w-full"
+                        />
+                      </Field>
+
+                      <Button variant="outline" className="w-full">
+                        Add Material
+                      </Button>
+                    </div>
+                    <FieldSeparator className="my-4" />
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold">Materials Added</h3>
+                      <p className="text-sm text-gray-500">
+                        No materials added yet
+                      </p>
+                    </div>
                   </CardContent>
-                  {/* option, price, stock */}
                 </Card>
               </div>
               <div className="flex flex-col gap-4 w-1/3">
@@ -106,26 +196,40 @@ const page = () => {
                   <CardContent>
                     <h2 className="text-lg font-semibold mb-2">Price</h2>
                     <Field>
-                      <FieldLabel>Price ($)</FieldLabel>
+                      <FieldLabel>Cost ($)</FieldLabel>
                       <Input
-                        placeholder="Enter product price"
+                        placeholder="Enter product cost"
                         className="h-8 w-full"
                       />
                     </Field>
                     <Field className="mt-2">
-                      <FieldLabel>Compare at Price ($)</FieldLabel>
+                      <FieldLabel>Selling Price ($)</FieldLabel>
                       <Input
-                        placeholder="Enter compare at price"
+                        placeholder="Enter selling price"
                         className="h-8 w-full"
                       />
                     </Field>
                     {/* checkbox  */}
                     <div className="flex gap-2 items-center mt-2">
-                      <Checkbox />
+                      <Checkbox
+                        checked={chargeTaxes}
+                        onCheckedChange={setChargeTaxes}
+                      />
                       <span className="text-sm">
                         Charge taxes on this product
                       </span>
                     </div>
+                    {chargeTaxes && (
+                      <Field className="mt-2">
+                        <FieldLabel>Tax Percentage (%)</FieldLabel>
+                        <Input
+                          placeholder="Enter tax percentage"
+                          type="number"
+                          step="0.01"
+                          className="h-8 w-full"
+                        />
+                      </Field>
+                    )}
                     <FieldSeparator className="mt-2" />
                     <div className="flex items-center mt-2 gap-2">
                       <Switch />
@@ -185,4 +289,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;

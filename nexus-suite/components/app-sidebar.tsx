@@ -54,6 +54,7 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { rolesData } from "@/app/hr/roles/data";
 
 const data = {
   user: {
@@ -416,7 +417,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             user
               ? {
                   name: user.name,
-                  email: user.email,
+                  email: user.role
+                    ? user.role.replace("ROLE_", "").replaceAll("_", " ")
+                    : "No Role",
                   avatar: user.avatar || "/avatars/default.jpg"
                 }
               : data.user

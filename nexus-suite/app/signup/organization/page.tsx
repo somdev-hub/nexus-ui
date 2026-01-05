@@ -36,7 +36,6 @@ export default function OrganizationPage() {
   const [personalData, setPersonalData] = useState<PersonalData | null>(null);
   const [orgName, setOrgName] = useState("");
   const [orgType, setOrgType] = useState("");
-  const [role, setRole] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -55,7 +54,7 @@ export default function OrganizationPage() {
     e.preventDefault();
     setError("");
 
-    if (!orgName || !orgType || !role) {
+    if (!orgName || !orgType) {
       setError("Please fill in all required fields");
       return;
     }
@@ -84,8 +83,8 @@ export default function OrganizationPage() {
       // Step 2: Create organization
       await createOrganization(userId, orgName, orgType);
 
-      // Step 3: Create people/role assignment
-      const peopleResponse = await createPeople(userId, role);
+      // Step 3: Create people/role assignment with default DIRECTOR role
+      const peopleResponse = await createPeople(userId, "DIRECTOR");
 
       // Update user in localStorage with the role from createPeople response
       const updatedUser = {
@@ -166,34 +165,6 @@ export default function OrganizationPage() {
                   <SelectItem value="RETAILER">Retailer</SelectItem>
                   <SelectItem value="SUPPLIER">Supplier</SelectItem>
                   <SelectItem value="LOGISTICS">Logistics</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2 w-full">
-              <Label htmlFor="role">Role *</Label>
-              <Select value={role} onValueChange={setRole} disabled={isLoading}>
-                <SelectTrigger id="role" className="w-full">
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="DIRECTOR">Director</SelectItem>
-                  <SelectItem value="PRODUCT_MANAGER">
-                    Product Manager
-                  </SelectItem>
-                  <SelectItem value="CLERK">Clerk</SelectItem>
-                  <SelectItem value="ACCOUNT_MANAGER">
-                    Account Manager
-                  </SelectItem>
-                  <SelectItem value="OPERATION_MANAGER">
-                    Operation Manager
-                  </SelectItem>
-                  <SelectItem value="WAREHOUSE_MANAGER">
-                    Warehouse Manager
-                  </SelectItem>
-                  <SelectItem value="FLEET_MANAGER">Fleet Manager</SelectItem>
-                  <SelectItem value="DRIVER">Driver</SelectItem>
                 </SelectContent>
               </Select>
             </div>
