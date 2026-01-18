@@ -20,7 +20,9 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import Link from "next/link";
-import { signup, createOrganization, createPeople } from "@/lib/auth-service";
+import { signup, createOrganization } from "@/lib/auth-service";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface PersonalData {
   name: string;
@@ -80,18 +82,18 @@ export default function OrganizationPage() {
 
       const userId = signupResponse.userId;
 
-      // Step 2: Create organization
-      await createOrganization(userId, orgName, orgType);
+      // Step 2: Create organization and capture orgId and role
+      const orgResponse = await createOrganization(userId, orgName, orgType);
+      const orgId = orgResponse.orgId;
+      const role = orgResponse.people[0].role.name;
 
-      // Step 3: Create people/role assignment with default DIRECTOR role
-      const peopleResponse = await createPeople(userId, "DIRECTOR");
-
-      // Update user in localStorage with the role from createPeople response
+      // Update user in localStorage with the role and orgId
       const updatedUser = {
         id: userId,
         email: personalData.email,
         name: personalData.name,
-        role: peopleResponse.role,
+        role: role,
+        organizationId: orgId,
         avatar: `/avatars/${personalData.name}.jpg`
       };
       localStorage.setItem("auth_user", JSON.stringify(updatedUser));
@@ -99,12 +101,15 @@ export default function OrganizationPage() {
       // Clear sessionStorage after successful signup
       sessionStorage.removeItem("signupPersonalData");
 
+      toast.success("Account created successfully!");
+
       // Redirect to dashboard
       router.push("/retailer/dashboard");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Signup failed. Please try again."
-      );
+      const errorMessage =
+        err instanceof Error ? err.message : "Signup failed. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -126,6 +131,7 @@ export default function OrganizationPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Toaster position="top-right" richColors />
       <Card className="w-full max-w-md p-4 gap-2">
         <CardHeader className="p-0">
           <CardTitle className="text-2xl">Organization Details</CardTitle>

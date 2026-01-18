@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+import { addUser, createPeople } from "@/lib/auth-service";
 
 export default function AddEmployeePage() {
   const [formData, setFormData] = useState({
@@ -81,31 +82,25 @@ export default function AddEmployeePage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/iam/users/add", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          role: formData.role,
-          joinDate: formData.joinDate,
-          salary: formData.salary,
-          address: formData.address,
-          notes: formData.notes
-        })
-      });
+      // Step 1: Add user
+      const addUserResponse = await addUser(
+        formData.fullName,
+        formData.email,
+        formData.phone,
+        formData.joinDate,
+        formData.salary ? parseFloat(formData.salary) : 0,
+        formData.address,
+        formData.notes,
+        formData.role,
+        localStorage.getItem("org_id")
+      );
 
-      if (!response.ok) {
-        throw new Error("Failed to add employee");
-      }
+      // Step 2: Assign role to user
+      await createPeople(addUserResponse.userId, formData.role);
 
-      const data = await response.json();
       setCredentials({
-        email: data.email,
-        password: data.password
+        email: addUserResponse.email,
+        password: addUserResponse.password
       });
       setShowCredentials(true);
       toast.success("Employee added successfully");

@@ -1,3 +1,4 @@
+import { ca } from "date-fns/locale";
 import apiClient, { setAccessToken, clearAccessToken } from "./api-client";
 
 export interface LoginRequest {
@@ -30,27 +31,55 @@ export interface AuthResponse {
   refreshToken: string;
   tokenType: string;
   expiresIn: number;
-  userId: string;
-  username: string;
-  role: UserRole;
-  user?: {
+  user: {
     id: string;
     email: string;
     name: string;
     role: UserRole;
+    orgId?: string;
     avatar?: string;
   };
 }
 
+export interface ApiAuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+  userId: string;
+  orgId: string;
+  name: string;
+  role: UserRole;
+  email: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  orgId?: string;
+  avatar?: string;
+}
+
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   try {
-    const response = await apiClient.post<AuthResponse>(
+    const response = await apiClient.post<ApiAuthResponse>(
       "/iam/auth/login",
       credentials
     );
 
-    const { accessToken, refreshToken, expiresIn, userId, username, role } =
-      response.data;
+    const {
+      accessToken,
+      refreshToken,
+      tokenType,
+      expiresIn,
+      userId,
+      orgId,
+      name,
+      role,
+      email
+    } = response.data;
 
     // Store access token in memory
     setAccessToken(accessToken);
@@ -59,22 +88,20 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
     // (via Set-Cookie header with withCredentials: true)
 
     // Transform response to user object for storage
-    const user = {
+    const user: User = {
       id: userId,
-      email: credentials.email,
-      name: username,
+      email: email,
+      name: name,
       role: role,
-      avatar: `/avatars/${username}.jpg`
+      orgId: orgId,
+      avatar: `/avatars/${name}.jpg`
     };
 
     return {
       accessToken,
       refreshToken,
-      tokenType: response.data.tokenType,
-      expiresIn,
-      userId,
-      username,
-      role,
+      tokenType: tokenType,
+      expiresIn: expiresIn,
       user
     };
   } catch (error: unknown) {
@@ -85,35 +112,45 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
 
 export async function signup(data: SignupRequest): Promise<AuthResponse> {
   try {
-    const response = await apiClient.post<AuthResponse>("/iam/auth/register", {
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      phone: data.phone,
-      address: data.address,
-      profilePhoto: data.profilePhoto || ""
-    });
+    const response = await apiClient.post<ApiAuthResponse>(
+      "/iam/auth/register",
+      {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        phone: data.phone,
+        address: data.address,
+        profilePhoto: data.profilePhoto || ""
+      }
+    );
 
-    const { accessToken, refreshToken, expiresIn, userId, username, role } =
-      response.data;
+    const {
+      accessToken,
+      refreshToken,
+      tokenType,
+      expiresIn,
+      userId,
+      orgId,
+      name,
+      role,
+      email
+    } = response.data;
     setAccessToken(accessToken);
 
-    const user = {
+    const user: User = {
       id: userId,
-      email: data.email,
-      name: data.name,
+      email: email,
+      name: name,
       role: role,
-      avatar: `/avatars/${username}.jpg`
+      orgId: orgId,
+      avatar: `/avatars/${name}.jpg`
     };
 
     return {
       accessToken,
       refreshToken,
-      tokenType: response.data.tokenType,
+      tokenType: tokenType,
       expiresIn,
-      userId,
-      username,
-      role,
       user
     };
   } catch (error: unknown) {
@@ -150,16 +187,63 @@ export async function createOrganization(
   userId: string,
   orgName: string,
   orgType: string
-): Promise<{ organizationId: string }> {
+): Promise<{
+  orgId: number;
+  orgName: string;
+  orgType: string;
+  trustScore: number;
+  createdAt: string;
+  people: Array<{
+    role: {
+      id: number;
+      name: string;
+    };
+    user: {
+      address: string;
+      createdAt: string;
+      email: string;
+      joiningDate: string | null;
+      name: string;
+      notes: string | null;
+      organizationId: string | null;
+      peopleId: string | null;
+      phone: string;
+      profilePhoto: string | null;
+      salary: string | null;
+    };
+  }>;
+}> {
   try {
-    const response = await apiClient.post<{ organizationId: string }>(
-      `/iam/organizations/add?member=${userId}`,
-      {
-        orgName,
-        orgType,
-        trustScore: 0
-      }
-    );
+    const response = await apiClient.post<{
+      orgId: number;
+      orgName: string;
+      orgType: string;
+      trustScore: number;
+      createdAt: string;
+      people: Array<{
+        role: {
+          id: number;
+          name: string;
+        };
+        user: {
+          address: string;
+          createdAt: string;
+          email: string;
+          joiningDate: string | null;
+          name: string;
+          notes: string | null;
+          organizationId: string | null;
+          peopleId: string | null;
+          phone: string;
+          profilePhoto: string | null;
+          salary: string | null;
+        };
+      }>;
+    }>(`/iam/organizations/add?member=${userId}`, {
+      orgName,
+      orgType,
+      trustScore: 0
+    });
     return response.data;
   } catch (error: unknown) {
     throw new Error(
@@ -183,6 +267,67 @@ export async function createPeople(
     return response.data;
   } catch (error: unknown) {
     throw new Error(`People creation failed: ${(error as Error).message}`);
+  }
+}
+
+export async function createPeopleWithOrg(
+  userId: string,
+  orgId: number,
+  role: string
+): Promise<{ role: string }> {
+  try {
+    const response = await apiClient.post<{ role: string }>(
+      `/iam/people/create-with-org`,
+      {
+        userId,
+        orgId,
+        role
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `People creation with org failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function addUser(
+  fullName: string,
+  email: string,
+  phone: string,
+  joiningDate: string,
+  salary: number,
+  address: string,
+  notes: string,
+  role: string,
+  orgId: string
+): Promise<{
+  email: string;
+  password: string;
+  message: string;
+  userId: string;
+}> {
+  try {
+    const response = await apiClient.post<{
+      email: string;
+      password: string;
+      message: string;
+      userId: string;
+    }>(`/iam/users/add`, {
+      name: fullName,
+      email,
+      phone,
+      joiningDate,
+      salary,
+      address,
+      notes,
+      role,
+      orgId
+    });
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Add user failed: ${(error as Error).message}`);
   }
 }
 

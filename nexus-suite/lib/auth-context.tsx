@@ -1,15 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { login, logout, getCurrentUser, UserRole } from "./auth-service";
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  avatar?: string;
-}
+import { login, logout, getCurrentUser, User } from "./auth-service";
 
 interface AuthContextType {
   user: User | null;
@@ -46,17 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await login({ email, password });
 
-      const user: User = {
-        id: response.username,
-        email: email,
-        name: response.username,
-        role: response.role,
-        avatar: `/avatars/${response.username}.jpg`
-      };
-
       // Store user in localStorage only (not the token)
-      localStorage.setItem("auth_user", JSON.stringify(user));
-      setUser(user);
+      localStorage.setItem("auth_user", JSON.stringify(response.user));
+      setUser(response.user || null);
       // Access token already set in memory by setAccessToken()
     } catch (error) {
       throw error;
