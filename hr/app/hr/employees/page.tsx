@@ -1,6 +1,7 @@
 "use client";
 
 import { HRTable, type ColumnDef } from "@/components/hr-table";
+import { EmployeeFilter } from "@/components/employee-filter";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +11,17 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Eye, Edit, Trash2, Loader2, TrendingUp } from "lucide-react";
+import {
+  Eye,
+  Edit,
+  Trash2,
+  Loader2,
+  TrendingUp,
+  Users,
+  Building2,
+  Users2,
+  AlertCircle
+} from "lucide-react";
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import { Toaster } from "@/components/ui/sonner";
@@ -27,10 +38,13 @@ interface Employee {
   status: "Active" | "On Leave" | "Inactive";
   joinDate: string;
   salary: number;
+  gender?: "Male" | "Female" | "Other";
+  noticePerioddDays?: number;
 }
 
 export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [filteredEmployees, setFilteredEmployees] = useState(dummyEmployees);
   // Using dummy data from data.ts
   const [isLoading] = useState(false);
 
@@ -93,16 +107,52 @@ export default function EmployeesPage() {
   }, []);
   */
 
-  // Filter employees based on search term
-  const filteredEmployees = useMemo(
+  // Filter employees based on search term and filter state
+  const searchFilteredEmployees = useMemo(
     () =>
-      dummyEmployees.filter(
+      filteredEmployees.filter(
         (emp) =>
           emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           emp.email.toLowerCase().includes(searchTerm.toLowerCase())
       ),
-    [searchTerm]
+    [searchTerm, filteredEmployees]
   );
+
+  // Calculate metrics based on filtered employees
+  const metrics = useMemo(() => {
+    const totalEmployees = filteredEmployees.length;
+
+    // Department/Employee ratio
+    const deptRatio = filteredEmployees.reduce(
+      (acc, emp) => {
+        acc[emp.department] = (acc[emp.department] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Gender ratio
+    const genderRatio = filteredEmployees.reduce(
+      (acc, emp) => {
+        const gender = emp.gender || "Other";
+        acc[gender] = (acc[gender] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Employees on notice period
+    const onNoticePeriod = filteredEmployees.filter(
+      (emp) => emp.noticePerioddDays && emp.noticePerioddDays > 0
+    ).length;
+
+    return {
+      totalEmployees,
+      deptRatio,
+      genderRatio,
+      onNoticePeriod
+    };
+  }, [filteredEmployees]);
 
   const columns: ColumnDef<Employee>[] = [
     {
@@ -197,13 +247,84 @@ export default function EmployeesPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-xs"
         />
+        <EmployeeFilter
+          employees={dummyEmployees}
+          onFilterChange={setFilteredEmployees}
+        />
+      </div>
+
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Employees */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">
+              Total Employees
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-2xl font-bold">{metrics.totalEmployees}</div>
+            <p className="text-xs text-muted-foreground">Active workforce</p>
+          </CardContent>
+        </Card>
+
+        {/* Department/Employee Ratio */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">Departments</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-2xl font-bold">
+              {Object.keys(metrics.deptRatio).length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {Object.entries(metrics.deptRatio)
+                .map(([dept, count]) => `${dept}: ${count}`)
+                .join(", ")}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Gender Ratio */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">Gender Ratio</CardTitle>
+            <Users2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-sm font-bold">
+              {Object.entries(metrics.genderRatio)
+                .map(([gender, count]) => `${gender}: ${count}`)
+                .join(" • ")}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Workforce composition
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Employees on Notice Period */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">
+              On Notice Period
+            </CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-2xl font-bold">{metrics.onNoticePeriod}</div>
+            <p className="text-xs text-muted-foreground">Upcoming departures</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="p-4 gap-2">
         <CardHeader className="p-0">
           <CardTitle>Employee Directory</CardTitle>
           <CardDescription>
-            Total Employees: {filteredEmployees.length}
+            Total Employees: {searchFilteredEmployees.length}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -212,7 +333,7 @@ export default function EmployeesPage() {
               <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
             </div>
           ) : (
-            <HRTable columns={columns} data={filteredEmployees} />
+            <HRTable columns={columns} data={searchFilteredEmployees} />
           )}
         </CardContent>
       </Card>

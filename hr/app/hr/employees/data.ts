@@ -7,6 +7,8 @@ export interface Employee {
   status: "Active" | "On Leave" | "Inactive";
   joinDate: string;
   salary: number;
+  gender?: "Male" | "Female" | "Other";
+  noticePerioddDays?: number;
   payBreakdown?: {
     baseSalary: number;
     bonus: number;
@@ -37,6 +39,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2023-01-15",
     salary: 85000,
+    gender: "Male",
+    noticePerioddDays: 0,
     payBreakdown: {
       baseSalary: 70000,
       bonus: 10000,
@@ -87,6 +91,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2022-06-20",
     salary: 72000,
+    gender: "Female",
+    noticePerioddDays: 30,
     payBreakdown: {
       baseSalary: 60000,
       bonus: 8000,
@@ -125,6 +131,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2023-03-10",
     salary: 78000,
+    gender: "Male",
+    noticePerioddDays: 0,
     payBreakdown: {
       baseSalary: 65000,
       bonus: 10000,
@@ -157,6 +165,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2022-11-05",
     salary: 65000,
+    gender: "Female",
+    noticePerioddDays: 0,
     payBreakdown: {
       baseSalary: 55000,
       bonus: 7000,
@@ -182,6 +192,8 @@ export const employees: Employee[] = [
     status: "On Leave",
     joinDate: "2023-02-01",
     salary: 58000,
+    gender: "Male",
+    noticePerioddDays: 60,
     payBreakdown: {
       baseSalary: 50000,
       bonus: 5000,
@@ -207,6 +219,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2021-09-12",
     salary: 70000,
+    gender: "Female",
+    noticePerioddDays: 0,
     payBreakdown: {
       baseSalary: 58000,
       bonus: 9000,
@@ -245,6 +259,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2023-08-22",
     salary: 55000,
+    gender: "Male",
+    noticePerioddDays: 0,
     payBreakdown: {
       baseSalary: 48000,
       bonus: 4000,
@@ -270,6 +286,8 @@ export const employees: Employee[] = [
     status: "Active",
     joinDate: "2022-04-18",
     salary: 68000,
+    gender: "Female",
+    noticePerioddDays: 0,
     payBreakdown: {
       baseSalary: 57000,
       bonus: 8000,
