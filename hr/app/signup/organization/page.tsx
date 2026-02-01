@@ -104,7 +104,7 @@ export default function OrganizationPage() {
       toast.success("Account created successfully!");
 
       // Redirect to dashboard
-      router.push("/retailer/dashboard");
+      router.push("/hr");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Signup failed. Please try again.";

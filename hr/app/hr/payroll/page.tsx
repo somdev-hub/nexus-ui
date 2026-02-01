@@ -293,26 +293,21 @@ export default function PayrollPage() {
             Comprehensive payroll dashboard with salary analysis and processing
           </p>
         </div>
-      </div>
-
-      {/* Month Filter at Top */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Select Month:</span>
-        <Select value={filterMonth} onValueChange={setFilterMonth}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Months</SelectItem>
-            <SelectItem value="December 2024">December 2024</SelectItem>
-            <SelectItem value="November 2024">November 2024</SelectItem>
-            <SelectItem value="October 2024">October 2024</SelectItem>
-            <SelectItem value="September 2024">September 2024</SelectItem>
-            <SelectItem value="August 2024">August 2024</SelectItem>
-            <SelectItem value="July 2024">July 2024</SelectItem>
-            <SelectItem value="February 2026">February 2026</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Month Filter at Top */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Select Month:</span>
+          <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              <SelectItem value="February 2026">February 2026</SelectItem>
+              <SelectItem value="January 2026">January 2026</SelectItem>
+              <SelectItem value="December 2025">December 2025</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Key Metrics Cards - Top Row */}
@@ -513,7 +508,7 @@ export default function PayrollPage() {
 
       {/* Payment Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto no-scrollbar">
           <DialogHeader>
             <DialogTitle>Payment Details</DialogTitle>
             <DialogDescription>

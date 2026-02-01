@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/retailer/dashboard");
+      router.push("/hr");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Login failed. Please try again."

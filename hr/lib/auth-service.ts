@@ -65,7 +65,7 @@ export interface User {
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   // Dummy auth flow for development mode
-  if (GlobalConfig.wowoFeatures.disableAuth) {
+  if (GlobalConfig.wowoFeatures.auth) {
     // Create a dummy user from any credentials
     const dummyUser: User = {
       id: "dev-user-" + Date.now(),
@@ -138,7 +138,7 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
 
 export async function signup(data: SignupRequest): Promise<AuthResponse> {
   // Dummy auth flow for development mode
-  if (GlobalConfig.wowoFeatures.disableAuth) {
+  if (GlobalConfig.wowoFeatures.auth) {
     // Create a dummy user from signup data
     const dummyUser: User = {
       id: "dev-user-" + Date.now(),
@@ -219,7 +219,7 @@ export async function logout(): Promise<void> {
 
 export async function refreshToken(): Promise<string> {
   // Dummy token refresh for development mode
-  if (GlobalConfig.wowoFeatures.disableAuth) {
+  if (GlobalConfig.wowoFeatures.auth) {
     const dummyToken = "dev-token-" + Date.now();
     setAccessToken(dummyToken);
     return dummyToken;
