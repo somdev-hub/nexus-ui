@@ -1113,6 +1113,64 @@ export default function EmployeeDetailPage(props: PageProps) {
             </CardContent>
           </Card>
 
+          {/* Leave Balance Card */}
+          <Card className="p-4">
+            <CardHeader className="p-0">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Leave Balance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 space-y-4">
+              {(() => {
+                const leaveData = {
+                  casual: { total: 12, used: 3, remaining: 9 },
+                  sick: { total: 10, used: 2, remaining: 8 },
+                  earned: { total: 20, used: 5, remaining: 15 },
+                  maternity: { total: 180, used: 0, remaining: 180 }
+                };
+
+                return (
+                  <div className="space-y-3">
+                    {Object.entries(leaveData).map(([type, data]) => (
+                      <div
+                        key={type}
+                        className="p-3 bg-gray-50 rounded border border-gray-200"
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium text-gray-700 capitalize">
+                            {type} Leave
+                          </span>
+                          <Badge variant="outline" className="bg-blue-50">
+                            {data.remaining}/{data.total}
+                          </Badge>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all ${
+                              data.remaining > data.total * 0.5
+                                ? "bg-green-500"
+                                : data.remaining > data.total * 0.25
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
+                            }`}
+                            style={{
+                              width: `${(data.remaining / data.total) * 100}%`
+                            }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Used: {data.used}</span>
+                          <span>Remaining: {data.remaining}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
           {/* Compensation Card */}
           <Card className="p-4">
             <CardHeader className="p-0">
