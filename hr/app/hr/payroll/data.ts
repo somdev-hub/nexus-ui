@@ -1,20 +1,4 @@
-export interface PayrollRecord {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  department: string;
-  position: string;
-  month: string;
-  baseSalary: number;
-  bonus: number;
-  deductions: number;
-  netSalary: number;
-  overtimeCost: number;
-  absentDays: number;
-  allowances: number;
-  totalPayout: number;
-  status: "Processed" | "Pending" | "On Hold";
-}
+import type { PayrollRecord } from "@/types";
 
 export const payrollData: PayrollRecord[] = [
   {

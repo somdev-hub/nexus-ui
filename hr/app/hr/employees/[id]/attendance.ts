@@ -1,11 +1,4 @@
-export type AttendanceStatus = "present" | "absent" | "leave" | "partial";
-
-export interface AttendanceRecord {
-  date: string; // YYYY-MM-DD format
-  status: AttendanceStatus;
-  hoursWorked?: number;
-  threshold?: number; // hours threshold for partial status
-}
+import type { AttendanceStatus, AttendanceRecord } from "@/types";
 
 // Generate dummy attendance data for the past year
 export function generateDummyAttendance(

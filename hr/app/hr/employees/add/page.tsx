@@ -29,50 +29,33 @@ import {
 import { Copy, Check, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { addUser, createPeople } from "@/lib/auth-service";
-
-interface BankRecord {
-  bankName: string;
-  accountHolderName: string;
-  accountNumber: string;
-  ifscCode: string;
-  accountType: string;
-  branchAddress: string;
-}
-
-interface Bonus {
-  bonusType: string;
-  amount: number;
-  percentageOfSalary: number;
-  issuesOn: string;
-  updatedOn: string;
-  expiresOn: string;
-}
-
-interface Deduction {
-  deductionType: string;
-  amount: number;
-  description: string;
-  percentageOfSalary: number;
-  issuedOn: string;
-  updatedOn: string;
-  expiresOn: string;
-}
-
-interface CompensationData {
-  basePay: number;
-  hra: number;
-  gratuity: number;
-  pr: number;
-  netPay: number;
-  annualPackage: string;
-  total: number;
-  netMonthlyPay: number;
-  bonuses: Bonus[];
-  deductions: Bonus[];
-  bankRecords: BankRecord[];
-}
-
+import type { BankRecord, CompensationData, Bonus, Deduction } from "@/types";
 export default function AddEmployeePage() {
+  const computeTotals = (
+    basePay: number,
+    bonuses: Bonus[],
+    deductions: Deduction[]
+  ) => {
+    const hra = basePay * 0.5;
+    const pf = basePay * 0.12;
+    const gratuity = basePay * 0.0481;
+    const grossCore = basePay + hra + gratuity;
+    const totalBonus = bonuses.reduce((sum, b) => sum + b.amount, 0);
+    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
+    const grossPay = grossCore + totalBonus;
+    const netBeforeInsurance = grossPay - pf - totalDeductions;
+    const insurancePremium = netBeforeInsurance * 0.02;
+    const netPay = netBeforeInsurance - insurancePremium;
+    return {
+      hra,
+      pf,
+      gratuity,
+      grossPay,
+      insurancePremium,
+      netPay
+    };
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -89,13 +72,12 @@ export default function AddEmployeePage() {
   });
   const [compensation, setCompensation] = useState<CompensationData>({
     basePay: 0,
-    hra: 0,
-    gratuity: 0,
-    pr: 0,
-    netPay: 0,
-    annualPackage: "",
-    total: 0,
-    netMonthlyPay: 0,
+    hra: 0, // 50% of basePay (auto-calculated)
+    pf: 0, // 12% of basePay (auto-calculated)
+    gratuity: 0, // 4.81% of basePay (auto-calculated)
+    insurancePremium: 0, // 2% of netPay (auto-calculated)
+    grossPay: 0, // auto-calculated
+    netPay: 0, // auto-calculated
     bonuses: [],
     deductions: [],
     bankRecords: []
@@ -112,18 +94,14 @@ export default function AddEmployeePage() {
     bonusType: "",
     amount: 0,
     percentageOfSalary: 0,
-    issuesOn: new Date().toISOString().split("T")[0],
-    updatedOn: new Date().toISOString().split("T")[0],
-    expiresOn: ""
+    expiresOn: new Date()
   });
   const [deduction, setDeduction] = useState<Deduction>({
     deductionType: "",
     amount: 0,
     description: "",
     percentageOfSalary: 0,
-    issuedOn: new Date().toISOString().split("T")[0],
-    updatedOn: new Date().toISOString().split("T")[0],
-    expiresOn: ""
+    expiresOn: new Date()
   });
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [hrDocuments, setHrDocuments] = useState<File[]>([]);
@@ -246,58 +224,88 @@ export default function AddEmployeePage() {
   };
 
   const addBonus = () => {
-    if (!bonus.bonusType || bonus.amount === 0) {
+    if (
+      !bonus.bonusType ||
+      (bonus.amount === 0 && bonus.percentageOfSalary === 0)
+    ) {
       toast.error("Please fill bonus details");
       return;
     }
-    setCompensation((prev) => ({
-      ...prev,
-      bonuses: [...prev.bonuses, bonus]
-    }));
+    setCompensation((prev) => {
+      const amount = prev.basePay * (bonus.percentageOfSalary / 100);
+      const newBonus = { ...bonus, amount };
+      const bonuses = [...prev.bonuses, newBonus];
+      const totals = computeTotals(prev.basePay, bonuses, prev.deductions);
+
+      return {
+        ...prev,
+        bonuses,
+        ...totals
+      };
+    });
     setBonus({
       bonusType: "",
       amount: 0,
       percentageOfSalary: 0,
-      issuesOn: new Date().toISOString().split("T")[0],
-      updatedOn: new Date().toISOString().split("T")[0],
-      expiresOn: ""
+      expiresOn: new Date()
     });
     toast.success("Bonus added");
   };
 
   const removeBonus = (index: number) => {
-    setCompensation((prev) => ({
-      ...prev,
-      bonuses: prev.bonuses.filter((_, i) => i !== index)
-    }));
+    setCompensation((prev) => {
+      const bonuses = prev.bonuses.filter((_, i) => i !== index);
+      const totals = computeTotals(prev.basePay, bonuses, prev.deductions);
+
+      return {
+        ...prev,
+        bonuses,
+        ...totals
+      };
+    });
   };
 
   const addDeduction = () => {
-    if (!deduction.deductionType || deduction.amount === 0) {
+    if (
+      !deduction.deductionType ||
+      (deduction.amount === 0 && deduction.percentageOfSalary === 0)
+    ) {
       toast.error("Please fill deduction details");
       return;
     }
-    setCompensation((prev) => ({
-      ...prev,
-      deductions: [...prev.deductions, deduction]
-    }));
+    setCompensation((prev) => {
+      const amount = prev.basePay * (deduction.percentageOfSalary / 100);
+      const newDeduction = { ...deduction, amount };
+      const deductions = [...prev.deductions, newDeduction];
+      const totals = computeTotals(prev.basePay, prev.bonuses, deductions);
+
+      return {
+        ...prev,
+        deductions,
+        ...totals
+      };
+    });
     setDeduction({
       deductionType: "",
       amount: 0,
       description: "",
       percentageOfSalary: 0,
-      issuedOn: new Date().toISOString().split("T")[0],
-      updatedOn: new Date().toISOString().split("T")[0],
-      expiresOn: ""
+      expiresOn: new Date()
     });
     toast.success("Deduction added");
   };
 
   const removeDeduction = (index: number) => {
-    setCompensation((prev) => ({
-      ...prev,
-      deductions: prev.deductions.filter((_, i) => i !== index)
-    }));
+    setCompensation((prev) => {
+      const deductions = prev.deductions.filter((_, i) => i !== index);
+      const totals = computeTotals(prev.basePay, prev.bonuses, deductions);
+
+      return {
+        ...prev,
+        deductions,
+        ...totals
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -733,7 +741,7 @@ export default function AddEmployeePage() {
             </div>
 
             <Dialog open={showCompensation} onOpenChange={setShowCompensation}>
-              <DialogContent className="p-0">
+              <DialogContent className="p-0 max-w-3xl">
                 <DialogHeader className="px-4 pt-4">
                   <DialogTitle>Compensation & Bank Details</DialogTitle>
                   <DialogDescription>
@@ -749,133 +757,78 @@ export default function AddEmployeePage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Field>
-                        <FieldLabel>Base Pay</FieldLabel>
+                        <FieldLabel>Base Pay *</FieldLabel>
                         <FieldContent>
                           <Input
                             type="number"
                             value={compensation.basePay}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const basePay = parseFloat(e.target.value) || 0;
+                              // Recompute bonus/deduction amounts from percentages based on new basePay
+                              const updatedBonuses = compensation.bonuses.map(
+                                (b) => ({
+                                  ...b,
+                                  amount: basePay * (b.percentageOfSalary / 100)
+                                })
+                              );
+                              const updatedDeductions =
+                                compensation.deductions.map((d) => ({
+                                  ...d,
+                                  amount: basePay * (d.percentageOfSalary / 100)
+                                }));
+                              const totals = computeTotals(
+                                basePay,
+                                updatedBonuses,
+                                updatedDeductions
+                              );
                               setCompensation((prev) => ({
                                 ...prev,
-                                basePay: parseFloat(e.target.value) || 0
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>HRA</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            type="number"
-                            value={compensation.hra}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                hra: parseFloat(e.target.value) || 0
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>Gratuity</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            type="number"
-                            value={compensation.gratuity}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                gratuity: parseFloat(e.target.value) || 0
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>PR (Professional Requisites)</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            type="number"
-                            value={compensation.pr}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                pr: parseFloat(e.target.value) || 0
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>Net Pay</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            type="number"
-                            value={compensation.netPay}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                netPay: parseFloat(e.target.value) || 0
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>Net Monthly Pay</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            type="number"
-                            value={compensation.netMonthlyPay}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                netMonthlyPay: parseFloat(e.target.value) || 0
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>Annual Package</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            value={compensation.annualPackage}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                annualPackage: e.target.value
-                              }))
-                            }
-                            placeholder="e.g., 2.5LPA"
-                          />
-                        </FieldContent>
-                      </Field>
-                      <Field>
-                        <FieldLabel>Total</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            type="number"
-                            value={compensation.total}
-                            onChange={(e) =>
-                              setCompensation((prev) => ({
-                                ...prev,
-                                total: parseFloat(e.target.value) || 0
-                              }))
-                            }
+                                basePay,
+                                ...totals,
+                                bonuses: updatedBonuses,
+                                deductions: updatedDeductions
+                              }));
+                            }}
                             placeholder="0"
                           />
                         </FieldContent>
                       </Field>
                     </div>
+
+                    {/* Auto-calculated fields display */}
+                    {compensation.basePay > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-4 space-y-3">
+                        <p className="text-sm font-medium text-blue-900">
+                          Auto-Calculated Components (from base pay):
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-600">HRA (50%)</p>
+                            <p className="font-semibold">
+                              ${compensation.hra.toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">PF (12%)</p>
+                            <p className="font-semibold">
+                              ${compensation.pf.toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Gratuity (4.81%)</p>
+                            <p className="font-semibold">
+                              ${compensation.gratuity.toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Insurance (2%)</p>
+                            <p className="font-semibold">
+                              ${compensation.insurancePremium.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Bonuses */}
@@ -895,22 +848,6 @@ export default function AddEmployeePage() {
                                 }))
                               }
                               placeholder="e.g., Travel Allowance"
-                            />
-                          </FieldContent>
-                        </Field>
-                        <Field>
-                          <FieldLabel>Amount</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              type="number"
-                              value={bonus.amount}
-                              onChange={(e) =>
-                                setBonus((prev) => ({
-                                  ...prev,
-                                  amount: parseFloat(e.target.value) || 0
-                                }))
-                              }
-                              placeholder="0"
                             />
                           </FieldContent>
                         </Field>
@@ -936,13 +873,20 @@ export default function AddEmployeePage() {
                           <FieldContent>
                             <Input
                               type="date"
-                              value={bonus.expiresOn}
-                              onChange={(e) =>
+                              value={
+                                bonus.expiresOn instanceof Date
+                                  ? bonus.expiresOn.toISOString().split("T")[0]
+                                  : bonus.expiresOn || ""
+                              }
+                              onChange={(e) => {
+                                const date = e.target.value
+                                  ? new Date(e.target.value)
+                                  : new Date();
                                 setBonus((prev) => ({
                                   ...prev,
-                                  expiresOn: e.target.value
-                                }))
-                              }
+                                  expiresOn: date
+                                }));
+                              }}
                             />
                           </FieldContent>
                         </Field>
@@ -1006,22 +950,6 @@ export default function AddEmployeePage() {
                           </FieldContent>
                         </Field>
                         <Field>
-                          <FieldLabel>Amount</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              type="number"
-                              value={deduction.amount}
-                              onChange={(e) =>
-                                setDeduction((prev) => ({
-                                  ...prev,
-                                  amount: parseFloat(e.target.value) || 0
-                                }))
-                              }
-                              placeholder="0"
-                            />
-                          </FieldContent>
-                        </Field>
-                        <Field>
                           <FieldLabel>Description</FieldLabel>
                           <FieldContent>
                             <Input
@@ -1058,13 +986,22 @@ export default function AddEmployeePage() {
                           <FieldContent>
                             <Input
                               type="date"
-                              value={deduction.expiresOn}
-                              onChange={(e) =>
+                              value={
+                                deduction.expiresOn instanceof Date
+                                  ? deduction.expiresOn
+                                      .toISOString()
+                                      .split("T")[0]
+                                  : deduction.expiresOn || ""
+                              }
+                              onChange={(e) => {
+                                const date = e.target.value
+                                  ? new Date(e.target.value)
+                                  : new Date();
                                 setDeduction((prev) => ({
                                   ...prev,
-                                  expiresOn: e.target.value
-                                }))
-                              }
+                                  expiresOn: date
+                                }));
+                              }}
                             />
                           </FieldContent>
                         </Field>
@@ -1109,6 +1046,27 @@ export default function AddEmployeePage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Pay Summary */}
+                  {compensation.basePay > 0 && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <h3 className="font-semibold text-lg">Pay Summary</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-gray-600">Gross Pay</p>
+                          <p className="font-semibold text-green-600">
+                            ${compensation.grossPay.toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Net Pay</p>
+                          <p className="font-semibold text-green-700">
+                            ${compensation.netPay.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Bank Details */}
                   <div className="border rounded-lg p-4 space-y-4">
@@ -1258,7 +1216,7 @@ export default function AddEmployeePage() {
                 <DialogFooter className="bg-muted p-4">
                   <div className="flex gap-4">
                     <Button
-                    className="w-full flex-1"
+                      className="w-full flex-1"
                       type="button"
                       variant="outline"
                       onClick={() => setShowCompensation(false)}
@@ -1267,7 +1225,6 @@ export default function AddEmployeePage() {
                       Back
                     </Button>
                     <Button
-                    
                       type="button"
                       onClick={completeCompensation}
                       disabled={isLoading}

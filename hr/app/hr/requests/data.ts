@@ -1,44 +1,9 @@
-export type RequestType =
-  | "LEAVE_APPLICATION"
-  | "SALARY_ADVANCE"
-  | "RESIGNATION"
-  | "TRANSFER_REQUEST"
-  | "PROMOTION_REQUEST"
-  | "TRAINING_REQUEST"
-  | "BULK_REGULARIZATION"
-  | "WEEKLY_OFF";
-
-export type RequestStatus = "Pending" | "Approved" | "Rejected" | "In Scrutiny";
-
-export type LeaveBalanceType =
-  | "Sick Leave"
-  | "Earned Leave"
-  | "Casual Leave"
-  | "Personal Leave"
-  | "Compensatory Off";
-
-export interface EmployeeRequest {
-  id: string;
-  slNo: number;
-  employeeName: string;
-  employeeId: string;
-  department?: string;
-  role?: string;
-  requestReceivedDate: string;
-  requestType: RequestType;
-  currentStatus: RequestStatus;
-  remarks?: string;
-  comment?: string;
-  // For LEAVE_APPLICATION
-  fromDate?: string;
-  toDate?: string;
-  leaveBalanceUsed?: number;
-  leaveBalanceType?: LeaveBalanceType;
-  // For WEEKLY_OFF and BULK_REGULARIZATION
-  checkInHours?: string;
-  checkOutHours?: string;
-  halfDay?: boolean;
-}
+import type {
+  RequestType,
+  RequestStatus,
+  LeaveBalanceType,
+  EmployeeRequest
+} from "@/types";
 
 export const requests: EmployeeRequest[] = [
   {

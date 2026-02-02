@@ -1,13 +1,4 @@
-export interface AttendanceRecord {
-  id: string;
-  date: string;
-  employeeId: string;
-  employeeName: string;
-  checkIn: string;
-  checkOut: string;
-  hoursWorked: string;
-  status: "Present" | "Absent" | "Late" | "Half Day";
-}
+import type { AttendanceRecord } from "@/types";
 
 export const attendanceData: AttendanceRecord[] = [
   {

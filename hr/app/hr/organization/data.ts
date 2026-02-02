@@ -1,0 +1,273 @@
+import type { Department, RoleRecord, RoleCompensation } from "@/types";
+
+export const departmentsData: Department[] = [
+  {
+    id: "DEPT001",
+    name: "Engineering",
+    employeeCount: 12,
+    head: "John Doe",
+    budget: 1200000
+  },
+  {
+    id: "DEPT002",
+    name: "Marketing",
+    employeeCount: 8,
+    head: "Sarah Smith",
+    budget: 400000
+  },
+  {
+    id: "DEPT003",
+    name: "Sales",
+    employeeCount: 15,
+    head: "Michael Johnson",
+    budget: 600000
+  },
+  {
+    id: "DEPT004",
+    name: "Operations",
+    employeeCount: 6,
+    head: "David Brown",
+    budget: 300000
+  },
+  {
+    id: "DEPT005",
+    name: "HR",
+    employeeCount: 4,
+    head: "Jessica Davis",
+    budget: 200000
+  },
+  {
+    id: "DEPT006",
+    name: "Finance",
+    employeeCount: 5,
+    head: "Emma Wilson",
+    budget: 500000
+  }
+];
+
+export const rolesData: RoleRecord[] = [
+  {
+    id: "ROLE001",
+    department: "Engineering",
+    role: "Senior Developer",
+    employeeCount: 3,
+    description: "Lead developer responsible for system architecture",
+    permissions: [
+      "Create Code",
+      "Review PRs",
+      "Deploy Code",
+      "Manage Team",
+      "Access Servers"
+    ],
+    status: "Active"
+  },
+  {
+    id: "ROLE002",
+    department: "Engineering",
+    role: "Junior Developer",
+    employeeCount: 5,
+    description: "Entry-level developer for feature implementation",
+    permissions: ["Create Code", "Push Changes", "View Documentation"],
+    status: "Active"
+  },
+  {
+    id: "ROLE003",
+    department: "Engineering",
+    role: "DevOps Engineer",
+    employeeCount: 2,
+    description: "Infrastructure and deployment management",
+    permissions: [
+      "Manage Infrastructure",
+      "Deploy Code",
+      "Monitor Systems",
+      "Configure CI/CD"
+    ],
+    status: "Active"
+  },
+  {
+    id: "ROLE004",
+    department: "Marketing",
+    role: "Marketing Manager",
+    employeeCount: 2,
+    description: "Oversee marketing campaigns and strategy",
+    permissions: [
+      "Create Campaigns",
+      "Manage Budget",
+      "Analyze Reports",
+      "Team Management"
+    ],
+    status: "Active"
+  },
+  {
+    id: "ROLE005",
+    department: "Marketing",
+    role: "Content Creator",
+    employeeCount: 3,
+    description: "Create marketing content and materials",
+    permissions: ["Create Content", "Edit Assets", "Publish Content"],
+    status: "Active"
+  },
+  {
+    id: "ROLE006",
+    department: "Sales",
+    role: "Sales Manager",
+    employeeCount: 2,
+    description: "Manage sales team and targets",
+    permissions: [
+      "Manage Team",
+      "View Reports",
+      "Approve Deals",
+      "Manage Budgets"
+    ],
+    status: "Active"
+  },
+  {
+    id: "ROLE007",
+    department: "Sales",
+    role: "Sales Executive",
+    employeeCount: 8,
+    description: "Execute sales and client management",
+    permissions: ["View CRM", "Create Deals", "Track Calls", "Generate Quotes"],
+    status: "Active"
+  },
+  {
+    id: "ROLE008",
+    department: "Operations",
+    role: "Operations Manager",
+    employeeCount: 1,
+    description: "Oversee operational activities",
+    permissions: ["Manage Processes", "View Analytics", "Approve Workflows"],
+    status: "Active"
+  },
+  {
+    id: "ROLE009",
+    department: "HR",
+    role: "HR Manager",
+    employeeCount: 2,
+    description: "Manage HR operations and recruitment",
+    permissions: [
+      "Create Employee",
+      "Manage Leave",
+      "Process Payroll",
+      "Manage Policies"
+    ],
+    status: "Active"
+  },
+  {
+    id: "ROLE010",
+    department: "Finance",
+    role: "Finance Officer",
+    employeeCount: 2,
+    description: "Handle financial operations",
+    permissions: [
+      "Process Payments",
+      "Create Reports",
+      "Manage Accounts",
+      "Audit Transactions"
+    ],
+    status: "Active"
+  }
+];
+
+export const roleCompensationData: RoleCompensation[] = [
+  {
+    id: "COMP001",
+    department: "Engineering",
+    role: "Senior Developer",
+    basePay: 85000,
+    hra: 10200,
+    bonus: 15000,
+    deductions: 5000,
+    totalCompensation: 105200
+  },
+  {
+    id: "COMP002",
+    department: "Engineering",
+    role: "Junior Developer",
+    basePay: 55000,
+    hra: 6600,
+    bonus: 5000,
+    deductions: 3000,
+    totalCompensation: 63600
+  },
+  {
+    id: "COMP003",
+    department: "Engineering",
+    role: "DevOps Engineer",
+    basePay: 75000,
+    hra: 9000,
+    bonus: 12000,
+    deductions: 4500,
+    totalCompensation: 91500
+  },
+  {
+    id: "COMP004",
+    department: "Marketing",
+    role: "Marketing Manager",
+    basePay: 72000,
+    hra: 8640,
+    bonus: 10000,
+    deductions: 3500,
+    totalCompensation: 87140
+  },
+  {
+    id: "COMP005",
+    department: "Marketing",
+    role: "Content Creator",
+    basePay: 45000,
+    hra: 5400,
+    bonus: 3000,
+    deductions: 2000,
+    totalCompensation: 51400
+  },
+  {
+    id: "COMP006",
+    department: "Sales",
+    role: "Sales Manager",
+    basePay: 70000,
+    hra: 8400,
+    bonus: 20000,
+    deductions: 4000,
+    totalCompensation: 94400
+  },
+  {
+    id: "COMP007",
+    department: "Sales",
+    role: "Sales Executive",
+    basePay: 50000,
+    hra: 6000,
+    bonus: 10000,
+    deductions: 2500,
+    totalCompensation: 63500
+  },
+  {
+    id: "COMP008",
+    department: "Operations",
+    role: "Operations Manager",
+    basePay: 65000,
+    hra: 7800,
+    bonus: 8000,
+    deductions: 3000,
+    totalCompensation: 77800
+  },
+  {
+    id: "COMP009",
+    department: "HR",
+    role: "HR Manager",
+    basePay: 60000,
+    hra: 7200,
+    bonus: 7000,
+    deductions: 2500,
+    totalCompensation: 71700
+  },
+  {
+    id: "COMP010",
+    department: "Finance",
+    role: "Finance Officer",
+    basePay: 62000,
+    hra: 7440,
+    bonus: 8000,
+    deductions: 2800,
+    totalCompensation: 74640
+  }
+];

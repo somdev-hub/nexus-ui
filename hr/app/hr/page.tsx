@@ -97,77 +97,71 @@ const checkInOutData = [
   { time: "18:00", checkIn: 2, checkOut: 55 }
 ];
 
-// Expense data
-const expensesData = [
+// HR Requests data
+const hrRequestsData = [
   {
     id: 1,
     employee: "John Doe",
-    amount: "$2,400",
-    category: "Salary",
-    date: "2024-01-25"
+    type: "Leave Request",
+    reason: "Vacation",
+    submittedDate: "2024-01-25",
+    status: "Pending"
   },
   {
     id: 2,
     employee: "Jane Smith",
-    amount: "$2,210",
-    category: "Bonus",
-    date: "2024-01-24"
+    type: "Sick Leave",
+    reason: "Medical checkup",
+    submittedDate: "2024-01-24",
+    status: "Pending"
   },
   {
     id: 3,
     employee: "Mike Johnson",
-    amount: "$1,500",
-    category: "Travel",
-    date: "2024-01-23"
+    type: "Work From Home",
+    reason: "Project deadline",
+    submittedDate: "2024-01-23",
+    status: "Pending"
   },
   {
     id: 4,
     employee: "Sarah Wilson",
-    amount: "$800",
-    category: "Equipment",
-    date: "2024-01-22"
+    type: "Leave Request",
+    reason: "Personal",
+    submittedDate: "2024-01-22",
+    status: "Pending"
   },
   {
     id: 5,
     employee: "Tom Brown",
-    amount: "$2,100",
-    category: "Salary",
-    date: "2024-01-21"
+    type: "Expense Reimbursement",
+    reason: "Travel expenses",
+    submittedDate: "2024-01-21",
+    status: "Pending"
   },
   {
     id: 6,
     employee: "Alice Johnson",
-    amount: "$950",
-    category: "Travel",
-    date: "2024-01-20"
+    type: "Training Request",
+    reason: "Professional development",
+    submittedDate: "2024-01-20",
+    status: "Pending"
   },
   {
     id: 7,
     employee: "Robert Davis",
-    amount: "$3,200",
-    category: "Bonus",
-    date: "2024-01-19"
+    type: "Promotion Request",
+    reason: "Career advancement",
+    submittedDate: "2024-01-19",
+    status: "Pending"
   },
   {
     id: 8,
     employee: "Emma Wilson",
-    amount: "$1,200",
-    category: "Equipment",
-    date: "2024-01-18"
-  },
-  {
-    id: 9,
-    employee: "James Brown",
-    amount: "$2,400",
-    category: "Salary",
-    date: "2024-01-17"
-  },
-  {
-    id: 10,
-    employee: "Sophia Anderson",
-    amount: "$1,100",
-    category: "Travel",
-    date: "2024-01-16"
+    type: "Leave Request",
+    reason: "Maternity leave",
+    submittedDate: "2024-01-18",
+    status: "Pending"
   }
 ];
 
@@ -206,47 +200,43 @@ const expenseBreakdownChartConfig = {
   }
 };
 
-// Unique categories for filtering
-const categories = ["All", "Salary", "Bonus", "Travel", "Equipment"];
+// Unique request types for filtering
+const requestTypes = [
+  "All",
+  "Leave Request",
+  "Sick Leave",
+  "Work From Home",
+  "Expense Reimbursement",
+  "Training Request",
+  "Promotion Request"
+];
 
 export default function HRDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedType, setSelectedType] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // const employeeAvg = Math.round(
-  //   employeeStrengthData.reduce((sum, d) => sum + d.strength, 0) /
-  //     employeeStrengthData.length
-  // );
-  // const employeeMax = Math.max(...employeeStrengthData.map((d) => d.strength));
-
-  // const hoursAvg = Math.round(
-  //   workingHoursData.reduce((sum, d) => sum + d.hours, 0) /
-  //     workingHoursData.length
-  // );
-  // const hoursMax = Math.max(...workingHoursData.map((d) => d.hours));
-
   // Filter and search logic
-  const filteredExpenses = useMemo(() => {
-    return expensesData.filter((expense) => {
-      const matchesSearch = expense.employee
+  const filteredRequests = useMemo(() => {
+    return hrRequestsData.filter((request) => {
+      const matchesSearch = request.employee
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory === "All" || expense.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesType =
+        selectedType === "All" || request.type === selectedType;
+      return matchesSearch && matchesType;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedType]);
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedExpenses = filteredExpenses.slice(startIndex, endIndex);
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
 
-  const handleCategoryFilter = (category: string) => {
-    setSelectedCategory(category);
+  const handleTypeFilter = (type: string) => {
+    setSelectedType(type);
     setCurrentPage(1);
   };
 
@@ -321,14 +311,14 @@ export default function HRDashboard() {
 
       {/* Check-in/Check-out Times */}
 
-      {/* Block 3: Payments and Expenses */}
+      {/* Block 3: HR Requests and Expense Breakdown */}
       <div className="flex gap-4">
-        {/* Expenses Table */}
+        {/* HR Requests Table */}
         <Card className="lg:col-span-2 p-4 w-2/3">
           <CardHeader className="p-0">
-            <CardTitle>Expense Transactions</CardTitle>
+            <CardTitle>Open HR Requests</CardTitle>
             <CardDescription>
-              Recent employee expenses and payments
+              Pending requests awaiting approval
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0 space-y-4">
@@ -359,30 +349,29 @@ export default function HRDashboard() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
                     <Filter className="h-4 w-4" />
-                    Filter{" "}
-                    {selectedCategory !== "All" && `(${selectedCategory})`}
+                    Filter {selectedType !== "All" && `(${selectedType})`}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
+                  <DropdownMenuLabel>Filter by Type</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {categories.map((category) => (
+                  {requestTypes.map((type) => (
                     <DropdownMenuItem
-                      key={category}
-                      onClick={() => handleCategoryFilter(category)}
+                      key={type}
+                      onClick={() => handleTypeFilter(type)}
                       className="cursor-pointer flex items-center justify-between"
                     >
-                      <span>{category}</span>
-                      {selectedCategory === category && (
+                      <span>{type}</span>
+                      {selectedType === type && (
                         <Check className="h-4 w-4 text-green-600" />
                       )}
                     </DropdownMenuItem>
                   ))}
-                  {selectedCategory !== "All" && (
+                  {selectedType !== "All" && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => handleCategoryFilter("All")}
+                        onClick={() => handleTypeFilter("All")}
                         className="cursor-pointer text-muted-foreground"
                       >
                         Clear Filter
@@ -395,35 +384,44 @@ export default function HRDashboard() {
 
             {/* Results info */}
             <div className="text-xs text-muted-foreground">
-              Showing {paginatedExpenses.length > 0 ? startIndex + 1 : 0} to{" "}
-              {Math.min(endIndex, filteredExpenses.length)} of{" "}
-              {filteredExpenses.length} results
+              Showing {paginatedRequests.length > 0 ? startIndex + 1 : 0} to{" "}
+              {Math.min(endIndex, filteredRequests.length)} of{" "}
+              {filteredRequests.length} results
             </div>
 
             {/* Table */}
             <div className="border rounded-lg overflow-hidden">
-              {paginatedExpenses.length > 0 ? (
+              {paginatedRequests.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead>Request Type</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedExpenses.map((expense) => (
-                      <TableRow key={expense.id}>
+                    {paginatedRequests.map((request) => (
+                      <TableRow key={request.id}>
                         <TableCell className="font-medium">
-                          {expense.employee}
+                          {request.employee}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{expense.category}</Badge>
+                          <Badge variant="outline">{request.type}</Badge>
                         </TableCell>
-                        <TableCell>{expense.amount}</TableCell>
+                        <TableCell>{request.reason}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {expense.date}
+                          {request.submittedDate}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className="bg-yellow-100 text-yellow-800"
+                          >
+                            {request.status}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -431,7 +429,7 @@ export default function HRDashboard() {
                 </Table>
               ) : (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No expenses found matching your search or filter.
+                  No requests found matching your search or filter.
                 </div>
               )}
             </div>

@@ -6,8 +6,6 @@ import { useAuth } from "@/lib/auth-context";
 import {
   IconChartBar,
   IconDashboard,
-  IconDatabase,
-  IconFileWord,
   IconFolder,
   IconInnerShadowTop,
   IconUsers,
@@ -18,15 +16,8 @@ import {
   IconTrash,
   IconClock,
   IconMoneybag,
-  IconUserPlus,
   IconClipboard,
-  IconShoppingCart,
-  IconPackage,
-  IconTruck,
-  IconLink,
   IconMessageCircle,
-  IconEye,
-  IconChecklist,
   type Icon
 } from "@tabler/icons-react";
 
@@ -54,7 +45,7 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { rolesData } from "@/app/hr/roles/data";
+import { Building2 } from "lucide-react";
 
 const data = {
   user: {
@@ -95,9 +86,9 @@ const data = {
           icon: IconClock
         },
         {
-          title: "Roles & Permissions",
-          url: "/hr/roles",
-          icon: IconClipboard
+          title: "Organization",
+          url: "/hr/organization",
+          icon: Building2
         },
         {
           title: "HR Requests",
@@ -134,6 +125,9 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
   const { items, label, showHeader, showActions } = section;
 
   const isActive = (url: string) => {
+    if (url === "/hr") {
+      return pathname === url;
+    }
     return pathname === url || pathname.startsWith(url + "/");
   };
 

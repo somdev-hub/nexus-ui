@@ -173,10 +173,7 @@ export default function AnalyticsPage() {
       {/* Attendance Analytics Section */}
       <div className="space-y-6">
         <div className="border-b pb-4">
-          <h2 className="text-2xl font-bold">Attendance Analytics</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Employee strength and leave distribution analysis
-          </p>
+          <h2 className="text-xl font-bold">Attendance Analytics</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -200,23 +197,14 @@ export default function AnalyticsPage() {
 
       {/* Predictive Analysis Section */}
       <div className="space-y-6">
-        <div className="border-b pb-4">
-          <h2 className="text-2xl font-bold">Predictive Analysis</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Forecast and trend predictions
-          </p>
-        </div>
-
         <LeavePredictionChart data={leavePredictionData} />
       </div>
 
       {/* Payroll Analytics Section */}
       <div className="space-y-6">
         <div className="border-b pb-4">
-          <h2 className="text-2xl font-bold">Payroll Analytics</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Payroll expenditure and salary trends
-          </p>
+          <h2 className="text-xl font-bold">Payroll Analytics</h2>
+        
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <YearlyPayrollChart data={yearlyPayrollData} />
@@ -230,13 +218,6 @@ export default function AnalyticsPage() {
 
       {/* Payroll Predictive Analytics Section */}
       <div className="space-y-6">
-        <div className="border-b pb-4">
-          <h2 className="text-2xl font-bold">Payroll Predictive Analytics</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Cost predictions and anomaly detection
-          </p>
-        </div>
-
         <PayrollPredictionChart data={payrollPredictionData} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

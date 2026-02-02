@@ -1,33 +1,4 @@
-export interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  position: string;
-  status: "Active" | "On Leave" | "Inactive";
-  joinDate: string;
-  salary: number;
-  gender?: "Male" | "Female" | "Other";
-  noticePerioddDays?: number;
-  payBreakdown?: {
-    baseSalary: number;
-    bonus: number;
-    allowances: number;
-    deductions: number;
-  };
-  previousPositions?: Array<{
-    position: string;
-    department: string;
-    startDate: string;
-    endDate: string;
-  }>;
-  letters?: Array<{
-    id: string;
-    type: string;
-    date: string;
-    description: string;
-  }>;
-}
+import type { Employee } from "@/types";
 
 export const employees: Employee[] = [
   {

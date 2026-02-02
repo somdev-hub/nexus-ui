@@ -1,67 +1,14 @@
 import { ca } from "date-fns/locale";
 import apiClient, { setAccessToken, clearAccessToken } from "./api-client";
 import GlobalConfig from "@/global.config";
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface SignupRequest {
-  name: string;
-  email: string;
-  password: string;
-  phone: string;
-  address: string;
-  profilePhoto?: string;
-}
-
-export type UserRole =
-  | "ROLE_ADMIN"
-  | "ROLE_DIRECTOR"
-  | "ROLE_PRODUCT_MANAGER"
-  | "ROLE_CLERK"
-  | "ROLE_ACCOUNT_MANAGER"
-  | "ROLE_OPERATION_MANAGER"
-  | "ROLE_WAREHOUSE_MANAGER"
-  | "ROLE_FLEET_MANAGER"
-  | "ROLE_DRIVER";
-
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: UserRole;
-    orgId?: string;
-    avatar?: string;
-  };
-}
-
-export interface ApiAuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  userId: string;
-  orgId: string;
-  name: string;
-  role: UserRole;
-  email: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  orgId?: string;
-  avatar?: string;
-}
+import type {
+  LoginRequest,
+  SignupRequest,
+  UserRole,
+  AuthResponse,
+  ApiAuthResponse,
+  User
+} from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   // Dummy auth flow for development mode
