@@ -52,7 +52,7 @@ export function SalaryComponentsBreakdown({
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0 mt-4">
-        <ChartContainer config={chartConfig} className="w-full h-[250px]">
+        <ChartContainer config={chartConfig} className="w-full h-62.5 -ml-20">
           <BarChart
             accessibilityLayer
             data={data}

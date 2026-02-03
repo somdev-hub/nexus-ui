@@ -29,58 +29,39 @@ import {
 import { Copy, Check, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { addUser, createPeople } from "@/lib/auth-service";
-import type { BankRecord, CompensationData, Bonus, Deduction } from "@/types";
+import type { BankRecord, Bonus, Deduction, EmployeeRecord } from "@/types";
+import { computeSalaryTotals } from "@/utils/salary-calculator";
 export default function AddEmployeePage() {
-  const computeTotals = (
-    basePay: number,
-    bonuses: Bonus[],
-    deductions: Deduction[]
-  ) => {
-    const hra = basePay * 0.5;
-    const pf = basePay * 0.12;
-    const gratuity = basePay * 0.0481;
-    const grossCore = basePay + hra + gratuity;
-    const totalBonus = bonuses.reduce((sum, b) => sum + b.amount, 0);
-    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-    const grossPay = grossCore + totalBonus;
-    const netBeforeInsurance = grossPay - pf - totalDeductions;
-    const insurancePremium = netBeforeInsurance * 0.02;
-    const netPay = netBeforeInsurance - insurancePremium;
-    return {
-      hra,
-      pf,
-      gratuity,
-      grossPay,
-      insurancePremium,
-      netPay
-    };
-  };
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<EmployeeRecord>({
     name: "",
     email: "",
     phone: "",
     role: "",
-    effectiveFrom: "",
+    effectiveFrom: new Date(),
     address: "",
     notes: "",
     department: "",
     title: "",
     personalEmail: "",
+    profilePhoto: "",
     remarks: "",
-    orgId: ""
-  });
-  const [compensation, setCompensation] = useState<CompensationData>({
-    basePay: 0,
-    hra: 0, // 50% of basePay (auto-calculated)
-    pf: 0, // 12% of basePay (auto-calculated)
-    gratuity: 0, // 4.81% of basePay (auto-calculated)
-    insurancePremium: 0, // 2% of netPay (auto-calculated)
-    grossPay: 0, // auto-calculated
-    netPay: 0, // auto-calculated
-    bonuses: [],
-    deductions: [],
-    bankRecords: []
+    orgId: 0,
+    gender: "",
+    age: 0,
+    dateOfBirth: null,
+    compensation: {
+      basePay: 0,
+      hra: 0,
+      pf: 0,
+      gratuity: 0,
+      insurancePremium: 0,
+      grossPay: 0,
+      netPay: 0,
+      annualPackage: "",
+      bonuses: [],
+      deductions: [],
+      bankRecords: []
+    }
   });
   const [bankRecord, setBankRecord] = useState<BankRecord>({
     bankName: "",
@@ -88,7 +69,8 @@ export default function AddEmployeePage() {
     accountNumber: "",
     ifscCode: "",
     accountType: "SAVINGS",
-    branchAddress: ""
+    branchAddress: "",
+    panNumber: ""
   });
   const [bonus, setBonus] = useState<Bonus>({
     bonusType: "",
@@ -201,9 +183,12 @@ export default function AddEmployeePage() {
       toast.error("Please fill all bank details");
       return;
     }
-    setCompensation((prev) => ({
+    setFormData((prev) => ({
       ...prev,
-      bankRecords: [...prev.bankRecords, bankRecord]
+      compensation: {
+        ...prev.compensation,
+        bankRecords: [...prev.compensation.bankRecords, bankRecord]
+      }
     }));
     setBankRecord({
       bankName: "",
@@ -211,15 +196,19 @@ export default function AddEmployeePage() {
       accountNumber: "",
       ifscCode: "",
       accountType: "SAVINGS",
-      branchAddress: ""
+      branchAddress: "",
+      panNumber: ""
     });
     toast.success("Bank record added");
   };
 
   const removeBankRecord = (index: number) => {
-    setCompensation((prev) => ({
+    setFormData((prev) => ({
       ...prev,
-      bankRecords: prev.bankRecords.filter((_, i) => i !== index)
+      compensation: {
+        ...prev.compensation,
+        bankRecords: prev.compensation.bankRecords.filter((_, i) => i !== index)
+      }
     }));
   };
 
@@ -231,16 +220,24 @@ export default function AddEmployeePage() {
       toast.error("Please fill bonus details");
       return;
     }
-    setCompensation((prev) => {
-      const amount = prev.basePay * (bonus.percentageOfSalary / 100);
+    setFormData((prev) => {
+      const amount =
+        prev.compensation.basePay * (bonus.percentageOfSalary / 100);
       const newBonus = { ...bonus, amount };
-      const bonuses = [...prev.bonuses, newBonus];
-      const totals = computeTotals(prev.basePay, bonuses, prev.deductions);
+      const bonuses = [...prev.compensation.bonuses, newBonus];
+      const totals = computeSalaryTotals(
+        prev.compensation.basePay,
+        bonuses,
+        prev.compensation.deductions
+      );
 
       return {
         ...prev,
-        bonuses,
-        ...totals
+        compensation: {
+          ...prev.compensation,
+          bonuses,
+          ...totals
+        }
       };
     });
     setBonus({
@@ -253,14 +250,21 @@ export default function AddEmployeePage() {
   };
 
   const removeBonus = (index: number) => {
-    setCompensation((prev) => {
-      const bonuses = prev.bonuses.filter((_, i) => i !== index);
-      const totals = computeTotals(prev.basePay, bonuses, prev.deductions);
+    setFormData((prev) => {
+      const bonuses = prev.compensation.bonuses.filter((_, i) => i !== index);
+      const totals = computeSalaryTotals(
+        prev.compensation.basePay,
+        bonuses,
+        prev.compensation.deductions
+      );
 
       return {
         ...prev,
-        bonuses,
-        ...totals
+        compensation: {
+          ...prev.compensation,
+          bonuses,
+          ...totals
+        }
       };
     });
   };
@@ -273,16 +277,24 @@ export default function AddEmployeePage() {
       toast.error("Please fill deduction details");
       return;
     }
-    setCompensation((prev) => {
-      const amount = prev.basePay * (deduction.percentageOfSalary / 100);
+    setFormData((prev) => {
+      const amount =
+        prev.compensation.basePay * (deduction.percentageOfSalary / 100);
       const newDeduction = { ...deduction, amount };
-      const deductions = [...prev.deductions, newDeduction];
-      const totals = computeTotals(prev.basePay, prev.bonuses, deductions);
+      const deductions = [...prev.compensation.deductions, newDeduction];
+      const totals = computeSalaryTotals(
+        prev.compensation.basePay,
+        prev.compensation.bonuses,
+        deductions
+      );
 
       return {
         ...prev,
-        deductions,
-        ...totals
+        compensation: {
+          ...prev.compensation,
+          deductions,
+          ...totals
+        }
       };
     });
     setDeduction({
@@ -296,14 +308,23 @@ export default function AddEmployeePage() {
   };
 
   const removeDeduction = (index: number) => {
-    setCompensation((prev) => {
-      const deductions = prev.deductions.filter((_, i) => i !== index);
-      const totals = computeTotals(prev.basePay, prev.bonuses, deductions);
+    setFormData((prev) => {
+      const deductions = prev.compensation.deductions.filter(
+        (_, i) => i !== index
+      );
+      const totals = computeSalaryTotals(
+        prev.compensation.basePay,
+        prev.compensation.bonuses,
+        deductions
+      );
 
       return {
         ...prev,
-        deductions,
-        ...totals
+        compensation: {
+          ...prev.compensation,
+          deductions,
+          ...totals
+        }
       };
     });
   };
@@ -320,7 +341,7 @@ export default function AddEmployeePage() {
   };
 
   const completeCompensation = async () => {
-    if (compensation.bankRecords.length === 0) {
+    if (formData.compensation.bankRecords.length === 0) {
       toast.error("Please add at least one bank record");
       return;
     }
@@ -332,12 +353,12 @@ export default function AddEmployeePage() {
         formData.name,
         formData.email,
         formData.phone,
-        formData.effectiveFrom,
+        formData.effectiveFrom.toISOString().split("T")[0],
         0,
         formData.address,
         formData.notes,
         formData.role,
-        localStorage.getItem("org_id")
+        localStorage.getItem("org_id") || ""
       );
 
       // Step 2: Assign role to user
@@ -372,44 +393,44 @@ export default function AddEmployeePage() {
         email: "",
         phone: "",
         role: "",
-        effectiveFrom: "",
+        effectiveFrom: new Date(),
         address: "",
         notes: "",
         department: "",
         title: "",
         personalEmail: "",
         remarks: "",
-        orgId: ""
-      });
-      setCompensation({
-        basePay: 0,
-        hra: 0,
-        gratuity: 0,
-        pr: 0,
-        netPay: 0,
-        annualPackage: "",
-        total: 0,
-        netMonthlyPay: 0,
-        bonuses: [],
-        deductions: [],
-        bankRecords: []
+        orgId: 0,
+        profilePhoto: "",
+        gender: "",
+        age: 0,
+        dateOfBirth: null,
+        compensation: {
+          basePay: 0,
+          hra: 0,
+          pf: 0,
+          gratuity: 0,
+          insurancePremium: 0,
+          grossPay: 0,
+          netPay: 0,
+          annualPackage: "",
+          bonuses: [],
+          deductions: [],
+          bankRecords: []
+        }
       });
       setBonus({
         bonusType: "",
         amount: 0,
         percentageOfSalary: 0,
-        issuesOn: new Date().toISOString().split("T")[0],
-        updatedOn: new Date().toISOString().split("T")[0],
-        expiresOn: ""
+        expiresOn: new Date()
       });
       setDeduction({
         deductionType: "",
         amount: 0,
         description: "",
         percentageOfSalary: 0,
-        issuedOn: new Date().toISOString().split("T")[0],
-        updatedOn: new Date().toISOString().split("T")[0],
-        expiresOn: ""
+        expiresOn: new Date()
       });
       setProfilePicture(null);
       setHrDocuments([]);
@@ -528,8 +549,18 @@ export default function AddEmployeePage() {
                     id="effectiveFrom"
                     name="effectiveFrom"
                     type="date"
-                    value={formData.effectiveFrom}
-                    onChange={handleInputChange}
+                    value={
+                      formData.effectiveFrom instanceof Date
+                        ? formData.effectiveFrom.toISOString().split("T")[0]
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const dateString = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        effectiveFrom: new Date(dateString)
+                      }));
+                    }}
                     disabled={isLoading}
                   />
                 </FieldContent>
@@ -618,6 +649,72 @@ export default function AddEmployeePage() {
                     value={formData.remarks}
                     onChange={handleInputChange}
                     placeholder="Additional remarks"
+                    disabled={isLoading}
+                  />
+                </FieldContent>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field>
+                <FieldLabel htmlFor="gender">Gender</FieldLabel>
+                <FieldContent>
+                  <select
+                    id="gender"
+                    name="gender"
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        gender: e.target.value
+                      }))
+                    }
+                    disabled={isLoading}
+                    className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                    <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                  </select>
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="age">Age</FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="age"
+                    name="age"
+                    type="number"
+                    min="18"
+                    max="120"
+                    value={formData.age || ""}
+                    onChange={handleInputChange}
+                    placeholder="30"
+                    disabled={isLoading}
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="dateOfBirth">Date of Birth</FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    value={
+                      formData.dateOfBirth instanceof Date
+                        ? formData.dateOfBirth.toISOString().split("T")[0]
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const dateValue = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        dateOfBirth: dateValue ? new Date(dateValue) : null
+                      }));
+                    }}
                     disabled={isLoading}
                   />
                 </FieldContent>
@@ -761,42 +858,62 @@ export default function AddEmployeePage() {
                         <FieldContent>
                           <Input
                             type="number"
-                            value={compensation.basePay}
+                            value={formData.compensation.basePay}
                             onChange={(e) => {
                               const basePay = parseFloat(e.target.value) || 0;
                               // Recompute bonus/deduction amounts from percentages based on new basePay
-                              const updatedBonuses = compensation.bonuses.map(
-                                (b) => ({
+                              const updatedBonuses =
+                                formData.compensation.bonuses.map((b) => ({
                                   ...b,
                                   amount: basePay * (b.percentageOfSalary / 100)
-                                })
-                              );
+                                }));
                               const updatedDeductions =
-                                compensation.deductions.map((d) => ({
+                                formData.compensation.deductions.map((d) => ({
                                   ...d,
                                   amount: basePay * (d.percentageOfSalary / 100)
                                 }));
-                              const totals = computeTotals(
+                              const totals = computeSalaryTotals(
                                 basePay,
                                 updatedBonuses,
                                 updatedDeductions
                               );
-                              setCompensation((prev) => ({
+                              setFormData((prev) => ({
                                 ...prev,
-                                basePay,
-                                ...totals,
-                                bonuses: updatedBonuses,
-                                deductions: updatedDeductions
+                                compensation: {
+                                  ...prev.compensation,
+                                  basePay,
+                                  ...totals,
+                                  bonuses: updatedBonuses,
+                                  deductions: updatedDeductions
+                                }
                               }));
                             }}
                             placeholder="0"
                           />
                         </FieldContent>
                       </Field>
+                      <Field>
+                        <FieldLabel>Annual Package</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            value={formData.compensation.annualPackage}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                compensation: {
+                                  ...prev.compensation,
+                                  annualPackage: e.target.value
+                                }
+                              }))
+                            }
+                            placeholder="e.g., 12 LPA"
+                          />
+                        </FieldContent>
+                      </Field>
                     </div>
 
                     {/* Auto-calculated fields display */}
-                    {compensation.basePay > 0 && (
+                    {formData.compensation.basePay > 0 && (
                       <div className="bg-blue-50 border border-blue-200 rounded p-4 space-y-3">
                         <p className="text-sm font-medium text-blue-900">
                           Auto-Calculated Components (from base pay):
@@ -805,25 +922,28 @@ export default function AddEmployeePage() {
                           <div>
                             <p className="text-gray-600">HRA (50%)</p>
                             <p className="font-semibold">
-                              ${compensation.hra.toFixed(2)}
+                              ${formData.compensation.hra.toFixed(2)}
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">PF (12%)</p>
                             <p className="font-semibold">
-                              ${compensation.pf.toFixed(2)}
+                              ${formData.compensation.pf.toFixed(2)}
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Gratuity (4.81%)</p>
                             <p className="font-semibold">
-                              ${compensation.gratuity.toFixed(2)}
+                              ${formData.compensation.gratuity.toFixed(2)}
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600">Insurance (2%)</p>
                             <p className="font-semibold">
-                              ${compensation.insurancePremium.toFixed(2)}
+                              $
+                              {formData.compensation.insurancePremium.toFixed(
+                                2
+                              )}
                             </p>
                           </div>
                         </div>
@@ -900,9 +1020,9 @@ export default function AddEmployeePage() {
                         Add Bonus
                       </Button>
                     </div>
-                    {compensation.bonuses.length > 0 && (
+                    {formData.compensation.bonuses.length > 0 && (
                       <div className="space-y-2">
-                        {compensation.bonuses.map((b, index) => (
+                        {formData.compensation.bonuses.map((b, index) => (
                           <div
                             key={index}
                             className="bg-gray-50 p-3 rounded flex items-center justify-between"
@@ -1015,9 +1135,9 @@ export default function AddEmployeePage() {
                         Add Deduction
                       </Button>
                     </div>
-                    {compensation.deductions.length > 0 && (
+                    {formData.compensation.deductions.length > 0 && (
                       <div className="space-y-2">
-                        {compensation.deductions.map((d, index) => (
+                        {formData.compensation.deductions.map((d, index) => (
                           <div
                             key={index}
                             className="bg-gray-50 p-3 rounded space-y-1"
@@ -1048,20 +1168,20 @@ export default function AddEmployeePage() {
                   </div>
 
                   {/* Pay Summary */}
-                  {compensation.basePay > 0 && (
+                  {formData.compensation.basePay > 0 && (
                     <div className="border rounded-lg p-4 space-y-3">
                       <h3 className="font-semibold text-lg">Pay Summary</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-gray-600">Gross Pay</p>
                           <p className="font-semibold text-green-600">
-                            ${compensation.grossPay.toFixed(2)}
+                            ${formData.compensation.grossPay.toFixed(2)}
                           </p>
                         </div>
                         <div>
                           <p className="text-gray-600">Net Pay</p>
                           <p className="font-semibold text-green-700">
-                            ${compensation.netPay.toFixed(2)}
+                            ${formData.compensation.netPay.toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -1170,6 +1290,21 @@ export default function AddEmployeePage() {
                             />
                           </FieldContent>
                         </Field>
+                        <Field>
+                          <FieldLabel>PAN Number</FieldLabel>
+                          <FieldContent>
+                            <Input
+                              value={bankRecord.panNumber}
+                              onChange={(e) =>
+                                setBankRecord((prev) => ({
+                                  ...prev,
+                                  panNumber: e.target.value
+                                }))
+                              }
+                              placeholder="ABCDE1234F"
+                            />
+                          </FieldContent>
+                        </Field>
                       </div>
                       <Button
                         type="button"
@@ -1180,34 +1315,36 @@ export default function AddEmployeePage() {
                         Add Bank Record
                       </Button>
                     </div>
-                    {compensation.bankRecords.length > 0 && (
+                    {formData.compensation.bankRecords.length > 0 && (
                       <div className="space-y-2">
-                        {compensation.bankRecords.map((record, index) => (
-                          <div
-                            key={index}
-                            className="bg-gray-50 p-3 rounded space-y-1"
-                          >
-                            <p className="font-medium text-sm">
-                              {record.bankName}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Account: {record.accountNumber}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              IFSC: {record.ifscCode}
-                            </p>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeBankRecord(index)}
-                              className="mt-2"
+                        {formData.compensation.bankRecords.map(
+                          (record, index) => (
+                            <div
+                              key={index}
+                              className="bg-gray-50 p-3 rounded space-y-1"
                             >
-                              <X className="w-4 h-4 mr-2" />
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
+                              <p className="font-medium text-sm">
+                                {record.bankName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Account: {record.accountNumber}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                IFSC: {record.ifscCode}
+                              </p>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeBankRecord(index)}
+                                className="mt-2"
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                Remove
+                              </Button>
+                            </div>
+                          )
+                        )}
                       </div>
                     )}
                   </div>

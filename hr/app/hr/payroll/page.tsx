@@ -455,22 +455,26 @@ export default function PayrollPage() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <SalaryVarianceByRole data={roleDistributionData} />
         <PayrollTrendChart data={monthlyTrendData} />
+        <DeptWiseSalaryDistribution data={deptDistributionData} />
       </div>
 
       {/* Department-wise and Status Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="flex justify-between items-center gap-4">
         {/* Department-wise Salary Distribution */}
-        <DeptWiseSalaryDistribution data={deptDistributionData} />
 
         {/* Status Breakdown Pie Chart */}
-        <PayrollStatusBreakdown data={statusData} />
+        <div className="flex-1">
+          <PayrollStatusBreakdown data={statusData} />
+        </div>
+        <div className="flex-2">
+          <SalaryComponentsBreakdown data={componentData} />
+        </div>
       </div>
 
       {/* Salary Components Chart */}
-      <SalaryComponentsBreakdown data={componentData} />
 
       {/* Filters and Actions */}
       <div className="flex gap-4 flex-wrap items-center">

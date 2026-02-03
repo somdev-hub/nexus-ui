@@ -49,7 +49,7 @@ const chartConfig = {
 
 export function PayrollStatusBreakdown({ data }: PayrollStatusBreakdownProps) {
   return (
-    <Card className="p-4">
+    <Card className="p-4 ">
       <CardHeader className="p-0">
         <CardTitle>Payroll Status Breakdown</CardTitle>
         <CardDescription>Current period status distribution</CardDescription>

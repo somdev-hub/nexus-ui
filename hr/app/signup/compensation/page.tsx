@@ -25,6 +25,7 @@ import type {
   Bonus,
   Deduction
 } from "@/types";
+import { computeSalaryTotals } from "@/utils/salary-calculator";
 
 export default function CompensationPage() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function CompensationPage() {
     insurancePremium: 0, // 2% of netPay (auto-calculated)
     grossPay: 0, // auto-calculated
     netPay: 0, // auto-calculated
+    annualPackage: "",
     bonuses: [],
     deductions: [],
     bankRecords: []
@@ -62,7 +64,8 @@ export default function CompensationPage() {
     accountNumber: "",
     ifscCode: "",
     accountType: "SAVINGS",
-    branchAddress: ""
+    branchAddress: "",
+    panNumber: ""
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -96,22 +99,6 @@ export default function CompensationPage() {
 
   // Auto-calculate compensation fields based on basePay
   const handleBasePay = (basePay: number) => {
-    const hra = basePay * 0.5; // 50% of basePay
-    const pf = basePay * 0.12; // 12% of basePay
-    const gratuity = basePay * 0.0481; // 4.81% of basePay
-
-    // Calculate gross pay (base + hra + gratuity)
-    const grossPay = basePay + hra + gratuity;
-
-    // Calculate net pay (gross pay - pf)
-    let netPay = grossPay - pf;
-
-    // Insurance premium is 2% of netPay
-    const insurancePremium = netPay * 0.02;
-
-    // Recalculate net pay after insurance
-    netPay = netPay - insurancePremium;
-
     // Recompute bonus/deduction amounts from percentages based on new basePay
     const updatedBonuses = compensation.bonuses.map((b) => ({
       ...b,
@@ -121,6 +108,13 @@ export default function CompensationPage() {
       ...d,
       amount: basePay * (d.percentageOfSalary / 100)
     }));
+
+    // Calculate salary components using utility function
+    const salaryCalc = computeSalaryTotals(
+      basePay,
+      updatedBonuses,
+      updatedDeductions
+    );
 
     // Add bonuses
     const totalBonus = updatedBonuses.reduce((sum, b) => sum + b.amount, 0);
@@ -132,16 +126,16 @@ export default function CompensationPage() {
     );
 
     // Final net pay
-    const finalNetPay = netPay + totalBonus - totalDeductions;
+    const finalNetPay = salaryCalc.netPay + totalBonus - totalDeductions;
 
     setCompensation((prev) => ({
       ...prev,
       basePay,
-      hra,
-      pf,
-      gratuity,
-      insurancePremium,
-      grossPay,
+      hra: salaryCalc.hra,
+      pf: salaryCalc.pf,
+      gratuity: salaryCalc.gratuity,
+      insurancePremium: salaryCalc.insurancePremium,
+      grossPay: salaryCalc.grossPay,
       netPay: finalNetPay,
       bonuses: updatedBonuses,
       deductions: updatedDeductions
@@ -158,28 +152,26 @@ export default function CompensationPage() {
       const newBonus = { ...bonusInput, amount };
       const bonuses = [...prev.bonuses, newBonus];
 
-      const hra = prev.basePay * 0.5;
-      const pf = prev.basePay * 0.12;
-      const gratuity = prev.basePay * 0.0481;
-      const grossPay = prev.basePay + hra + gratuity;
-      let netPay = grossPay - pf;
-      const insurancePremium = netPay * 0.02;
-      netPay = netPay - insurancePremium;
+      const totals = computeSalaryTotals(
+        prev.basePay,
+        bonuses,
+        prev.deductions
+      );
       const totalBonus = bonuses.reduce((sum, b) => sum + b.amount, 0);
       const totalDeductions = prev.deductions.reduce(
         (sum, d) => sum + d.amount,
         0
       );
-      const finalNetPay = netPay + totalBonus - totalDeductions;
+      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
 
       return {
         ...prev,
         bonuses,
-        hra,
-        pf,
-        gratuity,
-        insurancePremium,
-        grossPay,
+        hra: totals.hra,
+        pf: totals.pf,
+        gratuity: totals.gratuity,
+        insurancePremium: totals.insurancePremium,
+        grossPay: totals.grossPay,
         netPay: finalNetPay
       };
     });
@@ -195,27 +187,25 @@ export default function CompensationPage() {
   const removeBonus = (index: number) => {
     setCompensation((prev) => {
       const bonuses = prev.bonuses.filter((_, i) => i !== index);
-      const hra = prev.basePay * 0.5;
-      const pf = prev.basePay * 0.12;
-      const gratuity = prev.basePay * 0.0481;
-      const grossPay = prev.basePay + hra + gratuity;
-      let netPay = grossPay - pf;
-      const insurancePremium = netPay * 0.02;
-      netPay = netPay - insurancePremium;
+      const totals = computeSalaryTotals(
+        prev.basePay,
+        bonuses,
+        prev.deductions
+      );
       const totalBonus = bonuses.reduce((sum, b) => sum + b.amount, 0);
       const totalDeductions = prev.deductions.reduce(
         (sum, d) => sum + d.amount,
         0
       );
-      const finalNetPay = netPay + totalBonus - totalDeductions;
+      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
       return {
         ...prev,
         bonuses,
-        hra,
-        pf,
-        gratuity,
-        insurancePremium,
-        grossPay,
+        hra: totals.hra,
+        pf: totals.pf,
+        gratuity: totals.gratuity,
+        insurancePremium: totals.insurancePremium,
+        grossPay: totals.grossPay,
         netPay: finalNetPay
       };
     });
@@ -234,25 +224,23 @@ export default function CompensationPage() {
       const newDeduction = { ...deductionInput, amount };
       const deductions = [...prev.deductions, newDeduction];
 
-      const hra = prev.basePay * 0.5;
-      const pf = prev.basePay * 0.12;
-      const gratuity = prev.basePay * 0.0481;
-      const grossPay = prev.basePay + hra + gratuity;
-      let netPay = grossPay - pf;
-      const insurancePremium = netPay * 0.02;
-      netPay = netPay - insurancePremium;
+      const totals = computeSalaryTotals(
+        prev.basePay,
+        prev.bonuses,
+        deductions
+      );
       const totalBonus = prev.bonuses.reduce((sum, b) => sum + b.amount, 0);
       const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-      const finalNetPay = netPay + totalBonus - totalDeductions;
+      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
 
       return {
         ...prev,
         deductions,
-        hra,
-        pf,
-        gratuity,
-        insurancePremium,
-        grossPay,
+        hra: totals.hra,
+        pf: totals.pf,
+        gratuity: totals.gratuity,
+        insurancePremium: totals.insurancePremium,
+        grossPay: totals.grossPay,
         netPay: finalNetPay
       };
     });
@@ -269,24 +257,22 @@ export default function CompensationPage() {
   const removeDeduction = (index: number) => {
     setCompensation((prev) => {
       const deductions = prev.deductions.filter((_, i) => i !== index);
-      const hra = prev.basePay * 0.5;
-      const pf = prev.basePay * 0.12;
-      const gratuity = prev.basePay * 0.0481;
-      const grossPay = prev.basePay + hra + gratuity;
-      let netPay = grossPay - pf;
-      const insurancePremium = netPay * 0.02;
-      netPay = netPay - insurancePremium;
+      const totals = computeSalaryTotals(
+        prev.basePay,
+        prev.bonuses,
+        deductions
+      );
       const totalBonus = prev.bonuses.reduce((sum, b) => sum + b.amount, 0);
       const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-      const finalNetPay = netPay + totalBonus - totalDeductions;
+      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
       return {
         ...prev,
         deductions,
-        hra,
-        pf,
-        gratuity,
-        insurancePremium,
-        grossPay,
+        hra: totals.hra,
+        pf: totals.pf,
+        gratuity: totals.gratuity,
+        insurancePremium: totals.insurancePremium,
+        grossPay: totals.grossPay,
         netPay: finalNetPay
       };
     });
@@ -311,7 +297,8 @@ export default function CompensationPage() {
       accountNumber: "",
       ifscCode: "",
       accountType: "SAVINGS",
-      branchAddress: ""
+      branchAddress: "",
+      panNumber: ""
     });
     toast.success("Bank record added");
   };
@@ -468,54 +455,22 @@ export default function CompensationPage() {
                     disabled={isLoading}
                   />
                 </div>
-              </div>
-
-              {/* Auto-calculated fields */}
-              {compensation.basePay > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4 space-y-3">
-                  <p className="text-sm font-medium text-blue-900">
-                    Auto-Calculated Components:
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-600">HRA (50%)</p>
-                      <p className="font-semibold">
-                        ${compensation.hra.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">PF (12%)</p>
-                      <p className="font-semibold">
-                        ${compensation.pf.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Gratuity (4.81%)</p>
-                      <p className="font-semibold">
-                        ${compensation.gratuity.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Insurance (2%)</p>
-                      <p className="font-semibold">
-                        ${compensation.insurancePremium.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Gross Pay</p>
-                      <p className="font-semibold text-green-600">
-                        ${compensation.grossPay.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Net Pay</p>
-                      <p className="font-semibold text-green-700">
-                        ${compensation.netPay.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="annualPackage">Annual Package</Label>
+                  <Input
+                    id="annualPackage"
+                    placeholder="e.g., 12 LPA"
+                    value={compensation.annualPackage}
+                    onChange={(e) =>
+                      setCompensation((prev) => ({
+                        ...prev,
+                        annualPackage: e.target.value
+                      }))
+                    }
+                    disabled={isLoading}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Bonus Section */}
@@ -811,6 +766,18 @@ export default function CompensationPage() {
                       disabled={isLoading}
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="panNumber">PAN Number</Label>
+                    <Input
+                      id="panNumber"
+                      name="panNumber"
+                      placeholder="ABCDE1234F"
+                      value={bankRecord.panNumber}
+                      onChange={handleBankInputChange}
+                      disabled={isLoading}
+                    />
+                  </div>
                 </div>
 
                 <Button
@@ -856,6 +823,71 @@ export default function CompensationPage() {
                 </div>
               )}
             </div>
+
+            {/* Compensation Summary */}
+            {compensation.basePay > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded p-4 space-y-3 mt-4">
+                <p className="text-sm font-medium text-green-900">
+                  Compensation Summary:
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-600">HRA (50%)</p>
+                    <p className="font-semibold">
+                      ${compensation.hra.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">PF (12%)</p>
+                    <p className="font-semibold">
+                      ${compensation.pf.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Gratuity (4.81%)</p>
+                    <p className="font-semibold">
+                      ${compensation.gratuity.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Insurance (2%)</p>
+                    <p className="font-semibold">
+                      ${compensation.insurancePremium.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Total Bonuses</p>
+                    <p className="font-semibold text-blue-600">
+                      $
+                      {compensation.bonuses
+                        .reduce((sum, b) => sum + b.amount, 0)
+                        .toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Total Deductions</p>
+                    <p className="font-semibold text-red-600">
+                      $
+                      {compensation.deductions
+                        .reduce((sum, d) => sum + d.amount, 0)
+                        .toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Gross Pay</p>
+                    <p className="font-semibold text-green-600">
+                      ${compensation.grossPay.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Net Pay</p>
+                    <p className="font-semibold text-green-700">
+                      ${compensation.netPay.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
         </CardContent>
         <CardFooter className="block bg-muted-foreground/10 p-4">

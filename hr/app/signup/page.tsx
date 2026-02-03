@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,9 +37,13 @@ export default function SignupPage() {
     phone: "",
     address: "",
     department: "",
+    role: "",
     title: "",
     personalEmail: "",
-    profilePicture: null
+    profilePicture: null,
+    gender: "",
+    age: 0,
+    dateOfBirth: null
   });
   const [profilePreview, setProfilePreview] = useState<string>("");
   const [error, setError] = useState("");
@@ -141,7 +146,13 @@ export default function SignupPage() {
           address: formData.address,
           department: formData.department,
           title: formData.title,
-          personalEmail: formData.personalEmail
+          personalEmail: formData.personalEmail,
+          gender: formData.gender,
+          age: formData.age,
+          dateOfBirth:
+            formData.dateOfBirth instanceof Date
+              ? formData.dateOfBirth.toISOString()
+              : null
         })
       );
 
@@ -256,29 +267,109 @@ export default function SignupPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) =>
+                      handleSelectChange("department", value)
+                    }
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HUMAN_RESOURCES">
+                        Human Resources
+                      </SelectItem>
+                      <SelectItem value="OPERATIONS">Operations</SelectItem>
+                      <SelectItem value="FINANCE">Finance</SelectItem>
+                      <SelectItem value="PRODUCTS">Products</SelectItem>
+                      <SelectItem value="WAREHOUSE">Warehouse</SelectItem>
+                      <SelectItem value="FLEET">Fleet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value) => handleSelectChange("role", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                      <SelectItem value="MANAGER">Manager</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) =>
+                      handleSelectChange("gender", value)
+                    }
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="PREFER_NOT_TO_SAY">
+                        Prefer not to say
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="age">Age</Label>
+                  <Input
+                    id="age"
+                    name="age"
+                    type="number"
+                    min="18"
+                    max="120"
+                    placeholder="30"
+                    value={formData.age || ""}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Select
-                  value={formData.department}
-                  onValueChange={(value) =>
-                    handleSelectChange("department", value)
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  name="dateOfBirth"
+                  type="date"
+                  value={
+                    formData.dateOfBirth instanceof Date
+                      ? formData.dateOfBirth.toISOString().split("T")[0]
+                      : ""
                   }
+                  onChange={(e) => {
+                    const dateValue = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      dateOfBirth: dateValue ? new Date(dateValue) : null
+                    }));
+                  }}
                   disabled={isLoading}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="HUMAN_RESOURCES">
-                      Human Resources
-                    </SelectItem>
-                    <SelectItem value="OPERATIONS">Operations</SelectItem>
-                    <SelectItem value="FINANCE">Finance</SelectItem>
-                    <SelectItem value="PRODUCTS">Products</SelectItem>
-                    <SelectItem value="WAREHOUSE">Warehouse</SelectItem>
-                    <SelectItem value="FLEET">Fleet</SelectItem>
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="space-y-2">
@@ -304,9 +395,11 @@ export default function SignupPage() {
                 >
                   {profilePreview ? (
                     <div className="space-y-2">
-                      <img
+                      <Image
                         src={profilePreview}
                         alt="Profile preview"
+                        width={80}
+                        height={80}
                         className="w-20 h-20 rounded-full mx-auto object-cover"
                       />
                       <button

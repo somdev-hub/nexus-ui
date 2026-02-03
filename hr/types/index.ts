@@ -75,6 +75,10 @@ export interface PersonalFormData {
   confirmPassword: string;
   phone: string;
   title: string;
+  role: string;
+  gender: string;
+  age: number;
+  dateOfBirth: Date | null;
   department: string;
   address: string;
   profilePicture: File | null;
@@ -87,6 +91,7 @@ export interface BankRecord {
   ifscCode: string;
   accountType: string;
   branchAddress: string;
+  panNumber: string;
 }
 
 export interface Bonus {
@@ -112,6 +117,7 @@ export interface CompensationData {
   insurancePremium: number; // 2% of netPay
   grossPay: number; // total before deductions
   netPay: number; // total after deductions
+  annualPackage: string;
   bonuses: Bonus[];
   deductions: Deduction[];
   bankRecords: BankRecord[];
@@ -132,6 +138,26 @@ export interface PersonalData {
 // ============================================================================
 // EMPLOYEE & HR MANAGEMENT TYPES
 // ============================================================================
+
+export interface EmployeeRecord {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  profilePhoto: string;
+  orgId: number;
+  role: string;
+  effectiveFrom: Date;
+  compensation: CompensationData;
+  personalEmail: string;
+  department: string;
+  title: string;
+  remarks: string;
+  gender: string;
+  age: number;
+  dateOfBirth: Date | null;
+}
 
 export interface Employee {
   id: string;
