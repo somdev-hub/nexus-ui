@@ -2,6 +2,9 @@
 // AUTH & USER TYPES
 // ============================================================================
 
+import { BankAccountType } from "./BankAccountTypes";
+import { OrgType } from "./OrgType";
+
 export type UserRole =
   | "ROLE_ADMIN"
   | "ROLE_DIRECTOR"
@@ -21,10 +24,20 @@ export interface LoginRequest {
 export interface SignupRequest {
   name: string;
   email: string;
+  personalEmail: string;
   password: string;
   phone: string;
+  title: string;
+  role: string;
+  gender: string;
+  age: number;
+  dateOfBirth: Date | null;
+  department: string;
   address: string;
-  profilePhoto?: string;
+  profilePicture: File | string | null;
+  compensation: CompensationData;
+  orgName: string;
+  orgType: OrgType;
 }
 
 export interface AuthResponse {
@@ -89,7 +102,7 @@ export interface BankRecord {
   accountHolderName: string;
   accountNumber: string;
   ifscCode: string;
-  accountType: string;
+  accountType: BankAccountType;
   branchAddress: string;
   panNumber: string;
 }

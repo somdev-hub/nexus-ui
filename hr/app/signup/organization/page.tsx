@@ -24,6 +24,7 @@ import {
 import { signup, createOrganization } from "@/lib/auth-service";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { CompensationData, PersonalFormData } from "@/types";
 
 interface PersonalData {
   name: string;
@@ -39,7 +40,11 @@ interface PersonalData {
 
 export default function OrganizationPage() {
   const router = useRouter();
-  const [personalData, setPersonalData] = useState<PersonalData | null>(null);
+  const [personalData, setPersonalData] = useState<PersonalFormData | null>(
+    null
+  );
+  const [compensationData, setCompensationData] =
+    useState<CompensationData | null>(null);
   const [orgName, setOrgName] = useState("");
   const [orgType, setOrgType] = useState("");
   const [error, setError] = useState("");
@@ -49,9 +54,10 @@ export default function OrganizationPage() {
   useEffect(() => {
     // Retrieve personal data from sessionStorage
     const stored = sessionStorage.getItem("signupPersonalData");
+    const compensation = sessionStorage.getItem("signupCompensationData");
     const signupStep = sessionStorage.getItem("signupStep");
 
-    if (!stored || signupStep !== "organization") {
+    if (!stored || !compensation || signupStep !== "organization") {
       // Redirect back to signup if no personal data or step is not organization
       setIsUnauthorized(true);
       const timer = setTimeout(() => {
@@ -60,6 +66,7 @@ export default function OrganizationPage() {
       return () => clearTimeout(timer);
     }
     setPersonalData(JSON.parse(stored));
+    setCompensationData(JSON.parse(compensation));
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,30 +87,41 @@ export default function OrganizationPage() {
     setIsLoading(true);
 
     try {
-      // Step 1: Register user with personal data
+      const finalJson = {
+        ...personalData,
+        compensation: compensationData,
+        orgName,
+        orgType
+      };
+      console.log("Final signup data:", finalJson);
+
+      // Step 1: Register user with all personal, compensation, and organization data
       const signupResponse = await signup({
         name: personalData.name,
         email: personalData.email,
+        personalEmail: personalData.personalEmail,
         password: personalData.password,
         phone: personalData.phone,
+        title: personalData.title,
+        role: personalData.role || "ROLE_ADMIN",
+        gender: personalData.gender || "",
+        age: personalData.age || 0,
+        dateOfBirth: personalData.dateOfBirth || null,
+        department: personalData.department || "",
         address: personalData.address,
-        profilePhoto: ""
-      });
-
-      const userId = signupResponse.user.id;
-
-      // Step 2: Create organization and capture orgId and role
-      const orgResponse = await createOrganization(userId, orgName, orgType);
-      const orgId = orgResponse.orgId;
-      const role = orgResponse.people[0].role.name;
+        profilePicture: personalData.profilePicture,
+        compensation: compensationData || {},
+        orgName,
+        orgType
+      } as any);
 
       // Update user in localStorage with the role and orgId
       const updatedUser = {
-        id: userId,
+        id: signupResponse.user.id,
         email: personalData.email,
         name: personalData.name,
-        role: role,
-        organizationId: orgId,
+        role: signupResponse.user.role,
+        orgId: signupResponse.user.orgId,
         title: personalData.title,
         department: personalData.department,
         avatar: `/avatars/${personalData.name}.jpg`

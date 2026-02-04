@@ -1,10 +1,12 @@
-import { ca } from "date-fns/locale";
-import apiClient, { setAccessToken, clearAccessToken } from "./api-client";
+import apiClient, {
+  setAccessToken,
+  clearAccessToken,
+  apiClientMultipart
+} from "./api-client";
 import GlobalConfig from "@/global.config";
 import type {
   LoginRequest,
   SignupRequest,
-  UserRole,
   AuthResponse,
   ApiAuthResponse,
   User
@@ -12,7 +14,7 @@ import type {
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   // Dummy auth flow for development mode
-  if (GlobalConfig.wowoFeatures.auth) {
+  if (!GlobalConfig.wowoFeatures.auth) {
     // Create a dummy user from any credentials
     const dummyUser: User = {
       id: "dev-user-" + Date.now(),
@@ -85,7 +87,7 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
 
 export async function signup(data: SignupRequest): Promise<AuthResponse> {
   // Dummy auth flow for development mode
-  if (GlobalConfig.wowoFeatures.auth) {
+  if (!GlobalConfig.wowoFeatures.auth) {
     // Create a dummy user from signup data
     const dummyUser: User = {
       id: "dev-user-" + Date.now(),
@@ -110,16 +112,54 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
   }
 
   try {
-    const response = await apiClient.post<ApiAuthResponse>(
-      "/iam/auth/register",
-      {
+    const formData = new FormData();
+
+    // Handle profilePicture: convert base64 string to Blob if needed
+    if (data.profilePicture) {
+      if (typeof data.profilePicture === "string") {
+        // Convert base64 string to Blob
+        // Handle both "data:image/jpeg;base64,..." and raw base64 formats
+        const base64String = data.profilePicture.includes(",")
+          ? data.profilePicture.split(",")[1]
+          : data.profilePicture;
+
+        const byteCharacters = atob(base64String);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "image/jpeg" });
+        formData.append("profilePicture", blob, "profile.jpg");
+      } else {
+        // It's a File object
+        formData.append("profilePicture", data.profilePicture as Blob);
+      }
+    }
+
+    formData.append(
+      "dto",
+      JSON.stringify({
         name: data.name,
         email: data.email,
+        personalEmail: data.personalEmail,
         password: data.password,
         phone: data.phone,
+        title: data.title,
+        role: data.role,
+        gender: data.gender,
+        age: data.age,
+        dateOfBirth: data.dateOfBirth,
+        department: data.department,
         address: data.address,
-        profilePhoto: data.profilePhoto || ""
-      }
+        compensation: data.compensation,
+        orgName: data.orgName,
+        orgType: data.orgType
+      })
+    );
+    const response = await apiClientMultipart.post<ApiAuthResponse>(
+      "/iam/auth/register",
+      formData
     );
 
     const {
@@ -166,7 +206,7 @@ export async function logout(): Promise<void> {
 
 export async function refreshToken(): Promise<string> {
   // Dummy token refresh for development mode
-  if (GlobalConfig.wowoFeatures.auth) {
+  if (!GlobalConfig.wowoFeatures.auth) {
     const dummyToken = "dev-token-" + Date.now();
     setAccessToken(dummyToken);
     return dummyToken;

@@ -149,6 +149,7 @@ export default function SignupPage() {
           personalEmail: formData.personalEmail,
           gender: formData.gender,
           age: formData.age,
+          profilePicture: profilePreview,
           dateOfBirth:
             formData.dateOfBirth instanceof Date
               ? formData.dateOfBirth.toISOString()

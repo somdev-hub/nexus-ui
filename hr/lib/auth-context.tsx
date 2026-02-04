@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Dummy user for development mode if disableAuth is true
-    if (GlobalConfig.wowoFeatures.auth) {
+    if (!GlobalConfig.wowoFeatures.auth) {
       const dummyUser: User = {
         id: "dev-user-default",
         email: "dev@example.com",
