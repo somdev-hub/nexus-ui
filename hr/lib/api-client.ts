@@ -14,6 +14,10 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
+  // For FormData requests, remove Content-Type header to let axios set it with boundary
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
   return config;
 };
 
@@ -66,7 +70,6 @@ const apiClient = axios.create({
 const apiClientMultipart = axios.create({
   baseURL: API_BASE,
   withCredentials: true
-  // DO NOT set Content-Type header - let axios handle it automatically for FormData
 });
 
 // Apply interceptors to both clients

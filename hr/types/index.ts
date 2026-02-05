@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { BankAccountType } from "./BankAccountTypes";
+import { EmployeeLevelTypes } from "./EmployeeLevelTypes";
 import { OrgType } from "./OrgType";
 
 export type UserRole =
@@ -268,14 +269,18 @@ export interface Role {
 }
 
 export interface RoleCompensation {
-  id: string;
-  department: string;
+  orgId: number;
   role: string;
-  basePay: number;
-  hra: number;
-  bonus: number;
-  deductions: number;
-  totalCompensation: number;
+  deptId: number;
+  employeeLevel: EmployeeLevelTypes;
+  minBasePay: number;
+  maxBasePay: number;
+  minTotalBonuses: number;
+  maxTotalBonuses: number;
+  minTotalDeductions: number;
+  maxTotalDeductions: number;
+  minAnnualSalary: string;
+  maxAnnualSalary: string;
 }
 
 // ============================================================================

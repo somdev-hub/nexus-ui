@@ -3,7 +3,7 @@ const DISABLE=false;
 
 const GlobalConfig = {
   wowoFeatures: {
-    auth: ENABLE,
+    auth: DISABLE,
     useDummyData: ENABLE,
   },
 };

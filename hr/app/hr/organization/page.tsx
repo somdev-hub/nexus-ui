@@ -41,10 +41,11 @@ import type {
   Bonus,
   Deduction
 } from "@/types";
+import { EmployeeLevelTypes } from "@/types/EmployeeLevelTypes";
 import { computeSalaryTotals } from "@/utils/salary-calculator";
 
 export default function OrganizationPage() {
-  const [departments] = useState<Department[]>(departmentsData);
+  const [departments, setDepartments] = useState<Department[]>(departmentsData);
   const [roles, setRoles] = useState<RoleRecord[]>(rolesData);
   const [compensations, setCompensations] =
     useState<RoleCompensation[]>(roleCompensationData);
@@ -53,8 +54,13 @@ export default function OrganizationPage() {
   const [showAddRoleDialog, setShowAddRoleDialog] = useState(false);
   const [showAddCompensationDialog, setShowAddCompensationDialog] =
     useState(false);
+  const [showAddDepartmentDialog, setShowAddDepartmentDialog] = useState(false);
 
   // Form states
+  const [departmentFormData, setDepartmentFormData] = useState({
+    name: ""
+  });
+
   const [roleFormData, setRoleFormData] = useState({
     department: "",
     role: "",
@@ -63,39 +69,19 @@ export default function OrganizationPage() {
   });
 
   // Compensation form state
-  const [compensationFormData, setCompensationFormData] =
-    useState<CompensationData>({
-      basePay: 0,
-      hra: 0,
-      pf: 0,
-      gratuity: 0,
-      insurancePremium: 0,
-      grossPay: 0,
-      netPay: 0,
-      annualPackage: "",
-      bonuses: [],
-      deductions: [],
-      bankRecords: []
-    });
-
-  const [compensationMetadata, setCompensationMetadata] = useState({
-    department: "",
-    role: ""
-  });
-
-  const [bonusInput, setBonusInput] = useState<Bonus>({
-    bonusType: "",
-    amount: 0,
-    percentageOfSalary: 0,
-    expiresOn: new Date()
-  });
-
-  const [deductionInput, setDeductionInput] = useState<Deduction>({
-    deductionType: "",
-    description: "",
-    amount: 0,
-    percentageOfSalary: 0,
-    expiresOn: new Date()
+  const [compensationFormData, setCompensationFormData] = useState<RoleCompensation>({
+    orgId: 1,
+    role: "",
+    deptId: 0,
+    employeeLevel: EmployeeLevelTypes.L0,
+    minBasePay: 0,
+    maxBasePay: 0,
+    minTotalBonuses: 0,
+    maxTotalBonuses: 0,
+    minTotalDeductions: 0,
+    maxTotalDeductions: 0,
+    minAnnualSalary: "",
+    maxAnnualSalary: ""
   });
 
   const [permissionInput, setPermissionInput] = useState("");
@@ -105,6 +91,29 @@ export default function OrganizationPage() {
     (sum, dept) => sum + dept.employeeCount,
     0
   );
+
+  // Handle add department
+  const handleAddDepartment = () => {
+    if (!departmentFormData.name.trim()) {
+      toast.error("Please enter a department name");
+      return;
+    }
+
+    const newDepartment: Department = {
+      id: `DEPT${departments.length + 1}`,
+      name: departmentFormData.name,
+      head: "TBD",
+      employeeCount: 0,
+      budget: 0
+    };
+
+    setDepartments([...departments, newDepartment]);
+    toast.success("Department added successfully");
+    setDepartmentFormData({
+      name: ""
+    });
+    setShowAddDepartmentDialog(false);
+  };
 
   // Handle add role
   const handleAddRole = () => {
@@ -138,249 +147,38 @@ export default function OrganizationPage() {
     setShowAddRoleDialog(false);
   };
 
-  // Handle base pay change with auto-calculation
-  const handleBasePayChange = (basePay: number) => {
-    setCompensationFormData((prev) => ({
-      ...prev,
-      basePay
-    }));
-
-    if (basePay > 0) {
-      const totals = computeSalaryTotals(
-        basePay,
-        compensationFormData.bonuses,
-        compensationFormData.deductions
-      );
-      const totalBonus = compensationFormData.bonuses.reduce(
-        (sum, b) => sum + b.amount,
-        0
-      );
-      const totalDeductions = compensationFormData.deductions.reduce(
-        (sum, d) => sum + d.amount,
-        0
-      );
-      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
-
-      setCompensationFormData((prev) => ({
-        ...prev,
-        hra: totals.hra,
-        pf: totals.pf,
-        gratuity: totals.gratuity,
-        insurancePremium: totals.insurancePremium,
-        grossPay: totals.grossPay,
-        netPay: finalNetPay
-      }));
-    }
-  };
-
-  // Handle add bonus
-  const handleAddBonus = () => {
-    if (!bonusInput.bonusType || bonusInput.percentageOfSalary === 0) {
-      toast.error("Please fill bonus details");
-      return;
-    }
-    setCompensationFormData((prev) => {
-      const amount = prev.basePay * (bonusInput.percentageOfSalary / 100);
-      const newBonus = { ...bonusInput, amount };
-      const bonuses = [...prev.bonuses, newBonus];
-
-      const totals = computeSalaryTotals(
-        prev.basePay,
-        bonuses,
-        prev.deductions
-      );
-      const totalBonus = bonuses.reduce((sum, b) => sum + b.amount, 0);
-      const totalDeductions = prev.deductions.reduce(
-        (sum, d) => sum + d.amount,
-        0
-      );
-      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
-
-      return {
-        ...prev,
-        bonuses,
-        hra: totals.hra,
-        pf: totals.pf,
-        gratuity: totals.gratuity,
-        insurancePremium: totals.insurancePremium,
-        grossPay: totals.grossPay,
-        netPay: finalNetPay
-      };
-    });
-    setBonusInput({
-      bonusType: "",
-      amount: 0,
-      percentageOfSalary: 0,
-      expiresOn: new Date()
-    });
-    toast.success("Bonus added");
-  };
-
-  // Handle remove bonus
-  const handleRemoveBonus = (index: number) => {
-    setCompensationFormData((prev) => {
-      const bonuses = prev.bonuses.filter((_, i) => i !== index);
-      const totals = computeSalaryTotals(
-        prev.basePay,
-        bonuses,
-        prev.deductions
-      );
-      const totalBonus = bonuses.reduce((sum, b) => sum + b.amount, 0);
-      const totalDeductions = prev.deductions.reduce(
-        (sum, d) => sum + d.amount,
-        0
-      );
-      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
-      return {
-        ...prev,
-        bonuses,
-        hra: totals.hra,
-        pf: totals.pf,
-        gratuity: totals.gratuity,
-        insurancePremium: totals.insurancePremium,
-        grossPay: totals.grossPay,
-        netPay: finalNetPay
-      };
-    });
-  };
-
-  // Handle add deduction
-  const handleAddDeduction = () => {
-    if (
-      !deductionInput.deductionType ||
-      deductionInput.percentageOfSalary === 0
-    ) {
-      toast.error("Please fill deduction details");
-      return;
-    }
-    setCompensationFormData((prev) => {
-      const amount = prev.basePay * (deductionInput.percentageOfSalary / 100);
-      const newDeduction = { ...deductionInput, amount };
-      const deductions = [...prev.deductions, newDeduction];
-
-      const totals = computeSalaryTotals(
-        prev.basePay,
-        prev.bonuses,
-        deductions
-      );
-      const totalBonus = prev.bonuses.reduce((sum, b) => sum + b.amount, 0);
-      const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
-
-      return {
-        ...prev,
-        deductions,
-        hra: totals.hra,
-        pf: totals.pf,
-        gratuity: totals.gratuity,
-        insurancePremium: totals.insurancePremium,
-        grossPay: totals.grossPay,
-        netPay: finalNetPay
-      };
-    });
-    setDeductionInput({
-      deductionType: "",
-      description: "",
-      amount: 0,
-      percentageOfSalary: 0,
-      expiresOn: new Date()
-    });
-    toast.success("Deduction added");
-  };
-
-  // Handle remove deduction
-  const handleRemoveDeduction = (index: number) => {
-    setCompensationFormData((prev) => {
-      const deductions = prev.deductions.filter((_, i) => i !== index);
-      const totals = computeSalaryTotals(
-        prev.basePay,
-        prev.bonuses,
-        deductions
-      );
-      const totalBonus = prev.bonuses.reduce((sum, b) => sum + b.amount, 0);
-      const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-      const finalNetPay = totals.netPay + totalBonus - totalDeductions;
-      return {
-        ...prev,
-        deductions,
-        hra: totals.hra,
-        pf: totals.pf,
-        gratuity: totals.gratuity,
-        insurancePremium: totals.insurancePremium,
-        grossPay: totals.grossPay,
-        netPay: finalNetPay
-      };
-    });
-  };
-
   const handleAddCompensation = () => {
     if (
-      !compensationMetadata.department ||
-      !compensationMetadata.role ||
-      compensationFormData.basePay === 0
+      !compensationFormData.role ||
+      !compensationFormData.deptId ||
+      compensationFormData.minBasePay === 0 ||
+      compensationFormData.maxBasePay === 0
     ) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    const totalBonus = compensationFormData.bonuses.reduce(
-      (sum, b) => sum + b.amount,
-      0
-    );
-    const totalDeductions = compensationFormData.deductions.reduce(
-      (sum, d) => sum + d.amount,
-      0
-    );
-    const totalCompensation =
-      compensationFormData.basePay +
-      compensationFormData.hra +
-      totalBonus -
-      totalDeductions;
-
     const newCompensation: RoleCompensation = {
-      id: `COMP${compensations.length + 1}`,
-      department: compensationMetadata.department,
-      role: compensationMetadata.role,
-      basePay: compensationFormData.basePay,
-      hra: compensationFormData.hra,
-      bonus: totalBonus,
-      deductions: totalDeductions,
-      totalCompensation
+      ...compensationFormData
     };
 
     setCompensations([...compensations, newCompensation]);
-    toast.success("Compensation details added successfully");
+    toast.success("Role compensation details added successfully");
 
     // Reset form
     setCompensationFormData({
-      basePay: 0,
-      hra: 0,
-      pf: 0,
-      gratuity: 0,
-      insurancePremium: 0,
-      grossPay: 0,
-      netPay: 0,
-      annualPackage: "",
-      bonuses: [],
-      deductions: [],
-      bankRecords: []
-    });
-    setCompensationMetadata({
-      department: "",
-      role: ""
-    });
-    setBonusInput({
-      bonusType: "",
-      amount: 0,
-      percentageOfSalary: 0,
-      expiresOn: new Date()
-    });
-    setDeductionInput({
-      deductionType: "",
-      description: "",
-      amount: 0,
-      percentageOfSalary: 0,
-      expiresOn: new Date()
+      orgId: 1,
+      role: "",
+      deptId: 0,
+      employeeLevel: EmployeeLevelTypes.L0,
+      minBasePay: 0,
+      maxBasePay: 0,
+      minTotalBonuses: 0,
+      maxTotalBonuses: 0,
+      minTotalDeductions: 0,
+      maxTotalDeductions: 0,
+      minAnnualSalary: "",
+      maxAnnualSalary: ""
     });
     setShowAddCompensationDialog(false);
   };
@@ -474,41 +272,40 @@ export default function OrganizationPage() {
   // Compensation table columns
   const compensationColumns: ColumnDef<RoleCompensation>[] = [
     {
-      accessorKey: "department",
-      header: "Department"
-    },
-    {
       accessorKey: "role",
       header: "Role"
     },
     {
-      accessorKey: "basePay",
-      header: "Base Pay",
-      cell: (row: RoleCompensation) => `$${row.basePay.toLocaleString()}`
+      accessorKey: "employeeLevel",
+      header: "Employee Level"
     },
     {
-      accessorKey: "hra",
-      header: "HRA",
-      cell: (row: RoleCompensation) => `$${row.hra.toLocaleString()}`
+      accessorKey: "minBasePay",
+      header: "Min Base Pay",
+      cell: (row: RoleCompensation) => `$${(row.minBasePay || 0).toLocaleString()}`
     },
     {
-      accessorKey: "bonus",
-      header: "Bonus",
-      cell: (row: RoleCompensation) => `$${row.bonus.toLocaleString()}`
+      accessorKey: "maxBasePay",
+      header: "Max Base Pay",
+      cell: (row: RoleCompensation) => `$${(row.maxBasePay || 0).toLocaleString()}`
     },
     {
-      accessorKey: "deductions",
-      header: "Deductions",
-      cell: (row: RoleCompensation) => `$${row.deductions.toLocaleString()}`
+      accessorKey: "minTotalBonuses",
+      header: "Min Bonuses",
+      cell: (row: RoleCompensation) => `$${(row.minTotalBonuses || 0).toLocaleString()}`
     },
     {
-      accessorKey: "totalCompensation",
-      header: "Total Compensation",
-      cell: (row: RoleCompensation) => (
-        <span className="font-semibold text-green-600">
-          ${row.totalCompensation.toLocaleString()}
-        </span>
-      )
+      accessorKey: "maxTotalBonuses",
+      header: "Max Bonuses",
+      cell: (row: RoleCompensation) => `$${(row.maxTotalBonuses || 0).toLocaleString()}`
+    },
+    {
+      accessorKey: "minAnnualSalary",
+      header: "Min Annual Salary"
+    },
+    {
+      accessorKey: "maxAnnualSalary",
+      header: "Max Annual Salary"
     },
     {
       id: "actions",
@@ -603,7 +400,54 @@ export default function OrganizationPage() {
 
       {/* Department Cards */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">Departments Overview</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Departments Overview</h2>
+          <Dialog
+            open={showAddDepartmentDialog}
+            onOpenChange={setShowAddDepartmentDialog}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" /> Add Department
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add New Department</DialogTitle>
+                <DialogDescription>
+                  Create a new department in your organization
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dept-name">Department Name *</Label>
+                  <Input
+                    id="dept-name"
+                    placeholder="e.g., Engineering, Sales, HR"
+                    value={departmentFormData.name}
+                    onChange={(e) =>
+                      setDepartmentFormData({ name: e.target.value })
+                    }
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        handleAddDepartment();
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddDepartmentDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddDepartment}>Add Department</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {departments.map((dept) => (
             <Card key={dept.id} className="p-4 gap-2">
@@ -788,7 +632,7 @@ export default function OrganizationPage() {
               <DialogHeader>
                 <DialogTitle>Add Role Compensation</DialogTitle>
                 <DialogDescription>
-                  Define compensation details for a specific role
+                  Define compensation range for a role and employee level
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 w-full">
@@ -796,11 +640,11 @@ export default function OrganizationPage() {
                   <div className="space-y-2">
                     <Label htmlFor="comp-department">Department *</Label>
                     <Select
-                      value={compensationMetadata.department}
+                      value={compensationFormData.deptId.toString()}
                       onValueChange={(value) =>
-                        setCompensationMetadata({
-                          ...compensationMetadata,
-                          department: value
+                        setCompensationFormData({
+                          ...compensationFormData,
+                          deptId: parseInt(value)
                         })
                       }
                     >
@@ -808,8 +652,8 @@ export default function OrganizationPage() {
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent className="w-full">
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.name}>
+                        {departments.map((dept, idx) => (
+                          <SelectItem key={dept.id} value={(idx + 1).toString()}>
                             {dept.name}
                           </SelectItem>
                         ))}
@@ -820,10 +664,10 @@ export default function OrganizationPage() {
                   <div className="space-y-2">
                     <Label htmlFor="comp-role">Role *</Label>
                     <Select
-                      value={compensationMetadata.role}
+                      value={compensationFormData.role}
                       onValueChange={(value) =>
-                        setCompensationMetadata({
-                          ...compensationMetadata,
+                        setCompensationFormData({
+                          ...compensationFormData,
                           role: value
                         })
                       }
@@ -832,313 +676,181 @@ export default function OrganizationPage() {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {roles
-                          .filter(
-                            (r) =>
-                              r.department === compensationMetadata.department
-                          )
-                          .map((role) => (
-                            <SelectItem key={role.id} value={role.role}>
-                              {role.role}
-                            </SelectItem>
-                          ))}
+                        {roles.map((role) => (
+                          <SelectItem key={role.id} value={role.role}>
+                            {role.role}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="base-pay">Base Pay *</Label>
-                  <Input
-                    id="base-pay"
-                    type="number"
-                    placeholder="50000"
-                    value={compensationFormData.basePay || ""}
-                    onChange={(e) =>
-                      handleBasePayChange(parseFloat(e.target.value) || 0)
+                  <Label htmlFor="emp-level">Employee Level *</Label>
+                  <Select
+                    value={compensationFormData.employeeLevel}
+                    onValueChange={(value) =>
+                      setCompensationFormData({
+                        ...compensationFormData,
+                        employeeLevel: value as EmployeeLevelTypes
+                      })
                     }
-                  />
-                </div>
-
-                {/* Bonus Section */}
-                <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-3">Bonuses</h3>
-                  <div className="space-y-3 mb-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="bonus-type">Bonus Type</Label>
-                        <Input
-                          id="bonus-type"
-                          placeholder="e.g., Annual Bonus"
-                          value={bonusInput.bonusType}
-                          onChange={(e) =>
-                            setBonusInput({
-                              ...bonusInput,
-                              bonusType: e.target.value
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bonus-percentage">
-                          Bonus % of Salary
-                        </Label>
-                        <Input
-                          id="bonus-percentage"
-                          type="number"
-                          placeholder="10"
-                          value={bonusInput.percentageOfSalary || ""}
-                          onChange={(e) =>
-                            setBonusInput({
-                              ...bonusInput,
-                              percentageOfSalary:
-                                parseFloat(e.target.value) || 0
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bonus-expires">Expires On</Label>
-                        <Input
-                          id="bonus-expires"
-                          type="date"
-                          value={
-                            bonusInput.expiresOn.toISOString().split("T")[0]
-                          }
-                          onChange={(e) =>
-                            setBonusInput({
-                              ...bonusInput,
-                              expiresOn: new Date(e.target.value)
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={handleAddBonus}
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Bonus
-                    </Button>
-                  </div>
-
-                  {compensationFormData.bonuses.length > 0 && (
-                    <div className="space-y-2">
-                      {compensationFormData.bonuses.map((bonus, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-center bg-gray-50 p-3 rounded"
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">
-                              {bonus.bonusType}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {bonus.percentageOfSalary}% = $
-                              {bonus.amount.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Expires:{" "}
-                              {new Date(bonus.expiresOn).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveBonus(idx)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </div>
+                  >
+                    <SelectTrigger id="emp-level">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(EmployeeLevelTypes).map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
                       ))}
-                    </div>
-                  )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Deduction Section */}
                 <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-3">Deductions</h3>
-                  <div className="space-y-3 mb-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="deduction-type">Deduction Type</Label>
-                        <Input
-                          id="deduction-type"
-                          placeholder="e.g., Tax"
-                          value={deductionInput.deductionType}
-                          onChange={(e) =>
-                            setDeductionInput({
-                              ...deductionInput,
-                              deductionType: e.target.value
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="deduction-percentage">
-                          Deduction % of Salary
-                        </Label>
-                        <Input
-                          id="deduction-percentage"
-                          type="number"
-                          placeholder="5"
-                          value={deductionInput.percentageOfSalary || ""}
-                          onChange={(e) =>
-                            setDeductionInput({
-                              ...deductionInput,
-                              percentageOfSalary:
-                                parseFloat(e.target.value) || 0
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
+                  <h3 className="font-semibold mb-3">Base Pay Range</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="deduction-description">Description</Label>
+                      <Label htmlFor="min-base-pay">Min Base Pay *</Label>
                       <Input
-                        id="deduction-description"
-                        placeholder="e.g., Income tax deduction"
-                        value={deductionInput.description}
+                        id="min-base-pay"
+                        type="number"
+                        placeholder="30000"
+                        value={compensationFormData.minBasePay || ""}
                         onChange={(e) =>
-                          setDeductionInput({
-                            ...deductionInput,
-                            description: e.target.value
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            minBasePay: parseFloat(e.target.value) || 0
                           })
                         }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="deduction-expires">Expires On</Label>
+                      <Label htmlFor="max-base-pay">Max Base Pay *</Label>
                       <Input
-                        id="deduction-expires"
-                        type="date"
-                        value={
-                          deductionInput.expiresOn.toISOString().split("T")[0]
-                        }
+                        id="max-base-pay"
+                        type="number"
+                        placeholder="60000"
+                        value={compensationFormData.maxBasePay || ""}
                         onChange={(e) =>
-                          setDeductionInput({
-                            ...deductionInput,
-                            expiresOn: new Date(e.target.value)
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            maxBasePay: parseFloat(e.target.value) || 0
                           })
                         }
                       />
                     </div>
-                    <Button
-                      type="button"
-                      onClick={handleAddDeduction}
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Deduction
-                    </Button>
                   </div>
-
-                  {compensationFormData.deductions.length > 0 && (
-                    <div className="space-y-2">
-                      {compensationFormData.deductions.map((deduction, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-center bg-gray-50 p-3 rounded"
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">
-                              {deduction.deductionType}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {deduction.description}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {deduction.percentageOfSalary}% = $
-                              {deduction.amount.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Expires:{" "}
-                              {new Date(
-                                deduction.expiresOn
-                              ).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveDeduction(idx)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                {/* Auto-calculated Gross and Net Pay Display */}
-                {compensationFormData.basePay > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded p-4 space-y-3 mt-4">
-                    <p className="text-sm font-medium text-green-900">
-                      Compensation Summary:
-                    </p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <p className="text-gray-600">HRA (50%)</p>
-                        <p className="font-semibold">
-                          ${compensationFormData.hra.toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">PF (12%)</p>
-                        <p className="font-semibold">
-                          ${compensationFormData.pf.toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Gratuity (4.81%)</p>
-                        <p className="font-semibold">
-                          ${compensationFormData.gratuity.toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Insurance (2%)</p>
-                        <p className="font-semibold">
-                          ${compensationFormData.insurancePremium.toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Total Bonuses</p>
-                        <p className="font-semibold text-blue-600">
-                          $
-                          {compensationFormData.bonuses
-                            .reduce((sum, b) => sum + b.amount, 0)
-                            .toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Total Deductions</p>
-                        <p className="font-semibold text-red-600">
-                          $
-                          {compensationFormData.deductions
-                            .reduce((sum, d) => sum + d.amount, 0)
-                            .toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="col-span-1 md:col-span-2 border-t pt-3">
-                        <p className="text-gray-600">Gross Pay</p>
-                        <p className="font-semibold text-green-600 text-lg">
-                          ${compensationFormData.grossPay.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="border-t pt-3">
-                        <p className="text-gray-600">Net Pay</p>
-                        <p className="font-semibold text-green-700 text-lg">
-                          ${compensationFormData.netPay.toFixed(2)}
-                        </p>
-                      </div>
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-3">Bonuses Range</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="min-bonus">Min Total Bonuses</Label>
+                      <Input
+                        id="min-bonus"
+                        type="number"
+                        placeholder="5000"
+                        value={compensationFormData.minTotalBonuses || ""}
+                        onChange={(e) =>
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            minTotalBonuses: parseFloat(e.target.value) || 0
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max-bonus">Max Total Bonuses</Label>
+                      <Input
+                        id="max-bonus"
+                        type="number"
+                        placeholder="15000"
+                        value={compensationFormData.maxTotalBonuses || ""}
+                        onChange={(e) =>
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            maxTotalBonuses: parseFloat(e.target.value) || 0
+                          })
+                        }
+                      />
                     </div>
                   </div>
-                )}
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-3">Deductions Range</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="min-deduction">Min Total Deductions</Label>
+                      <Input
+                        id="min-deduction"
+                        type="number"
+                        placeholder="2000"
+                        value={compensationFormData.minTotalDeductions || ""}
+                        onChange={(e) =>
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            minTotalDeductions: parseFloat(e.target.value) || 0
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max-deduction">Max Total Deductions</Label>
+                      <Input
+                        id="max-deduction"
+                        type="number"
+                        placeholder="5000"
+                        value={compensationFormData.maxTotalDeductions || ""}
+                        onChange={(e) =>
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            maxTotalDeductions: parseFloat(e.target.value) || 0
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-3">Annual Salary Range</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="min-annual-salary">Min Annual Salary</Label>
+                      <Input
+                        id="min-annual-salary"
+                        placeholder="360000"
+                        value={compensationFormData.minAnnualSalary || ""}
+                        onChange={(e) =>
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            minAnnualSalary: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max-annual-salary">Max Annual Salary</Label>
+                      <Input
+                        id="max-annual-salary"
+                        placeholder="720000"
+                        value={compensationFormData.maxAnnualSalary || ""}
+                        onChange={(e) =>
+                          setCompensationFormData({
+                            ...compensationFormData,
+                            maxAnnualSalary: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button

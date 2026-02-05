@@ -139,23 +139,28 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
 
     formData.append(
       "dto",
-      JSON.stringify({
-        name: data.name,
-        email: data.email,
-        personalEmail: data.personalEmail,
-        password: data.password,
-        phone: data.phone,
-        title: data.title,
-        role: data.role,
-        gender: data.gender,
-        age: data.age,
-        dateOfBirth: data.dateOfBirth,
-        department: data.department,
-        address: data.address,
-        compensation: data.compensation,
-        orgName: data.orgName,
-        orgType: data.orgType
-      })
+      new Blob(
+        [
+          JSON.stringify({
+            name: data.name,
+            email: data.email,
+            personalEmail: data.personalEmail,
+            password: data.password,
+            phone: data.phone,
+            title: data.title,
+            role: data.role,
+            gender: data.gender,
+            age: data.age,
+            dateOfBirth: data.dateOfBirth,
+            department: data.department,
+            address: data.address,
+            compensation: data.compensation,
+            orgName: data.orgName,
+            orgType: data.orgType
+          })
+        ],
+        { type: "application/json" }
+      )
     );
     const response = await apiClientMultipart.post<ApiAuthResponse>(
       "/iam/auth/register",
