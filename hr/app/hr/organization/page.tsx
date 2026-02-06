@@ -39,9 +39,12 @@ import type {
   RoleCompensation,
   CompensationData,
   Bonus,
-  Deduction
+  Deduction,
+  GrantPermission
 } from "@/types";
 import { EmployeeLevelTypes } from "@/types/EmployeeLevelTypes";
+import { ResourceType } from "@/types/ResourceTypes";
+import { PermissionAction } from "@/types/PermissionAction";
 import { computeSalaryTotals } from "@/utils/salary-calculator";
 
 export default function OrganizationPage() {
@@ -55,6 +58,8 @@ export default function OrganizationPage() {
   const [showAddCompensationDialog, setShowAddCompensationDialog] =
     useState(false);
   const [showAddDepartmentDialog, setShowAddDepartmentDialog] = useState(false);
+  const [showGrantPermissionDialog, setShowGrantPermissionDialog] =
+    useState(false);
 
   // Form states
   const [departmentFormData, setDepartmentFormData] = useState({
@@ -69,22 +74,34 @@ export default function OrganizationPage() {
   });
 
   // Compensation form state
-  const [compensationFormData, setCompensationFormData] = useState<RoleCompensation>({
-    orgId: 1,
-    role: "",
-    deptId: 0,
-    employeeLevel: EmployeeLevelTypes.L0,
-    minBasePay: 0,
-    maxBasePay: 0,
-    minTotalBonuses: 0,
-    maxTotalBonuses: 0,
-    minTotalDeductions: 0,
-    maxTotalDeductions: 0,
-    minAnnualSalary: "",
-    maxAnnualSalary: ""
-  });
+  const [compensationFormData, setCompensationFormData] =
+    useState<RoleCompensation>({
+      orgId: 1,
+      role: "",
+      deptId: 0,
+      employeeLevel: EmployeeLevelTypes.L0,
+      minBasePay: 0,
+      maxBasePay: 0,
+      minTotalBonuses: 0,
+      maxTotalBonuses: 0,
+      minTotalDeductions: 0,
+      maxTotalDeductions: 0,
+      minAnnualSalary: "",
+      maxAnnualSalary: ""
+    });
 
   const [permissionInput, setPermissionInput] = useState("");
+
+  // Grant Permission form state
+  const [grantPermissionFormData, setGrantPermissionFormData] =
+    useState<GrantPermission>({
+      resourceName: "",
+      description: "",
+      resourceType: ResourceType.DOCUMENT,
+      role: "",
+      action: PermissionAction.READ,
+      departmentId: 0
+    });
 
   // Calculate total employees
   const totalEmployees = departments.reduce(
@@ -117,12 +134,8 @@ export default function OrganizationPage() {
 
   // Handle add role
   const handleAddRole = () => {
-    if (
-      !roleFormData.department ||
-      !roleFormData.role ||
-      !roleFormData.description
-    ) {
-      toast.error("Please fill in all required fields");
+    if (!roleFormData.department || !roleFormData.role) {
+      toast.error("Please fill in all required fields (Department and Role)");
       return;
     }
 
@@ -200,6 +213,30 @@ export default function OrganizationPage() {
       ...roleFormData,
       permissions: roleFormData.permissions.filter((_, i) => i !== index)
     });
+  };
+
+  // Handle add grant permission
+  const handleAddGrantPermission = () => {
+    if (
+      !grantPermissionFormData.resourceName ||
+      !grantPermissionFormData.description ||
+      !grantPermissionFormData.role ||
+      grantPermissionFormData.departmentId === 0
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    toast.success("Permission granted successfully");
+    setGrantPermissionFormData({
+      resourceName: "",
+      description: "",
+      resourceType: ResourceType.DOCUMENT,
+      role: "",
+      action: PermissionAction.READ,
+      departmentId: 0
+    });
+    setShowGrantPermissionDialog(false);
   };
 
   // Role table columns
@@ -282,22 +319,26 @@ export default function OrganizationPage() {
     {
       accessorKey: "minBasePay",
       header: "Min Base Pay",
-      cell: (row: RoleCompensation) => `$${(row.minBasePay || 0).toLocaleString()}`
+      cell: (row: RoleCompensation) =>
+        `$${(row.minBasePay || 0).toLocaleString()}`
     },
     {
       accessorKey: "maxBasePay",
       header: "Max Base Pay",
-      cell: (row: RoleCompensation) => `$${(row.maxBasePay || 0).toLocaleString()}`
+      cell: (row: RoleCompensation) =>
+        `$${(row.maxBasePay || 0).toLocaleString()}`
     },
     {
       accessorKey: "minTotalBonuses",
       header: "Min Bonuses",
-      cell: (row: RoleCompensation) => `$${(row.minTotalBonuses || 0).toLocaleString()}`
+      cell: (row: RoleCompensation) =>
+        `$${(row.minTotalBonuses || 0).toLocaleString()}`
     },
     {
       accessorKey: "maxTotalBonuses",
       header: "Max Bonuses",
-      cell: (row: RoleCompensation) => `$${(row.maxTotalBonuses || 0).toLocaleString()}`
+      cell: (row: RoleCompensation) =>
+        `$${(row.maxTotalBonuses || 0).toLocaleString()}`
     },
     {
       accessorKey: "minAnnualSalary",
@@ -483,22 +524,25 @@ export default function OrganizationPage() {
               Manage roles and their permissions across departments
             </CardDescription>
           </div>
-          <Dialog open={showAddRoleDialog} onOpenChange={setShowAddRoleDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Role
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto no-scrollbar">
-              <DialogHeader>
-                <DialogTitle>Add New Role</DialogTitle>
-                <DialogDescription>
-                  Create a new role with permissions and assign to departments
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex gap-2">
+            <Dialog
+              open={showAddRoleDialog}
+              onOpenChange={setShowAddRoleDialog}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Role
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add New Role</DialogTitle>
+                  <DialogDescription>
+                    Create a new role and assign to a department
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="role-department">Department *</Label>
                     <Select
@@ -510,7 +554,7 @@ export default function OrganizationPage() {
                         })
                       }
                     >
-                      <SelectTrigger id="role-department">
+                      <SelectTrigger id="role-department" className="w-full">
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent>
@@ -535,74 +579,199 @@ export default function OrganizationPage() {
                           role: e.target.value
                         })
                       }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role-description">Description *</Label>
-                  <Textarea
-                    id="role-description"
-                    placeholder="Describe the role and responsibilities"
-                    value={roleFormData.description}
-                    onChange={(e) =>
-                      setRoleFormData({
-                        ...roleFormData,
-                        description: e.target.value
-                      })
-                    }
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="permission">Permissions</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="permission"
-                      placeholder="Add permission"
-                      value={permissionInput}
-                      onChange={(e) => setPermissionInput(e.target.value)}
                       onKeyPress={(e) => {
                         if (e.key === "Enter") {
-                          handleAddPermission();
+                          handleAddRole();
                         }
                       }}
                     />
-                    <Button type="button" onClick={handleAddPermission}>
-                      Add
-                    </Button>
                   </div>
 
-                  {roleFormData.permissions.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {roleFormData.permissions.map((perm, idx) => (
-                        <Badge key={idx} variant="secondary" className="pr-2">
-                          {perm}
-                          <button
-                            className="ml-2 hover:text-red-500"
-                            onClick={() => handleRemovePermission(idx)}
-                          >
-                            ×
-                          </button>
-                        </Badge>
-                      ))}
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAddRoleDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddRole}>Add Role</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={showGrantPermissionDialog}
+              onOpenChange={setShowGrantPermissionDialog}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Grant Permission
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto no-scrollbar">
+                <DialogHeader>
+                  <DialogTitle>Grant Permission</DialogTitle>
+                  <DialogDescription>
+                    Grant permissions to roles for specific resources and
+                    actions
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="grant-department">Department *</Label>
+                      <Select
+                        value={grantPermissionFormData.departmentId.toString()}
+                        onValueChange={(value) =>
+                          setGrantPermissionFormData({
+                            ...grantPermissionFormData,
+                            departmentId: parseInt(value)
+                          })
+                        }
+                      >
+                        <SelectTrigger id="grant-department" className="w-full">
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.map((dept, idx) => (
+                            <SelectItem
+                              key={dept.id}
+                              value={(idx + 1).toString()}
+                            >
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </div>
 
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddRoleDialog(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddRole}>Add Role</Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="grant-role">Role *</Label>
+                      <Select
+                        value={grantPermissionFormData.role}
+                        onValueChange={(value) =>
+                          setGrantPermissionFormData({
+                            ...grantPermissionFormData,
+                            role: value
+                          })
+                        }
+                      >
+                        <SelectTrigger id="grant-role" className="w-full">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.map((role) => (
+                            <SelectItem key={role.id} value={role.role}>
+                              {role.role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grant-resource-name">Resource Name *</Label>
+                    <Input
+                      id="grant-resource-name"
+                      placeholder="e.g., Employee Report"
+                      value={grantPermissionFormData.resourceName}
+                      onChange={(e) =>
+                        setGrantPermissionFormData({
+                          ...grantPermissionFormData,
+                          resourceName: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grant-description">Description *</Label>
+                    <Textarea
+                      id="grant-description"
+                      placeholder="Describe what this permission grants"
+                      value={grantPermissionFormData.description}
+                      onChange={(e) =>
+                        setGrantPermissionFormData({
+                          ...grantPermissionFormData,
+                          description: e.target.value
+                        })
+                      }
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="grant-resource-type">
+                        Resource Type *
+                      </Label>
+                      <Select
+                        value={grantPermissionFormData.resourceType}
+                        onValueChange={(value) =>
+                          setGrantPermissionFormData({
+                            ...grantPermissionFormData,
+                            resourceType: value as ResourceType
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          id="grant-resource-type"
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Select resource type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(ResourceType).map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="grant-action">Action *</Label>
+                      <Select
+                        value={grantPermissionFormData.action}
+                        onValueChange={(value) =>
+                          setGrantPermissionFormData({
+                            ...grantPermissionFormData,
+                            action: value as PermissionAction
+                          })
+                        }
+                      >
+                        <SelectTrigger id="grant-action" className="w-full">
+                          <SelectValue placeholder="Select action" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(PermissionAction).map((action) => (
+                            <SelectItem key={action} value={action}>
+                              {action}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowGrantPermissionDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddGrantPermission}>
+                      Grant Permission
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <HRTable columns={roleColumns} data={roles} />
@@ -636,8 +805,8 @@ export default function OrganizationPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 w-full">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4 w-full">
+                  <div className="space-y-2 w-full">
                     <Label htmlFor="comp-department">Department *</Label>
                     <Select
                       value={compensationFormData.deptId.toString()}
@@ -648,12 +817,16 @@ export default function OrganizationPage() {
                         })
                       }
                     >
-                      <SelectTrigger id="comp-department">
+                      <SelectTrigger id="comp-department" className="w-full">
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
-                      <SelectContent className="w-full">
+                      <SelectContent className="w-full block">
                         {departments.map((dept, idx) => (
-                          <SelectItem key={dept.id} value={(idx + 1).toString()}>
+                          <SelectItem
+                            className="w-full"
+                            key={dept.id}
+                            value={(idx + 1).toString()}
+                          >
                             {dept.name}
                           </SelectItem>
                         ))}
@@ -661,7 +834,7 @@ export default function OrganizationPage() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     <Label htmlFor="comp-role">Role *</Label>
                     <Select
                       value={compensationFormData.role}
@@ -672,7 +845,7 @@ export default function OrganizationPage() {
                         })
                       }
                     >
-                      <SelectTrigger id="comp-role">
+                      <SelectTrigger id="comp-role" className="w-full">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -786,7 +959,9 @@ export default function OrganizationPage() {
                   <h3 className="font-semibold mb-3">Deductions Range</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="min-deduction">Min Total Deductions</Label>
+                      <Label htmlFor="min-deduction">
+                        Min Total Deductions
+                      </Label>
                       <Input
                         id="min-deduction"
                         type="number"
@@ -801,7 +976,9 @@ export default function OrganizationPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="max-deduction">Max Total Deductions</Label>
+                      <Label htmlFor="max-deduction">
+                        Max Total Deductions
+                      </Label>
                       <Input
                         id="max-deduction"
                         type="number"
@@ -822,7 +999,9 @@ export default function OrganizationPage() {
                   <h3 className="font-semibold mb-3">Annual Salary Range</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="min-annual-salary">Min Annual Salary</Label>
+                      <Label htmlFor="min-annual-salary">
+                        Min Annual Salary
+                      </Label>
                       <Input
                         id="min-annual-salary"
                         placeholder="360000"
@@ -836,7 +1015,9 @@ export default function OrganizationPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="max-annual-salary">Max Annual Salary</Label>
+                      <Label htmlFor="max-annual-salary">
+                        Max Annual Salary
+                      </Label>
                       <Input
                         id="max-annual-salary"
                         placeholder="720000"

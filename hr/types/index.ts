@@ -5,6 +5,8 @@
 import { BankAccountType } from "./BankAccountTypes";
 import { EmployeeLevelTypes } from "./EmployeeLevelTypes";
 import { OrgType } from "./OrgType";
+import { PermissionAction } from "./PermissionAction";
+import { ResourceType } from "./ResourceTypes";
 
 export type UserRole =
   | "ROLE_ADMIN"
@@ -281,6 +283,15 @@ export interface RoleCompensation {
   maxTotalDeductions: number;
   minAnnualSalary: string;
   maxAnnualSalary: string;
+}
+
+export interface GrantPermission {
+  resourceName: string;
+  description: string;
+  resourceType: ResourceType;
+  role: string;
+  action: PermissionAction;
+  departmentId: number;
 }
 
 // ============================================================================
