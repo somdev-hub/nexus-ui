@@ -292,6 +292,8 @@ export interface GrantPermission {
   role: string;
   action: PermissionAction;
   departmentId: number;
+  resourceUrl?: string;
+  featureId?: string;
 }
 
 // ============================================================================

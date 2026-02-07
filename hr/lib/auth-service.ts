@@ -9,7 +9,8 @@ import type {
   SignupRequest,
   AuthResponse,
   ApiAuthResponse,
-  User
+  User,
+  GrantPermission
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -378,6 +379,63 @@ export async function addUser(
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Add user failed: ${(error as Error).message}`);
+  }
+}
+
+export async function grantPermission(
+  permissionData: GrantPermission
+): Promise<{ message: string; permissionId?: string }> {
+  try {
+    const response = await apiClient.post<{
+      message: string;
+      permissionId?: string;
+    }>("/iam/permissions/grant", permissionData);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Grant permission failed: ${(error as Error).message}`);
+  }
+}
+
+export async function createDepartment(
+  orgId: number,
+  deptName: string
+): Promise<{ message: string; departmentId?: string; status?: string }> {
+  try {
+    const response = await apiClient.post<{
+      message: string;
+      departmentId?: string;
+      status?: string;
+    }>("/iam/department/add", {
+      orgId,
+      deptName
+    });
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Create department failed: ${(error as Error).message}`);
+  }
+}
+
+export async function createRole(
+  role: string,
+  deptId: number
+): Promise<{
+  data: { message: string; roleId?: string };
+  status: number;
+}> {
+  try {
+    const response = await apiClient.post<{
+      message: string;
+      roleId?: string;
+    }>("/iam/roles/create/role", {
+      role,
+      deptId
+    });
+    return {
+      data: response.data,
+      status: response.status
+    };
+  } catch (error: unknown) {
+    throw new Error(`Create role failed: ${(error as Error).message}`);
   }
 }
 

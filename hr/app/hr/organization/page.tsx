@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,15 +37,16 @@ import type {
   Department,
   RoleRecord,
   RoleCompensation,
-  CompensationData,
-  Bonus,
-  Deduction,
   GrantPermission
 } from "@/types";
 import { EmployeeLevelTypes } from "@/types/EmployeeLevelTypes";
 import { ResourceType } from "@/types/ResourceTypes";
 import { PermissionAction } from "@/types/PermissionAction";
-import { computeSalaryTotals } from "@/utils/salary-calculator";
+import {
+  grantPermission,
+  createDepartment,
+  createRole
+} from "@/lib/auth-service";
 
 export default function OrganizationPage() {
   const [departments, setDepartments] = useState<Department[]>(departmentsData);
@@ -103,6 +104,11 @@ export default function OrganizationPage() {
       departmentId: 0
     });
 
+  const [grantPermissionExtraFields, setGrantPermissionExtraFields] = useState({
+    endpoint: "",
+    featureId: ""
+  });
+
   // Calculate total employees
   const totalEmployees = departments.reduce(
     (sum, dept) => sum + dept.employeeCount,
@@ -110,54 +116,96 @@ export default function OrganizationPage() {
   );
 
   // Handle add department
-  const handleAddDepartment = () => {
+  const handleAddDepartment = async () => {
     if (!departmentFormData.name.trim()) {
       toast.error("Please enter a department name");
       return;
     }
 
-    const newDepartment: Department = {
-      id: `DEPT${departments.length + 1}`,
-      name: departmentFormData.name,
-      head: "TBD",
-      employeeCount: 0,
-      budget: 0
-    };
+    try {
+      const orgId = 1; // Default org ID
+      const response = await createDepartment(orgId, departmentFormData.name);
 
-    setDepartments([...departments, newDepartment]);
-    toast.success("Department added successfully");
-    setDepartmentFormData({
-      name: ""
-    });
-    setShowAddDepartmentDialog(false);
+      // Check if departmentId is present and status indicates success
+      if (response.departmentId && response.status === "SUCCESS") {
+        const newDepartment: Department = {
+          id: response.departmentId,
+          name: departmentFormData.name,
+          head: "TBD",
+          employeeCount: 0,
+          budget: 0
+        };
+
+        setDepartments([...departments, newDepartment]);
+        toast.success("Department added successfully");
+        setDepartmentFormData({
+          name: ""
+        });
+        setShowAddDepartmentDialog(false);
+      } else {
+        toast.error("Failed to create department: No department ID returned");
+      }
+    } catch (error: unknown) {
+      toast.error(`Failed to create department: ${(error as Error).message}`);
+    }
   };
 
   // Handle add role
-  const handleAddRole = () => {
+  const handleAddRole = async () => {
     if (!roleFormData.department || !roleFormData.role) {
       toast.error("Please fill in all required fields (Department and Role)");
       return;
     }
 
-    const newRole: RoleRecord = {
-      id: `ROLE${roles.length + 1}`,
-      department: roleFormData.department,
-      role: roleFormData.role,
-      employeeCount: 0,
-      description: roleFormData.description,
-      permissions: roleFormData.permissions,
-      status: "Active"
-    };
+    try {
+      // Find department ID based on department name
+      const department = departments.find(
+        (dept) => dept.name === roleFormData.department
+      );
 
-    setRoles([...roles, newRole]);
-    toast.success("Role added successfully");
-    setRoleFormData({
-      department: "",
-      role: "",
-      description: "",
-      permissions: []
-    });
-    setShowAddRoleDialog(false);
+      if (!department) {
+        toast.error("Invalid department selected");
+        return;
+      }
+
+      const deptId = parseInt(department.id.replace("DEPT", ""));
+
+      const response = await createRole(roleFormData.role, deptId);
+
+      // Check if response status is 200 (OK) or 201 (CREATED)
+      if (response.status === 200 || response.status === 201) {
+        const newRole: RoleRecord = {
+          id: response.data.roleId || `ROLE${roles.length + 1}`,
+          department: roleFormData.department,
+          role: roleFormData.role,
+          employeeCount: 0,
+          description: roleFormData.description,
+          permissions: roleFormData.permissions,
+          status: "Active"
+        };
+
+        setRoles([...roles, newRole]);
+
+        // Show different message based on status code
+        if (response.status === 201) {
+          toast.success("New role created and assigned to department");
+        } else {
+          toast.success("Role already existed and assigned to department");
+        }
+
+        setRoleFormData({
+          department: "",
+          role: "",
+          description: "",
+          permissions: []
+        });
+        setShowAddRoleDialog(false);
+      } else {
+        toast.error("Failed to create role: Invalid response status");
+      }
+    } catch (error: unknown) {
+      toast.error(`Failed to create role: ${(error as Error).message}`);
+    }
   };
 
   const handleAddCompensation = () => {
@@ -216,7 +264,7 @@ export default function OrganizationPage() {
   };
 
   // Handle add grant permission
-  const handleAddGrantPermission = () => {
+  const handleAddGrantPermission = async () => {
     if (
       !grantPermissionFormData.resourceName ||
       !grantPermissionFormData.description ||
@@ -227,16 +275,59 @@ export default function OrganizationPage() {
       return;
     }
 
-    toast.success("Permission granted successfully");
-    setGrantPermissionFormData({
-      resourceName: "",
-      description: "",
-      resourceType: ResourceType.DOCUMENT,
-      role: "",
-      action: PermissionAction.READ,
-      departmentId: 0
-    });
-    setShowGrantPermissionDialog(false);
+    const isModuleType =
+      grantPermissionFormData.resourceType === ResourceType.MODULE ||
+      grantPermissionFormData.resourceType === ResourceType.API_ENDPOINT ||
+      grantPermissionFormData.resourceType === ResourceType.UI_COMPONENT;
+    const isFeatureType =
+      grantPermissionFormData.resourceType === ResourceType.FEATURE;
+
+    if (isModuleType && !grantPermissionExtraFields.endpoint) {
+      toast.error("Please fill in the endpoint field");
+      return;
+    }
+
+    if (isFeatureType && !grantPermissionExtraFields.featureId) {
+      toast.error("Please fill in the feature ID field");
+      return;
+    }
+
+    try {
+      // Build the permission data including optional fields
+      const permissionData: GrantPermission = {
+        ...grantPermissionFormData,
+        resourceUrl: isModuleType
+          ? grantPermissionExtraFields.endpoint
+          : undefined,
+        featureId: isFeatureType
+          ? grantPermissionExtraFields.featureId
+          : undefined
+      };
+
+      const response = await grantPermission(permissionData);
+
+      // Check if permissionId is present in response
+      if (response.permissionId) {
+        toast.success("Permission granted successfully");
+        setGrantPermissionFormData({
+          resourceName: "",
+          description: "",
+          resourceType: ResourceType.DOCUMENT,
+          role: "",
+          action: PermissionAction.READ,
+          departmentId: 0
+        });
+        setGrantPermissionExtraFields({
+          endpoint: "",
+          featureId: ""
+        });
+        setShowGrantPermissionDialog(false);
+      } else {
+        toast.error("Failed to grant permission: No permission ID returned");
+      }
+    } catch (error: unknown) {
+      toast.error(`Failed to grant permission: ${(error as Error).message}`);
+    }
   };
 
   // Role table columns
@@ -671,37 +762,6 @@ export default function OrganizationPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="grant-resource-name">Resource Name *</Label>
-                    <Input
-                      id="grant-resource-name"
-                      placeholder="e.g., Employee Report"
-                      value={grantPermissionFormData.resourceName}
-                      onChange={(e) =>
-                        setGrantPermissionFormData({
-                          ...grantPermissionFormData,
-                          resourceName: e.target.value
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="grant-description">Description *</Label>
-                    <Textarea
-                      id="grant-description"
-                      placeholder="Describe what this permission grants"
-                      value={grantPermissionFormData.description}
-                      onChange={(e) =>
-                        setGrantPermissionFormData({
-                          ...grantPermissionFormData,
-                          description: e.target.value
-                        })
-                      }
-                      rows={3}
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="grant-resource-type">
@@ -756,6 +816,77 @@ export default function OrganizationPage() {
                       </Select>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grant-resource-name">Resource Name *</Label>
+                    <Input
+                      id="grant-resource-name"
+                      placeholder="e.g., Employee Report"
+                      value={grantPermissionFormData.resourceName}
+                      onChange={(e) =>
+                        setGrantPermissionFormData({
+                          ...grantPermissionFormData,
+                          resourceName: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grant-description">Description *</Label>
+                    <Textarea
+                      id="grant-description"
+                      placeholder="Describe what this permission grants"
+                      value={grantPermissionFormData.description}
+                      onChange={(e) =>
+                        setGrantPermissionFormData({
+                          ...grantPermissionFormData,
+                          description: e.target.value
+                        })
+                      }
+                      rows={3}
+                    />
+                  </div>
+
+                  {(grantPermissionFormData.resourceType ===
+                    ResourceType.MODULE ||
+                    grantPermissionFormData.resourceType ===
+                      ResourceType.API_ENDPOINT ||
+                    grantPermissionFormData.resourceType ===
+                      ResourceType.UI_COMPONENT) && (
+                    <div className="space-y-2">
+                      <Label htmlFor="grant-endpoint">Endpoint *</Label>
+                      <Input
+                        id="grant-endpoint"
+                        placeholder="e.g., /api/employees, /dashboard/reports"
+                        value={grantPermissionExtraFields.endpoint}
+                        onChange={(e) =>
+                          setGrantPermissionExtraFields({
+                            ...grantPermissionExtraFields,
+                            endpoint: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {grantPermissionFormData.resourceType ===
+                    ResourceType.FEATURE && (
+                    <div className="space-y-2">
+                      <Label htmlFor="grant-feature-id">Feature ID *</Label>
+                      <Input
+                        id="grant-feature-id"
+                        placeholder="e.g., FEAT-001, FEAT-PAYROLL"
+                        value={grantPermissionExtraFields.featureId}
+                        onChange={(e) =>
+                          setGrantPermissionExtraFields({
+                            ...grantPermissionExtraFields,
+                            featureId: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2 pt-4">
                     <Button
