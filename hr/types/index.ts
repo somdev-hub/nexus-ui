@@ -184,6 +184,8 @@ export interface Employee {
   status: "Active" | "On Leave" | "Inactive";
   joinDate: string;
   salary: number;
+  gender?: string;
+  noticePerioddDays?: number;
   payBreakdown?: {
     baseSalary: number;
     bonus: number;

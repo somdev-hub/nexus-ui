@@ -19,7 +19,7 @@ export function ProtectedRoute({
 
   useEffect(() => {
     // Skip authentication checks when disableAuth is true
-    if (GlobalConfig.wowoFeatures.disableAuth) {
+    if (GlobalConfig.wowoFeatures.auth === false) {
       return;
     }
 

@@ -47,11 +47,32 @@ export function generateDummyAttendance(
       hoursWorked = 0;
     }
 
+    // Map AttendanceStatus to AttendanceRecord status format
+    let recordStatus: "Present" | "Late" | "Absent" | "On Leave" = "Present";
+    switch (status) {
+      case "present":
+        recordStatus = "Present";
+        break;
+      case "absent":
+        recordStatus = "Absent";
+        break;
+      case "leave":
+        recordStatus = "On Leave";
+        break;
+      case "partial":
+        recordStatus = "Late";
+        break;
+    }
+
     records.push({
+      id: `ATT-${employeeId}-${dateStr}`,
       date: dateStr,
-      status,
-      hoursWorked: parseFloat(hoursWorked.toFixed(2)),
-      threshold: 7 // 7 hours is the threshold
+      employeeId: employeeId,
+      employeeName: "",
+      checkIn: status === "present" ? "09:00 AM" : "-",
+      checkOut: status === "present" ? "05:30 PM" : "-",
+      status: recordStatus,
+      hoursWorked: parseFloat(hoursWorked.toFixed(2)).toString()
     });
   }
 
@@ -77,24 +98,24 @@ export function getAttendanceLabel(record: AttendanceRecord): {
   });
 
   switch (record.status) {
-    case "present":
+    case "Present":
       return {
         label: "Present",
         details: `${dateStr} • ${record.hoursWorked} hours worked`
       };
-    case "absent":
+    case "Absent":
       return {
         label: "Absent",
         details: `${dateStr} • No hours worked`
       };
-    case "leave":
+    case "On Leave":
       return {
         label: "On Leave",
         details: `${dateStr} • On leave`
       };
-    case "partial":
+    case "Late":
       return {
-        label: "Partial Day",
+        label: "Late / Partial",
         details: `${dateStr} • ${record.hoursWorked} hours (below threshold)`
       };
     default:

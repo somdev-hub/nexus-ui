@@ -4,20 +4,50 @@ import axios, {
   AxiosResponse
 } from "axios";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+// Use the Next.js API proxy which adds the accessToken from server-side session
+// ALL Spring Boot requests MUST go through this proxy
+const PROXY_BASE = "/api/proxy";
 
-// Store access token in memory (not localStorage for security)
-let accessToken: string | null = null;
+/**
+ * REQUEST FLOW:
+ *
+ * Client Code: apiClient.get("/iam/users/profile")
+ *           ↓
+ * Request Interceptor: Converts to ?path=/iam/users/profile
+ *           ↓
+ * Proxy Route (/api/proxy): Gets accessToken from server-side session
+ *           ↓
+ * Spring Boot: GET http://localhost:8080/iam/users/profile
+ *            (with Authorization: Bearer {accessToken} header)
+ *
+ * This ensures:
+ * ✓ AccessToken NEVER exposed to browser
+ * ✓ AccessToken kept in HttpOnly cookies
+ * ✓ All requests include valid auth header
+ * ✓ Token refresh happens automatically on 401
+ */
 
-// Create request interceptor
+// Create request interceptor - convert Spring Boot paths to proxy calls
 const requestInterceptor = (config: InternalAxiosRequestConfig) => {
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
+  // Convert baseURL + url to use proxy with path query param
+  // e.g., /iam/users/profile -> ?path=/iam/users/profile (baseURL=/api/proxy)
+  const path = config.url || "";
+
+  if (!path.startsWith("?")) {
+    config.url = `?path=${encodeURIComponent(path)}`;
   }
+
   // For FormData requests, remove Content-Type header to let axios set it with boundary
   if (config.data instanceof FormData) {
     delete config.headers["Content-Type"];
   }
+
+  console.log(
+    "[API CLIENT] Request:",
+    config.method?.toUpperCase(),
+    config.url
+  );
+
   return config;
 };
 
@@ -35,22 +65,25 @@ const responseErrorHandler = async (error: AxiosError) => {
     originalRequest._retry = true;
 
     try {
-      const response = await axios.post(
-        `${API_BASE}/iam/auth/refresh`,
-        {},
-        { withCredentials: true }
+      console.log("[API CLIENT] Token expired (401), refreshing...");
+
+      // Call Next.js refresh endpoint (server-side)
+      // This will refresh the accessToken in the server-side session
+      await axios.post(`/api/auth/refresh`, {}, { withCredentials: true });
+
+      console.log(
+        "[API CLIENT] Token refreshed successfully, retrying original request"
       );
 
-      const { accessToken: newToken } = response.data;
-      accessToken = newToken;
-
-      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      // Session cookies are automatically updated by the refresh endpoint
+      // Retry the original request with new token from server-side session
       return apiClient(originalRequest);
     } catch (refreshError) {
-      accessToken = null;
-      window.dispatchEvent(new Event("auth:logout"));
+      console.error("[API CLIENT] Token refresh failed:", refreshError);
 
+      // Refresh failed, redirect to login
       if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("auth:logout"));
         window.location.href = "/login";
       }
 
@@ -62,13 +95,13 @@ const responseErrorHandler = async (error: AxiosError) => {
 };
 
 const apiClient = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true,
+  baseURL: PROXY_BASE,
+  withCredentials: true, // Include cookies in requests
   headers: { "Content-Type": "application/json" }
 });
 
 const apiClientMultipart = axios.create({
-  baseURL: API_BASE,
+  baseURL: PROXY_BASE,
   withCredentials: true
 });
 
@@ -85,12 +118,20 @@ apiClientMultipart.interceptors.response.use(
   responseErrorHandler
 );
 
-export function setAccessToken(token: string) {
-  accessToken = token;
+/**
+ * @deprecated Use the session-based approach instead
+ * Tokens are now managed server-side in encrypted cookies
+ */
+export function setAccessToken() {
+  // No-op: tokens are now handled by the server
 }
 
+/**
+ * @deprecated Use the session-based approach instead
+ * Tokens are now managed server-side in encrypted cookies
+ */
 export function clearAccessToken() {
-  accessToken = null;
+  // No-op: tokens are now handled by the server
 }
 
 export { apiClientMultipart };

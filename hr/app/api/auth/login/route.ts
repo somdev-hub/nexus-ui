@@ -1,0 +1,165 @@
+import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
+import { createSession } from "@/lib/better-auth";
+import { randomUUID } from "crypto";
+
+const SPRING_BOOT_API =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const SESSION_COOKIE_NAME = "auth-session";
+const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log("[AUTH LOGIN] Received login request");
+
+    const { email, password } = await request.json();
+    console.log("[AUTH LOGIN] Email:", email);
+
+    if (!email || !password) {
+      console.log("[AUTH LOGIN] Missing email or password");
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      );
+    }
+
+    console.log("[AUTH LOGIN] Calling Spring Boot API:", SPRING_BOOT_API);
+
+    // Call Spring Boot backend for authentication
+    const response = await axios.post(
+      `${SPRING_BOOT_API}/iam/auth/login`,
+      { email, password },
+      {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        timeout: 30000 // 30 second timeout for debugging
+      }
+    );
+
+    console.log("[AUTH LOGIN] Spring Boot response status:", response.status);
+    console.log("[AUTH LOGIN] Spring Boot response data:", response.data);
+
+    const {
+      accessToken,
+      refreshToken,
+      expiresIn,
+      userId,
+      orgId,
+      name,
+      role,
+      email: userEmail
+    } = response.data;
+
+    // Create user object
+    const user = {
+      id: userId.toString(),
+      email: userEmail,
+      name,
+      role,
+      orgId: orgId.toString(),
+      avatar: `/avatars/${name}.jpg`
+    };
+
+    // Generate session token
+    const sessionToken = randomUUID();
+
+    console.log("[AUTH LOGIN] Creating session for user:", userId);
+
+    // Create session (stored in memory with encryption)
+    createSession(
+      sessionToken,
+      userId.toString(),
+      user,
+      accessToken,
+      refreshToken,
+      expiresIn
+    );
+
+    console.log(
+      "[AUTH LOGIN] Session created, preparing response with cookies"
+    );
+
+    // Create response with user data
+    const responseData = NextResponse.json({
+      success: true,
+      user
+    });
+
+    // Set secure session cookie (HttpOnly, Secure, SameSite)
+    responseData.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: expiresIn,
+      path: "/"
+    });
+
+    // Set refresh token in separate HttpOnly cookie
+    responseData.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: "/"
+    });
+
+    console.log("[AUTH LOGIN] Returning successful response");
+    return responseData;
+  } catch (error: unknown) {
+    console.error("[AUTH LOGIN] Error:", error);
+
+    if (axios.isAxiosError(error)) {
+      console.error("[AUTH LOGIN] Axios error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code
+      });
+
+      // Handle timeout specifically
+      if (error.code === "ECONNABORTED") {
+        console.error(
+          `[AUTH LOGIN] Request timeout - Spring Boot at ${SPRING_BOOT_API} is not responding`
+        );
+        return NextResponse.json(
+          {
+            error: `Spring Boot API timeout. Make sure Spring Boot is running at ${SPRING_BOOT_API}`
+          },
+          { status: 503 }
+        );
+      }
+
+      // Handle connection refused
+      if (error.code === "ECONNREFUSED") {
+        console.error(
+          `[AUTH LOGIN] Connection refused - Spring Boot at ${SPRING_BOOT_API} is not reachable`
+        );
+        return NextResponse.json(
+          {
+            error: `Cannot connect to Spring Boot at ${SPRING_BOOT_API}. Make sure it's running.`
+          },
+          { status: 503 }
+        );
+      }
+
+      if (error.response?.status === 401) {
+        return NextResponse.json(
+          { error: "Invalid credentials" },
+          { status: 401 }
+        );
+      }
+      return NextResponse.json(
+        { error: error.response?.data?.message || "Login failed" },
+        { status: error.response?.status || 500 }
+      );
+    }
+
+    console.error(
+      "[AUTH LOGIN] Non-axios error:",
+      error instanceof Error ? error.message : String(error)
+    );
+
+    return NextResponse.json({ error: "Login failed" }, { status: 500 });
+  }
+}

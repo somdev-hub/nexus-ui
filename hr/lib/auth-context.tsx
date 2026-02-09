@@ -1,7 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { login, logout, getCurrentUser, User } from "./auth-service";
+import {
+  login,
+  logout,
+  getCurrentUser,
+  getCurrentUserFromSession,
+  User
+} from "./auth-service";
 import GlobalConfig from "@/global.config";
 
 interface AuthContextType {
@@ -35,12 +41,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Restore user from localStorage on mount
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    setIsLoading(false);
+    // Check session on mount
+    const checkSession = async () => {
+      try {
+        // First try to get user from localStorage (already logged in)
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+        } else {
+          // Try to get from server session
+          const sessionUser = await getCurrentUserFromSession();
+          if (sessionUser) {
+            setUser(sessionUser);
+            localStorage.setItem("auth_user", JSON.stringify(sessionUser));
+          }
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // Listen for logout events (triggered by API interceptor)
+    checkSession();
+
+    // Listen for logout events
     const handleLogout = () => {
       setUser(null);
       localStorage.removeItem("auth_user");
@@ -55,10 +80,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await login({ email, password });
 
-      // Store user in localStorage only (not the token)
+      // Store user in localStorage and state
+      // Tokens are kept server-side in encrypted cookies
       localStorage.setItem("auth_user", JSON.stringify(response.user));
       setUser(response.user || null);
-      // Access token already set in memory by setAccessToken()
     } catch (error) {
       throw error;
     } finally {

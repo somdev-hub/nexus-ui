@@ -1,5 +1,7 @@
 import type { AttendanceRecord } from "@/types";
 
+export type { AttendanceRecord };
+
 export const attendanceData: AttendanceRecord[] = [
   {
     id: "ATT001",
@@ -39,7 +41,7 @@ export const attendanceData: AttendanceRecord[] = [
     checkIn: "09:00 AM",
     checkOut: "01:00 PM",
     hoursWorked: "4",
-    status: "Half Day"
+    status: "Present"
   },
   {
     id: "ATT005",

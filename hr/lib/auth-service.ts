@@ -1,9 +1,5 @@
-import apiClient, {
-  setAccessToken,
-  clearAccessToken,
-  apiClientMultipart
-} from "./api-client";
 import GlobalConfig from "@/global.config";
+import apiClient, { apiClientMultipart } from "@/lib/api-client";
 import type {
   LoginRequest,
   SignupRequest,
@@ -26,13 +22,9 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
       avatar: `/avatars/default.jpg`
     };
 
-    // Set a dummy token for consistency
-    const dummyToken = "dev-token-" + Date.now();
-    setAccessToken(dummyToken);
-
     return {
-      accessToken: dummyToken,
-      refreshToken: dummyToken,
+      accessToken: "",
+      refreshToken: "",
       tokenType: "Bearer",
       expiresIn: 86400,
       user: dummyUser
@@ -40,48 +32,40 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   }
 
   try {
-    const response = await apiClient.post<ApiAuthResponse>(
-      "/iam/auth/login",
-      credentials
-    );
+    console.log("[AUTH SERVICE] Logging in user:", credentials.email);
 
-    const {
-      accessToken,
-      refreshToken,
-      tokenType,
-      expiresIn,
-      userId,
-      orgId,
-      name,
-      role,
-      email
-    } = response.data;
+    // Call Next.js API route instead of Spring Boot directly
+    // JWT tokens are kept server-side in encrypted cookies
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include", // Include cookies
+      body: JSON.stringify(credentials)
+    });
 
-    // Store access token in memory
-    setAccessToken(accessToken);
+    console.log("[AUTH SERVICE] Response status:", response.status);
+    console.log("[AUTH SERVICE] Response ok:", response.ok);
 
-    // Backend sets refresh token in HTTP-only cookie automatically
-    // (via Set-Cookie header with withCredentials: true)
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("[AUTH SERVICE] Login error:", error);
+      throw new Error(error.error || "Login failed");
+    }
 
-    // Transform response to user object for storage
-    const user: User = {
-      id: userId,
-      email: email,
-      name: name,
-      role: role,
-      orgId: orgId,
-      avatar: `/avatars/${name}.jpg`
-    };
+    const data = await response.json();
+    console.log("[AUTH SERVICE] Login successful, user:", data.user?.email);
 
     return {
-      accessToken,
-      refreshToken,
-      tokenType: tokenType,
-      expiresIn: expiresIn,
-      user
+      accessToken: "", // Not exposed to frontend
+      refreshToken: "", // Not exposed to frontend
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      user: data.user
     };
   } catch (error: unknown) {
-    clearAccessToken();
+    console.error("[AUTH SERVICE] Login error:", error);
     throw new Error("Login failed: " + (error as Error).message);
   }
 }
@@ -99,13 +83,9 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
       avatar: `/avatars/${data.name}.jpg`
     };
 
-    // Set a dummy token for consistency
-    const dummyToken = "dev-token-" + Date.now();
-    setAccessToken(dummyToken);
-
     return {
-      accessToken: dummyToken,
-      refreshToken: dummyToken,
+      accessToken: "",
+      refreshToken: "",
       tokenType: "Bearer",
       expiresIn: 86400,
       user: dummyUser
@@ -179,7 +159,6 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
       role,
       email
     } = response.data;
-    setAccessToken(accessToken);
 
     const user: User = {
       id: userId,
@@ -198,38 +177,45 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
       user
     };
   } catch (error: unknown) {
-    clearAccessToken();
     throw new Error("Signup failed: " + (error as Error).message);
   }
 }
 
 export async function logout(): Promise<void> {
-  // JWT is stateless, no need to call backend
-  // Just clear tokens on frontend
-  clearAccessToken();
+  // Call Next.js API route to clear server-side session
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include" // Include cookies
+    });
+  } catch (error: unknown) {
+    console.error("Logout error:", error);
+  }
+  // Clear frontend state
   localStorage.removeItem("auth_user");
 }
 
 export async function refreshToken(): Promise<string> {
   // Dummy token refresh for development mode
   if (!GlobalConfig.wowoFeatures.auth) {
-    const dummyToken = "dev-token-" + Date.now();
-    setAccessToken(dummyToken);
-    return dummyToken;
+    return "dev-token-" + Date.now();
   }
 
   try {
-    const response = await apiClient.post<{
-      accessToken: string;
-      expiresIn: number;
-    }>("/iam/auth/refresh");
+    // Call Next.js API route to refresh token (handled server-side)
+    const response = await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include" // Include cookies
+    });
 
-    const { accessToken } = response.data;
-    setAccessToken(accessToken);
+    if (!response.ok) {
+      throw new Error("Token refresh failed");
+    }
 
-    return accessToken;
+    // Session is automatically updated in cookies, return empty string
+    // since tokens are not exposed to frontend
+    return "";
   } catch (error: unknown) {
-    clearAccessToken();
     throw new Error(`Token refresh failed: ${(error as Error).message}`);
   }
 }
@@ -443,4 +429,22 @@ export function getCurrentUser() {
   if (typeof window === "undefined") return null;
   const user = localStorage.getItem("auth_user");
   return user ? JSON.parse(user) : null;
+}
+
+// Fetch current user from server session
+export async function getCurrentUserFromSession(): Promise<User | null> {
+  try {
+    const response = await fetch("/api/auth/session", {
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data.user || null;
+  } catch {
+    return null;
+  }
 }

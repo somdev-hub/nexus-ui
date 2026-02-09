@@ -1,11 +1,11 @@
-const ENABLE=true;
-const DISABLE=false;
+const ENABLE = true;
+const DISABLE = false;
 
 const GlobalConfig = {
   wowoFeatures: {
-    auth: DISABLE,
-    useDummyData: ENABLE,
-  },
+    auth: ENABLE,
+    useDummyData: ENABLE
+  }
 };
 
 export default GlobalConfig;
