@@ -7,6 +7,40 @@ const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 /**
+ * Helper function to extract body properties and convert them to query parameters
+ * This allows the proxy to send parameters as both query params and body
+ * @param body The JSON body object
+ * @param url The URL to append parameters to
+ * @returns Modified URL with query parameters
+ */
+function appendBodyAsQueryParams(
+  body: Record<string, unknown>,
+  url: string
+): string {
+  if (!body || Object.keys(body).length === 0) {
+    return url;
+  }
+
+  const separator = url.includes("?") ? "&" : "?";
+  const queryString = Object.entries(body)
+    .map(([key, value]) => {
+      // Convert value to string, handle null/undefined
+      let stringValue = "";
+      if (value === null || value === undefined) {
+        stringValue = "";
+      } else if (typeof value === "object") {
+        stringValue = JSON.stringify(value);
+      } else {
+        stringValue = String(value);
+      }
+      return `${encodeURIComponent(key)}=${encodeURIComponent(stringValue)}`;
+    })
+    .join("&");
+
+  return url + separator + queryString;
+}
+
+/**
  * SECURITY CRITICAL: API Proxy Route
  *
  * This route is the ONLY gateway between frontend and Spring Boot backend.
@@ -139,19 +173,43 @@ export async function POST(request: NextRequest) {
 
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
+  console.log("[API PROXY POST] Path:", path);
+  console.log("[API PROXY POST] SessionToken from cookie:", sessionToken);
+
   if (!sessionToken) {
+    console.error("[API PROXY POST] No sessionToken in cookies");
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const session = getSession(sessionToken);
+
+  console.log("[API PROXY POST] Session found:", !!session);
+  if (session) {
+    console.log("[API PROXY POST] Session user:", session.user?.email);
+    console.log("[API PROXY POST] Session expires at:", session.expiresAt);
+  }
+
   if (!session) {
+    console.error(
+      "[API PROXY POST] Session not found for token:",
+      sessionToken
+    );
     return NextResponse.json({ error: "Session expired" }, { status: 401 });
   }
 
   try {
     const body = await request.json().catch(() => ({}));
 
-    const response = await axios.post(`${SPRING_BOOT_API}${path}`, body, {
+    // Extract body properties and add them as query parameters
+    const urlWithParams = `${SPRING_BOOT_API}${path}`;
+    // if (Object.keys(body).length > 0) {
+    //   urlWithParams = appendBodyAsQueryParams(
+    //     body as Record<string, unknown>,
+    //     urlWithParams
+    //   );
+    // }
+
+    const response = await axios.post(urlWithParams, body, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         "Content-Type": "application/json"
@@ -208,7 +266,16 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
 
-    const response = await axios.put(`${SPRING_BOOT_API}${path}`, body, {
+    // Extract body properties and add them as query parameters
+    let urlWithParams = `${SPRING_BOOT_API}${path}`;
+    if (Object.keys(body).length > 0) {
+      urlWithParams = appendBodyAsQueryParams(
+        body as Record<string, unknown>,
+        urlWithParams
+      );
+    }
+
+    const response = await axios.put(urlWithParams, body, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         "Content-Type": "application/json"

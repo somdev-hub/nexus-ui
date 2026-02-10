@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useOrgId } from "@/hooks/use-user-metadata";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,10 +46,16 @@ import { PermissionAction } from "@/types/PermissionAction";
 import {
   grantPermission,
   createDepartment,
-  createRole
+  createRole,
+  addRoleCompensation,
+  getDeptOverview,
+  getAllDeptOverview
 } from "@/lib/auth-service";
 
 export default function OrganizationPage() {
+  // Get organization ID from user metadata
+  const userOrgId = useOrgId();
+
   const [departments, setDepartments] = useState<Department[]>(departmentsData);
   const [roles, setRoles] = useState<RoleRecord[]>(rolesData);
   const [compensations, setCompensations] =
@@ -77,7 +84,7 @@ export default function OrganizationPage() {
   // Compensation form state
   const [compensationFormData, setCompensationFormData] =
     useState<RoleCompensation>({
-      orgId: 1,
+      orgId: userOrgId ? parseInt(userOrgId) : 1,
       role: "",
       deptId: 0,
       employeeLevel: EmployeeLevelTypes.L0,
@@ -109,9 +116,52 @@ export default function OrganizationPage() {
     featureId: ""
   });
 
+  // Overview data state
+  const [overviewData, setOverviewData] = useState({
+    totalDepartments: 0,
+    totalEmployees: 0,
+    totalRoles: 0,
+    totalPermissions: 0
+  });
+
+  // Fetch department overview
+  useEffect(() => {
+    if (!userOrgId) return;
+
+    const fetchDepartments = async () => {
+      try {
+        const orgId = parseInt(userOrgId);
+        const data = await getDeptOverview(orgId);
+        console.log(data);
+
+        if (data) {
+          setDepartments(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+        toast.error("Failed to fetch departments");
+      }
+    };
+
+    const fetchOverviewData = async () => {
+      try {
+        const orgId = parseInt(userOrgId);
+        const overview = await getAllDeptOverview(orgId);
+        if (overview) {
+          setOverviewData(overview);
+        }
+      } catch (error) {
+        console.error("Failed to fetch overview data:", error);
+      }
+    };
+
+    fetchDepartments();
+    fetchOverviewData();
+  }, [userOrgId]);
+
   // Calculate total employees
   const totalEmployees = departments.reduce(
-    (sum, dept) => sum + dept.employeeCount,
+    (sum, dept) => sum + dept.members,
     0
   );
 
@@ -123,24 +173,21 @@ export default function OrganizationPage() {
     }
 
     try {
-      const orgId = 1; // Default org ID
+      const orgId = userOrgId ? parseInt(userOrgId) : 1;
       const response = await createDepartment(orgId, departmentFormData.name);
 
       // Check if departmentId is present and status indicates success
-      if (response.departmentId && response.status === "SUCCESS") {
+      if (response.departmentId) {
         const newDepartment: Department = {
-          id: response.departmentId,
-          name: departmentFormData.name,
-          head: "TBD",
-          employeeCount: 0,
-          budget: 0
+          departmentId: response.departmentId.toString(),
+          departmentName: response.departmentName,
+          members: response.members.length,
+          roles: response.roles.length,
+          departmentHead: "TBD"
         };
-
         setDepartments([...departments, newDepartment]);
-        toast.success("Department added successfully");
-        setDepartmentFormData({
-          name: ""
-        });
+        toast.success("Department created successfully");
+        setDepartmentFormData({ name: "" });
         setShowAddDepartmentDialog(false);
       } else {
         toast.error("Failed to create department: No department ID returned");
@@ -160,7 +207,7 @@ export default function OrganizationPage() {
     try {
       // Find department ID based on department name
       const department = departments.find(
-        (dept) => dept.name === roleFormData.department
+        (dept) => dept.departmentName === roleFormData.department
       );
 
       if (!department) {
@@ -168,7 +215,7 @@ export default function OrganizationPage() {
         return;
       }
 
-      const deptId = parseInt(department.id.replace("DEPT", ""));
+      const deptId = parseInt(department.departmentId.replace("DEPT", ""));
 
       const response = await createRole(roleFormData.role, deptId);
 
@@ -208,7 +255,7 @@ export default function OrganizationPage() {
     }
   };
 
-  const handleAddCompensation = () => {
+  const handleAddCompensation = async () => {
     if (
       !compensationFormData.role ||
       !compensationFormData.deptId ||
@@ -219,29 +266,41 @@ export default function OrganizationPage() {
       return;
     }
 
-    const newCompensation: RoleCompensation = {
-      ...compensationFormData
-    };
+    try {
+      const response = await addRoleCompensation(compensationFormData);
 
-    setCompensations([...compensations, newCompensation]);
-    toast.success("Role compensation details added successfully");
+      if (response) {
+        const newCompensation: RoleCompensation = {
+          ...compensationFormData
+        };
 
-    // Reset form
-    setCompensationFormData({
-      orgId: 1,
-      role: "",
-      deptId: 0,
-      employeeLevel: EmployeeLevelTypes.L0,
-      minBasePay: 0,
-      maxBasePay: 0,
-      minTotalBonuses: 0,
-      maxTotalBonuses: 0,
-      minTotalDeductions: 0,
-      maxTotalDeductions: 0,
-      minAnnualSalary: "",
-      maxAnnualSalary: ""
-    });
-    setShowAddCompensationDialog(false);
+        setCompensations([...compensations, newCompensation]);
+        toast.success("Role compensation details added successfully");
+
+        // Reset form
+        setCompensationFormData({
+          orgId: userOrgId ? parseInt(userOrgId) : 1,
+          role: "",
+          deptId: 0,
+          employeeLevel: EmployeeLevelTypes.L0,
+          minBasePay: 0,
+          maxBasePay: 0,
+          minTotalBonuses: 0,
+          maxTotalBonuses: 0,
+          minTotalDeductions: 0,
+          maxTotalDeductions: 0,
+          minAnnualSalary: "",
+          maxAnnualSalary: ""
+        });
+        setShowAddCompensationDialog(false);
+      } else {
+        toast.error("Failed to add role compensation: No response from server");
+      }
+    } catch (error: unknown) {
+      toast.error(
+        `Failed to add role compensation: ${(error as Error).message}`
+      );
+    }
   };
 
   // Add permission to role
@@ -479,7 +538,7 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">{departments.length}</p>
+              <p className="text-3xl font-bold">{overviewData.totalDepartments}</p>
               <Briefcase className="w-8 h-8 text-blue-500 opacity-50" />
             </div>
           </CardContent>
@@ -493,7 +552,7 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">{totalEmployees}</p>
+              <p className="text-3xl font-bold">{overviewData.totalEmployees}</p>
               <Users className="w-8 h-8 text-green-500 opacity-50" />
             </div>
           </CardContent>
@@ -507,7 +566,7 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">{roles.length}</p>
+              <p className="text-3xl font-bold">{overviewData.totalRoles}</p>
               <Briefcase className="w-8 h-8 text-purple-500 opacity-50" />
             </div>
           </CardContent>
@@ -516,14 +575,12 @@ export default function OrganizationPage() {
         <Card className="p-4 gap-2">
           <CardHeader className="p-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Roles
+              Total Permissions
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">
-                {roles.filter((r) => r.status === "Active").length}
-              </p>
+              <p className="text-3xl font-bold">{overviewData.totalPermissions}</p>
               <Badge className="bg-green-500">Active</Badge>
             </div>
           </CardContent>
@@ -582,23 +639,23 @@ export default function OrganizationPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {departments.map((dept) => (
-            <Card key={dept.id} className="p-4 gap-2">
+            <Card key={dept.departmentId} className="p-4 gap-2">
               <CardHeader className="p-0">
-                <CardTitle className="text-lg">{dept.name}</CardTitle>
-                <CardDescription>Head: {dept.head}</CardDescription>
+                <CardTitle className="text-lg">{dept.departmentName}</CardTitle>
+                <CardDescription>
+                  Head: {dept.departmentHead ? dept.departmentHead : "TBA"}
+                </CardDescription>
               </CardHeader>
-              <CardContent className="p-0 space-y-3">
+              <CardContent className="p-0 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
                     Employees
                   </span>
-                  <Badge>{dept.employeeCount}</Badge>
+                  <Badge>{dept.members}</Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Budget</span>
-                  <span className="font-semibold">
-                    ${(dept.budget / 1000).toFixed(0)}K
-                  </span>
+                  <span className="text-sm text-muted-foreground">Roles</span>
+                  <Badge>{dept.roles}</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -650,8 +707,11 @@ export default function OrganizationPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.name}>
-                            {dept.name}
+                          <SelectItem
+                            key={dept.departmentId}
+                            value={dept.departmentName}
+                          >
+                            {dept.departmentName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -727,10 +787,10 @@ export default function OrganizationPage() {
                         <SelectContent>
                           {departments.map((dept, idx) => (
                             <SelectItem
-                              key={dept.id}
+                              key={dept.departmentId}
                               value={(idx + 1).toString()}
                             >
-                              {dept.name}
+                              {dept.departmentName}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -955,10 +1015,10 @@ export default function OrganizationPage() {
                         {departments.map((dept, idx) => (
                           <SelectItem
                             className="w-full"
-                            key={dept.id}
+                            key={dept.departmentId}
                             value={(idx + 1).toString()}
                           >
-                            {dept.name}
+                            {dept.departmentName}
                           </SelectItem>
                         ))}
                       </SelectContent>

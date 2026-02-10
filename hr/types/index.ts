@@ -248,11 +248,11 @@ export interface WorkTask {
 // ============================================================================
 
 export interface Department {
-  id: string;
-  name: string;
-  employeeCount: number;
-  head: string;
-  budget: number;
+  departmentId: string;
+  departmentName: string;
+  members: number;
+  roles: number;
+  departmentHead: string;
 }
 
 export interface RoleRecord {

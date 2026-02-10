@@ -6,7 +6,9 @@ import type {
   AuthResponse,
   ApiAuthResponse,
   User,
-  GrantPermission
+  GrantPermission,
+  RoleCompensation,
+  Department
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -385,16 +387,34 @@ export async function grantPermission(
 export async function createDepartment(
   orgId: number,
   deptName: string
-): Promise<{ message: string; departmentId?: string; status?: string }> {
+): Promise<{
+  departmentId: number;
+  departmentName: string;
+  members: Array<unknown>;
+  roles: Array<unknown>;
+  createdAt: string;
+}> {
   try {
+    // The proxy will automatically convert these body properties to query parameters
+    /**
+     * response body 
+     * {
+    "departmentId": 8,
+    "departmentName": "Tech HR",
+    "members": [],
+    "roles": [],
+    "createdAt": "2026-02-10T18:57:06.842Z"
+}
+     */
     const response = await apiClient.post<{
-      message: string;
-      departmentId?: string;
-      status?: string;
-    }>("/iam/department/add", {
-      orgId,
-      deptName
-    });
+      departmentId: number;
+      departmentName: string;
+      members: Array<unknown>;
+      roles: Array<unknown>;
+      createdAt: string;
+    }>(`/iam/department/add?orgId=${orgId}&deptName=${deptName}`);
+    console.log(response.data);
+
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Create department failed: ${(error as Error).message}`);
@@ -425,6 +445,22 @@ export async function createRole(
   }
 }
 
+export async function addRoleCompensation(
+  compensationData: RoleCompensation
+): Promise<{ message: string; compensationId?: string }> {
+  try {
+    const response = await apiClient.post<{
+      message: string;
+      compensationId?: string;
+    }>("/hr/employee/paycheck/add", compensationData);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Add role compensation failed: ${(error as Error).message}`
+    );
+  }
+}
+
 export function getCurrentUser() {
   if (typeof window === "undefined") return null;
   const user = localStorage.getItem("auth_user");
@@ -447,4 +483,25 @@ export async function getCurrentUserFromSession(): Promise<User | null> {
   } catch {
     return null;
   }
+}
+
+export async function getDeptOverview(orgId: number): Promise<Department[] | null> {
+  const response= await apiClient.get(`/iam/department/overview?orgId=${orgId}`);
+  return response.data || null;
+}
+
+/**
+ *   "totalDepartments": 6,
+  "totalEmployees": 0,
+  "totalRoles": 2,
+  "totalPermissions": 0
+ */
+export async function getAllDeptOverview(orgId:number): Promise<{
+  totalDepartments: number;
+  totalEmployees: number;
+  totalRoles: number;
+  totalPermissions: number;
+}>{
+  const response= await apiClient.get(`/iam/department/allDept/overview?orgId=${orgId}`);
+  return response.data || null;
 }

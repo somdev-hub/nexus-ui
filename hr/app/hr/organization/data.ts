@@ -2,46 +2,46 @@ import type { Department, RoleRecord, RoleCompensation } from "@/types";
 
 export const departmentsData: Department[] = [
   {
-    id: "DEPT001",
-    name: "Engineering",
-    employeeCount: 12,
-    head: "John Doe",
-    budget: 1200000
+    departmentId: "DEPT001",
+    departmentName: "Engineering",
+    members: 12,
+    roles: 10,
+    departmentHead: "John Doe"
   },
   {
-    id: "DEPT002",
-    name: "Marketing",
-    employeeCount: 8,
-    head: "Sarah Smith",
-    budget: 400000
+    departmentId: "DEPT002",
+    departmentName: "Marketing",
+    members: 8,
+    roles: 5,
+    departmentHead: "Sarah Smith"
   },
   {
-    id: "DEPT003",
-    name: "Sales",
-    employeeCount: 15,
-    head: "Michael Johnson",
-    budget: 600000
+    departmentId: "DEPT003",
+    departmentName: "Sales",
+    members: 15,
+    roles: 7,
+    departmentHead: "Michael Johnson"
   },
   {
-    id: "DEPT004",
-    name: "Operations",
-    employeeCount: 6,
-    head: "David Brown",
-    budget: 300000
+    departmentId: "DEPT004",
+    departmentName: "Operations",
+    members: 6,
+    roles: 3,
+    departmentHead: "David Brown"
   },
   {
-    id: "DEPT005",
-    name: "HR",
-    employeeCount: 4,
-    head: "Jessica Davis",
-    budget: 200000
+    departmentId: "DEPT005",
+    departmentName: "HR",
+    members: 4,
+    roles: 2,
+    departmentHead: "Jessica Davis"
   },
   {
-    id: "DEPT006",
-    name: "Finance",
-    employeeCount: 5,
-    head: "Emma Wilson",
-    budget: 500000
+    departmentId: "DEPT006",
+    departmentName: "Finance",
+    members: 5,
+    roles: 2,
+    departmentHead: "Emma Wilson"
   }
 ];
 

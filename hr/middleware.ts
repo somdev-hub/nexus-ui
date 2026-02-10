@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, refreshSession } from "@/lib/better-auth";
+import GlobalConfig from "@/global.config";
 import axios from "axios";
 
 const publicPaths = ["/login", "/signup", "/"];
@@ -26,14 +27,15 @@ export async function middleware(request: NextRequest) {
 
   // Check if dummy mode is enabled (auth disabled)
   // In dummy mode, allow all routes without authentication
-  const isDummyMode =
-    process.env.NEXT_PUBLIC_WOWO_AUTH === "false" ||
-    !process.env.NEXT_PUBLIC_WOWO_AUTH;
+  // Use GlobalConfig.wowoFeatures.auth to determine mode
+  const isDummyMode = !GlobalConfig.wowoFeatures.auth;
 
   if (isDummyMode) {
     console.log("[MIDDLEWARE] Dummy mode enabled - allowing all routes");
     return NextResponse.next();
   }
+
+  console.log("[MIDDLEWARE] Real auth mode - enforcing authentication");
 
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
