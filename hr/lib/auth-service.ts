@@ -372,11 +372,12 @@ export async function addUser(
 
 export async function grantPermission(
   permissionData: GrantPermission
-): Promise<{ message: string; permissionId?: string }> {
+): Promise<{ message: string; permissionId?: string; status: string }> {
   try {
     const response = await apiClient.post<{
       message: string;
       permissionId?: string;
+      status: string;
     }>("/iam/permissions/grant", permissionData);
     return response.data;
   } catch (error: unknown) {
@@ -485,8 +486,12 @@ export async function getCurrentUserFromSession(): Promise<User | null> {
   }
 }
 
-export async function getDeptOverview(orgId: number): Promise<Department[] | null> {
-  const response= await apiClient.get(`/iam/department/overview?orgId=${orgId}`);
+export async function getDeptOverview(
+  orgId: number
+): Promise<Department[] | null> {
+  const response = await apiClient.get(
+    `/iam/department/overview?orgId=${orgId}`
+  );
   return response.data || null;
 }
 
@@ -496,12 +501,53 @@ export async function getDeptOverview(orgId: number): Promise<Department[] | nul
   "totalRoles": 2,
   "totalPermissions": 0
  */
-export async function getAllDeptOverview(orgId:number): Promise<{
+export async function getAllDeptOverview(orgId: number): Promise<{
   totalDepartments: number;
   totalEmployees: number;
   totalRoles: number;
   totalPermissions: number;
-}>{
-  const response= await apiClient.get(`/iam/department/allDept/overview?orgId=${orgId}`);
+}> {
+  const response = await apiClient.get(
+    `/iam/department/allDept/overview?orgId=${orgId}`
+  );
   return response.data || null;
+}
+
+export async function getDeptRoles(deptId: number): Promise<
+  {
+    id: number;
+    name: string;
+  }[]
+> {
+  const response = await apiClient.get(
+    `/iam/department/fetch/roles?deptId=${deptId}`
+  );
+  return response.data || null;
+}
+
+export async function fetchDeptRolesTable(
+  orgId: number,
+  pageNo: number = 0,
+  pageOffset: number = 10
+): Promise<
+  Array<{
+    departmentId: number;
+    departmentName: string;
+    role: string;
+    noOfEmployees: number;
+    createdOn: string;
+    permissions: string[];
+    status: string;
+  }>
+> {
+  try {
+    const response = await apiClient.get(
+      `/iam/department/dept/roles/table?orgId=${orgId}&pageNo=${pageNo}&pageOffset=${pageOffset}`
+    );
+    return response.data?.content || [];
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch department roles table failed: ${(error as Error).message}`
+    );
+  }
 }

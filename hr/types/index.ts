@@ -260,7 +260,7 @@ export interface RoleRecord {
   department: string;
   role: string;
   employeeCount: number;
-  description: string;
+  createdOn: string;
   permissions: string[];
   status: "Active" | "Inactive";
 }
@@ -292,7 +292,7 @@ export interface GrantPermission {
   description: string;
   resourceType: ResourceType;
   role: string;
-  action: PermissionAction;
+  actions: PermissionAction[];
   departmentId: number;
   resourceUrl?: string;
   featureId?: string;

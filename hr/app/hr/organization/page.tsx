@@ -30,7 +30,22 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Users, Briefcase } from "lucide-react";
 import { departmentsData, rolesData, roleCompensationData } from "./data";
@@ -49,7 +64,9 @@ import {
   createRole,
   addRoleCompensation,
   getDeptOverview,
-  getAllDeptOverview
+  getAllDeptOverview,
+  getDeptRoles,
+  fetchDeptRolesTable
 } from "@/lib/auth-service";
 
 export default function OrganizationPage() {
@@ -60,6 +77,9 @@ export default function OrganizationPage() {
   const [roles, setRoles] = useState<RoleRecord[]>(rolesData);
   const [compensations, setCompensations] =
     useState<RoleCompensation[]>(roleCompensationData);
+  const [deptRoles, setDeptRoles] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
 
   // Dialog states
   const [showAddRoleDialog, setShowAddRoleDialog] = useState(false);
@@ -107,7 +127,7 @@ export default function OrganizationPage() {
       description: "",
       resourceType: ResourceType.DOCUMENT,
       role: "",
-      action: PermissionAction.READ,
+      actions: [PermissionAction.READ],
       departmentId: 0
     });
 
@@ -123,6 +143,11 @@ export default function OrganizationPage() {
     totalRoles: 0,
     totalPermissions: 0
   });
+
+  // Pagination states
+  const [rolesCurrentPage, setRolesCurrentPage] = useState(1);
+  const [compensationCurrentPage, setCompensationCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch department overview
   useEffect(() => {
@@ -159,11 +184,80 @@ export default function OrganizationPage() {
     fetchOverviewData();
   }, [userOrgId]);
 
+  // Fetch roles for selected department in grant permission dialog
+  useEffect(() => {
+    if (grantPermissionFormData.departmentId === 0) {
+      setDeptRoles([]);
+      return;
+    }
+
+    const fetchRoles = async () => {
+      try {
+        const rolesData = await getDeptRoles(
+          grantPermissionFormData.departmentId
+        );
+        if (rolesData) {
+          setDeptRoles(rolesData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch department roles:", error);
+        toast.error("Failed to fetch department roles");
+      }
+    };
+
+    fetchRoles();
+  }, [grantPermissionFormData.departmentId]);
+
+  // Fetch roles table data
+  useEffect(() => {
+    if (!userOrgId) return;
+
+    const fetchRolesTable = async () => {
+      try {
+        const orgId = parseInt(userOrgId);
+        const rolesTableData = await fetchDeptRolesTable(orgId, 0, 10);
+
+        if (rolesTableData) {
+          const formattedRoles: RoleRecord[] = rolesTableData.map((role) => ({
+            id: role.role,
+            department: role.departmentName,
+            role: role.role,
+            employeeCount: role.noOfEmployees,
+            createdOn: role.createdOn,
+            permissions: role.permissions,
+            status: role.status
+          }));
+          setRoles(formattedRoles);
+        }
+      } catch (error) {
+        console.error("Failed to fetch roles table:", error);
+        toast.error("Failed to fetch roles table");
+      }
+    };
+
+    fetchRolesTable();
+  }, [userOrgId]);
+
   // Calculate total employees
   const totalEmployees = departments.reduce(
     (sum, dept) => sum + dept.members,
     0
   );
+
+  // Calculate pagination for roles
+  const rolesStartIndex = (rolesCurrentPage - 1) * itemsPerPage;
+  const rolesEndIndex = rolesStartIndex + itemsPerPage;
+  const rolesPaginatedData = roles.slice(rolesStartIndex, rolesEndIndex);
+  const rolesTotalPages = Math.ceil(roles.length / itemsPerPage);
+
+  // Calculate pagination for compensations
+  const compStartIndex = (compensationCurrentPage - 1) * itemsPerPage;
+  const compEndIndex = compStartIndex + itemsPerPage;
+  const compensationPaginatedData = compensations.slice(
+    compStartIndex,
+    compEndIndex
+  );
+  const compensationTotalPages = Math.ceil(compensations.length / itemsPerPage);
 
   // Handle add department
   const handleAddDepartment = async () => {
@@ -373,7 +467,7 @@ export default function OrganizationPage() {
           description: "",
           resourceType: ResourceType.DOCUMENT,
           role: "",
-          action: PermissionAction.READ,
+          actions: [PermissionAction.READ],
           departmentId: 0
         });
         setGrantPermissionExtraFields({
@@ -407,8 +501,8 @@ export default function OrganizationPage() {
       )
     },
     {
-      accessorKey: "description",
-      header: "Description"
+      accessorKey: "createdOn",
+      header: "Created On"
     },
     {
       accessorKey: "permissions",
@@ -538,7 +632,9 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">{overviewData.totalDepartments}</p>
+              <p className="text-3xl font-bold">
+                {overviewData.totalDepartments}
+              </p>
               <Briefcase className="w-8 h-8 text-blue-500 opacity-50" />
             </div>
           </CardContent>
@@ -552,7 +648,9 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">{overviewData.totalEmployees}</p>
+              <p className="text-3xl font-bold">
+                {overviewData.totalEmployees}
+              </p>
               <Users className="w-8 h-8 text-green-500 opacity-50" />
             </div>
           </CardContent>
@@ -580,7 +678,9 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold">{overviewData.totalPermissions}</p>
+              <p className="text-3xl font-bold">
+                {overviewData.totalPermissions}
+              </p>
               <Badge className="bg-green-500">Active</Badge>
             </div>
           </CardContent>
@@ -788,7 +888,7 @@ export default function OrganizationPage() {
                           {departments.map((dept, idx) => (
                             <SelectItem
                               key={dept.departmentId}
-                              value={(idx + 1).toString()}
+                              value={dept.departmentId}
                             >
                               {dept.departmentName}
                             </SelectItem>
@@ -807,14 +907,21 @@ export default function OrganizationPage() {
                             role: value
                           })
                         }
+                        disabled={grantPermissionFormData.departmentId === 0}
                       >
                         <SelectTrigger id="grant-role" className="w-full">
-                          <SelectValue placeholder="Select role" />
+                          <SelectValue
+                            placeholder={
+                              grantPermissionFormData.departmentId === 0
+                                ? "Select department first"
+                                : "Select role"
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          {roles.map((role) => (
-                            <SelectItem key={role.id} value={role.role}>
-                              {role.role}
+                          {deptRoles.map((role) => (
+                            <SelectItem key={role.id} value={role.name}>
+                              {role.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -853,27 +960,62 @@ export default function OrganizationPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="grant-action">Action *</Label>
-                      <Select
-                        value={grantPermissionFormData.action}
-                        onValueChange={(value) =>
-                          setGrantPermissionFormData({
-                            ...grantPermissionFormData,
-                            action: value as PermissionAction
-                          })
-                        }
-                      >
-                        <SelectTrigger id="grant-action" className="w-full">
-                          <SelectValue placeholder="Select action" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(PermissionAction).map((action) => (
-                            <SelectItem key={action} value={action}>
-                              {action}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="grant-action">Actions *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="grant-action"
+                            variant="outline"
+                            className="w-full justify-start text-left"
+                          >
+                            {grantPermissionFormData.actions.length > 0
+                              ? `${grantPermissionFormData.actions.length} action(s) selected`
+                              : "Select actions"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-4">
+                          <div className="space-y-3">
+                            {Object.values(PermissionAction).map((action) => (
+                              <div
+                                key={action}
+                                className="flex items-center space-x-2"
+                              >
+                                <Checkbox
+                                  id={`action-${action}`}
+                                  checked={grantPermissionFormData.actions.includes(
+                                    action
+                                  )}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setGrantPermissionFormData({
+                                        ...grantPermissionFormData,
+                                        actions: [
+                                          ...grantPermissionFormData.actions,
+                                          action
+                                        ]
+                                      });
+                                    } else {
+                                      setGrantPermissionFormData({
+                                        ...grantPermissionFormData,
+                                        actions:
+                                          grantPermissionFormData.actions.filter(
+                                            (a) => a !== action
+                                          )
+                                      });
+                                    }
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`action-${action}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {action}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
 
@@ -964,8 +1106,55 @@ export default function OrganizationPage() {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <HRTable columns={roleColumns} data={roles} />
+        <CardContent className="p-0 space-y-4">
+          <HRTable columns={roleColumns} data={rolesPaginatedData} />
+          {rolesTotalPages > 1 && (
+            <div className="flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() =>
+                        setRolesCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
+                      className={
+                        rolesCurrentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: rolesTotalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setRolesCurrentPage(page)}
+                          isActive={rolesCurrentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        setRolesCurrentPage((prev) =>
+                          Math.min(prev + 1, rolesTotalPages)
+                        )
+                      }
+                      className={
+                        rolesCurrentPage === rolesTotalPages
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1239,8 +1428,61 @@ export default function OrganizationPage() {
             </DialogContent>
           </Dialog>
         </CardHeader>
-        <CardContent className="p-0">
-          <HRTable columns={compensationColumns} data={compensations} />
+        <CardContent className="p-0 space-y-4">
+          <HRTable
+            columns={compensationColumns}
+            data={compensationPaginatedData}
+          />
+          {compensationTotalPages > 1 && (
+            <div className="flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() =>
+                        setCompensationCurrentPage((prev) =>
+                          Math.max(prev - 1, 1)
+                        )
+                      }
+                      className={
+                        compensationCurrentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                  {Array.from(
+                    { length: compensationTotalPages },
+                    (_, i) => i + 1
+                  ).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCompensationCurrentPage(page)}
+                        isActive={compensationCurrentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        setCompensationCurrentPage((prev) =>
+                          Math.min(prev + 1, compensationTotalPages)
+                        )
+                      }
+                      className={
+                        compensationCurrentPage === compensationTotalPages
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
