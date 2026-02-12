@@ -276,7 +276,6 @@ export interface RoleCompensation {
   orgId: number;
   role: string;
   deptId: number;
-  employeeLevel: EmployeeLevelTypes;
   minBasePay: number;
   maxBasePay: number;
   minTotalBonuses: number;

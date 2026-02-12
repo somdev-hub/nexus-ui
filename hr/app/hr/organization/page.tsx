@@ -55,7 +55,6 @@ import type {
   RoleCompensation,
   GrantPermission
 } from "@/types";
-import { EmployeeLevelTypes } from "@/types/EmployeeLevelTypes";
 import { ResourceType } from "@/types/ResourceTypes";
 import { PermissionAction } from "@/types/PermissionAction";
 import {
@@ -66,7 +65,8 @@ import {
   getDeptOverview,
   getAllDeptOverview,
   getDeptRoles,
-  fetchDeptRolesTable
+  fetchDeptRolesTable,
+  fetchRoleCompensation
 } from "@/lib/auth-service";
 
 export default function OrganizationPage() {
@@ -75,9 +75,11 @@ export default function OrganizationPage() {
 
   const [departments, setDepartments] = useState<Department[]>(departmentsData);
   const [roles, setRoles] = useState<RoleRecord[]>(rolesData);
-  const [compensations, setCompensations] =
-    useState<RoleCompensation[]>(roleCompensationData);
+  const [compensations, setCompensations] = useState<RoleCompensation[]>([]);
   const [deptRoles, setDeptRoles] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [compensationDeptRoles, setCompensationDeptRoles] = useState<
     Array<{ id: number; name: string }>
   >([]);
 
@@ -107,7 +109,6 @@ export default function OrganizationPage() {
       orgId: userOrgId ? parseInt(userOrgId) : 1,
       role: "",
       deptId: 0,
-      employeeLevel: EmployeeLevelTypes.L0,
       minBasePay: 0,
       maxBasePay: 0,
       minTotalBonuses: 0,
@@ -147,6 +148,7 @@ export default function OrganizationPage() {
   // Pagination states
   const [rolesCurrentPage, setRolesCurrentPage] = useState(1);
   const [compensationCurrentPage, setCompensationCurrentPage] = useState(1);
+  const [compensationTotalPages, setCompensationTotalPages] = useState(1);
   const itemsPerPage = 10;
 
   // Fetch department overview
@@ -208,6 +210,28 @@ export default function OrganizationPage() {
     fetchRoles();
   }, [grantPermissionFormData.departmentId]);
 
+  // Fetch roles for selected department in compensation dialog
+  useEffect(() => {
+    if (compensationFormData.deptId === 0) {
+      setCompensationDeptRoles([]);
+      return;
+    }
+
+    const fetchRoles = async () => {
+      try {
+        const rolesData = await getDeptRoles(compensationFormData.deptId);
+        if (rolesData) {
+          setCompensationDeptRoles(rolesData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch department roles:", error);
+        toast.error("Failed to fetch department roles");
+      }
+    };
+
+    fetchRoles();
+  }, [compensationFormData.deptId]);
+
   // Fetch roles table data
   useEffect(() => {
     if (!userOrgId) return;
@@ -238,6 +262,29 @@ export default function OrganizationPage() {
     fetchRolesTable();
   }, [userOrgId]);
 
+  // Fetch compensation data with pagination
+  useEffect(() => {
+    if (!userOrgId) return;
+
+    const fetchCompensationData = async () => {
+      try {
+        const orgId = parseInt(userOrgId);
+        const pageNo = compensationCurrentPage - 1;
+        const data = await fetchRoleCompensation(orgId, pageNo, 10);
+
+        if (data) {
+          setCompensations(data.content);
+          setCompensationTotalPages(data.totalPages);
+        }
+      } catch (error) {
+        console.error("Failed to fetch role compensation:", error);
+        toast.error("Failed to fetch role compensation");
+      }
+    };
+
+    fetchCompensationData();
+  }, [userOrgId, compensationCurrentPage]);
+
   // Calculate total employees
   const totalEmployees = departments.reduce(
     (sum, dept) => sum + dept.members,
@@ -249,15 +296,6 @@ export default function OrganizationPage() {
   const rolesEndIndex = rolesStartIndex + itemsPerPage;
   const rolesPaginatedData = roles.slice(rolesStartIndex, rolesEndIndex);
   const rolesTotalPages = Math.ceil(roles.length / itemsPerPage);
-
-  // Calculate pagination for compensations
-  const compStartIndex = (compensationCurrentPage - 1) * itemsPerPage;
-  const compEndIndex = compStartIndex + itemsPerPage;
-  const compensationPaginatedData = compensations.slice(
-    compStartIndex,
-    compEndIndex
-  );
-  const compensationTotalPages = Math.ceil(compensations.length / itemsPerPage);
 
   // Handle add department
   const handleAddDepartment = async () => {
@@ -364,19 +402,13 @@ export default function OrganizationPage() {
       const response = await addRoleCompensation(compensationFormData);
 
       if (response) {
-        const newCompensation: RoleCompensation = {
-          ...compensationFormData
-        };
-
-        setCompensations([...compensations, newCompensation]);
         toast.success("Role compensation details added successfully");
 
-        // Reset form
+        // Reset form and pagination to fetch fresh data
         setCompensationFormData({
           orgId: userOrgId ? parseInt(userOrgId) : 1,
           role: "",
           deptId: 0,
-          employeeLevel: EmployeeLevelTypes.L0,
           minBasePay: 0,
           maxBasePay: 0,
           minTotalBonuses: 0,
@@ -386,6 +418,8 @@ export default function OrganizationPage() {
           minAnnualSalary: "",
           maxAnnualSalary: ""
         });
+        setCompensationDeptRoles([]);
+        setCompensationCurrentPage(1);
         setShowAddCompensationDialog(false);
       } else {
         toast.error("Failed to add role compensation: No response from server");
@@ -557,32 +591,32 @@ export default function OrganizationPage() {
       header: "Role"
     },
     {
-      accessorKey: "employeeLevel",
-      header: "Employee Level"
+      accessorKey: "deptId",
+      header: "Department ID"
     },
     {
       accessorKey: "minBasePay",
       header: "Min Base Pay",
       cell: (row: RoleCompensation) =>
-        `$${(row.minBasePay || 0).toLocaleString()}`
+        `₹${(row.minBasePay || 0).toLocaleString()}`
     },
     {
       accessorKey: "maxBasePay",
       header: "Max Base Pay",
       cell: (row: RoleCompensation) =>
-        `$${(row.maxBasePay || 0).toLocaleString()}`
+        `₹${(row.maxBasePay || 0).toLocaleString()}`
     },
     {
       accessorKey: "minTotalBonuses",
       header: "Min Bonuses",
       cell: (row: RoleCompensation) =>
-        `$${(row.minTotalBonuses || 0).toLocaleString()}`
+        `₹${(row.minTotalBonuses || 0).toLocaleString()}`
     },
     {
       accessorKey: "maxTotalBonuses",
       header: "Max Bonuses",
       cell: (row: RoleCompensation) =>
-        `$${(row.maxTotalBonuses || 0).toLocaleString()}`
+        `₹${(row.maxTotalBonuses || 0).toLocaleString()}`
     },
     {
       accessorKey: "minAnnualSalary",
@@ -1181,7 +1215,7 @@ export default function OrganizationPage() {
               <DialogHeader>
                 <DialogTitle>Add Role Compensation</DialogTitle>
                 <DialogDescription>
-                  Define compensation range for a role and employee level
+                  Define compensation range for a role
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 w-full">
@@ -1201,11 +1235,11 @@ export default function OrganizationPage() {
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent className="w-full block">
-                        {departments.map((dept, idx) => (
+                        {departments.map((dept) => (
                           <SelectItem
                             className="w-full"
                             key={dept.departmentId}
-                            value={(idx + 1).toString()}
+                            value={dept.departmentId}
                           >
                             {dept.departmentName}
                           </SelectItem>
@@ -1224,43 +1258,26 @@ export default function OrganizationPage() {
                           role: value
                         })
                       }
+                      disabled={compensationFormData.deptId === 0}
                     >
                       <SelectTrigger id="comp-role" className="w-full">
-                        <SelectValue placeholder="Select role" />
+                        <SelectValue
+                          placeholder={
+                            compensationFormData.deptId === 0
+                              ? "Select department first"
+                              : "Select role"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.id} value={role.role}>
-                            {role.role}
+                        {compensationDeptRoles.map((role) => (
+                          <SelectItem key={role.id} value={role.name}>
+                            {role.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="emp-level">Employee Level *</Label>
-                  <Select
-                    value={compensationFormData.employeeLevel}
-                    onValueChange={(value) =>
-                      setCompensationFormData({
-                        ...compensationFormData,
-                        employeeLevel: value as EmployeeLevelTypes
-                      })
-                    }
-                  >
-                    <SelectTrigger id="emp-level">
-                      <SelectValue placeholder="Select level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(EmployeeLevelTypes).map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="border-t pt-4">
@@ -1429,10 +1446,7 @@ export default function OrganizationPage() {
           </Dialog>
         </CardHeader>
         <CardContent className="p-0 space-y-4">
-          <HRTable
-            columns={compensationColumns}
-            data={compensationPaginatedData}
-          />
+          <HRTable columns={compensationColumns} data={compensations} />
           {compensationTotalPages > 1 && (
             <div className="flex justify-center">
               <Pagination>

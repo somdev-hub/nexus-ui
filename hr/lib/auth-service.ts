@@ -448,12 +448,12 @@ export async function createRole(
 
 export async function addRoleCompensation(
   compensationData: RoleCompensation
-): Promise<{ message: string; compensationId?: string }> {
+): Promise<RoleCompensation> {
   try {
-    const response = await apiClient.post<{
-      message: string;
-      compensationId?: string;
-    }>("/hr/employee/paycheck/add", compensationData);
+    const response = await apiClient.post<RoleCompensation>(
+      "/iam/department/add/employee/paycheck",
+      compensationData
+    );
     return response.data;
   } catch (error: unknown) {
     throw new Error(
@@ -548,6 +548,33 @@ export async function fetchDeptRolesTable(
   } catch (error: unknown) {
     throw new Error(
       `Fetch department roles table failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function fetchRoleCompensation(
+  orgId: number,
+  pageNo: number = 0,
+  pageOffset: number = 10
+): Promise<{
+  content: RoleCompensation[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+}> {
+  try {
+    const response = await apiClient.get(
+      `/iam/department/employee/paycheck?orgId=${orgId}&pageNo=${pageNo}&pageOffset=${pageOffset}`
+    );
+    return {
+      content: response.data?.content || [],
+      totalPages: response.data?.totalPages || 0,
+      totalElements: response.data?.totalElements || 0,
+      number: response.data?.number || 0
+    };
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch role compensation failed: ${(error as Error).message}`
     );
   }
 }
