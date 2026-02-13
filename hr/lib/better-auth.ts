@@ -91,6 +91,19 @@ export function createSession(
   });
 
   console.log("[BETTER-AUTH] Session stored. Total sessions:", storage.size);
+  console.log("[BETTER-AUTH] Stored session keys:", Array.from(storage.keys()));
+
+  // Verify it was stored
+  const verify = storage.get(sessionToken);
+  if (verify) {
+    console.log(
+      "[BETTER-AUTH] ✓ Session verified in storage for token:",
+      sessionToken
+    );
+  } else {
+    console.error("[BETTER-AUTH] ✗ FAILED to verify session in storage!");
+  }
+
   return sessionToken;
 }
 
@@ -123,12 +136,22 @@ export function deleteSession(sessionToken: string) {
   storage.delete(sessionToken);
 }
 
-export function refreshSession(sessionToken: string, newAccessToken: string) {
+export function refreshSession(
+  sessionToken: string,
+  newAccessToken: string,
+  expiresIn?: number
+) {
   const storage = getSessionStorage();
   const session = storage.get(sessionToken);
   if (session) {
     session.accessToken = newAccessToken;
-    session.expiresAt = new Date(Date.now() + 3600 * 1000); // Reset for 1 hour
+    // Use provided expiresIn or default to 1 hour
+    const expirySeconds = expiresIn || 3600;
+    session.expiresAt = new Date(Date.now() + expirySeconds * 1000);
+    console.log(
+      "[BETTER-AUTH] Session refreshed. New expiry:",
+      session.expiresAt
+    );
   }
 }
 

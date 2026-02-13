@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,12 +26,21 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Copy, Check, Upload, X } from "lucide-react";
+import { Copy, Check, Upload, X, Download } from "lucide-react";
 import { toast } from "sonner";
-import { addUser, createPeople } from "@/lib/auth-service";
+import {
+  addUser,
+  createPeople,
+  getAllDepartments,
+  getDeptRoles
+} from "@/lib/auth-service";
+import { Switch } from "@/components/ui/switch";
+import { useOrgId } from "@/hooks/use-user-metadata";
 import type { BankRecord, Bonus, Deduction, EmployeeRecord } from "@/types";
 import { computeSalaryTotals } from "@/utils/salary-calculator";
+import { BankAccountType } from "@/types/BankAccountTypes";
 export default function AddEmployeePage() {
+  const orgIdFromHook = useOrgId();
   const [formData, setFormData] = useState<EmployeeRecord>({
     name: "",
     email: "",
@@ -41,6 +50,8 @@ export default function AddEmployeePage() {
     address: "",
     notes: "",
     department: "",
+    deptId: 0,
+    isDeptHead: false,
     title: "",
     personalEmail: "",
     profilePhoto: "",
@@ -68,7 +79,7 @@ export default function AddEmployeePage() {
     accountHolderName: "",
     accountNumber: "",
     ifscCode: "",
-    accountType: "SAVINGS",
+    accountType: BankAccountType.SAVINGS,
     branchAddress: "",
     panNumber: ""
   });
@@ -90,23 +101,100 @@ export default function AddEmployeePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [showCompensation, setShowCompensation] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
   const [credentials, setCredentials] = useState<{
     email: string;
     password: string;
   } | null>(null);
+  const [documents, setDocuments] = useState<{
+    email: string;
+    userId: string;
+    password: string;
+    message: string;
+    joiningLetter?: string;
+    letterOfIntent?: string;
+    compensationCard?: string;
+  } | null>(null);
   const [copiedField, setCopiedField] = useState<"email" | "password" | null>(
     null
   );
+  const [departments, setDepartments] = useState<
+    { deptId: number; deptName: string }[]
+  >([]);
+  const [departmentRoles, setDepartmentRoles] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+
+  // Fetch departments on component mount
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      setIsLoadingDepartments(true);
+      try {
+        console.log("[DEPT FETCH] orgIdFromHook:", orgIdFromHook);
+
+        const orgId = orgIdFromHook ? parseInt(orgIdFromHook) : 0;
+        console.log("[DEPT FETCH] Parsed orgId:", orgId);
+
+        if (orgId > 0) {
+          console.log("[DEPT FETCH] Fetching departments for orgId:", orgId);
+          const data = await getAllDepartments(orgId);
+          console.log("[DEPT FETCH] Departments received:", data);
+          setDepartments(data || []);
+          if (data && data.length > 0) {
+            toast.success(`Loaded ${data.length} departments`);
+          }
+        } else {
+          console.warn("[DEPT FETCH] Invalid orgId:", orgId);
+          toast.warning("Organization ID not found. Please log in again.");
+        }
+      } catch (error) {
+        console.error("[DEPT FETCH] Failed to fetch departments:", error);
+        toast.error("Failed to fetch departments");
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+
+    fetchDepartments();
+  }, [orgIdFromHook]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Convert age to number, keep others as strings
+    const processedValue = name === "age" ? parseInt(value) || 0 : value;
+    setFormData((prev) => ({ ...prev, [name]: processedValue }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleSelectChange = async (name: string, value: string) => {
+    console.log("[SELECT CHANGE] name:", name, "value:", value);
+
+    if (name === "department") {
+      const deptId = parseInt(value);
+      setFormData((prev) => ({ ...prev, department: value, deptId }));
+
+      // If department is selected, fetch roles for that department
+      if (deptId > 0) {
+        console.log("[DEPT SELECTED] Fetching roles for deptId:", deptId);
+        setIsLoadingRoles(true);
+        try {
+          const roles = await getDeptRoles(deptId);
+          console.log("[ROLES FETCHED] Roles received:", roles);
+          setDepartmentRoles(roles || []);
+        } catch (error) {
+          console.error("[ROLES FETCH ERROR]", error);
+          toast.error("Failed to fetch roles for this department");
+          setDepartmentRoles([]);
+        } finally {
+          setIsLoadingRoles(false);
+        }
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const copyToClipboard = async (text: string, field: "email" | "password") => {
@@ -136,7 +224,12 @@ export default function AddEmployeePage() {
     if (files && files[0]) {
       const file = files[0];
       if (file.type.startsWith("image/")) {
-        setProfilePicture(file);
+        // Rename file to profile_pic
+        const fileExtension = file.name.split(".").pop() || "jpg";
+        const renamedFile = new File([file], `profile_pic.${fileExtension}`, {
+          type: file.type
+        });
+        setProfilePicture(renamedFile);
         toast.success("Profile picture selected");
       } else {
         toast.error("Please select an image file");
@@ -195,7 +288,7 @@ export default function AddEmployeePage() {
       accountHolderName: "",
       accountNumber: "",
       ifscCode: "",
-      accountType: "SAVINGS",
+      accountType: BankAccountType.SAVINGS,
       branchAddress: "",
       panNumber: ""
     });
@@ -348,44 +441,49 @@ export default function AddEmployeePage() {
 
     setIsLoading(true);
     try {
-      // Step 1: Add user
+      // Step 1: Add user with all details and files
       const addUserResponse = await addUser(
         formData.name,
         formData.email,
         formData.phone,
         formData.effectiveFrom.toISOString().split("T")[0],
-        0,
+        formData.compensation.basePay,
         formData.address,
         formData.notes,
         formData.role,
-        localStorage.getItem("org_id") || ""
+        orgIdFromHook || "",
+        formData.deptId,
+        formData.isDeptHead,
+        profilePicture || undefined,
+        hrDocuments,
+        formData.compensation,
+        formData.title,
+        formData.personalEmail,
+        formData.remarks,
+        formData.gender,
+        formData.age,
+        formData.dateOfBirth
       );
 
       // Step 2: Assign role to user
       await createPeople(addUserResponse.userId, formData.role);
 
-      // Step 3: Handle file uploads (profile picture and HR documents)
-      if (profilePicture || hrDocuments.length > 0) {
-        const formDataToUpload = new FormData();
-        if (profilePicture) {
-          formDataToUpload.append("profilePicture", profilePicture);
-        }
-        hrDocuments.forEach((doc, index) => {
-          formDataToUpload.append(`hrDocument_${index}`, doc);
-        });
-        formDataToUpload.append("userId", addUserResponse.userId.toString());
-
-        // You can send this to your backend API endpoint
-        // await axios.post('/api/employee/upload', formDataToUpload);
-      }
-
-      setCredentials({
+      // Store documents data and show documents dialog
+      setDocuments({
         email: addUserResponse.email,
-        password: addUserResponse.password
+        userId: addUserResponse.userId,
+        password: addUserResponse.password,
+        message: addUserResponse.message,
+        joiningLetter: addUserResponse.joiningLetter,
+        letterOfIntent: addUserResponse.letterOfIntent,
+        compensationCard: addUserResponse.compensationCard
       });
+
+      // Close all other dialogs and open documents dialog
       setShowCompensation(false);
-      setShowCredentials(true);
-      toast.success("Employee added successfully");
+      setShowCredentials(false);
+      setShowDocuments(true);
+      toast.success("Employee added successfully!");
 
       // Reset form
       setFormData({
@@ -397,6 +495,8 @@ export default function AddEmployeePage() {
         address: "",
         notes: "",
         department: "",
+        deptId: 0,
+        isDeptHead: false,
         title: "",
         personalEmail: "",
         remarks: "",
@@ -472,38 +572,114 @@ export default function AddEmployeePage() {
                   />
                 </FieldContent>
               </Field>
+              <Field>
+                <FieldLabel htmlFor="title">Job Title</FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Software Developer"
+                    disabled={isLoading}
+                  />
+                </FieldContent>
+              </Field>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-4">
+                <Field>
+                  <FieldLabel htmlFor="department">Department</FieldLabel>
+                  <FieldContent>
+                    <Select
+                      value={formData.department}
+                      onValueChange={(value) =>
+                        handleSelectChange("department", value)
+                      }
+                      disabled={isLoading || isLoadingDepartments}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue
+                          placeholder={
+                            isLoadingDepartments
+                              ? "Loading..."
+                              : "Select department"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments &&
+                          departments.length > 0 &&
+                          departments.map((dept) => (
+                            <SelectItem
+                              key={dept.deptId}
+                              value={dept.deptId.toString()}
+                            >
+                              {dept.deptName}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldContent>
+                </Field>
+
+                <Field className="flex items-end">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="department-head"
+                      checked={formData.isDeptHead}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          isDeptHead: checked
+                        }))
+                      }
+                      disabled={isLoading}
+                    />
+                    <FieldLabel
+                      htmlFor="department-head"
+                      className="mb-0 cursor-pointer"
+                    >
+                      Department Head
+                    </FieldLabel>
+                  </div>
+                </Field>
+              </div>
               <Field className="w-full">
                 <FieldLabel htmlFor="role">Role *</FieldLabel>
                 <FieldContent>
                   <Select
                     value={formData.role}
                     onValueChange={(value) => handleSelectChange("role", value)}
-                    disabled={isLoading}
+                    disabled={
+                      isLoading ||
+                      isLoadingRoles ||
+                      departmentRoles.length === 0
+                    }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue
+                        placeholder={
+                          isLoadingRoles
+                            ? "Loading roles..."
+                            : departmentRoles.length === 0
+                              ? "Select department first"
+                              : "Select role"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
-                      <SelectItem value="DIRECTOR">Director</SelectItem>
-                      <SelectItem value="PRODUCT_MANAGER">
-                        Product Manager
-                      </SelectItem>
-                      <SelectItem value="CLERK">Clerk</SelectItem>
-                      <SelectItem value="ACCOUNT_MANAGER">
-                        Account Manager
-                      </SelectItem>
-                      <SelectItem value="OPERATION_MANAGER">
-                        Operation Manager
-                      </SelectItem>
-                      <SelectItem value="WAREHOUSE_MANAGER">
-                        Warehouse Manager
-                      </SelectItem>
-                      <SelectItem value="FLEET_MANAGER">
-                        Fleet Manager
-                      </SelectItem>
-                      <SelectItem value="DRIVER">Driver</SelectItem>
+                      {departmentRoles &&
+                        departmentRoles.length > 0 &&
+                        departmentRoles.map((role) => (
+                          <SelectItem
+                            key={role.id}
+                            value={role.name.toString()}
+                          >
+                            {role.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </FieldContent>
@@ -595,35 +771,6 @@ export default function AddEmployeePage() {
                 />
               </FieldContent>
             </Field>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel htmlFor="department">Department</FieldLabel>
-                <FieldContent>
-                  <Input
-                    id="department"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Technology"
-                    disabled={isLoading}
-                  />
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="title">Job Title</FieldLabel>
-                <FieldContent>
-                  <Input
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Software Developer"
-                    disabled={isLoading}
-                  />
-                </FieldContent>
-              </Field>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field>
@@ -1440,6 +1587,100 @@ export default function AddEmployeePage() {
                   onClick={() => setShowCredentials(false)}
                 >
                   Done
+                </Button>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showDocuments} onOpenChange={setShowDocuments}>
+              <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Employee Documents</DialogTitle>
+                  <DialogDescription>
+                    Generated documents for the new employee
+                  </DialogDescription>
+                </DialogHeader>
+                {documents && (
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>User ID:</strong> {documents.userId}
+                      </p>
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>Email:</strong> {documents.email}
+                      </p>
+                      <p className="text-sm text-blue-800">
+                        <strong>Password:</strong> {documents.password}
+                      </p>
+                    </div>
+
+                    {documents.message && (
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <p className="text-sm text-green-800 font-medium">
+                          Message: {documents.message}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {documents.joiningLetter && (
+                        <div className="border rounded-lg p-4">
+                          <h4 className="font-semibold text-sm mb-2">
+                            Joining Letter
+                          </h4>
+                          <a
+                            href={documents.joiningLetter}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download Document
+                          </a>
+                        </div>
+                      )}
+
+                      {documents.letterOfIntent && (
+                        <div className="border rounded-lg p-4">
+                          <h4 className="font-semibold text-sm mb-2">
+                            Letter of Intent
+                          </h4>
+                          <a
+                            href={documents.letterOfIntent}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download Document
+                          </a>
+                        </div>
+                      )}
+
+                      {documents.compensationCard && (
+                        <div className="border rounded-lg p-4">
+                          <h4 className="font-semibold text-sm mb-2">
+                            Compensation Card
+                          </h4>
+                          <a
+                            href={documents.compensationCard}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download Document
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={() => setShowDocuments(false)}
+                >
+                  Close
                 </Button>
               </DialogContent>
             </Dialog>

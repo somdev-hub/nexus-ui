@@ -204,20 +204,33 @@ export async function refreshToken(): Promise<string> {
   }
 
   try {
+    console.log("[AUTH SERVICE] Refreshing token...");
     // Call Next.js API route to refresh token (handled server-side)
     const response = await fetch("/api/auth/refresh", {
       method: "POST",
-      credentials: "include" // Include cookies
+      credentials: "include", // Include cookies
+      headers: {
+        "Content-Type": "application/json"
+      }
     });
 
+    console.log("[AUTH SERVICE] Refresh response status:", response.status);
+    console.log("[AUTH SERVICE] Refresh response ok:", response.ok);
+
     if (!response.ok) {
-      throw new Error("Token refresh failed");
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[AUTH SERVICE] Refresh error:", errorData);
+      throw new Error(errorData.error || "Token refresh failed");
     }
+
+    const data = await response.json();
+    console.log("[AUTH SERVICE] Token refreshed successfully");
 
     // Session is automatically updated in cookies, return empty string
     // since tokens are not exposed to frontend
     return "";
   } catch (error: unknown) {
+    console.error("[AUTH SERVICE] Token refresh failed:", error);
     throw new Error(`Token refresh failed: ${(error as Error).message}`);
   }
 }
@@ -340,30 +353,84 @@ export async function addUser(
   address: string,
   notes: string,
   role: string,
-  orgId: string
+  orgId: string,
+  deptId?: number,
+  isDeptHead?: boolean,
+  profilePicture?: File,
+  hrDocuments?: File[],
+  compensation?: any,
+  title?: string,
+  personalEmail?: string,
+  remarks?: string,
+  gender?: string,
+  age?: number,
+  dateOfBirth?: Date | string | null
 ): Promise<{
   email: string;
   password: string;
   message: string;
   userId: string;
+  joiningLetter?: string;
+  letterOfIntent?: string;
+  compensationCard?: string;
 }> {
   try {
-    const response = await apiClient.post<{
+    const formData = new FormData();
+
+    // Handle all files (profile picture + HR documents) under 'files' key
+    if (profilePicture) {
+      formData.append("files", profilePicture);
+    }
+
+    if (hrDocuments && hrDocuments.length > 0) {
+      hrDocuments.forEach((doc) => {
+        formData.append("files", doc);
+      });
+    }
+
+    // Append employee data as dto blob
+    formData.append(
+      "dto",
+      new Blob(
+        [
+          JSON.stringify({
+            name: fullName,
+            email,
+            phone,
+            joiningDate,
+            salary,
+            address,
+            notes,
+            role,
+            orgId,
+            deptId: deptId || 0,
+            isDeptHead: isDeptHead || false,
+            title: title || "",
+            personalEmail: personalEmail || "",
+            remarks: remarks || "",
+            gender: gender || "",
+            age: age || 0,
+            dateOfBirth: dateOfBirth
+              ? typeof dateOfBirth === "string"
+                ? dateOfBirth
+                : dateOfBirth.toISOString().split("T")[0]
+              : null,
+            compensation: compensation || {}
+          })
+        ],
+        { type: "application/json" }
+      )
+    );
+
+    const response = await apiClientMultipart.post<{
       email: string;
       password: string;
       message: string;
       userId: string;
-    }>(`/iam/users/add`, {
-      name: fullName,
-      email,
-      phone,
-      joiningDate,
-      salary,
-      address,
-      notes,
-      role,
-      orgId
-    });
+      joiningLetter?: string;
+      letterOfIntent?: string;
+      compensationCard?: string;
+    }>(`/iam/users/add`, formData);
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Add user failed: ${(error as Error).message}`);
@@ -523,6 +590,25 @@ export async function getDeptRoles(deptId: number): Promise<
     `/iam/department/fetch/roles?deptId=${deptId}`
   );
   return response.data || null;
+}
+
+export async function getAllDepartments(orgId: number): Promise<
+  {
+    deptId: number;
+    deptName: string;
+  }[]
+> {
+  try {
+    console.log("[API] Fetching departments for orgId:", orgId);
+    const response = await apiClient.get(
+      `/iam/department/allDepts?orgId=${orgId}`
+    );
+    console.log("[API] Department response:", response.data);
+    return response.data || [];
+  } catch (error) {
+    console.error("[API] Error fetching departments:", error);
+    throw error;
+  }
 }
 
 export async function fetchDeptRolesTable(

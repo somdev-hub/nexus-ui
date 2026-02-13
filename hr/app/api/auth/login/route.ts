@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Generate session token
     const sessionToken = randomUUID();
 
-    console.log("[AUTH LOGIN] Creating session for user:", userId);
+    console.log("[AUTH LOGIN] Generated sessionToken:", sessionToken);
 
     // Create session (stored in memory with encryption)
     createSession(
@@ -94,6 +94,8 @@ export async function POST(request: NextRequest) {
       maxAge: expiresIn,
       path: "/"
     });
+
+    console.log("[AUTH LOGIN] Session cookie set with token:", sessionToken);
 
     // Set refresh token in separate HttpOnly cookie
     responseData.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {

@@ -65,14 +65,27 @@ const responseErrorHandler = async (error: AxiosError) => {
     originalRequest._retry = true;
 
     try {
-      console.log("[API CLIENT] Token expired (401), refreshing...");
+      console.log("[API CLIENT] Token expired (401), attempting refresh...");
+      console.log(
+        "[API CLIENT] Original request method:",
+        originalRequest.method?.toUpperCase()
+      );
+      console.log("[API CLIENT] Original request URL:", originalRequest.url);
 
       // Call Next.js refresh endpoint (server-side)
       // This will refresh the accessToken in the server-side session
-      await axios.post(`/api/auth/refresh`, {}, { withCredentials: true });
+      const refreshResult = await axios.post(
+        `/api/auth/refresh`,
+        {},
+        { withCredentials: true }
+      );
 
       console.log(
-        "[API CLIENT] Token refreshed successfully, retrying original request"
+        "[API CLIENT] Token refresh successful, status:",
+        refreshResult.status
+      );
+      console.log(
+        "[API CLIENT] Retrying original request with refreshed token"
       );
 
       // Session cookies are automatically updated by the refresh endpoint
@@ -81,8 +94,22 @@ const responseErrorHandler = async (error: AxiosError) => {
     } catch (refreshError) {
       console.error("[API CLIENT] Token refresh failed:", refreshError);
 
+      if (axios.isAxiosError(refreshError)) {
+        console.error(
+          "[API CLIENT] Refresh error status:",
+          refreshError.response?.status
+        );
+        console.error(
+          "[API CLIENT] Refresh error data:",
+          refreshError.response?.data
+        );
+      }
+
       // Refresh failed, redirect to login
       if (typeof window !== "undefined") {
+        console.log(
+          "[API CLIENT] Dispatching auth:logout event and redirecting to login"
+        );
         window.dispatchEvent(new Event("auth:logout"));
         window.location.href = "/login";
       }

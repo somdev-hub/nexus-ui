@@ -168,6 +168,8 @@ export interface EmployeeRecord {
   compensation: CompensationData;
   personalEmail: string;
   department: string;
+  deptId: number;
+  isDeptHead: boolean;
   title: string;
   remarks: string;
   gender: string;

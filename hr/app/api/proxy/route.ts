@@ -175,6 +175,10 @@ export async function POST(request: NextRequest) {
 
   console.log("[API PROXY POST] Path:", path);
   console.log("[API PROXY POST] SessionToken from cookie:", sessionToken);
+  console.log(
+    "[API PROXY POST] Content-Type:",
+    request.headers.get("content-type")
+  );
 
   if (!sessionToken) {
     console.error("[API PROXY POST] No sessionToken in cookies");
@@ -198,29 +202,41 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json().catch(() => ({}));
-
-    // Extract body properties and add them as query parameters
-    const urlWithParams = `${SPRING_BOOT_API}${path}`;
-    // if (Object.keys(body).length > 0) {
-    //   urlWithParams = appendBodyAsQueryParams(
-    //     body as Record<string, unknown>,
-    //     urlWithParams
-    //   );
-    // }
-
-    const response = await axios.post(urlWithParams, body, {
+    const contentType = request.headers.get("content-type") || "";
+    let body: any;
+    const axiosConfig: any = {
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${session.accessToken}`
       }
-    });
+    };
+
+    // Handle multipart/form-data separately
+    if (contentType.includes("multipart/form-data")) {
+      console.log("[API PROXY POST] Handling as multipart/form-data");
+      // Read as FormData and pass directly to axios
+      // Don't set Content-Type header - let axios handle it with correct boundary
+      body = await request.formData();
+      // Don't set content-type header, axios will set it automatically with boundary
+    } else {
+      console.log("[API PROXY POST] Handling as application/json");
+      // Read as JSON
+      body = await request.json().catch(() => ({}));
+      axiosConfig.headers["Content-Type"] = "application/json";
+    }
+
+    const urlWithParams = `${SPRING_BOOT_API}${path}`;
+
+    const response = await axios.post(urlWithParams, body, axiosConfig);
 
     return NextResponse.json(response.data);
   } catch (error: unknown) {
     console.error("[API PROXY POST] Error:", error);
 
     if (axios.isAxiosError(error)) {
+      console.error(
+        "[API PROXY POST] Axios error response:",
+        error.response?.data
+      );
       if (error.response?.status === 401) {
         return NextResponse.json(
           { error: "Authorization expired" },

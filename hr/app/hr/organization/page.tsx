@@ -40,7 +40,6 @@ import { Toaster } from "@/components/ui/sonner";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -48,7 +47,7 @@ import {
 } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Users, Briefcase } from "lucide-react";
-import { departmentsData, rolesData, roleCompensationData } from "./data";
+import { departmentsData, rolesData } from "./data";
 import type {
   Department,
   RoleRecord,
