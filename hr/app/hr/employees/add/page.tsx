@@ -466,7 +466,7 @@ export default function AddEmployeePage() {
       );
 
       // Step 2: Assign role to user
-      await createPeople(addUserResponse.userId, formData.role);
+      // await createPeople(addUserResponse.userId, formData.role);
 
       // Store documents data and show documents dialog
       setDocuments({

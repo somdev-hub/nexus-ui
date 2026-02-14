@@ -8,7 +8,9 @@ import type {
   User,
   GrantPermission,
   RoleCompensation,
-  Department
+  Department,
+  EmployeeInsights,
+  EmployeeDirectoryResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -661,6 +663,38 @@ export async function fetchRoleCompensation(
   } catch (error: unknown) {
     throw new Error(
       `Fetch role compensation failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEmployeeInsights(
+  orgId: string
+): Promise<EmployeeInsights> {
+  try {
+    const response = await apiClient.get<EmployeeInsights>(
+      `/iam/organizations/employees/insights?orgId=${orgId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch employee insights failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEmployeeDirectory(
+  orgId: string,
+  pageNo: number = 0,
+  pageOffset: number = 10
+): Promise<EmployeeDirectoryResponse> {
+  try {
+    const response = await apiClient.get<EmployeeDirectoryResponse>(
+      `/iam/organizations/employee/directory?orgId=${orgId}&pageNo=${pageNo}&pageOffset=${pageOffset}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch employee directory failed: ${(error as Error).message}`
     );
   }
 }

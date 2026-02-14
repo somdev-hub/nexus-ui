@@ -23,10 +23,17 @@ import {
   AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { employees as dummyEmployees } from "./data";
+import { getEmployeeInsights, getEmployeeDirectory } from "@/lib/auth-service";
+import { useOrgId } from "@/hooks/use-user-metadata";
+import type {
+  EmployeeInsights,
+  EmployeeDirectoryItem,
+  EmployeeDirectoryResponse
+} from "@/types";
 // import apiClient from "@/lib/api-client";
 
 interface Employee {
@@ -42,11 +49,83 @@ interface Employee {
   noticePerioddDays?: number;
 }
 
+interface TableEmployee extends EmployeeDirectoryItem {
+  id: string;
+}
+
 export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredEmployees, setFilteredEmployees] = useState(dummyEmployees);
-  // Using dummy data from data.ts
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+  const [insights, setInsights] = useState<EmployeeInsights | null>(null);
+  const [employees, setEmployees] = useState<TableEmployee[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [pageSize] = useState(10);
+
+  const orgId = useOrgId();
+
+  // Fetch employee directory from API
+  const fetchEmployees = async (pageNo: number = 0) => {
+    try {
+      setDirectoryLoading(true);
+      if (!orgId) {
+        setEmployees([]);
+        return;
+      }
+      const response = await getEmployeeDirectory(orgId, pageNo, pageSize);
+      const tableEmployees: TableEmployee[] = response.content.map((emp) => ({
+        ...emp,
+        id: emp.empId.toString()
+      }));
+      setEmployees(tableEmployees);
+      setTotalPages(response.totalPages);
+      setCurrentPage(pageNo);
+      setTotalElements(response.totalElements);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch employees";
+      toast.error(errorMessage);
+      setEmployees([]);
+    } finally {
+      setDirectoryLoading(false);
+    }
+  };
+
+  // Fetch employee insights on component mount
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        setInsightsLoading(true);
+        if (!orgId) {
+          setInsights(null);
+          return;
+        }
+        const data = await getEmployeeInsights(orgId);
+        setInsights(data);
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch employee insights";
+        toast.error(errorMessage);
+        setInsights(null);
+      } finally {
+        setInsightsLoading(false);
+      }
+    };
+    fetchInsights();
+  }, [orgId]);
+
+  // Fetch employee directory on component mount and when page changes
+  useEffect(() => {
+    fetchEmployees(currentPage);
+  }, [orgId, currentPage]);
 
   /*
   // API FETCHING LOGIC - COMMENTED OUT FOR NOW
@@ -118,12 +197,12 @@ export default function EmployeesPage() {
     [searchTerm, filteredEmployees]
   );
 
-  // Calculate metrics based on filtered employees
-  const metrics = useMemo(() => {
+  // Calculate local metrics based on filtered employees (fallback)
+  const localMetrics = useMemo(() => {
     const totalEmployees = filteredEmployees.length;
 
     // Department/Employee ratio
-    const deptRatio = filteredEmployees.reduce(
+    const employeesPerDepartment = filteredEmployees.reduce(
       (acc, emp) => {
         acc[emp.department] = (acc[emp.department] || 0) + 1;
         return acc;
@@ -148,27 +227,31 @@ export default function EmployeesPage() {
 
     return {
       totalEmployees,
-      deptRatio,
+      totalDepartments: Object.keys(employeesPerDepartment).length,
+      employeesPerDepartment,
       genderRatio,
       onNoticePeriod
     };
   }, [filteredEmployees]);
 
-  const columns: ColumnDef<Employee>[] = [
+  // Use API insights data if available, otherwise fall back to local metrics
+  const metrics = insights || localMetrics;
+
+  const columns: ColumnDef<TableEmployee>[] = [
     {
-      accessorKey: "id",
+      accessorKey: "empId",
       header: "ID"
     },
     {
-      accessorKey: "name",
+      accessorKey: "empName",
       header: "Name"
     },
     {
-      accessorKey: "email",
+      accessorKey: "empEmail",
       header: "Email"
     },
     {
-      accessorKey: "department",
+      accessorKey: "deptName",
       header: "Department"
     },
     {
@@ -178,20 +261,18 @@ export default function EmployeesPage() {
     {
       accessorKey: "salary",
       header: "Salary",
-      cell: (row: Employee) => `$${row.salary.toLocaleString()}`
+      cell: (row: TableEmployee) => `$${row.salary.toLocaleString()}`
     },
     {
-      accessorKey: "joinDate",
-      header: "Join Date",
-      cell: (row: Employee) =>
-        new Date(row.joinDate).toLocaleDateString("en-US")
+      accessorKey: "dateOfJoining",
+      header: "Join Date"
     },
     {
       id: "actions",
       header: "Actions",
-      cell: (row: Employee) => (
+      cell: (row: TableEmployee) => (
         <div className="flex gap-2">
-          <Link href={`/hr/employees/${row.id}`}>
+          <Link href={`/hr/employees/${row.empId}`}>
             <Button size="sm" variant="ghost">
               <Eye className="w-4 h-4" />
             </Button>
@@ -264,7 +345,13 @@ export default function EmployeesPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-0">
-            <div className="text-2xl font-bold">{metrics.totalEmployees}</div>
+            <div className="text-2xl font-bold">
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                metrics?.totalEmployees || 0
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">Active workforce</p>
           </CardContent>
         </Card>
@@ -277,12 +364,20 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="text-2xl font-bold">
-              {Object.keys(metrics.deptRatio).length}
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                metrics?.totalDepartments || 0
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {Object.entries(metrics.deptRatio)
-                .map(([dept, count]) => `${dept}: ${count}`)
-                .join(", ")}
+              {insightsLoading
+                ? "Loading..."
+                : metrics?.employeesPerDepartment
+                  ? Object.entries(metrics.employeesPerDepartment)
+                      .map(([dept, count]) => `${dept}: ${count}`)
+                      .join(", ")
+                  : "No departments"}
             </p>
           </CardContent>
         </Card>
@@ -295,9 +390,15 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="text-sm font-bold">
-              {Object.entries(metrics.genderRatio)
-                .map(([gender, count]) => `${gender}: ${count}`)
-                .join(" • ")}
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : metrics?.genderRatio ? (
+                Object.entries(metrics.genderRatio)
+                  .map(([gender, count]) => `${gender}: ${count}`)
+                  .join(" • ")
+              ) : (
+                "No data"
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Workforce composition
@@ -314,7 +415,13 @@ export default function EmployeesPage() {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent className="p-0">
-            <div className="text-2xl font-bold">{metrics.onNoticePeriod}</div>
+            <div className="text-2xl font-bold">
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                metrics?.onNoticePeriod || 0
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">Upcoming departures</p>
           </CardContent>
         </Card>
@@ -323,44 +430,45 @@ export default function EmployeesPage() {
       <Card className="p-4 gap-2">
         <CardHeader className="p-0">
           <CardTitle>Employee Directory</CardTitle>
-          <CardDescription>
-            Total Employees: {searchFilteredEmployees.length}
-          </CardDescription>
+          <CardDescription>Total Employees: {totalElements}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {directoryLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
             </div>
           ) : (
-            <HRTable columns={columns} data={searchFilteredEmployees} />
+            <>
+              <HRTable columns={columns} data={employees} />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex gap-2 justify-center mt-6 items-center">
+                  <Button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 0 || directoryLoading}
+                    variant="outline"
+                  >
+                    Previous
+                  </Button>
+                  <span className="flex items-center px-4 text-sm text-gray-600">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={
+                      currentPage === totalPages - 1 || directoryLoading
+                    }
+                    variant="outline"
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
-      {/* 
-      Pagination disabled - using dummy data
-      {totalPages > 1 && (
-        <div className="flex gap-2 justify-center mt-4">
-          <Button
-            onClick={() => fetchEmployees(currentPage - 1)}
-            disabled={currentPage === 0 || isLoading}
-            variant="outline"
-          >
-            Previous
-          </Button>
-          <span className="flex items-center px-4 text-sm text-gray-600">
-            Page {currentPage + 1} of {totalPages}
-          </span>
-          <Button
-            onClick={() => fetchEmployees(currentPage + 1)}
-            disabled={currentPage === totalPages - 1 || isLoading}
-            variant="outline"
-          >
-            Next
-          </Button>
-        </div>
-      )}
-      */}
     </div>
   );
 }

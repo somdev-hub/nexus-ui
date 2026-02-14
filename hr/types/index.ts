@@ -3,7 +3,6 @@
 // ============================================================================
 
 import { BankAccountType } from "./BankAccountTypes";
-import { EmployeeLevelTypes } from "./EmployeeLevelTypes";
 import { OrgType } from "./OrgType";
 import { PermissionAction } from "./PermissionAction";
 import { ResourceType } from "./ResourceTypes";
@@ -351,6 +350,44 @@ export interface ColumnDef<T> {
 export interface HRTableProps<T> {
   columns: ColumnDef<T>[];
   data: T[];
+}
+
+// ============================================================================
+// EMPLOYEE INSIGHTS TYPES
+// ============================================================================
+
+export interface EmployeeInsights {
+  totalEmployees: number;
+  totalDepartments: number;
+  employeesPerDepartment: Record<string, number>;
+  genderRatio: Record<string, number>;
+  onNoticePeriod: number;
+}
+
+// ============================================================================
+// EMPLOYEE DIRECTORY TYPES
+// ============================================================================
+
+export interface EmployeeDirectoryItem {
+  empId: number;
+  empName: string;
+  empEmail: string;
+  deptName: string;
+  position: string;
+  salary: number;
+  dateOfJoining: string;
+}
+
+export interface EmployeeDirectoryResponse {
+  content: EmployeeDirectoryItem[];
+  pageNo: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  isFirst: boolean;
+  isLast: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }
 
 // ============================================================================
