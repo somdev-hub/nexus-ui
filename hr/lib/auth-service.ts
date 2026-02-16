@@ -10,7 +10,8 @@ import type {
   RoleCompensation,
   Department,
   EmployeeInsights,
-  EmployeeDirectoryResponse
+  EmployeeDirectoryResponse,
+  EmployeeDetailsResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -695,6 +696,21 @@ export async function getEmployeeDirectory(
   } catch (error: unknown) {
     throw new Error(
       `Fetch employee directory failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEmployeeDetails(
+  userId: number
+): Promise<EmployeeDetailsResponse> {
+  try {
+    const response = await apiClient.get<EmployeeDetailsResponse>(
+      `/iam/organizations/employee/details?userId=${userId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch employee details failed: ${(error as Error).message}`
     );
   }
 }

@@ -30,7 +30,6 @@ import { Copy, Check, Upload, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   addUser,
-  createPeople,
   getAllDepartments,
   getDeptRoles
 } from "@/lib/auth-service";

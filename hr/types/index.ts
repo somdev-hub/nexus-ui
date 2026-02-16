@@ -232,6 +232,121 @@ export interface AttendanceRecord {
 
 export type AttendanceStatus = "present" | "absent" | "leave" | "partial";
 
+// ============================================================================
+// EMPLOYEE DETAILS API TYPES
+// ============================================================================
+
+export type LeaveType =
+  | "EARNED_LEAVE"
+  | "SICK_LEAVE"
+  | "BEREAVEMENT_LEAVE"
+  | "MATERNITY_LEAVE"
+  | "PATERNITY_LEAVE"
+  | "CASUAL_LEAVE"
+  | "COMP_OFF";
+
+export type AttendanceStatus_API =
+  | "PRESENT"
+  | "ABSENT"
+  | "ON_LEAVE"
+  | "HALF_DAY";
+
+export type DocumentType =
+  | "OTHER_HR_DOCUMENTS"
+  | "OFFER_LETTER"
+  | "APPOINTMENT_LETTER"
+  | "RELIEVING_LETTER"
+  | "EXPERIENCE_LETTER"
+  | "SALARY_SLIP";
+
+export interface LeaveRecord {
+  leaveType: LeaveType;
+  totalLeaves: number;
+  leavesTaken: number;
+  remainingLeaves: number;
+}
+
+export interface PositionHeld {
+  title: string;
+  department: string | null;
+  fromDate: string; // ISO 8601 date string
+  toDate: string | null;
+  duration: number; // in days
+}
+
+export interface AttendanceDetail {
+  date: string; // formatted date string e.g. "14 Feb 2026"
+  status: AttendanceStatus_API;
+  checkInTime: string; // ISO 8601 date string
+  checkOutTime: string; // ISO 8601 date string
+  hoursWorked: number;
+  breakHours: number;
+  overTimeHours: number;
+}
+
+export interface HRDocument {
+  documentName: string;
+  documentUrl: string;
+  uploadedOn: string; // ISO 8601 date string
+  documentType: DocumentType;
+}
+
+export interface EmployeeCompensationDetails {
+  annualPackage: string;
+  basePay: number;
+  hra: number;
+  pf: number;
+  gratuity: number;
+  insurancePremium: number | null;
+  grossPay: number | null;
+  netPay: number;
+  bonuses: BonusDetail[];
+  deductions: DeductionDetail[];
+  bankRecords: BankRecord[];
+}
+
+export interface BonusDetail {
+  bonusId: number;
+  bonusType: string;
+  amount: number;
+  percentageOfSalary: number;
+  expiresOn: string; // ISO 8601 date string
+  issuedOn: string | null;
+  panNumber: string | null;
+  updatedOn: string | null;
+}
+
+export interface DeductionDetail {
+  deductionId: number;
+  deductionType: string;
+  description: string;
+  amount: number;
+  percentageOfSalary: number;
+  expiresOn: string; // ISO 8601 date string
+  issuedOn: string | null;
+  updatedOn: string | null;
+}
+
+export interface EmployeeDetailsResponse {
+  empId: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  gender: string;
+  age: number;
+  jobTitle: string;
+  joiningDate: string; // formatted date string
+  department: string; // e.g. "HUMAN_RESOURCES"
+  profileImageUrl: string | null;
+  annualSalary: number;
+  leaveRecords: LeaveRecord[];
+  positionsHeld: PositionHeld[];
+  attendanceRecords: AttendanceDetail[];
+  hrDocuments: HRDocument[];
+  compensation: EmployeeCompensationDetails;
+}
+
 export interface WorkTask {
   id: string;
   taskId: string;
