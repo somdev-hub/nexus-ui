@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentUser) {
           setUser(currentUser);
         } else {
-          // Try to get from server session
+          // Try to get from server session (may attempt recovery if server restarted)
           const sessionUser = await getCurrentUserFromSession();
           if (sessionUser) {
             setUser(sessionUser);
@@ -65,6 +65,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkSession();
 
+    // Periodically refresh the session to keep it alive
+    // Refresh every 20 minutes (1200000ms) to stay well before the 50min expiration
+    const refreshInterval = setInterval(
+      async () => {
+        if (user) {
+          try {
+            console.log(
+              "[AUTH CONTEXT] Performing periodic session refresh..."
+            );
+            await fetch("/api/auth/refresh", {
+              method: "POST",
+              credentials: "include"
+            });
+            console.log("[AUTH CONTEXT] Session refresh successful");
+          } catch (error) {
+            console.error("[AUTH CONTEXT] Periodic refresh failed:", error);
+          }
+        }
+      },
+      20 * 60 * 1000
+    ); // 20 minutes
+
     // Listen for logout events
     const handleLogout = () => {
       setUser(null);
@@ -72,7 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener("auth:logout", handleLogout);
-    return () => window.removeEventListener("auth:logout", handleLogout);
+    return () => {
+      clearInterval(refreshInterval);
+      window.removeEventListener("auth:logout", handleLogout);
+    };
   }, []);
 
   const handleLogin = async (email: string, password: string) => {

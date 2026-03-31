@@ -105,7 +105,7 @@ export default function OrganizationPage() {
   // Compensation form state
   const [compensationFormData, setCompensationFormData] =
     useState<RoleCompensation>({
-      orgId: userOrgId ? parseInt(userOrgId) : 1,
+      orgId: 0, // Will be set from userOrgId when submitting
       role: "",
       deptId: 0,
       minBasePay: 0,
@@ -346,7 +346,7 @@ export default function OrganizationPage() {
         return;
       }
 
-      const deptId = parseInt(department.departmentId.replace("DEPT", ""));
+      const deptId = parseInt(department.departmentId);
 
       const response = await createRole(roleFormData.role, deptId);
 
@@ -397,15 +397,25 @@ export default function OrganizationPage() {
       return;
     }
 
+    // Ensure orgId is set from current user's organization
+    if (!userOrgId) {
+      toast.error("Organization information not available");
+      return;
+    }
+
     try {
-      const response = await addRoleCompensation(compensationFormData);
+      const submissionData: RoleCompensation = {
+        ...compensationFormData,
+        orgId: parseInt(userOrgId)
+      };
+      const response = await addRoleCompensation(submissionData);
 
       if (response) {
         toast.success("Role compensation details added successfully");
 
         // Reset form and pagination to fetch fresh data
         setCompensationFormData({
-          orgId: userOrgId ? parseInt(userOrgId) : 1,
+          orgId: 0, // Will be set from userOrgId when submitting
           role: "",
           deptId: 0,
           minBasePay: 0,

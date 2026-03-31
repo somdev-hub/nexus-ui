@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { refreshSession, getSession, deleteSession } from "@/lib/better-auth";
+import {
+  refreshSession,
+  getSession,
+  deleteSession,
+  createSession
+} from "@/lib/better-auth";
+import { randomUUID } from "crypto";
 import axios from "axios";
 
 const SESSION_COOKIE_NAME = "auth-session";
@@ -17,24 +23,24 @@ export async function POST(request: NextRequest) {
     console.log("[AUTH REFRESH] Session token from cookies:", !!sessionToken);
     console.log("[AUTH REFRESH] Refresh token from cookies:", !!refreshToken);
 
-    if (!sessionToken || !refreshToken) {
-      console.error("[AUTH REFRESH] Missing session or refresh token");
+    // If no refresh token, we can't do anything
+    if (!refreshToken) {
+      console.error("[AUTH REFRESH] Missing refresh token");
       return NextResponse.json(
-        { error: "Missing session or refresh token" },
+        { error: "Missing refresh token" },
         { status: 401 }
       );
     }
 
-    const session = getSession(sessionToken);
-
-    if (!session) {
-      console.error("[AUTH REFRESH] Session not found or expired");
-      const response = NextResponse.json(
-        { error: "Session expired" },
-        { status: 401 }
-      );
-      response.cookies.delete(SESSION_COOKIE_NAME);
-      return response;
+    // If we have sessionToken, try to use it; otherwise we'll create a new one
+    let session = null;
+    if (sessionToken) {
+      session = getSession(sessionToken);
+      if (!session) {
+        console.log(
+          "[AUTH REFRESH] Session token provided but not found in memory"
+        );
+      }
     }
 
     try {
@@ -46,7 +52,8 @@ export async function POST(request: NextRequest) {
         {
           headers: {
             "Content-Type": "application/json"
-          }
+          },
+          timeout: 10000
         }
       );
 
@@ -58,36 +65,86 @@ export async function POST(request: NextRequest) {
       const {
         accessToken: newAccessToken,
         expiresIn,
-        refreshToken: newRefreshToken
+        refreshToken: newRefreshToken,
+        userId,
+        email,
+        name,
+        role,
+        orgId
       } = refreshResponse.data;
 
       console.log("[AUTH REFRESH] New token expiry (seconds):", expiresIn);
 
-      // Update session with new access token and expiry
-      refreshSession(sessionToken, newAccessToken, expiresIn);
+      let finalSessionToken = sessionToken;
 
-      // Create response with updated user data
+      // If we have an existing session, update it
+      if (session && sessionToken) {
+        console.log("[AUTH REFRESH] Updating existing session");
+        refreshSession(
+          sessionToken,
+          newAccessToken,
+          expiresIn,
+          newRefreshToken
+        );
+      } else {
+        // Session not in memory - create a new one from refresh response
+        console.log(
+          "[AUTH REFRESH] Session not in memory, creating new session from refresh"
+        );
+        finalSessionToken = randomUUID();
+
+        // Create user object from refresh response
+        const user = {
+          id: userId.toString(),
+          email,
+          name,
+          role,
+          orgId: orgId.toString(),
+          avatar: `/avatars/${name}.jpg`
+        };
+
+        createSession(
+          finalSessionToken,
+          userId.toString(),
+          user,
+          newAccessToken,
+          newRefreshToken,
+          expiresIn
+        );
+
+        console.log(
+          "[AUTH REFRESH] New session created with token:",
+          finalSessionToken
+        );
+      }
+
+      // Create response
       const response = NextResponse.json({
         success: true,
-        user: session.user
+        user: session?.user || {
+          id: userId.toString(),
+          email,
+          name,
+          role,
+          orgId: orgId.toString()
+        }
       });
 
       console.log(
         "[AUTH REFRESH] Setting session cookie with maxAge:",
         expiresIn
       );
-      console.log("[AUTH REFRESH] Session refresh completed successfully");
 
-      // Update session expiry cookie
-      response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
+      // Set/update session cookie
+      response.cookies.set(SESSION_COOKIE_NAME, finalSessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: expiresIn || 3600,
+        maxAge: expiresIn,
         path: "/"
       });
 
-      // Update refresh token cookie if provided
+      // Set/update refresh token cookie
       if (newRefreshToken) {
         response.cookies.set(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, {
           httpOnly: true,
@@ -98,9 +155,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      console.log("[AUTH REFRESH] Session refresh completed successfully");
       return response;
     } catch (refreshError: unknown) {
-      // Refresh failed, clear session
+      // Refresh failed, clear session if it exists
       console.error("[AUTH REFRESH] Refresh failed:", refreshError);
 
       if (axios.isAxiosError(refreshError)) {
@@ -114,7 +172,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      deleteSession(sessionToken);
+      // Only delete session if we have a sessionToken
+      if (sessionToken) {
+        deleteSession(sessionToken);
+      }
+
       const response = NextResponse.json(
         { error: "Token refresh failed" },
         { status: 401 }
@@ -122,11 +184,7 @@ export async function POST(request: NextRequest) {
       response.cookies.delete(SESSION_COOKIE_NAME);
       response.cookies.delete(REFRESH_TOKEN_COOKIE_NAME);
 
-      if (axios.isAxiosError(refreshError)) {
-        return response;
-      }
-
-      throw refreshError;
+      return response;
     }
   } catch (error) {
     console.error("[AUTH REFRESH] Unexpected error:", error);

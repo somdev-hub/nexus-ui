@@ -98,6 +98,8 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
   }
 
   try {
+    console.log("[AUTH SERVICE] Starting signup for email:", data.email);
+
     const formData = new FormData();
 
     // Handle profilePicture: convert base64 string to Blob if needed
@@ -148,40 +150,46 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
         { type: "application/json" }
       )
     );
-    const response = await apiClientMultipart.post<ApiAuthResponse>(
-      "/iam/auth/register",
-      formData
+
+    console.log("[AUTH SERVICE] Calling /api/auth/signup endpoint");
+
+    // Call Next.js API route directly (not through proxy)
+    // This endpoint doesn't require authentication
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      credentials: "include", // Include cookies for session tokens
+      body: formData
+      // Don't set Content-Type header - let fetch set it with proper boundary
+    });
+
+    console.log("[AUTH SERVICE] Response status:", response.status);
+    console.log("[AUTH SERVICE] Response ok:", response.ok);
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("[AUTH SERVICE] Signup error:", error);
+      throw new Error(error.error || "Signup failed");
+    }
+
+    const data_response = await response.json();
+    console.log(
+      "[AUTH SERVICE] Signup successful, user:",
+      data_response.user?.email
     );
 
-    const {
-      accessToken,
-      refreshToken,
-      tokenType,
-      expiresIn,
-      userId,
-      orgId,
-      name,
-      role,
-      email
-    } = response.data;
-
-    const user: User = {
-      id: userId,
-      email: email,
-      name: name,
-      role: role,
-      orgId: orgId,
-      avatar: `/avatars/${name}.jpg`
-    };
+    // Store user in localStorage
+    // Tokens are kept server-side in encrypted cookies
+    localStorage.setItem("auth_user", JSON.stringify(data_response.user));
 
     return {
-      accessToken,
-      refreshToken,
-      tokenType: tokenType,
-      expiresIn,
-      user
+      accessToken: "", // Not exposed to frontend
+      refreshToken: "", // Not exposed to frontend
+      tokenType: "Bearer",
+      expiresIn: data_response.expiresIn || 3600,
+      user: data_response.user
     };
   } catch (error: unknown) {
+    console.error("[AUTH SERVICE] Signup failed:", error);
     throw new Error("Signup failed: " + (error as Error).message);
   }
 }
@@ -503,10 +511,7 @@ export async function createRole(
     const response = await apiClient.post<{
       message: string;
       roleId?: string;
-    }>("/iam/roles/create/role", {
-      role,
-      deptId
-    });
+    }>(`/iam/roles/create/role?role=${role}&deptId=${deptId}`);
     return {
       data: response.data,
       status: response.status

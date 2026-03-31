@@ -139,12 +139,16 @@ export function deleteSession(sessionToken: string) {
 export function refreshSession(
   sessionToken: string,
   newAccessToken: string,
-  expiresIn?: number
+  expiresIn?: number,
+  newRefreshToken?: string
 ) {
   const storage = getSessionStorage();
   const session = storage.get(sessionToken);
   if (session) {
     session.accessToken = newAccessToken;
+    if (newRefreshToken) {
+      session.refreshToken = newRefreshToken;
+    }
     // Use provided expiresIn or default to 1 hour
     const expirySeconds = expiresIn || 3600;
     session.expiresAt = new Date(Date.now() + expirySeconds * 1000);
