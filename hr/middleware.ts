@@ -47,6 +47,15 @@ export async function middleware(request: NextRequest) {
 
   // No session token
   if (!sessionToken) {
+    // If we have a refresh token, allow the request to proceed
+    // The API proxy or auth endpoints will attempt session recovery
+    if (refreshToken && !isPublicPath) {
+      console.log(
+        "[MIDDLEWARE] Session missing but refresh token available - allowing request for recovery"
+      );
+      return NextResponse.next();
+    }
+
     // Redirect to login if accessing protected route
     if (!isPublicPath) {
       return NextResponse.redirect(new URL("/login", request.url));
@@ -57,62 +66,26 @@ export async function middleware(request: NextRequest) {
   // Get session
   const session = getSession(sessionToken);
 
-  // Session expired or invalid
+  // Session missing from memory (could be hot reload)
   if (!session) {
-    // Try to refresh if we have a refresh token
-    if (refreshToken) {
-      try {
-        const response = await axios.post(
-          `${SPRING_BOOT_API}/iam/auth/refresh`,
-          { refreshToken },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-
-        const {
-          accessToken: newAccessToken,
-          expiresIn,
-          refreshToken: newRefreshToken
-        } = response.data;
-
-        // Update session with new tokens
-        refreshSession(sessionToken, newAccessToken);
-
-        // Create response with updated cookies
-        const res = NextResponse.next();
-        res.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: expiresIn || 3600,
-          path: "/"
-        });
-
-        if (newRefreshToken) {
-          res.cookies.set(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 30 * 24 * 60 * 60,
-            path: "/"
-          });
-        }
-
-        return res;
-      } catch (error) {
-        console.error("Token refresh failed in middleware:", error);
-        // Fall through to clear session
-      }
+    // If we don't have a refresh token, we're definitely logged out
+    if (!refreshToken) {
+      console.log(
+        "[MIDDLEWARE] No session and no refresh token - redirecting to login"
+      );
+      const res = NextResponse.redirect(new URL("/login", request.url));
+      res.cookies.delete(SESSION_COOKIE_NAME);
+      res.cookies.delete(REFRESH_TOKEN_COOKIE_NAME);
+      return res;
     }
 
-    // Clear invalid session
-    const res = NextResponse.redirect(new URL("/login", request.url));
-    res.cookies.delete(SESSION_COOKIE_NAME);
-    res.cookies.delete(REFRESH_TOKEN_COOKIE_NAME);
-    return res;
+    // We have refresh token but session is missing from memory
+    // This can happen due to hot reload or server restart
+    // Allow the request to proceed - the auth context and proxy will attempt recovery
+    console.log(
+      "[MIDDLEWARE] Session missing but refresh token exists - allowing request for recovery"
+    );
+    return NextResponse.next();
   }
 
   // Session is valid

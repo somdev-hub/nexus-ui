@@ -144,7 +144,9 @@ export function refreshSession(
 ) {
   const storage = getSessionStorage();
   const session = storage.get(sessionToken);
+
   if (session) {
+    // Session exists - update tokens
     session.accessToken = newAccessToken;
     if (newRefreshToken) {
       session.refreshToken = newRefreshToken;
@@ -155,6 +157,12 @@ export function refreshSession(
     console.log(
       "[BETTER-AUTH] Session refreshed. New expiry:",
       session.expiresAt
+    );
+  } else {
+    // Session lost from memory (due to hot reload or other reason)
+    // This shouldn't happen in normal operation, but log it for visibility
+    console.warn(
+      "[BETTER-AUTH] WARNING: Session not found in storage during refresh. Session may have been lost due to server restart or hot reload. Token update deferred to session creation."
     );
   }
 }

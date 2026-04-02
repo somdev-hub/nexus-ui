@@ -75,23 +75,32 @@ export async function POST(request: NextRequest) {
 
       console.log("[AUTH REFRESH] New token expiry (seconds):", expiresIn);
 
+      // Use existing sessionToken or generate a new one if missing
+      // This handles cases where the session token cookie wasn't sent or was lost
       let finalSessionToken = sessionToken;
 
+      if (!finalSessionToken) {
+        console.log(
+          "[AUTH REFRESH] No session token in cookies, generating new one for recovery"
+        );
+        finalSessionToken = randomUUID();
+      }
+
       // If we have an existing session, update it
-      if (session && sessionToken) {
+      // If we have an existing session, update it
+      if (session) {
         console.log("[AUTH REFRESH] Updating existing session");
         refreshSession(
-          sessionToken,
+          finalSessionToken,
           newAccessToken,
           expiresIn,
           newRefreshToken
         );
       } else {
-        // Session not in memory - create a new one from refresh response
+        // Session not in memory - create a new one
         console.log(
-          "[AUTH REFRESH] Session not in memory, creating new session from refresh"
+          "[AUTH REFRESH] Creating new session from refresh response"
         );
-        finalSessionToken = randomUUID();
 
         // Create user object from refresh response
         const user = {
@@ -113,8 +122,8 @@ export async function POST(request: NextRequest) {
         );
 
         console.log(
-          "[AUTH REFRESH] New session created with token:",
-          finalSessionToken
+          "[AUTH REFRESH] Session created/recovered with existing token:",
+          sessionToken
         );
       }
 
@@ -135,7 +144,7 @@ export async function POST(request: NextRequest) {
         expiresIn
       );
 
-      // Set/update session cookie
+      // Set session cookie (new token if it was missing, or existing token)
       response.cookies.set(SESSION_COOKIE_NAME, finalSessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",

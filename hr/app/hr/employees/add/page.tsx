@@ -28,11 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Copy, Check, Upload, X, Download } from "lucide-react";
 import { toast } from "sonner";
-import {
-  addUser,
-  getAllDepartments,
-  getDeptRoles
-} from "@/lib/auth-service";
+import { addUser, getAllDepartments, getDeptRoles } from "@/lib/auth-service";
 import { Switch } from "@/components/ui/switch";
 import { useOrgId } from "@/hooks/use-user-metadata";
 import type { BankRecord, Bonus, Deduction, EmployeeRecord } from "@/types";
@@ -114,9 +110,15 @@ export default function AddEmployeePage() {
     letterOfIntent?: string;
     compensationCard?: string;
   } | null>(null);
-  const [copiedField, setCopiedField] = useState<"email" | "password" | null>(
-    null
-  );
+  const [copiedField, setCopiedField] = useState<
+    | "email"
+    | "password"
+    | "userId"
+    | "joiningLetter"
+    | "letterOfIntent"
+    | "compensationCard"
+    | null
+  >(null);
   const [departments, setDepartments] = useState<
     { deptId: number; deptName: string }[]
   >([]);
@@ -196,11 +198,28 @@ export default function AddEmployeePage() {
     }
   };
 
-  const copyToClipboard = async (text: string, field: "email" | "password") => {
+  const copyToClipboard = async (
+    text: string,
+    field:
+      | "email"
+      | "password"
+      | "userId"
+      | "joiningLetter"
+      | "letterOfIntent"
+      | "compensationCard"
+  ) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedField(field);
-      toast.success(`${field === "email" ? "Email" : "Password"} copied!`);
+      const fieldNames: Record<string, string> = {
+        email: "Email",
+        password: "Password",
+        userId: "User ID",
+        joiningLetter: "Joining Letter URL",
+        letterOfIntent: "Letter of Intent URL",
+        compensationCard: "Compensation Card URL"
+      };
+      toast.success(`${fieldNames[field]} copied!`);
       setTimeout(() => setCopiedField(null), 2000);
     } catch {
       toast.error("Failed to copy to clipboard");
@@ -1591,83 +1610,241 @@ export default function AddEmployeePage() {
             </Dialog>
 
             <Dialog open={showDocuments} onOpenChange={setShowDocuments}>
-              <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
+              <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto no-scrollbar">
                 <DialogHeader>
-                  <DialogTitle>Employee Documents</DialogTitle>
+                  <DialogTitle>Employee Credentials & Documents</DialogTitle>
                   <DialogDescription>
-                    Generated documents for the new employee
+                    Save these credentials securely. Please share with the new
+                    employee.
                   </DialogDescription>
                 </DialogHeader>
                 {documents && (
                   <div className="space-y-6">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-800 mb-2">
-                        <strong>User ID:</strong> {documents.userId}
-                      </p>
-                      <p className="text-sm text-blue-800 mb-2">
-                        <strong>Email:</strong> {documents.email}
-                      </p>
-                      <p className="text-sm text-blue-800">
-                        <strong>Password:</strong> {documents.password}
-                      </p>
+                    {/* Credentials Section */}
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-3">
+                      <h4 className="font-semibold text-sm text-blue-900">
+                        Login Credentials
+                      </h4>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          User ID
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={documents.userId || ""}
+                            readOnly
+                            className="flex-1 bg-white"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() =>
+                              copyToClipboard(documents.userId || "", "userId")
+                            }
+                            title="Copy User ID"
+                          >
+                            {copiedField === "userId" ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Email
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={documents.email || ""}
+                            readOnly
+                            className="flex-1 bg-white"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() =>
+                              copyToClipboard(documents.email || "", "email")
+                            }
+                            title="Copy Email"
+                          >
+                            {copiedField === "email" ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Password
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={documents.password || ""}
+                            readOnly
+                            type="password"
+                            className="flex-1 bg-white"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() =>
+                              copyToClipboard(
+                                documents.password || "",
+                                "password"
+                              )
+                            }
+                            title="Copy Password"
+                          >
+                            {copiedField === "password" ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
 
                     {documents.message && (
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <p className="text-sm text-green-800 font-medium">
-                          Message: {documents.message}
+                      <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>Status:</strong> {documents.message}
                         </p>
                       </div>
                     )}
 
+                    {/* Documents Section */}
                     <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-gray-900">
+                        Generated Documents
+                      </h4>
+
                       {documents.joiningLetter && (
-                        <div className="border rounded-lg p-4">
-                          <h4 className="font-semibold text-sm mb-2">
+                        <div className="border rounded-lg p-4 space-y-3">
+                          <h5 className="font-medium text-sm">
                             Joining Letter
-                          </h4>
+                          </h5>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={documents.joiningLetter}
+                              readOnly
+                              className="flex-1 text-xs bg-gray-50"
+                            />
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() =>
+                                copyToClipboard(
+                                  documents.joiningLetter || "",
+                                  "joiningLetter"
+                                )
+                              }
+                              title="Copy URL"
+                            >
+                              {copiedField === "joiningLetter" ? (
+                                <Check className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                           <a
                             href={documents.joiningLetter}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                            className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
                           >
                             <Download className="w-4 h-4" />
-                            Download Document
+                            Download
                           </a>
                         </div>
                       )}
 
                       {documents.letterOfIntent && (
-                        <div className="border rounded-lg p-4">
-                          <h4 className="font-semibold text-sm mb-2">
+                        <div className="border rounded-lg p-4 space-y-3">
+                          <h5 className="font-medium text-sm">
                             Letter of Intent
-                          </h4>
+                          </h5>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={documents.letterOfIntent}
+                              readOnly
+                              className="flex-1 text-xs bg-gray-50"
+                            />
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() =>
+                                copyToClipboard(
+                                  documents.letterOfIntent || "",
+                                  "letterOfIntent"
+                                )
+                              }
+                              title="Copy URL"
+                            >
+                              {copiedField === "letterOfIntent" ? (
+                                <Check className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                           <a
                             href={documents.letterOfIntent}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                            className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
                           >
                             <Download className="w-4 h-4" />
-                            Download Document
+                            Download
                           </a>
                         </div>
                       )}
 
                       {documents.compensationCard && (
-                        <div className="border rounded-lg p-4">
-                          <h4 className="font-semibold text-sm mb-2">
+                        <div className="border rounded-lg p-4 space-y-3">
+                          <h5 className="font-medium text-sm">
                             Compensation Card
-                          </h4>
+                          </h5>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={documents.compensationCard}
+                              readOnly
+                              className="flex-1 text-xs bg-gray-50"
+                            />
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() =>
+                                copyToClipboard(
+                                  documents.compensationCard || "",
+                                  "compensationCard"
+                                )
+                              }
+                              title="Copy URL"
+                            >
+                              {copiedField === "compensationCard" ? (
+                                <Check className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                           <a
                             href={documents.compensationCard}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                            className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
                           >
                             <Download className="w-4 h-4" />
-                            Download Document
+                            Download
                           </a>
                         </div>
                       )}
@@ -1676,7 +1853,7 @@ export default function AddEmployeePage() {
                 )}
                 <Button
                   type="button"
-                  className="w-full"
+                  className="w-full mt-4"
                   onClick={() => setShowDocuments(false)}
                 >
                   Close

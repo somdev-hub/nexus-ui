@@ -11,7 +11,8 @@ import type {
   Department,
   EmployeeInsights,
   EmployeeDirectoryResponse,
-  EmployeeDetailsResponse
+  EmployeeDetailsResponse,
+  AttendancePageResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -716,6 +717,24 @@ export async function getEmployeeDetails(
   } catch (error: unknown) {
     throw new Error(
       `Fetch employee details failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getAttendanceRecords(
+  orgId: number,
+  date: string,
+  pageNo: number = 0,
+  pageOffset: number = 10
+): Promise<AttendancePageResponse> {
+  try {
+    const response = await apiClient.get<AttendancePageResponse>(
+      `/iam/organizations/employees/attendance?orgId=${orgId}&pageNo=${pageNo}&pageOffset=${pageOffset}&date=${date}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch attendance records failed: ${(error as Error).message}`
     );
   }
 }

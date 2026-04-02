@@ -48,7 +48,9 @@ import {
   PayrollStatusBreakdown,
   SalaryComponentsBreakdown
 } from "@/components/charts";
-import { payrollData, type PayrollRecord } from "./data";
+import { ProcessPayrollDialog } from "@/components/process-payroll-dialog";
+import { payrollData } from "./data";
+import type { PayrollRecord } from "@/types";
 
 export default function PayrollPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,6 +59,8 @@ export default function PayrollPage() {
     null
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isProcessPayrollDialogOpen, setIsProcessPayrollDialogOpen] =
+    useState(false);
 
   const filteredPayroll = payrollData.filter(
     (record) =>
@@ -89,7 +93,7 @@ export default function PayrollPage() {
       0
     );
     const totalOvertimeCost = filteredPayroll.reduce(
-      (sum, r) => sum + r.overtimeCost,
+      (sum, r) => sum + (r.overtimeCost || 0),
       0
     );
     const totalPayrollCost = totalNetSalary + totalOvertimeCost;
@@ -99,10 +103,11 @@ export default function PayrollPage() {
     // Department-wise salary distribution
     const deptDistribution = filteredPayroll.reduce(
       (acc, record) => {
-        if (!acc[record.department]) {
-          acc[record.department] = 0;
+        const dept = record.department || "Unknown";
+        if (!acc[dept]) {
+          acc[dept] = 0;
         }
-        acc[record.department] += record.netSalary;
+        acc[dept] += record.netSalary;
         return acc;
       },
       {} as Record<string, number>
@@ -128,13 +133,14 @@ export default function PayrollPage() {
   // Prepare data for salary variance by role (stacked)
   const roleDistributionData = filteredPayroll.reduce(
     (acc, record) => {
-      const existingRole = acc.find((r) => r.name === record.position);
+      const roleName = record.position || "Unknown";
+      const existingRole = acc.find((r) => r.name === roleName);
       if (existingRole) {
         existingRole.base += record.baseSalary;
         existingRole.bonus += record.bonus;
       } else {
         acc.push({
-          name: record.position,
+          name: roleName,
           base: record.baseSalary,
           bonus: record.bonus
         });
@@ -147,13 +153,14 @@ export default function PayrollPage() {
   // Prepare data for department-wise salary distribution (stacked)
   const deptDistributionData = filteredPayroll.reduce(
     (acc, record) => {
-      const existingDept = acc.find((d) => d.name === record.department);
+      const deptName = record.department || "Unknown";
+      const existingDept = acc.find((d) => d.name === deptName);
       if (existingDept) {
         existingDept.base += record.baseSalary;
         existingDept.bonus += record.bonus;
       } else {
         acc.push({
-          name: record.department,
+          name: deptName,
           base: record.baseSalary,
           bonus: record.bonus
         });
@@ -231,14 +238,15 @@ export default function PayrollPage() {
     {
       accessorKey: "overtimeCost",
       header: "Overtime",
-      cell: (row: PayrollRecord) => `$${row.overtimeCost.toLocaleString()}`
+      cell: (row: PayrollRecord) =>
+        `$${(row.overtimeCost || 0).toLocaleString()}`
     },
     {
       accessorKey: "totalPayout",
       header: "Total Payout",
       cell: (row: PayrollRecord) => (
         <span className="font-semibold text-green-600">
-          ${row.totalPayout.toLocaleString()}
+          ${(row.totalPayout || 0).toLocaleString()}
         </span>
       )
     },
@@ -485,7 +493,7 @@ export default function PayrollPage() {
           className="max-w-xs"
         />
         <div className="flex gap-2 ml-auto">
-          <Button>
+          <Button onClick={() => setIsProcessPayrollDialogOpen(true)}>
             <FileText className="w-4 h-4 mr-2" />
             Process Payroll
           </Button>
@@ -562,13 +570,13 @@ export default function PayrollPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Overtime Cost</span>
                     <span className="text-green-600">
-                      +${selectedPayroll.overtimeCost.toLocaleString()}
+                      +${(selectedPayroll.overtimeCost || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Allowances</span>
                     <span className="text-green-600">
-                      +${selectedPayroll.allowances.toLocaleString()}
+                      +${(selectedPayroll.allowances || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -576,7 +584,7 @@ export default function PayrollPage() {
                     <span className="text-red-600">
                       -$
                       {(
-                        selectedPayroll.absentDays *
+                        (selectedPayroll.absentDays || 0) *
                         (selectedPayroll.baseSalary / 22)
                       ).toLocaleString("en-US", { maximumFractionDigits: 0 })}
                     </span>
@@ -601,13 +609,13 @@ export default function PayrollPage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">Absent Days</span>
                   <span className="font-semibold">
-                    {selectedPayroll.absentDays}
+                    {selectedPayroll.absentDays || 0}
                   </span>
                 </div>
                 <div className="border-t border-blue-200 pt-3 flex justify-between items-center">
                   <span className="font-semibold">Total Payout Amount</span>
                   <span className="text-2xl font-bold text-green-600">
-                    ${selectedPayroll.totalPayout.toLocaleString()}
+                    ${(selectedPayroll.totalPayout || 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -640,7 +648,7 @@ export default function PayrollPage() {
               <Button
                 onClick={() => {
                   toast.success(
-                    `Payment of $${selectedPayroll?.totalPayout.toLocaleString()} processed successfully for ${selectedPayroll?.employeeName}!`
+                    `Payment of $${(selectedPayroll?.totalPayout || 0).toLocaleString()} processed successfully for ${selectedPayroll?.employeeName}!`
                   );
                   setIsDialogOpen(false);
                 }}
@@ -656,6 +664,12 @@ export default function PayrollPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Process Payroll Dialog */}
+      <ProcessPayrollDialog
+        open={isProcessPayrollDialogOpen}
+        onOpenChange={setIsProcessPayrollDialogOpen}
+      />
     </div>
   );
 }
