@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
+import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { createSession } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 
@@ -26,14 +27,15 @@ export async function POST(request: NextRequest) {
       springBootFormData.append(key, value);
     }
 
-    // Call Spring Boot backend for registration
-    const response = await axios.post(
-      `${SPRING_BOOT_API}/iam/auth/register`,
+    // Call Spring Boot backend for registration using centralized client
+    const springBootClient = getSpringBootClient();
+    const response = await springBootClient.post(
+      `/iam/auth/register`,
       springBootFormData,
       {
         headers: {
-          // Don't set Content-Type, let axios set it with proper boundary
-          ...springBootFormData.getHeaders?.()
+          // Let axios set Content-Type with proper boundary for FormData
+          "Content-Type": "multipart/form-data"
         },
         timeout: 90000 // 90 second timeout for file uploads and processing
       }

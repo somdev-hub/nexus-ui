@@ -12,7 +12,11 @@ import type {
   EmployeeInsights,
   EmployeeDirectoryResponse,
   EmployeeDetailsResponse,
-  AttendancePageResponse
+  AttendancePageResponse,
+  PayrollEmployeesResponse,
+  EmployeeAttendanceResponse,
+  PayrollInitiationRequest,
+  PayrollInitiationResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -736,5 +740,59 @@ export async function getAttendanceRecords(
     throw new Error(
       `Fetch attendance records failed: ${(error as Error).message}`
     );
+  }
+}
+
+export async function getPayrollEmployees(
+  orgId: string,
+  deptId?: number,
+  role?: string,
+  pageNo: number = 0,
+  pageOffset: number = 10
+): Promise<PayrollEmployeesResponse> {
+  try {
+    let url = `/iam/organizations/get-payroll-employees?orgId=${orgId}&pageNo=${pageNo}&pageOffset=${pageOffset}`;
+    if (deptId) {
+      url += `&deptId=${deptId}`;
+    }
+    if (role) {
+      url += `&role=${role}`;
+    }
+
+    const response = await apiClient.get<PayrollEmployeesResponse>(url);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch payroll employees failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEmployeeAttendance(
+  employeeId: number
+): Promise<EmployeeAttendanceResponse> {
+  try {
+    const response = await apiClient.get<EmployeeAttendanceResponse>(
+      `/iam/organizations/get-employee-this-month-attendance/${employeeId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch employee attendance failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function initiatePayroll(
+  request: PayrollInitiationRequest
+): Promise<PayrollInitiationResponse> {
+  try {
+    const response = await apiClient.post<PayrollInitiationResponse>(
+      `/iam/employee-payroll/initiate`,
+      request
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Initiate payroll failed: ${(error as Error).message}`);
   }
 }

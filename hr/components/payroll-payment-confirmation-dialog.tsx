@@ -11,12 +11,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { PayrollRecord } from "@/types";
+import type { PayrollRecord, PayrollEmployeeItem } from "@/types";
+
+type RecordType = PayrollRecord | PayrollEmployeeItem;
 
 interface PayrollPaymentConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  recordsToProcess: PayrollRecord[];
+  recordsToProcess: RecordType[];
   onConfirm: () => void;
   isProcessing?: boolean;
 }
@@ -28,16 +30,62 @@ export function PayrollPaymentConfirmationDialog({
   onConfirm,
   isProcessing = false
 }: PayrollPaymentConfirmationDialogProps) {
+  // Helper functions to extract values from either type
+  const getNetSalary = (record: RecordType): number => {
+    if ("netSalary" in record) return record.netSalary;
+    if ("monthlySalaryNet" in record) return record.monthlySalaryNet;
+    return 0;
+  };
+
+  const getBonus = (record: RecordType): number => {
+    if ("bonus" in record) return record.bonus;
+    return 0;
+  };
+
+  const getDeductions = (record: RecordType): number => {
+    if ("deductions" in record) return record.deductions;
+    return 0;
+  };
+
+  const getAllowances = (record: RecordType): number => {
+    if ("allowances" in record) return record.allowances || 0;
+    return 0;
+  };
+
+  const getOvertimeCost = (record: RecordType): number => {
+    if ("overtimeCost" in record) return record.overtimeCost || 0;
+    return 0;
+  };
+
+  const getTotalPayout = (record: RecordType): number => {
+    if ("totalPayout" in record)
+      return (
+        record.totalPayout || getNetSalary(record) + getOvertimeCost(record)
+      );
+    if ("monthlySalaryGross" in record) return record.monthlySalaryGross;
+    return getNetSalary(record) + getOvertimeCost(record);
+  };
+
+  const getEmployeeId = (record: RecordType): string | number => {
+    if ("employeeId" in record) return record.employeeId;
+    return "N/A";
+  };
+
+  const getEmployeeName = (record: RecordType): string => {
+    if ("employeeName" in record) return record.employeeName;
+    if ("name" in record) return record.name;
+    return "N/A";
+  };
+
   // Calculate cost breakdown
   const costBreakdown = recordsToProcess.reduce(
     (acc, record) => {
-      acc.totalNetSalary += record.netSalary;
-      acc.totalBonus += record.bonus;
-      acc.totalDeductions += record.deductions;
-      acc.totalAllowances += record.allowances || 0;
-      acc.totalOvertimeCost += record.overtimeCost || 0;
-      acc.totalPayableAmount +=
-        record.totalPayout || record.netSalary + (record.overtimeCost || 0);
+      acc.totalNetSalary += getNetSalary(record);
+      acc.totalBonus += getBonus(record);
+      acc.totalDeductions += getDeductions(record);
+      acc.totalAllowances += getAllowances(record);
+      acc.totalOvertimeCost += getOvertimeCost(record);
+      acc.totalPayableAmount += getTotalPayout(record);
       return acc;
     },
     {
@@ -148,21 +196,26 @@ export function PayrollPaymentConfirmationDialog({
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {recordsToProcess.map((record) => (
                 <div
-                  key={record.id}
+                  key={getEmployeeId(record)}
                   className="flex items-center justify-between text-sm py-2 border-b last:border-b-0"
                 >
                   <div className="flex-1">
-                    <p className="font-medium">{record.employeeName}</p>
+                    <p className="font-medium">{getEmployeeName(record)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {record.department} • {record.position}
+                      {("department" in record && record.department) || "N/A"} •{" "}
+                      {("position" in record && record.position) ||
+                        ("positionTitle" in record && record.positionTitle) ||
+                        "N/A"}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">
-                      ${(record.totalPayout || 0).toLocaleString()}
+                      ${getTotalPayout(record).toLocaleString()}
                     </p>
                     <Badge variant="outline" className="text-xs mt-1">
-                      {record.status}
+                      {("status" in record && record.status) ||
+                        ("paymentStatus" in record && record.paymentStatus) ||
+                        "N/A"}
                     </Badge>
                   </div>
                 </div>

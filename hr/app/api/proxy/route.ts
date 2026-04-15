@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, refreshSession } from "@/lib/better-auth";
 import axios from "axios";
+import { getSpringBootClient } from "@/lib/spring-boot-client";
 
 const SESSION_COOKIE_NAME = "auth-session";
 const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
@@ -149,15 +150,10 @@ async function ensureValidSession(
 
     try {
       // Call Spring Boot to refresh tokens
-      const refreshResponse = await axios.post(
-        `${SPRING_BOOT_API}/iam/auth/refresh`,
-        { refreshToken },
-        {
-          headers: {
-            "Content-Type": "application/json"
-          },
-          timeout: 10000
-        }
+      const springBootClient = getSpringBootClient();
+      const refreshResponse = await springBootClient.post(
+        `/iam/auth/refresh`,
+        { refreshToken }
       );
 
       const {
@@ -225,15 +221,10 @@ async function handleUnauthorizedWithRetry(
       "[API PROXY] Received 401, attempting token refresh and retry..."
     );
     // Call Spring Boot to refresh tokens
-    const refreshResponse = await axios.post(
-      `${SPRING_BOOT_API}/iam/auth/refresh`,
-      { refreshToken },
-      {
-        headers: {
-          "Content-Type": "application/json"
-        },
-        timeout: 10000
-      }
+    const springBootClient = getSpringBootClient();
+    const refreshResponse = await springBootClient.post(
+      `/iam/auth/refresh`,
+      { refreshToken }
     );
 
     const {
@@ -328,10 +319,10 @@ export async function GET(request: NextRequest) {
       "[API PROXY GET] Making request with token:",
       !!session.accessToken
     );
-    const response = await axios.get(`${SPRING_BOOT_API}${path}`, {
+    const springBootClient = getSpringBootClient();
+    const response = await springBootClient.get(path, {
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${session.accessToken}`
       }
     });
 
@@ -352,13 +343,14 @@ export async function GET(request: NextRequest) {
         const retryResult = await handleUnauthorizedWithRetry(
           sessionToken,
           refreshToken,
-          (accessToken: string) =>
-            axios.get(`${SPRING_BOOT_API}${path}`, {
+          (accessToken: string) => {
+            const springBootClient = getSpringBootClient();
+            return springBootClient.get(path, {
               headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
+                Authorization: `Bearer ${accessToken}`
               }
-            })
+            });
+          }
         );
 
         if (retryResult.success) {
@@ -451,9 +443,8 @@ export async function POST(request: NextRequest) {
       axiosConfig.headers["Content-Type"] = "application/json";
     }
 
-    const urlWithParams = `${SPRING_BOOT_API}${path}`;
-
-    const response = await axios.post(urlWithParams, body, axiosConfig);
+    const springBootClient = getSpringBootClient();
+    const response = await springBootClient.post(path, body, axiosConfig);
 
     return NextResponse.json(response.data);
   } catch (error: unknown) {
@@ -527,7 +518,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
 
     // Extract body properties and add them as query parameters
-    let urlWithParams = `${SPRING_BOOT_API}${path}`;
+    let urlWithParams = path;
     if (Object.keys(body).length > 0) {
       urlWithParams = appendBodyAsQueryParams(
         body as Record<string, unknown>,
@@ -535,7 +526,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const response = await axios.put(urlWithParams, body, {
+    const springBootClient = getSpringBootClient();
+    const response = await springBootClient.put(urlWithParams, body, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         "Content-Type": "application/json"
@@ -597,7 +589,8 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const response = await axios.delete(`${SPRING_BOOT_API}${path}`, {
+    const springBootClient = getSpringBootClient();
+    const response = await springBootClient.delete(path, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         "Content-Type": "application/json"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
+import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { createSession } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 
@@ -25,14 +26,12 @@ export async function POST(request: NextRequest) {
 
     console.log("[AUTH LOGIN] Calling Spring Boot API:", SPRING_BOOT_API);
 
-    // Call Spring Boot backend for authentication
-    const response = await axios.post(
-      `${SPRING_BOOT_API}/iam/auth/login`,
+    // Call Spring Boot backend for authentication using centralized client
+    const springBootClient = getSpringBootClient();
+    const response = await springBootClient.post(
+      `/iam/auth/login`,
       { email, password },
       {
-        headers: {
-          "Content-Type": "application/json"
-        },
         timeout: 30000 // 30 second timeout for debugging
       }
     );

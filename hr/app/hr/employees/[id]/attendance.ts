@@ -67,12 +67,15 @@ export function generateDummyAttendance(
     records.push({
       id: `ATT-${employeeId}-${dateStr}`,
       date: dateStr,
-      employeeId: employeeId,
+      employeeId: parseInt(employeeId, 10) || 0,
       employeeName: "",
       checkIn: status === "present" ? "09:00 AM" : "-",
       checkOut: status === "present" ? "05:30 PM" : "-",
       status: recordStatus,
-      hoursWorked: parseFloat(hoursWorked.toFixed(2)).toString()
+      hoursWorked: parseFloat(hoursWorked.toFixed(2)).toString(),
+      checkInTime: status === "present" ? "09:00 AM" : "-",
+      checkOutTime: status === "present" ? "05:30 PM" : "-",
+      totalHoursWorked: status === "present" ? parseFloat(hoursWorked.toFixed(2)) : 0
     });
   }
 

@@ -544,6 +544,60 @@ export interface EmployeeDirectoryResponse {
   hasPrevious: boolean;
 }
 
+export interface PayrollEmployeeItem {
+  monthlySalaryGross: number;
+  positionTitle: string;
+  month: string;
+  year: number;
+  monthlySalaryNet: number;
+  name: string;
+  employeeId: number;
+  department: string;
+  paymentStatus:
+    | "PENDING"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED"
+    | "NOT_PROCESSED";
+}
+
+export interface PayrollEmployeesResponse {
+  content: PayrollEmployeeItem[];
+  pageNo: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  isFirst: boolean;
+  isLast: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface EmployeeAttendanceResponse {
+  daysPresent: number;
+  daysAbsent: number;
+  halfDays: number;
+  totalOvertimeHours: number;
+  totalAdditions: number;
+  totalDeductions: number;
+}
+
+// ============================================================================
+// PAYROLL PAYMENT INITIATION TYPES
+// ============================================================================
+
+export interface PayrollInitiationRequest {
+  orgId: string;
+  employeeIds: number[];
+}
+
+export interface PayrollInitiationResponse {
+  transactionReference: string;
+  payrollIds: number[];
+  status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  message: string;
+}
+
 // ============================================================================
 // DELIVERY & STATUS TYPES
 // ============================================================================

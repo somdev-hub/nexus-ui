@@ -7,6 +7,7 @@ import {
 } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 import axios from "axios";
+import { getSpringBootClient } from "@/lib/spring-boot-client";
 
 const SESSION_COOKIE_NAME = "auth-session";
 const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
@@ -45,16 +46,13 @@ export async function POST(request: NextRequest) {
 
     try {
       console.log("[AUTH REFRESH] Calling Spring Boot refresh endpoint");
-      // Call Spring Boot to refresh tokens
-      const refreshResponse = await axios.post(
-        `${SPRING_BOOT_API}/iam/auth/refresh`,
-        { refreshToken },
-        {
-          headers: {
-            "Content-Type": "application/json"
-          },
-          timeout: 10000
-        }
+      console.log("[AUTH REFRESH] Spring Boot API URL:", SPRING_BOOT_API);
+      
+      // Call Spring Boot to refresh tokens using centralized client
+      const springBootClient = getSpringBootClient();
+      const refreshResponse = await springBootClient.post(
+        `/iam/auth/refresh`,
+        { refreshToken }
       );
 
       console.log(

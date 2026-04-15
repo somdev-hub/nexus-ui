@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, refreshSession } from "@/lib/better-auth";
+import { getSession } from "@/lib/better-auth";
 import GlobalConfig from "@/global.config";
-import axios from "axios";
 
 const publicPaths = ["/login", "/signup", "/"];
 const SESSION_COOKIE_NAME = "auth-session";
 const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
-const SPRING_BOOT_API =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 /**
  * Middleware to handle:
@@ -17,7 +14,7 @@ const SPRING_BOOT_API =
  * - Redirecting unauthenticated users from protected pages
  * - Allowing all routes in dummy mode (when auth is disabled)
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for API routes and static files
