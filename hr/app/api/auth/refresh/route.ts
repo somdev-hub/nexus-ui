@@ -47,13 +47,12 @@ export async function POST(request: NextRequest) {
     try {
       console.log("[AUTH REFRESH] Calling Spring Boot refresh endpoint");
       console.log("[AUTH REFRESH] Spring Boot API URL:", SPRING_BOOT_API);
-      
+
       // Call Spring Boot to refresh tokens using centralized client
       const springBootClient = getSpringBootClient();
-      const refreshResponse = await springBootClient.post(
-        `/iam/auth/refresh`,
-        { refreshToken }
-      );
+      const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
+        refreshToken
+      });
 
       console.log(
         "[AUTH REFRESH] Spring Boot response status:",

@@ -75,7 +75,8 @@ export function generateDummyAttendance(
       hoursWorked: parseFloat(hoursWorked.toFixed(2)).toString(),
       checkInTime: status === "present" ? "09:00 AM" : "-",
       checkOutTime: status === "present" ? "05:30 PM" : "-",
-      totalHoursWorked: status === "present" ? parseFloat(hoursWorked.toFixed(2)) : 0
+      totalHoursWorked:
+        status === "present" ? parseFloat(hoursWorked.toFixed(2)) : 0
     });
   }
 

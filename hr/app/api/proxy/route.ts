@@ -151,10 +151,9 @@ async function ensureValidSession(
     try {
       // Call Spring Boot to refresh tokens
       const springBootClient = getSpringBootClient();
-      const refreshResponse = await springBootClient.post(
-        `/iam/auth/refresh`,
-        { refreshToken }
-      );
+      const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
+        refreshToken
+      });
 
       const {
         accessToken: newAccessToken,
@@ -222,10 +221,9 @@ async function handleUnauthorizedWithRetry(
     );
     // Call Spring Boot to refresh tokens
     const springBootClient = getSpringBootClient();
-    const refreshResponse = await springBootClient.post(
-      `/iam/auth/refresh`,
-      { refreshToken }
-    );
+    const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
+      refreshToken
+    });
 
     const {
       accessToken: newAccessToken,

@@ -5,7 +5,8 @@ import axios, { AxiosInstance } from "axios";
  * Handles IPv4-only connections, connection pooling, and enhanced error handling
  */
 
-const SPRING_BOOT_API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const SPRING_BOOT_API =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 console.log(
   `[SPRING BOOT CLIENT] Initializing with API URL: ${SPRING_BOOT_API}`
@@ -13,7 +14,7 @@ console.log(
 
 /**
  * Create axios instance for Spring Boot API calls
- * 
+ *
  * Key fixes for timeout issues:
  * - Forces IPv4 resolution only (prevents IPv6 timeout issues with localhost)
  * - 10 second timeout for all requests
