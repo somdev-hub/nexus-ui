@@ -16,7 +16,9 @@ import type {
   PayrollEmployeesResponse,
   EmployeeAttendanceResponse,
   PayrollInitiationRequest,
-  PayrollInitiationResponse
+  PayrollInitiationResponse,
+  ProcessedPayrollsResponse,
+  PayrollGraphsResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -794,5 +796,72 @@ export async function initiatePayroll(
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Initiate payroll failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getProcessedPayrolls(
+  orgId: string,
+  month: number,
+  year: number,
+  pageNo: number = 0,
+  pageSize: number = 10
+): Promise<ProcessedPayrollsResponse> {
+  try {
+    // Build URL with query parameters to ensure they're properly encoded
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      month: String(month),
+      year: String(year),
+      pageNo: String(pageNo),
+      pageSize: String(pageSize)
+    }).toString();
+
+    const response = await apiClient.get<ProcessedPayrollsResponse>(
+      `/iam/organizations/get-processed-payrolls?${queryParams}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch processed payrolls failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getPayrollGraphs(
+  orgId: string,
+  month: number,
+  year: number
+): Promise<PayrollGraphsResponse> {
+  try {
+    // Convert month number to month name (e.g., 4 -> "APRIL")
+    const monthNames = [
+      "JANUARY",
+      "FEBRUARY",
+      "MARCH",
+      "APRIL",
+      "MAY",
+      "JUNE",
+      "JULY",
+      "AUGUST",
+      "SEPTEMBER",
+      "OCTOBER",
+      "NOVEMBER",
+      "DECEMBER"
+    ];
+    const monthName = monthNames[month - 1];
+
+    // Build URL with query parameters to ensure they're properly encoded
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      month: monthName,
+      year: String(year)
+    }).toString();
+
+    const response = await apiClient.get<PayrollGraphsResponse>(
+      `/iam/organizations/get-payroll-graphs?${queryParams}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Fetch payroll graphs failed: ${(error as Error).message}`);
   }
 }

@@ -17,17 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter
-} from "@/components/ui/dialog";
-import {
-  Eye,
   Download,
   DollarSign,
   CheckCircle,
@@ -36,9 +26,13 @@ import {
   TrendingUp,
   FileText,
   Zap,
-  BarChart3
+  BarChart3,
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import {
@@ -49,18 +43,172 @@ import {
   SalaryComponentsBreakdown
 } from "@/components/charts";
 import { ProcessPayrollDialog } from "@/components/process-payroll-dialog";
+import { getProcessedPayrolls, getPayrollGraphs } from "@/lib/auth-service";
 import { payrollData } from "./data";
-import type { PayrollRecord } from "@/types";
+import type { ProcessedPayrollRecord } from "@/types";
 
 export default function PayrollPage() {
+  const { orgId } = useUserMetadata();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterMonth, setFilterMonth] = useState("February 2026");
-  const [selectedPayroll, setSelectedPayroll] = useState<PayrollRecord | null>(
-    null
-  );
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [filterMonth, setFilterMonth] = useState("April 2026");
   const [isProcessPayrollDialogOpen, setIsProcessPayrollDialogOpen] =
     useState(false);
+
+  // Processed Payroll Data
+  const [processedPayrolls, setProcessedPayrolls] = useState<
+    ProcessedPayrollRecord[]
+  >([]);
+  const [isLoadingProcessed, setIsLoadingProcessed] = useState(false);
+  const [pageNo, setPageNo] = useState(0);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Graph Data State
+  const [roleDistributionData, setRoleDistributionData] = useState<
+    Array<{ name: string; base: number; bonus: number }>
+  >([]);
+  const [deptDistributionData, setDeptDistributionData] = useState<
+    Array<{ name: string; base: number; bonus: number }>
+  >([]);
+  const [monthlyTrendData, setMonthlyTrendData] = useState<
+    Array<{ month: string; payroll: number; overtime: number }>
+  >([]);
+  const [statusData, setStatusData] = useState<
+    Array<{ name: string; value: number; color: string }>
+  >([]);
+  const [componentData, setComponentData] = useState<
+    Array<{ component: string; amount: number; color: string }>
+  >([]);
+
+  // Parse month and year from filterMonth string (e.g., "April 2026" -> month: 4, year: 2026)
+  const parseMonthYear = (monthStr: string) => {
+    const months: Record<string, number> = {
+      January: 1,
+      February: 2,
+      March: 3,
+      April: 4,
+      May: 5,
+      June: 6,
+      July: 7,
+      August: 8,
+      September: 9,
+      October: 10,
+      November: 11,
+      December: 12
+    };
+
+    const parts = monthStr.split(" ");
+    const monthName = parts[0];
+    const year = parseInt(parts[1], 10);
+    const month = months[monthName] || new Date().getMonth() + 1;
+
+    return { month, year };
+  };
+
+  // Fetch processed payrolls when filter changes
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchProcessedPayrolls = async () => {
+      setIsLoadingProcessed(true);
+      try {
+        const { month, year } = parseMonthYear(filterMonth);
+        const response = await getProcessedPayrolls(
+          orgId,
+          month,
+          year,
+          pageNo,
+          pageSize
+        );
+        setProcessedPayrolls(response.content);
+        setTotalPages(response.totalPages);
+      } catch (error) {
+        console.error("Failed to fetch processed payrolls:", error);
+        toast.error("Failed to load processed payroll records");
+        setProcessedPayrolls([]);
+      } finally {
+        setIsLoadingProcessed(false);
+      }
+    };
+
+    fetchProcessedPayrolls();
+  }, [orgId, filterMonth, pageNo, pageSize]);
+
+  // Fetch graph data when filter month changes
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchGraphData = async () => {
+      try {
+        const { month, year } = parseMonthYear(filterMonth);
+        const response = await getPayrollGraphs(orgId, month, year);
+
+        // Transform salary vs role data
+        const roleData = response.salaryVsRole
+          .filter((r) => r.employeeCount > 0)
+          .map((r) => ({
+            name: r.role,
+            base: r.baseSalary,
+            bonus: r.bonus
+          }));
+        setRoleDistributionData(roleData);
+
+        // Transform salary vs department data
+        const deptData = response.salaryVsDept.map((d) => ({
+          name: d.dept,
+          base: d.baseSalary,
+          bonus: d.bonus
+        }));
+        setDeptDistributionData(deptData);
+
+        // Transform salary vs overtime data (monthly trend)
+        const trendData = response.salaryVsOvertime.map((o) => ({
+          month: `${o.month} ${o.year}`,
+          payroll: o.totalSalary,
+          overtime: o.overtimePay
+        }));
+        setMonthlyTrendData(trendData);
+
+        // Transform salary vs status data
+        const statusBreakdown = response.salaryVsStatus.map((s) => {
+          let color = "#10b981"; // green for COMPLETED
+          if (s.status === "PENDING") color = "#f59e0b"; // amber
+          if (s.status === "FAILED") color = "#ef4444"; // red
+          return {
+            name: s.status,
+            value: s.noOfPayrolls,
+            color
+          };
+        });
+        setStatusData(statusBreakdown);
+
+        // Transform salary vs component data
+        const components = [
+          {
+            component: "Base Salary",
+            amount: response.salaryVsComponent.baseSalary,
+            color: "#3b82f6"
+          },
+          {
+            component: "Bonus",
+            amount: response.salaryVsComponent.bonus,
+            color: "#10b981"
+          },
+          {
+            component: "Deductions",
+            amount: response.salaryVsComponent.deduction,
+            color: "#ef4444"
+          }
+        ];
+        setComponentData(components);
+      } catch (error) {
+        console.error("Failed to fetch graph data:", error);
+        toast.error("Failed to load payroll graphs");
+      }
+    };
+
+    fetchGraphData();
+  }, [orgId, filterMonth]);
 
   const filteredPayroll = payrollData.filter(
     (record) =>
@@ -68,32 +216,37 @@ export default function PayrollPage() {
       (filterMonth === "all" || record.month === filterMonth)
   );
 
-  // Calculate comprehensive metrics
-  const metrics = useMemo(() => {
-    const total = filteredPayroll.length;
-    const processed = filteredPayroll.filter(
-      (r) => r.status === "Processed"
-    ).length;
-    const pending = filteredPayroll.filter(
-      (r) => r.status === "Pending"
-    ).length;
-    const onHold = filteredPayroll.filter((r) => r.status === "On Hold").length;
+  // Filter processed payrolls by search term
+  const filteredProcessedPayrolls = processedPayrolls.filter((record) =>
+    record.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    const totalNetSalary = filteredPayroll.reduce(
-      (sum, r) => sum + r.netSalary,
+  // Calculate comprehensive metrics from processed payrolls
+  const metrics = useMemo(() => {
+    const total = filteredProcessedPayrolls.length;
+    // All records from the API are processed payrolls by nature
+    const processed = total;
+    const pending = 0;
+    const onHold = 0;
+
+    const totalNetSalary = filteredProcessedPayrolls.reduce(
+      (sum, r) => sum + r.netPay,
       0
     );
-    const totalBaseSalary = filteredPayroll.reduce(
-      (sum, r) => sum + r.baseSalary,
+    const totalBaseSalary = filteredProcessedPayrolls.reduce(
+      (sum, r) => sum + r.basePay,
       0
     );
-    const totalBonus = filteredPayroll.reduce((sum, r) => sum + r.bonus, 0);
-    const totalDeductions = filteredPayroll.reduce(
-      (sum, r) => sum + r.deductions,
+    const totalBonus = filteredProcessedPayrolls.reduce(
+      (sum, r) => sum + r.totalBonuses,
       0
     );
-    const totalOvertimeCost = filteredPayroll.reduce(
-      (sum, r) => sum + (r.overtimeCost || 0),
+    const totalDeductions = filteredProcessedPayrolls.reduce(
+      (sum, r) => sum + r.totalDeductions,
+      0
+    );
+    const totalOvertimeCost = filteredProcessedPayrolls.reduce(
+      (sum, r) => sum + r.totalOvertimeFee,
       0
     );
     const totalPayrollCost = totalNetSalary + totalOvertimeCost;
@@ -101,13 +254,13 @@ export default function PayrollPage() {
     const avgBonus = total > 0 ? totalBonus / total : 0;
 
     // Department-wise salary distribution
-    const deptDistribution = filteredPayroll.reduce(
+    const deptDistribution = filteredProcessedPayrolls.reduce(
       (acc, record) => {
         const dept = record.department || "Unknown";
         if (!acc[dept]) {
           acc[dept] = 0;
         }
-        acc[dept] += record.netSalary;
+        acc[dept] += record.netPay;
         return acc;
       },
       {} as Record<string, number>
@@ -128,157 +281,68 @@ export default function PayrollPage() {
       avgBonus,
       deptDistribution
     };
-  }, [filteredPayroll]);
+  }, [filteredProcessedPayrolls]);
 
-  // Prepare data for salary variance by role (stacked)
-  const roleDistributionData = filteredPayroll.reduce(
-    (acc, record) => {
-      const roleName = record.position || "Unknown";
-      const existingRole = acc.find((r) => r.name === roleName);
-      if (existingRole) {
-        existingRole.base += record.baseSalary;
-        existingRole.bonus += record.bonus;
-      } else {
-        acc.push({
-          name: roleName,
-          base: record.baseSalary,
-          bonus: record.bonus
-        });
-      }
-      return acc;
-    },
-    [] as Array<{ name: string; base: number; bonus: number }>
-  );
-
-  // Prepare data for department-wise salary distribution (stacked)
-  const deptDistributionData = filteredPayroll.reduce(
-    (acc, record) => {
-      const deptName = record.department || "Unknown";
-      const existingDept = acc.find((d) => d.name === deptName);
-      if (existingDept) {
-        existingDept.base += record.baseSalary;
-        existingDept.bonus += record.bonus;
-      } else {
-        acc.push({
-          name: deptName,
-          base: record.baseSalary,
-          bonus: record.bonus
-        });
-      }
-      return acc;
-    },
-    [] as Array<{ name: string; base: number; bonus: number }>
-  );
-
-  // Prepare data for 6-month trend (last 6 months payroll spend)
-  const monthlyTrendData = [
-    { month: "Jul 2024", payroll: 428000, overtime: 2100 },
-    { month: "Aug 2024", payroll: 432000, overtime: 600 },
-    { month: "Sep 2024", payroll: 455000, overtime: 1800 },
-    { month: "Oct 2024", payroll: 450000, overtime: 2800 },
-    { month: "Nov 2024", payroll: 460000, overtime: 2900 },
-    { month: "Dec 2024", payroll: 488000, overtime: 10900 }
-  ];
-
-  // Prepare data for status breakdown
-  const statusData = [
-    { name: "Processed", value: metrics.processed, color: "#10b981" },
-    { name: "Pending", value: metrics.pending, color: "#f59e0b" },
-    { name: "On Hold", value: metrics.onHold, color: "#ef4444" }
-  ];
-
-  // Prepare data for salary components breakdown
-  const componentData = [
+  const columns: ColumnDef<ProcessedPayrollRecord>[] = [
     {
-      component: "Base Salary",
-      amount: metrics.totalBaseSalary,
-      color: "#3b82f6"
-    },
-    { component: "Bonus", amount: metrics.totalBonus, color: "#10b981" },
-    {
-      component: "Deductions",
-      amount: metrics.totalDeductions,
-      color: "#ef4444"
-    }
-  ];
-
-  const columns: ColumnDef<PayrollRecord>[] = [
-    {
-      accessorKey: "employeeId",
+      accessorKey: "empId",
       header: "Employee ID"
     },
     {
-      accessorKey: "employeeName",
+      accessorKey: "name",
       header: "Employee Name"
     },
     {
-      accessorKey: "month",
-      header: "Month"
+      accessorKey: "department",
+      header: "Department"
     },
     {
-      accessorKey: "baseSalary",
-      header: "Base Salary",
-      cell: (row: PayrollRecord) => `$${row.baseSalary.toLocaleString()}`
+      accessorKey: "basePay",
+      header: "Base Pay",
+      cell: (row: ProcessedPayrollRecord) => `₹${row.basePay.toLocaleString()}`
     },
     {
-      accessorKey: "bonus",
+      accessorKey: "hra",
+      header: "HRA",
+      cell: (row: ProcessedPayrollRecord) => `₹${row.hra.toLocaleString()}`
+    },
+    {
+      accessorKey: "totalBonuses",
       header: "Bonus",
-      cell: (row: PayrollRecord) => `$${row.bonus.toLocaleString()}`
+      cell: (row: ProcessedPayrollRecord) =>
+        `₹${row.totalBonuses.toLocaleString()}`
     },
     {
-      accessorKey: "deductions",
+      accessorKey: "totalDeductions",
       header: "Deductions",
-      cell: (row: PayrollRecord) => `$${row.deductions.toLocaleString()}`
+      cell: (row: ProcessedPayrollRecord) =>
+        `₹${row.totalDeductions.toLocaleString()}`
     },
     {
-      accessorKey: "netSalary",
-      header: "Net Salary",
-      cell: (row: PayrollRecord) => `$${row.netSalary.toLocaleString()}`
-    },
-    {
-      accessorKey: "overtimeCost",
+      accessorKey: "totalOvertimeFee",
       header: "Overtime",
-      cell: (row: PayrollRecord) =>
-        `$${(row.overtimeCost || 0).toLocaleString()}`
+      cell: (row: ProcessedPayrollRecord) =>
+        `₹${row.totalOvertimeFee.toLocaleString()}`
     },
     {
-      accessorKey: "totalPayout",
-      header: "Total Payout",
-      cell: (row: PayrollRecord) => (
+      accessorKey: "grossPay",
+      header: "Gross Pay",
+      cell: (row: ProcessedPayrollRecord) => `₹${row.grossPay.toLocaleString()}`
+    },
+    {
+      accessorKey: "netPay",
+      header: "Net Pay",
+      cell: (row: ProcessedPayrollRecord) => (
         <span className="font-semibold text-green-600">
-          ${(row.totalPayout || 0).toLocaleString()}
+          ₹{row.netPay.toLocaleString()}
         </span>
       )
     },
     {
-      accessorKey: "status",
-      header: "Status",
-      cell: (row: PayrollRecord) => {
-        const variant =
-          row.status === "Processed"
-            ? "default"
-            : row.status === "Pending"
-              ? "secondary"
-              : "destructive";
-        return <Badge variant={variant}>{row.status}</Badge>;
-      }
-    },
-    {
       id: "actions",
       header: "Actions",
-      cell: (row: PayrollRecord) => (
+      cell: () => (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            title="View Details"
-            onClick={() => {
-              setSelectedPayroll(row);
-              setIsDialogOpen(true);
-            }}
-          >
-            <Eye className="w-4 h-4" />
-          </Button>
           <Button size="sm" variant="ghost" title="Download Slip">
             <Download className="w-4 h-4" />
           </Button>
@@ -309,7 +373,8 @@ export default function PayrollPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
+              <SelectItem value="April 2026">April 2026</SelectItem>
+              <SelectItem value="March 2026">March 2026</SelectItem>
               <SelectItem value="February 2026">February 2026</SelectItem>
               <SelectItem value="January 2026">January 2026</SelectItem>
               <SelectItem value="December 2025">December 2025</SelectItem>
@@ -330,7 +395,7 @@ export default function PayrollPage() {
           </CardHeader>
           <CardContent className="p-0 mt-2">
             <div className="text-2xl font-bold">
-              ${metrics.totalNetSalary.toLocaleString()}
+              ₹{metrics.totalNetSalary.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               {filteredPayroll.length} employees
@@ -392,7 +457,7 @@ export default function PayrollPage() {
           </CardHeader>
           <CardContent className="p-0 mt-2">
             <div className="text-2xl font-bold">
-              ${metrics.totalPayrollCost.toLocaleString()}
+              ₹{metrics.totalPayrollCost.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               This month (incl. overtime)
@@ -410,7 +475,7 @@ export default function PayrollPage() {
           </CardHeader>
           <CardContent className="p-0 mt-2">
             <div className="text-2xl font-bold">
-              $
+              ₹
               {metrics.avgSalary.toLocaleString("en-US", {
                 maximumFractionDigits: 0
               })}
@@ -429,7 +494,7 @@ export default function PayrollPage() {
           </CardHeader>
           <CardContent className="p-0 mt-2">
             <div className="text-2xl font-bold">
-              ${metrics.totalDeductions.toLocaleString()}
+              ₹{metrics.totalDeductions.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               {(
@@ -449,7 +514,7 @@ export default function PayrollPage() {
           </CardHeader>
           <CardContent className="p-0 mt-2">
             <div className="text-2xl font-bold">
-              ${metrics.totalOvertimeCost.toLocaleString()}
+              ₹{metrics.totalOvertimeCost.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               {(
@@ -507,163 +572,51 @@ export default function PayrollPage() {
       {/* Payroll Records Table */}
       <Card className="p-4">
         <CardHeader className="p-0">
-          <CardTitle>Payroll Records</CardTitle>
+          <CardTitle>Processed Payroll Records</CardTitle>
           <CardDescription>
-            Total Records: {filteredPayroll.length} | Total Net Salary: $
+            Total Records: {filteredProcessedPayrolls.length} | Total Net Pay: ₹
             {metrics.totalNetSalary.toLocaleString()}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0 mt-4">
-          <HRTable columns={columns} data={filteredPayroll} />
+          {isLoadingProcessed ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <HRTable columns={columns} data={filteredProcessedPayrolls} />
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <span className="text-sm text-muted-foreground">
+                  Page {pageNo + 1} of {totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPageNo(Math.max(0, pageNo - 1))}
+                    disabled={pageNo === 0}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPageNo(pageNo + 1)}
+                    disabled={pageNo >= totalPages - 1}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
-
-      {/* Payment Details Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto no-scrollbar">
-          <DialogHeader>
-            <DialogTitle>Payment Details</DialogTitle>
-            <DialogDescription>
-              Review payment breakdown and revisions for{" "}
-              {selectedPayroll?.employeeName}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedPayroll && (
-            <div className="space-y-6 py-4">
-              {/* Employee Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Employee Name</p>
-                  <p className="font-semibold">
-                    {selectedPayroll.employeeName}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Employee ID</p>
-                  <p className="font-semibold">{selectedPayroll.employeeId}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-semibold">{selectedPayroll.department}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Month</p>
-                  <p className="font-semibold">{selectedPayroll.month}</p>
-                </div>
-              </div>
-
-              {/* Payment Breakdown */}
-              <div className="border-t pt-4">
-                <h3 className="font-semibold mb-4">Payment Revisions</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Base Salary</span>
-                    <span>${selectedPayroll.baseSalary.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Bonus</span>
-                    <span className="text-green-600">
-                      +${selectedPayroll.bonus.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Overtime Cost</span>
-                    <span className="text-green-600">
-                      +${(selectedPayroll.overtimeCost || 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Allowances</span>
-                    <span className="text-green-600">
-                      +${(selectedPayroll.allowances || 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Absent Days Deduction</span>
-                    <span className="text-red-600">
-                      -$
-                      {(
-                        (selectedPayroll.absentDays || 0) *
-                        (selectedPayroll.baseSalary / 22)
-                      ).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">
-                      Deductions (Taxes, Insurance, etc.)
-                    </span>
-                    <span className="text-red-600">
-                      -${selectedPayroll.deductions.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="border-t pt-3 mt-3 flex justify-between items-center font-semibold text-base">
-                    <span>Net Salary</span>
-                    <span>${selectedPayroll.netSalary.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary */}
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Absent Days</span>
-                  <span className="font-semibold">
-                    {selectedPayroll.absentDays || 0}
-                  </span>
-                </div>
-                <div className="border-t border-blue-200 pt-3 flex justify-between items-center">
-                  <span className="font-semibold">Total Payout Amount</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    ${(selectedPayroll.totalPayout || 0).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  Current Status:
-                </span>
-                <Badge
-                  variant={
-                    selectedPayroll.status === "Processed"
-                      ? "default"
-                      : selectedPayroll.status === "Pending"
-                        ? "secondary"
-                        : "destructive"
-                  }
-                >
-                  {selectedPayroll.status}
-                </Badge>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Close
-            </Button>
-            {selectedPayroll?.status !== "Processed" && (
-              <Button
-                onClick={() => {
-                  toast.success(
-                    `Payment of $${(selectedPayroll?.totalPayout || 0).toLocaleString()} processed successfully for ${selectedPayroll?.employeeName}!`
-                  );
-                  setIsDialogOpen(false);
-                }}
-              >
-                Process Payment
-              </Button>
-            )}
-            {selectedPayroll?.status === "Processed" && (
-              <Button disabled variant="secondary">
-                Already Processed
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Process Payroll Dialog */}
       <ProcessPayrollDialog

@@ -599,6 +599,79 @@ export interface PayrollInitiationResponse {
 }
 
 // ============================================================================
+// PROCESSED PAYROLL TYPES
+// ============================================================================
+
+export interface ProcessedPayrollRecord {
+  empId: number;
+  name: string;
+  department: string;
+  basePay: number;
+  hra: number;
+  totalBonuses: number;
+  totalDeductions: number;
+  totalOvertimeFee: number;
+  grossPay: number;
+  netPay: number;
+}
+
+export interface ProcessedPayrollsResponse {
+  content: ProcessedPayrollRecord[];
+  pageNo: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  isFirst: boolean;
+  isLast: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+// ============================================================================
+// PAYROLL GRAPHS TYPES
+// ============================================================================
+
+export interface SalaryVsComponent {
+  baseSalary: number;
+  bonus: number;
+  deduction: number;
+}
+
+export interface SalaryVsDeptItem {
+  dept: string;
+  baseSalary: number;
+  bonus: number;
+}
+
+export interface SalaryVsOvertimeItem {
+  month: string;
+  year: number;
+  totalSalary: number;
+  overtimePay: number;
+  employeeCount: number;
+}
+
+export interface SalaryVsRoleItem {
+  role: string;
+  baseSalary: number;
+  bonus: number;
+  employeeCount: number;
+}
+
+export interface SalaryVsStatusItem {
+  status: string;
+  noOfPayrolls: number;
+}
+
+export interface PayrollGraphsResponse {
+  salaryVsComponent: SalaryVsComponent;
+  salaryVsDept: SalaryVsDeptItem[];
+  salaryVsOvertime: SalaryVsOvertimeItem[];
+  salaryVsRole: SalaryVsRoleItem[];
+  salaryVsStatus: SalaryVsStatusItem[];
+}
+
+// ============================================================================
 // DELIVERY & STATUS TYPES
 // ============================================================================
 
