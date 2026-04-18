@@ -18,7 +18,8 @@ import type {
   PayrollInitiationRequest,
   PayrollInitiationResponse,
   ProcessedPayrollsResponse,
-  PayrollGraphsResponse
+  PayrollGraphsResponse,
+  PayrollInsightsResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -863,5 +864,46 @@ export async function getPayrollGraphs(
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Fetch payroll graphs failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getPayrollInsights(
+  orgId: string,
+  month: number,
+  year: number
+): Promise<PayrollInsightsResponse> {
+  try {
+    // Convert month number to month name (e.g., 4 -> "APRIL")
+    const monthNames = [
+      "JANUARY",
+      "FEBRUARY",
+      "MARCH",
+      "APRIL",
+      "MAY",
+      "JUNE",
+      "JULY",
+      "AUGUST",
+      "SEPTEMBER",
+      "OCTOBER",
+      "NOVEMBER",
+      "DECEMBER"
+    ];
+    const monthName = monthNames[month - 1];
+
+    // Build URL with query parameters to ensure they're properly encoded
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      month: monthName,
+      year: String(year)
+    }).toString();
+
+    const response = await apiClient.get<PayrollInsightsResponse>(
+      `/iam/organizations/get-payroll-insights?${queryParams}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch payroll insights failed: ${(error as Error).message}`
+    );
   }
 }

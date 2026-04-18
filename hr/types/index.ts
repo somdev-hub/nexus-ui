@@ -672,6 +672,21 @@ export interface PayrollGraphsResponse {
 }
 
 // ============================================================================
+// PAYROLL INSIGHTS TYPES
+// ============================================================================
+
+export interface PayrollInsightsResponse {
+  totalNetSalaries: number;
+  totalProcessedSalaries: number;
+  totalPendingSalaries: number;
+  totalNotProcessedSalaries: number;
+  totalPayrollCost: number;
+  averageNetSalaryPerEmployee: number;
+  totalDeductions: number;
+  totalOvertimeCost: number;
+}
+
+// ============================================================================
 // DELIVERY & STATUS TYPES
 // ============================================================================
 

@@ -27,7 +27,7 @@ import {
   FileText,
   Zap,
   BarChart3,
-  Loader2,
+  Loader,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
@@ -43,9 +43,16 @@ import {
   SalaryComponentsBreakdown
 } from "@/components/charts";
 import { ProcessPayrollDialog } from "@/components/process-payroll-dialog";
-import { getProcessedPayrolls, getPayrollGraphs } from "@/lib/auth-service";
-import { payrollData } from "./data";
-import type { ProcessedPayrollRecord } from "@/types";
+import {
+  SkeletonMetricsCards,
+  SkeletonCharts
+} from "@/components/payroll-skeleton-loaders";
+import {
+  getProcessedPayrolls,
+  getPayrollGraphs,
+  getPayrollInsights
+} from "@/lib/auth-service";
+import type { ProcessedPayrollRecord, PayrollInsightsResponse } from "@/types";
 
 export default function PayrollPage() {
   const { orgId } = useUserMetadata();
@@ -80,7 +87,19 @@ export default function PayrollPage() {
     Array<{ component: string; amount: number; color: string }>
   >([]);
 
-  // Parse month and year from filterMonth string (e.g., "April 2026" -> month: 4, year: 2026)
+  // Insights Data State
+  const [insights, setInsights] = useState<PayrollInsightsResponse>({
+    totalNetSalaries: 0,
+    totalProcessedSalaries: 0,
+    totalPendingSalaries: 0,
+    totalNotProcessedSalaries: 0,
+    totalPayrollCost: 0,
+    averageNetSalaryPerEmployee: 0,
+    totalDeductions: 0,
+    totalOvertimeCost: 0
+  });
+  const [isLoadingGraphsAndInsights, setIsLoadingGraphsAndInsights] =
+    useState(false);
   const parseMonthYear = (monthStr: string) => {
     const months: Record<string, number> = {
       January: 1,
@@ -139,6 +158,7 @@ export default function PayrollPage() {
     if (!orgId) return;
 
     const fetchGraphData = async () => {
+      setIsLoadingGraphsAndInsights(true);
       try {
         const { month, year } = parseMonthYear(filterMonth);
         const response = await getPayrollGraphs(orgId, month, year);
@@ -205,16 +225,22 @@ export default function PayrollPage() {
         console.error("Failed to fetch graph data:", error);
         toast.error("Failed to load payroll graphs");
       }
+
+      // Fetch insights data
+      try {
+        const { month, year } = parseMonthYear(filterMonth);
+        const insightsResponse = await getPayrollInsights(orgId, month, year);
+        setInsights(insightsResponse);
+      } catch (error) {
+        console.error("Failed to fetch payroll insights:", error);
+        toast.error("Failed to load payroll insights");
+      } finally {
+        setIsLoadingGraphsAndInsights(false);
+      }
     };
 
     fetchGraphData();
   }, [orgId, filterMonth]);
-
-  const filteredPayroll = payrollData.filter(
-    (record) =>
-      record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (filterMonth === "all" || record.month === filterMonth)
-  );
 
   // Filter processed payrolls by search term
   const filteredProcessedPayrolls = processedPayrolls.filter((record) =>
@@ -224,10 +250,6 @@ export default function PayrollPage() {
   // Calculate comprehensive metrics from processed payrolls
   const metrics = useMemo(() => {
     const total = filteredProcessedPayrolls.length;
-    // All records from the API are processed payrolls by nature
-    const processed = total;
-    const pending = 0;
-    const onHold = 0;
 
     const totalNetSalary = filteredProcessedPayrolls.reduce(
       (sum, r) => sum + r.netPay,
@@ -251,35 +273,16 @@ export default function PayrollPage() {
     );
     const totalPayrollCost = totalNetSalary + totalOvertimeCost;
     const avgSalary = total > 0 ? totalNetSalary / total : 0;
-    const avgBonus = total > 0 ? totalBonus / total : 0;
-
-    // Department-wise salary distribution
-    const deptDistribution = filteredProcessedPayrolls.reduce(
-      (acc, record) => {
-        const dept = record.department || "Unknown";
-        if (!acc[dept]) {
-          acc[dept] = 0;
-        }
-        acc[dept] += record.netPay;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
 
     return {
       total,
-      processed,
-      pending,
-      onHold,
       totalNetSalary,
       totalBaseSalary,
       totalBonus,
       totalDeductions,
       totalOvertimeCost,
       totalPayrollCost,
-      avgSalary,
-      avgBonus,
-      deptDistribution
+      avgSalary
     };
   }, [filteredProcessedPayrolls]);
 
@@ -385,169 +388,214 @@ export default function PayrollPage() {
 
       {/* Key Metrics Cards - Top Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Net Salaries */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">
-              Total Net Salaries
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">
-              ₹{metrics.totalNetSalary.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {filteredPayroll.length} employees
-            </p>
-          </CardContent>
-        </Card>
+        {isLoadingGraphsAndInsights ? (
+          <SkeletonMetricsCards count={4} />
+        ) : (
+          <>
+            {/* Total Net Salaries */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">
+                  Total Net Salaries
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalNetSalaries.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {filteredProcessedPayrolls.length} employees processed
+                </p>
+              </CardContent>
+            </Card>
 
-        {/* Processed Payroll */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">Processed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">{metrics.processed}</div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.total > 0
-                ? ((metrics.processed / metrics.total) * 100).toFixed(0)
-                : 0}
-              % completed
-            </p>
-          </CardContent>
-        </Card>
+            {/* Processed Payroll */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">Processed</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalProcessedSalaries.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Payroll processed
+                </p>
+              </CardContent>
+            </Card>
 
-        {/* Pending Payroll */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">{metrics.pending}</div>
-            <p className="text-xs text-muted-foreground">Awaiting approval</p>
-          </CardContent>
-        </Card>
+            {/* Pending Payroll */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                <Clock className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalPendingSalaries.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Awaiting approval
+                </p>
+              </CardContent>
+            </Card>
 
-        {/* On Hold Payroll */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">On Hold</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">{metrics.onHold}</div>
-            <p className="text-xs text-muted-foreground">Need attention</p>
-          </CardContent>
-        </Card>
+            {/* Not Processed Payroll */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">
+                  Not Processed
+                </CardTitle>
+                <AlertCircle className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalNotProcessedSalaries.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Not yet initiated
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Secondary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Total Payroll Cost */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">
-              Total Payroll Cost
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">
-              ₹{metrics.totalPayrollCost.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This month (incl. overtime)
-            </p>
-          </CardContent>
-        </Card>
+        {isLoadingGraphsAndInsights ? (
+          <SkeletonMetricsCards count={4} />
+        ) : (
+          <>
+            {/* Total Payroll Cost */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">
+                  Total Payroll Cost
+                </CardTitle>
+                <BarChart3 className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalPayrollCost.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This month (incl. overtime)
+                </p>
+              </CardContent>
+            </Card>
 
-        {/* Average Net Salary */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">
-              Average Net Salary
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">
-              ₹
-              {metrics.avgSalary.toLocaleString("en-US", {
-                maximumFractionDigits: 0
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground">Per employee</p>
-          </CardContent>
-        </Card>
+            {/* Average Net Salary */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">
+                  Average Net Salary
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.averageNetSalaryPerEmployee.toLocaleString(
+                    "en-US",
+                    {
+                      maximumFractionDigits: 2
+                    }
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Per employee</p>
+              </CardContent>
+            </Card>
 
-        {/* Total Deductions */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">
-              Total Deductions
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">
-              ₹{metrics.totalDeductions.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {(
-                (metrics.totalDeductions / metrics.totalBaseSalary) *
-                100
-              ).toFixed(1)}
-              % of base salary
-            </p>
-          </CardContent>
-        </Card>
+            {/* Total Deductions */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">
+                  Total Deductions
+                </CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalDeductions.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">This month</p>
+              </CardContent>
+            </Card>
 
-        {/* Overtime Cost */}
-        <Card className="p-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
-            <CardTitle className="text-sm font-medium">Overtime Cost</CardTitle>
-            <Zap className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent className="p-0 mt-2">
-            <div className="text-2xl font-bold">
-              ₹{metrics.totalOvertimeCost.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {(
-                (metrics.totalOvertimeCost / metrics.totalNetSalary) *
-                100
-              ).toFixed(1)}
-              % of net salary
-            </p>
-          </CardContent>
-        </Card>
+            {/* Overtime Cost */}
+            <Card className="p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+                <CardTitle className="text-sm font-medium">
+                  Overtime Cost
+                </CardTitle>
+                <Zap className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent className="p-0 mt-2">
+                <div className="text-2xl font-bold">
+                  ₹
+                  {insights.totalOvertimeCost.toLocaleString("en-US", {
+                    maximumFractionDigits: 2
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {metrics.totalNetSalary > 0
+                    ? (
+                        (metrics.totalOvertimeCost / metrics.totalNetSalary) *
+                        100
+                      ).toFixed(1)
+                    : "0"}
+                  % of net salary
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <SalaryVarianceByRole data={roleDistributionData} />
-        <PayrollTrendChart data={monthlyTrendData} />
-        <DeptWiseSalaryDistribution data={deptDistributionData} />
-      </div>
+      {isLoadingGraphsAndInsights ? (
+        <SkeletonCharts />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <SalaryVarianceByRole data={roleDistributionData} />
+            <PayrollTrendChart data={monthlyTrendData} />
+            <DeptWiseSalaryDistribution data={deptDistributionData} />
+          </div>
 
-      {/* Department-wise and Status Charts */}
-      <div className="flex justify-between items-center gap-4">
-        {/* Department-wise Salary Distribution */}
-
-        {/* Status Breakdown Pie Chart */}
-        <div className="flex-1">
-          <PayrollStatusBreakdown data={statusData} />
-        </div>
-        <div className="flex-2">
-          <SalaryComponentsBreakdown data={componentData} />
-        </div>
-      </div>
-
-      {/* Salary Components Chart */}
+          {/* Department-wise and Status Charts */}
+          <div className="flex justify-between items-center gap-4">
+            {/* Status Breakdown Pie Chart */}
+            <div className="flex-1">
+              <PayrollStatusBreakdown data={statusData} />
+            </div>
+            <div className="flex-2">
+              <SalaryComponentsBreakdown data={componentData} />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Filters and Actions */}
       <div className="flex gap-4 flex-wrap items-center">
@@ -581,7 +629,7 @@ export default function PayrollPage() {
         <CardContent className="p-0 mt-4">
           {isLoadingProcessed ? (
             <div className="flex justify-center items-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <Loader className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <>
