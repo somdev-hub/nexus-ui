@@ -19,7 +19,9 @@ import type {
   PayrollInitiationResponse,
   ProcessedPayrollsResponse,
   PayrollGraphsResponse,
-  PayrollInsightsResponse
+  PayrollInsightsResponse,
+  HrRequestsResponse,
+  HrInsightsResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -905,5 +907,84 @@ export async function getPayrollInsights(
     throw new Error(
       `Fetch payroll insights failed: ${(error as Error).message}`
     );
+  }
+}
+
+export async function getHrRequests(
+  orgId: number,
+  status?: string,
+  requestType?: string,
+  page: number = 0,
+  offset: number = 10
+): Promise<HrRequestsResponse> {
+  try {
+    // Build URL with query parameters
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      page: String(page),
+      offset: String(offset)
+    });
+
+    // Add optional parameters
+    if (status) {
+      queryParams.append("status", status);
+    }
+    if (requestType) {
+      queryParams.append("requestType", requestType);
+    }
+
+    const response = await apiClient.get<HrRequestsResponse>(
+      `/iam/organizations/hr-requests?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Fetch HR requests failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getClosedHrRequests(
+  orgId: number,
+  requestType?: string,
+  page: number = 0,
+  offset: number = 10
+): Promise<HrRequestsResponse> {
+  try {
+    // Build URL with query parameters
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      page: String(page),
+      offset: String(offset)
+    });
+
+    // Add optional parameters
+    if (requestType) {
+      queryParams.append("requestType", requestType);
+    }
+
+    const response = await apiClient.get<HrRequestsResponse>(
+      `/iam/organizations/hr-requests/closed?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch closed HR requests failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getHrInsights(
+  orgId: number
+): Promise<HrInsightsResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    const response = await apiClient.get<HrInsightsResponse>(
+      `/iam/organizations/hr-requests/insights?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Fetch HR insights failed: ${(error as Error).message}`);
   }
 }

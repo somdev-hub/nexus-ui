@@ -2,8 +2,11 @@ import type {
   RequestType,
   RequestStatus,
   LeaveBalanceType,
-  EmployeeRequest
+  EmployeeRequest,
+  HrRequestItem
 } from "@/types";
+
+export type { RequestStatus, EmployeeRequest };
 
 export const requests: EmployeeRequest[] = [
   {
@@ -15,7 +18,7 @@ export const requests: EmployeeRequest[] = [
     role: "Senior Developer",
     requestReceivedDate: "2026-01-28",
     requestType: "LEAVE_APPLICATION",
-    currentStatus: "Pending",
+    currentStatus: "OPEN",
     remarks: "Medical appointment",
     fromDate: "2026-02-03",
     toDate: "2026-02-05",
@@ -31,7 +34,7 @@ export const requests: EmployeeRequest[] = [
     role: "Marketing Manager",
     requestReceivedDate: "2026-01-27",
     requestType: "SALARY_ADVANCE",
-    currentStatus: "In Scrutiny",
+    currentStatus: "SCRUTINY",
     remarks: "Personal expenses"
   },
   {
@@ -43,7 +46,7 @@ export const requests: EmployeeRequest[] = [
     role: "Developer",
     requestReceivedDate: "2026-01-25",
     requestType: "PROMOTION_REQUEST",
-    currentStatus: "In Scrutiny",
+    currentStatus: "SCRUTINY",
     remarks: "Seeking promotion to Senior Developer"
   },
   {
@@ -55,7 +58,7 @@ export const requests: EmployeeRequest[] = [
     role: "Operations Lead",
     requestReceivedDate: "2026-01-24",
     requestType: "TRANSFER_REQUEST",
-    currentStatus: "Approved",
+    currentStatus: "APPROVED",
     remarks: "Transfer to Mumbai office"
   },
   {
@@ -67,7 +70,7 @@ export const requests: EmployeeRequest[] = [
     role: "Senior Developer",
     requestReceivedDate: "2026-01-23",
     requestType: "TRAINING_REQUEST",
-    currentStatus: "Approved",
+    currentStatus: "APPROVED",
     remarks: "AWS certification training"
   },
   {
@@ -79,7 +82,7 @@ export const requests: EmployeeRequest[] = [
     role: "HR Executive",
     requestReceivedDate: "2026-01-22",
     requestType: "WEEKLY_OFF",
-    currentStatus: "Rejected",
+    currentStatus: "REJECTED",
     remarks: "Request for alternate Saturday",
     fromDate: "2026-02-01",
     toDate: "2026-02-01",
@@ -96,7 +99,7 @@ export const requests: EmployeeRequest[] = [
     role: "Sales Manager",
     requestReceivedDate: "2026-01-20",
     requestType: "LEAVE_APPLICATION",
-    currentStatus: "Approved",
+    currentStatus: "APPROVED",
     remarks: "Vacation",
     fromDate: "2026-02-10",
     toDate: "2026-02-17",
@@ -112,7 +115,7 @@ export const requests: EmployeeRequest[] = [
     role: "Finance Manager",
     requestReceivedDate: "2026-01-19",
     requestType: "RESIGNATION",
-    currentStatus: "In Scrutiny",
+    currentStatus: "SCRUTINY",
     remarks: "Career change"
   },
   {
@@ -124,7 +127,7 @@ export const requests: EmployeeRequest[] = [
     role: "IT Support",
     requestReceivedDate: "2026-01-18",
     requestType: "SALARY_ADVANCE",
-    currentStatus: "Rejected",
+    currentStatus: "REJECTED",
     remarks: "Emergency funds"
   },
   {
@@ -136,7 +139,7 @@ export const requests: EmployeeRequest[] = [
     role: "Junior Developer",
     requestReceivedDate: "2026-01-17",
     requestType: "BULK_REGULARIZATION",
-    currentStatus: "Pending",
+    currentStatus: "OPEN",
     remarks: "Regularization of contract employment",
     fromDate: "2025-09-01",
     toDate: "2026-01-31",
@@ -153,7 +156,7 @@ export const requests: EmployeeRequest[] = [
     role: "Operations Executive",
     requestReceivedDate: "2026-01-16",
     requestType: "LEAVE_APPLICATION",
-    currentStatus: "Pending",
+    currentStatus: "OPEN",
     remarks: "Family emergency",
     fromDate: "2026-02-02",
     toDate: "2026-02-04",
@@ -169,23 +172,21 @@ export const requests: EmployeeRequest[] = [
     role: "Marketing Executive",
     requestReceivedDate: "2026-01-15",
     requestType: "PROMOTION_REQUEST",
-    currentStatus: "Approved",
+    currentStatus: "APPROVED",
     remarks: "Promotion to Manager"
   }
 ];
 
 export const getRequestMetrics = (requestsList: EmployeeRequest[]) => {
-  const pending = requestsList.filter(
-    (r) => r.currentStatus === "Pending"
-  ).length;
+  const pending = requestsList.filter((r) => r.currentStatus === "OPEN").length;
   const approved = requestsList.filter(
-    (r) => r.currentStatus === "Approved"
+    (r) => r.currentStatus === "APPROVED"
   ).length;
   const rejected = requestsList.filter(
-    (r) => r.currentStatus === "Rejected"
+    (r) => r.currentStatus === "REJECTED"
   ).length;
   const inScrutiny = requestsList.filter(
-    (r) => r.currentStatus === "In Scrutiny"
+    (r) => r.currentStatus === "SCRUTINY"
   ).length;
   const total = requestsList.length;
 
@@ -198,8 +199,8 @@ export const getRequestMetrics = (requestsList: EmployeeRequest[]) => {
   };
 };
 
-export const getRequestTypeLabel = (type: RequestType): string => {
-  const labels: Record<RequestType, string> = {
+export const getRequestTypeLabel = (requestType: string): string => {
+  const typeMap: Record<string, string> = {
     LEAVE_APPLICATION: "Leave Application",
     SALARY_ADVANCE: "Salary Advance",
     RESIGNATION: "Resignation",
@@ -209,5 +210,61 @@ export const getRequestTypeLabel = (type: RequestType): string => {
     BULK_REGULARIZATION: "Bulk Regularization",
     WEEKLY_OFF: "Weekly Off"
   };
-  return labels[type];
+  return typeMap[requestType] || requestType;
+};
+
+export const mapApiStatusToRequestStatus = (status: string): RequestStatus => {
+  // Map API status strings to RequestStatus values
+  const statusMap: Record<string, RequestStatus> = {
+    OPEN: "OPEN",
+    SCRUTINY: "SCRUTINY",
+    APPROVED: "APPROVED",
+    REJECTED: "REJECTED",
+    CLOSED: "CLOSED"
+  };
+  return statusMap[status] || "OPEN";
+};
+
+/**
+ * Get display label for request status
+ */
+export const getStatusLabel = (status: RequestStatus): string => {
+  const labelMap: Record<RequestStatus, string> = {
+    OPEN: "Pending",
+    SCRUTINY: "In Scrutiny",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    CLOSED: "Closed"
+  };
+  return labelMap[status] || status;
+};
+
+/**
+ * Transform API HR request item to EmployeeRequest format
+ */
+export const transformHrRequestToEmployeeRequest = (
+  item: HrRequestItem,
+  slNo: number
+): EmployeeRequest => {
+  // Extract employee ID from email or use empId as fallback
+  const employeeId = `EMP${String(item.empId).padStart(3, "0")}`;
+
+  return {
+    id: `REQ${String(item.requestId).padStart(4, "0")}`,
+    slNo,
+    employeeName: item.employeeName,
+    employeeId,
+    department: item.department,
+    role: item.role,
+    requestReceivedDate: item.appliedOn,
+    requestType: item.requestType,
+    currentStatus: mapApiStatusToRequestStatus(item.status),
+    remarks: item.remarks,
+    fromDate: item.fromDate,
+    toDate: item.toDate,
+    leaveBalanceUsed: item.leaveBalanceUsed,
+    leaveBalanceType: item.leaveType,
+    checkInHours: item.checkInHours,
+    checkOutHours: item.checkOutHours
+  };
 };

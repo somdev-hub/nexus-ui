@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { HRTable, type ColumnDef } from "@/components/hr-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Eye,
-  Check,
-  X,
   AlertCircle,
   CheckCircle2,
   XCircle,
@@ -37,13 +35,19 @@ import {
   FileText
 } from "lucide-react";
 import {
-  requests,
-  getRequestMetrics,
   getRequestTypeLabel,
+  getStatusLabel,
   type EmployeeRequest,
-  type RequestStatus
+  type RequestStatus,
+  transformHrRequestToEmployeeRequest
 } from "./data";
 import { Textarea } from "@/components/ui/textarea";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
+import {
+  getHrRequests,
+  getClosedHrRequests,
+  getHrInsights
+} from "@/lib/auth-service";
 
 interface MetricCard {
   title: string;
@@ -54,6 +58,7 @@ interface MetricCard {
 }
 
 export default function HrRequestsPage() {
+  const { orgId } = useUserMetadata();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<RequestStatus | "">("");
   const [filterType, setFilterType] = useState("");
@@ -64,74 +69,178 @@ export default function HrRequestsPage() {
     "" | "APPROVE" | "REJECT" | "INSCRUTINY"
   >("");
   const [resolutionRemarks, setResolutionRemarks] = useState("");
+  const [requests, setRequests] = useState<EmployeeRequest[]>([]);
+  const [closedRequests, setClosedRequests] = useState<EmployeeRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [insights, setInsights] = useState({
+    openCases: 0,
+    allHandledCases: 0,
+    approvedCases: 0,
+    inScrutinyCases: 0,
+    rejectedCases: 0
+  });
+
+  // Pagination state
+  const [currentPageRequests, setCurrentPageRequests] = useState(1);
+  const [currentPageClosed, setCurrentPageClosed] = useState(1);
+  const pageSize = 10;
+
+  // Fetch HR requests from API
+  useEffect(() => {
+    const fetchRequests = async () => {
+      if (!orgId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        // Fetch open and scrutiny requests (with pagination)
+        const openResponse = await getHrRequests(
+          Number(orgId),
+          undefined,
+          undefined,
+          currentPageRequests - 1,
+          pageSize
+        );
+
+        // Transform API response to EmployeeRequest format
+        const transformedRequests = openResponse.content.map((item, index) =>
+          transformHrRequestToEmployeeRequest(
+            item,
+            (currentPageRequests - 1) * pageSize + index + 1
+          )
+        );
+
+        setRequests(transformedRequests);
+      } catch (error) {
+        console.error("Failed to fetch HR requests:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRequests();
+  }, [orgId, currentPageRequests]);
+
+  // Fetch closed HR requests from API
+  useEffect(() => {
+    const fetchClosedRequests = async () => {
+      if (!orgId) {
+        return;
+      }
+
+      try {
+        // Fetch closed requests (with pagination)
+        const closedResponse = await getClosedHrRequests(
+          Number(orgId),
+          undefined,
+          currentPageClosed - 1,
+          pageSize
+        );
+
+        // Transform API response to EmployeeRequest format
+        const transformedClosedRequests = closedResponse.content.map(
+          (item, index) =>
+            transformHrRequestToEmployeeRequest(
+              item,
+              (currentPageClosed - 1) * pageSize + index + 1
+            )
+        );
+
+        setClosedRequests(transformedClosedRequests);
+      } catch (error) {
+        console.error("Failed to fetch closed HR requests:", error);
+      }
+    };
+
+    fetchClosedRequests();
+  }, [orgId, currentPageClosed]);
+
+  // Fetch HR insights for metric cards
+  useEffect(() => {
+    const fetchInsights = async () => {
+      if (!orgId) {
+        return;
+      }
+
+      try {
+        const insightsData = await getHrInsights(Number(orgId));
+        setInsights(insightsData);
+      } catch (error) {
+        console.error("Failed to fetch HR insights:", error);
+      }
+    };
+
+    fetchInsights();
+  }, [orgId]);
 
   const filteredRequests = useMemo(
-    () =>
-      requests
-        .filter(
-          (request) =>
-            request.employeeName
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase()) &&
-            (!filterStatus || request.currentStatus === filterStatus) &&
-            (!filterType || request.requestType === filterType)
-        )
-        .filter(
-          (request) =>
-            request.currentStatus === "Pending" ||
-            request.currentStatus === "In Scrutiny"
-        ),
-    [searchTerm, filterStatus, filterType]
-  );
-
-  const filteredClosedRequests = useMemo(
     () =>
       requests.filter(
         (request) =>
           request.employeeName
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) &&
-          (!filterType || request.requestType === filterType) &&
-          (request.currentStatus === "Approved" ||
-            request.currentStatus === "Rejected")
+          (!filterStatus || request.currentStatus === filterStatus) &&
+          (!filterType || request.requestType === filterType)
       ),
-    [searchTerm, filterType]
+    [searchTerm, filterStatus, filterType, requests]
   );
 
-  const metrics = getRequestMetrics(requests);
+  const filteredClosedRequests = useMemo(
+    () =>
+      closedRequests.filter(
+        (request) =>
+          request.employeeName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) &&
+          (!filterType || request.requestType === filterType)
+      ),
+    [searchTerm, filterType, closedRequests]
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPageRequests(1);
+  }, [searchTerm, filterStatus, filterType]);
+
+  useEffect(() => {
+    setCurrentPageClosed(1);
+  }, [searchTerm, filterType]);
 
   const metricCards: MetricCard[] = [
     {
       title: "Pending Requests",
-      value: metrics.pending,
+      value: insights.openCases,
       icon: Clock,
       color: "text-amber-500",
       bgColor: "bg-amber-50"
     },
     {
       title: "Approved",
-      value: metrics.approved,
+      value: insights.approvedCases,
       icon: CheckCircle2,
       color: "text-green-500",
       bgColor: "bg-green-50"
     },
     {
       title: "Rejected",
-      value: metrics.rejected,
+      value: insights.rejectedCases,
       icon: XCircle,
       color: "text-red-500",
       bgColor: "bg-red-50"
     },
     {
       title: "In Scrutiny",
-      value: metrics.inScrutiny,
+      value: insights.inScrutinyCases,
       icon: AlertCircle,
       color: "text-blue-500",
       bgColor: "bg-blue-50"
     },
     {
       title: "Total Cases Handled",
-      value: metrics.total,
+      value: insights.allHandledCases,
       icon: FileText,
       color: "text-purple-500",
       bgColor: "bg-purple-50"
@@ -143,22 +252,6 @@ export default function HrRequestsPage() {
     setResolutionDecision("");
     setResolutionRemarks("");
     setDetailsDialogOpen(true);
-  };
-
-  const handleApprove = (request: EmployeeRequest) => {
-    console.log("Approved request:", request.id, {
-      resolutionDecision,
-      resolutionRemarks
-    });
-    // Add approval logic here
-  };
-
-  const handleReject = (request: EmployeeRequest) => {
-    console.log("Rejected request:", request.id, {
-      resolutionDecision,
-      resolutionRemarks
-    });
-    // Add rejection logic here
   };
 
   const handleDecision = () => {
@@ -188,7 +281,10 @@ export default function HrRequestsPage() {
     },
     {
       accessorKey: "employeeId",
-      header: "Employee ID"
+      header: "Employee ID",
+      cell: (row: EmployeeRequest) => (
+        <div>{row.employeeId.replace(/^emp/i, "")}</div>
+      )
     },
     {
       accessorKey: "requestReceivedDate",
@@ -210,14 +306,15 @@ export default function HrRequestsPage() {
       header: "Current Status",
       cell: (row: EmployeeRequest) => {
         const statusColors: Record<RequestStatus, string> = {
-          Pending: "bg-amber-100 text-amber-800",
-          Approved: "bg-green-100 text-green-800",
-          Rejected: "bg-red-100 text-red-800",
-          "In Scrutiny": "bg-blue-100 text-blue-800"
+          OPEN: "bg-amber-100 text-amber-800",
+          APPROVED: "bg-green-100 text-green-800",
+          REJECTED: "bg-red-100 text-red-800",
+          SCRUTINY: "bg-blue-100 text-blue-800",
+          CLOSED: "bg-gray-100 text-gray-800"
         };
         return (
           <Badge className={`${statusColors[row.currentStatus]}`}>
-            {row.currentStatus}
+            {getStatusLabel(row.currentStatus)}
           </Badge>
         );
       }
@@ -235,29 +332,6 @@ export default function HrRequestsPage() {
           >
             <Eye className="w-4 h-4" />
           </Button>
-          {row.currentStatus === "Pending" ||
-          row.currentStatus === "In Scrutiny" ? (
-            <>
-              <Button
-                size="sm"
-                variant="ghost"
-                title="Approve"
-                className="text-green-500 hover:text-green-700"
-                onClick={() => handleApprove(row)}
-              >
-                <Check className="w-4 h-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                title="Reject"
-                className="text-red-500 hover:text-red-700"
-                onClick={() => handleReject(row)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </>
-          ) : null}
         </div>
       )
     }
@@ -328,10 +402,10 @@ export default function HrRequestsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
-                  <SelectItem value="In Scrutiny">In Scrutiny</SelectItem>
+                  <SelectItem value="OPEN">Pending</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="SCRUTINY">In Scrutiny</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -369,11 +443,48 @@ export default function HrRequestsPage() {
           </div>
 
           {/* Table */}
-          <HRTable<EmployeeRequest>
-            columns={columns}
-            data={filteredRequests}
-            searchPlaceholder="Search requests..."
-          />
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">
+              Loading requests...
+            </div>
+          ) : (
+            <>
+              <HRTable<EmployeeRequest>
+                columns={columns}
+                data={filteredRequests}
+              />
+              {/* Pagination Controls */}
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t">
+                <div className="text-sm text-gray-600">
+                  Showing {filteredRequests.length > 0 ? "current page" : "no"}{" "}
+                  results
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPageRequests((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={currentPageRequests === 1}
+                  >
+                    Previous
+                  </Button>
+                  <div className="px-3 py-1 bg-gray-100 rounded text-sm font-medium">
+                    Page {currentPageRequests}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPageRequests((prev) => prev + 1)}
+                    disabled={filteredRequests.length < pageSize}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -430,11 +541,49 @@ export default function HrRequestsPage() {
           </div>
 
           {/* Closed Cases Table */}
-          <HRTable<EmployeeRequest>
-            columns={columns}
-            data={filteredClosedRequests}
-            searchPlaceholder="Search closed cases..."
-          />
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">
+              Loading requests...
+            </div>
+          ) : (
+            <>
+              <HRTable<EmployeeRequest>
+                columns={columns}
+                data={filteredClosedRequests}
+              />
+              {/* Pagination Controls */}
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t">
+                <div className="text-sm text-gray-600">
+                  Showing{" "}
+                  {filteredClosedRequests.length > 0 ? "current page" : "no"}{" "}
+                  results
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPageClosed((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={currentPageClosed === 1}
+                  >
+                    Previous
+                  </Button>
+                  <div className="px-3 py-1 bg-gray-100 rounded text-sm font-medium">
+                    Page {currentPageClosed}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPageClosed((prev) => prev + 1)}
+                    disabled={filteredClosedRequests.length < pageSize}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -469,7 +618,7 @@ export default function HrRequestsPage() {
                       Employee ID
                     </p>
                     <p className="text-sm font-medium">
-                      {selectedRequest.employeeId}
+                      {selectedRequest.employeeId.replace(/^emp/i, "")}
                     </p>
                   </div>
                   <div>
@@ -598,149 +747,83 @@ export default function HrRequestsPage() {
 
               {/* Weekly Off / Bulk Regularization Details */}
               {(selectedRequest.requestType === "WEEKLY_OFF" ||
-                selectedRequest.requestType === "BULK_REGULARIZATION") && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                    {selectedRequest.requestType === "WEEKLY_OFF"
-                      ? "Weekly Off Details"
-                      : "Regularization Details"}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase">
-                        From Date
-                      </p>
-                      <p className="text-sm font-medium">
-                        {selectedRequest.fromDate
-                          ? new Date(
-                              selectedRequest.fromDate
-                            ).toLocaleDateString("en-IN")
-                          : "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase">To Date</p>
-                      <p className="text-sm font-medium">
-                        {selectedRequest.toDate
-                          ? new Date(selectedRequest.toDate).toLocaleDateString(
-                              "en-IN"
-                            )
-                          : "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase">
-                        Check In Hours
-                      </p>
-                      <p className="text-sm font-medium">
-                        {selectedRequest.checkInHours || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase">
-                        Check Out Hours
-                      </p>
-                      <p className="text-sm font-medium">
-                        {selectedRequest.checkOutHours || "-"}
-                      </p>
-                    </div>
-                    {selectedRequest.requestType === "WEEKLY_OFF" && (
+                selectedRequest.requestType === "BULK_REGULARIZATION") &&
+                selectedRequest.checkInHours && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      Attendance Details
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-xs text-gray-500 uppercase">
-                          Half Day
+                          Check-In Hours
                         </p>
                         <p className="text-sm font-medium">
-                          {selectedRequest.halfDay ? "Yes" : "No"}
+                          {selectedRequest.checkInHours || "-"}
                         </p>
                       </div>
-                    )}
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase">
+                          Check-Out Hours
+                        </p>
+                        <p className="text-sm font-medium">
+                          {selectedRequest.checkOutHours || "-"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Comment */}
-              {selectedRequest.comment && (
+              {/* Resolution Section for Pending Requests */}
+              {(selectedRequest.currentStatus === "OPEN" ||
+                selectedRequest.currentStatus === "SCRUTINY") && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                    HR Comment
-                  </h3>
-                  <p className="text-sm text-gray-700 bg-yellow-50 p-3 rounded">
-                    {selectedRequest.comment}
-                  </p>
-                </div>
-              )}
-
-              {/* Resolution Section */}
-              {selectedRequest.currentStatus === "Pending" ||
-              selectedRequest.currentStatus === "In Scrutiny" ? (
-                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                  <h3 className="text-sm font-semibold text-gray-900">
                     Resolution
                   </h3>
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      Decision
-                    </label>
+                  <div className="space-y-4">
                     <Select
                       value={resolutionDecision}
                       onValueChange={(value) =>
                         setResolutionDecision(
-                          value as "APPROVE" | "REJECT" | "INSCRUTINY"
+                          value as "" | "APPROVE" | "REJECT" | "INSCRUTINY"
                         )
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a decision" />
+                        <SelectValue placeholder="Select decision" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="APPROVE">Approve</SelectItem>
                         <SelectItem value="REJECT">Reject</SelectItem>
-                        <SelectItem value="INSCRUTINY">In Scrutiny</SelectItem>
+                        <SelectItem value="INSCRUTINY">
+                          Put in Scrutiny
+                        </SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      Resolution Remarks
-                    </label>
-                    <Textarea
-                      placeholder="Enter your resolution remarks..."
-                      value={resolutionRemarks}
-                      onChange={(e) => setResolutionRemarks(e.target.value)}
-                      className="min-h-24"
-                    />
-                  </div>
-                </div>
-              ) : null}
 
-              {/* Action Buttons */}
-              {selectedRequest.currentStatus === "Pending" ||
-              selectedRequest.currentStatus === "In Scrutiny" ? (
-                <div className="flex gap-3 mt-6 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setDetailsDialogOpen(false)}
-                  >
-                    Close
-                  </Button>
-                  <Button
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={handleDecision}
-                    disabled={!resolutionDecision}
-                  >
-                    Submit Decision
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-3 mt-6 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setDetailsDialogOpen(false)}
-                  >
-                    Close
-                  </Button>
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase">
+                        Remarks
+                      </label>
+                      <Textarea
+                        value={resolutionRemarks}
+                        onChange={(e) => setResolutionRemarks(e.target.value)}
+                        placeholder="Add remarks (optional)"
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setDetailsDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={handleDecision}>Submit Decision</Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

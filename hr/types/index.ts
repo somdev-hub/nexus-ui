@@ -456,9 +456,22 @@ export interface GrantPermission {
 // REQUEST & LEAVE TYPES
 // ============================================================================
 
-export type RequestType = "Leave" | "Expense" | "Promotion" | "Adjustment";
+export type RequestType =
+  | "LEAVE_APPLICATION"
+  | "SALARY_ADVANCE"
+  | "RESIGNATION"
+  | "TRANSFER_REQUEST"
+  | "PROMOTION_REQUEST"
+  | "TRAINING_REQUEST"
+  | "BULK_REGULARIZATION"
+  | "WEEKLY_OFF";
 
-export type RequestStatus = "Pending" | "Approved" | "Rejected" | "In Scrutiny";
+export type RequestStatus =
+  | "OPEN"
+  | "SCRUTINY"
+  | "APPROVED"
+  | "REJECTED"
+  | "CLOSED";
 
 export type LeaveBalanceType =
   | "Casual"
@@ -470,22 +483,29 @@ export type LeaveBalanceType =
 
 export interface EmployeeRequest {
   id: string;
+  slNo: number;
   employeeId: string;
   employeeName: string;
   employeeImage?: string;
   department: string;
+  role?: string;
   requestType: RequestType;
-  title?: string;
-  reason?: string;
+  currentStatus: RequestStatus;
+  requestReceivedDate: string;
+  remarks?: string;
+  fromDate?: string;
+  toDate?: string;
+  leaveBalanceUsed?: number;
+  leaveBalanceType?: LeaveBalanceType;
+  checkInHours?: string;
+  checkOutHours?: string;
   description?: string;
   startDate?: string;
   endDate?: string;
   days?: number;
-  leaveType?: LeaveBalanceType;
   leaveBalance?: number;
   amount?: number;
-  approvalStatus: RequestStatus;
-  createdAt: string;
+  createdAt?: string;
   approvalDate?: string;
   comments?: string;
   approvedBy?: string;
@@ -684,6 +704,66 @@ export interface PayrollInsightsResponse {
   averageNetSalaryPerEmployee: number;
   totalDeductions: number;
   totalOvertimeCost: number;
+}
+
+// ============================================================================
+// HR REQUESTS API TYPES
+// ============================================================================
+
+export interface HrRequestItem {
+  appliedOn: string;
+  department: string;
+  empId: number;
+  employeeEmail: string;
+  employeeName: string;
+  fromDate?: string;
+  leaveBalanceUsed?: number;
+  leaveType?: string;
+  remarks: string;
+  requestId: number;
+  requestType: string;
+  role: string;
+  status: string;
+  toDate?: string;
+  checkInHours?: string;
+  checkOutHours?: string;
+}
+
+export interface HrRequestsResponse {
+  content: HrRequestItem[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;
+  numberOfElements: number;
+  pageable: {
+    offset: number;
+    pageNumber: number;
+    pageSize: number;
+    paged: boolean;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    unpaged: boolean;
+  };
+  size: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface HrInsightsResponse {
+  openCases: number;
+  allHandledCases: number;
+  approvedCases: number;
+  inScrutinyCases: number;
+  rejectedCases: number;
 }
 
 // ============================================================================
