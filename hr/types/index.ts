@@ -483,6 +483,7 @@ export type LeaveBalanceType =
 
 export interface EmployeeRequest {
   id: string;
+  requestId: number;
   slNo: number;
   employeeId: string;
   employeeName: string;
@@ -765,6 +766,8 @@ export interface HrInsightsResponse {
   inScrutinyCases: number;
   rejectedCases: number;
 }
+
+export type HrActionResponse = string | { message: string };
 
 // ============================================================================
 // DELIVERY & STATUS TYPES

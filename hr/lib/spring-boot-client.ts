@@ -17,13 +17,13 @@ console.log(
  *
  * Key fixes for timeout issues:
  * - Forces IPv4 resolution only (prevents IPv6 timeout issues with localhost)
- * - 10 second timeout for all requests
+ * - 30 second timeout for all requests (increased from 10s for slower API responses)
  * - Enhanced error logging for debugging
  */
 const createSpringBootClient = (): AxiosInstance => {
   const instance = axios.create({
     baseURL: SPRING_BOOT_API,
-    timeout: 10000, // 10 second timeout
+    timeout: 30000, // 30 second timeout - increased for slower API responses
     maxRedirects: 5,
     headers: {
       "Content-Type": "application/json"

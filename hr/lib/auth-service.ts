@@ -21,7 +21,8 @@ import type {
   PayrollGraphsResponse,
   PayrollInsightsResponse,
   HrRequestsResponse,
-  HrInsightsResponse
+  HrInsightsResponse,
+  HrActionResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -986,5 +987,34 @@ export async function getHrInsights(
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Fetch HR insights failed: ${(error as Error).message}`);
+  }
+}
+
+export async function submitHrRequestAction(
+  requestId: number,
+  action: string,
+  resolutionRemarks: string
+): Promise<string> {
+  try {
+    const queryParams = new URLSearchParams({
+      requestId: String(requestId),
+      action: action,
+      resolutionRemarks: resolutionRemarks
+    });
+
+    const response = await apiClient.post<string | { message: string }>(
+      `/iam/organizations/hr-request/action?${queryParams.toString()}`,
+      {}
+    );
+
+    // Handle both string and object responses from API
+    if (typeof response.data === "string") {
+      return response.data;
+    }
+    return response.data?.message || "Decision submitted successfully";
+  } catch (error: unknown) {
+    throw new Error(
+      `Submit HR request action failed: ${(error as Error).message}`
+    );
   }
 }

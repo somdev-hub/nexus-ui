@@ -124,12 +124,14 @@ const responseErrorHandler = async (error: AxiosError) => {
 const apiClient = axios.create({
   baseURL: PROXY_BASE,
   withCredentials: true, // Include cookies in requests
-  headers: { "Content-Type": "application/json" }
+  headers: { "Content-Type": "application/json" },
+  timeout: 30000 // 30 seconds - increased from default 10s for slower API responses
 });
 
 const apiClientMultipart = axios.create({
   baseURL: PROXY_BASE,
-  withCredentials: true
+  withCredentials: true,
+  timeout: 30000 // 30 seconds
 });
 
 // Apply interceptors to both clients

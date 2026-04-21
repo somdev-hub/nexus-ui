@@ -46,8 +46,10 @@ import { useUserMetadata } from "@/hooks/use-user-metadata";
 import {
   getHrRequests,
   getClosedHrRequests,
-  getHrInsights
+  getHrInsights,
+  submitHrRequestAction
 } from "@/lib/auth-service";
+import { toast } from "sonner";
 
 interface MetricCard {
   title: string;
@@ -66,12 +68,13 @@ export default function HrRequestsPage() {
     useState<EmployeeRequest | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [resolutionDecision, setResolutionDecision] = useState<
-    "" | "APPROVE" | "REJECT" | "INSCRUTINY"
+    "" | "APPROVED" | "REJECTED" | "SCRUTINY"
   >("");
   const [resolutionRemarks, setResolutionRemarks] = useState("");
   const [requests, setRequests] = useState<EmployeeRequest[]>([]);
   const [closedRequests, setClosedRequests] = useState<EmployeeRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [insights, setInsights] = useState({
     openCases: 0,
     allHandledCases: 0,
@@ -212,35 +215,35 @@ export default function HrRequestsPage() {
   const metricCards: MetricCard[] = [
     {
       title: "Pending Requests",
-      value: insights.openCases,
+      value: insights?.openCases ?? 0,
       icon: Clock,
       color: "text-amber-500",
       bgColor: "bg-amber-50"
     },
     {
       title: "Approved",
-      value: insights.approvedCases,
+      value: insights?.approvedCases ?? 0,
       icon: CheckCircle2,
       color: "text-green-500",
       bgColor: "bg-green-50"
     },
     {
       title: "Rejected",
-      value: insights.rejectedCases,
+      value: insights?.rejectedCases ?? 0,
       icon: XCircle,
       color: "text-red-500",
       bgColor: "bg-red-50"
     },
     {
       title: "In Scrutiny",
-      value: insights.inScrutinyCases,
+      value: insights?.inScrutinyCases ?? 0,
       icon: AlertCircle,
       color: "text-blue-500",
       bgColor: "bg-blue-50"
     },
     {
       title: "Total Cases Handled",
-      value: insights.allHandledCases,
+      value: insights?.allHandledCases ?? 0,
       icon: FileText,
       color: "text-purple-500",
       bgColor: "bg-purple-50"
@@ -248,23 +251,101 @@ export default function HrRequestsPage() {
   ];
 
   const handleViewDetails = (request: EmployeeRequest) => {
+    console.log("[DETAILS] Selected request:", request);
     setSelectedRequest(request);
     setResolutionDecision("");
     setResolutionRemarks("");
     setDetailsDialogOpen(true);
   };
 
-  const handleDecision = () => {
+  const handleDecision = async () => {
     if (!resolutionDecision) {
-      alert("Please select a decision");
+      toast.error("Please select a decision");
       return;
     }
-    console.log("Decision made:", {
-      requestId: selectedRequest?.id,
-      decision: resolutionDecision,
-      remarks: resolutionRemarks
-    });
-    setDetailsDialogOpen(false);
+
+    if (!selectedRequest) {
+      toast.error("No request selected");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      console.log("[DECISION] Submitting decision:", {
+        requestId: selectedRequest.requestId,
+        action: resolutionDecision,
+        remarks: resolutionRemarks
+      });
+
+      const response = await submitHrRequestAction(
+        selectedRequest.requestId,
+        resolutionDecision,
+        resolutionRemarks
+      );
+
+      console.log("[DECISION] API Response received:", response);
+      console.log("[DECISION] Response type:", typeof response);
+
+      // Response is a string directly from the API
+      console.log("[DECISION] Showing toast with message:", response);
+      toast.success(response);
+
+      // Refresh insights and current page data
+      if (orgId) {
+        const insightsData = await getHrInsights(Number(orgId));
+        setInsights(insightsData);
+      }
+
+      // Refresh current table based on request status
+      if (
+        selectedRequest.currentStatus === "OPEN" ||
+        selectedRequest.currentStatus === "SCRUTINY"
+      ) {
+        const openResponse = await getHrRequests(
+          Number(orgId),
+          undefined,
+          undefined,
+          currentPageRequests - 1,
+          pageSize
+        );
+        const transformedRequests = openResponse.content.map((item, index) =>
+          transformHrRequestToEmployeeRequest(
+            item,
+            (currentPageRequests - 1) * pageSize + index + 1
+          )
+        );
+        setRequests(transformedRequests);
+      } else {
+        const closedResponse = await getClosedHrRequests(
+          Number(orgId),
+          undefined,
+          currentPageClosed - 1,
+          pageSize
+        );
+        const transformedClosedRequests = closedResponse.content.map(
+          (item, index) =>
+            transformHrRequestToEmployeeRequest(
+              item,
+              (currentPageClosed - 1) * pageSize + index + 1
+            )
+        );
+        setClosedRequests(transformedClosedRequests);
+      }
+
+      // Close dialog after successful submission and data refresh
+      setDetailsDialogOpen(false);
+    } catch (error) {
+      console.error("[DECISION] Error caught:", error);
+      console.error(
+        "[DECISION] Error message:",
+        error instanceof Error ? error.message : String(error)
+      );
+      toast.error(
+        error instanceof Error ? error.message : "Failed to submit decision"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const columns: ColumnDef<EmployeeRequest>[] = [
@@ -786,7 +867,7 @@ export default function HrRequestsPage() {
                       value={resolutionDecision}
                       onValueChange={(value) =>
                         setResolutionDecision(
-                          value as "" | "APPROVE" | "REJECT" | "INSCRUTINY"
+                          value as "" | "APPROVED" | "REJECTED" | "SCRUTINY"
                         )
                       }
                     >
@@ -794,9 +875,9 @@ export default function HrRequestsPage() {
                         <SelectValue placeholder="Select decision" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="APPROVE">Approve</SelectItem>
-                        <SelectItem value="REJECT">Reject</SelectItem>
-                        <SelectItem value="INSCRUTINY">
+                        <SelectItem value="APPROVED">Approve</SelectItem>
+                        <SelectItem value="REJECTED">Reject</SelectItem>
+                        <SelectItem value="SCRUTINY">
                           Put in Scrutiny
                         </SelectItem>
                       </SelectContent>
@@ -818,10 +899,13 @@ export default function HrRequestsPage() {
                       <Button
                         variant="outline"
                         onClick={() => setDetailsDialogOpen(false)}
+                        disabled={isSubmitting}
                       >
                         Cancel
                       </Button>
-                      <Button onClick={handleDecision}>Submit Decision</Button>
+                      <Button onClick={handleDecision} disabled={isSubmitting}>
+                        {isSubmitting ? "Submitting..." : "Submit Decision"}
+                      </Button>
                     </div>
                   </div>
                 </div>

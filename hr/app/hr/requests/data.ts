@@ -11,6 +11,7 @@ export type { RequestStatus, EmployeeRequest };
 export const requests: EmployeeRequest[] = [
   {
     id: "REQ001",
+    requestId: 1,
     slNo: 1,
     employeeName: "John Doe",
     employeeId: "EMP001",
@@ -27,6 +28,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ002",
+    requestId: 2,
     slNo: 2,
     employeeName: "Sarah Smith",
     employeeId: "EMP002",
@@ -39,6 +41,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ003",
+    requestId: 3,
     slNo: 3,
     employeeName: "Mike Johnson",
     employeeId: "EMP003",
@@ -51,6 +54,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ004",
+    requestId: 4,
     slNo: 4,
     employeeName: "Emily Davis",
     employeeId: "EMP004",
@@ -63,6 +67,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ005",
+    requestId: 5,
     slNo: 5,
     employeeName: "Robert Wilson",
     employeeId: "EMP005",
@@ -75,6 +80,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ006",
+    requestId: 6,
     slNo: 6,
     employeeName: "Alice Johnson",
     employeeId: "EMP006",
@@ -92,6 +98,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ007",
+    requestId: 7,
     slNo: 7,
     employeeName: "Tom Brown",
     employeeId: "EMP007",
@@ -108,6 +115,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ008",
+    requestId: 8,
     slNo: 8,
     employeeName: "Jessica Miller",
     employeeId: "EMP008",
@@ -120,6 +128,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ009",
+    requestId: 9,
     slNo: 9,
     employeeName: "David Chen",
     employeeId: "EMP009",
@@ -132,6 +141,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ010",
+    requestId: 10,
     slNo: 10,
     employeeName: "Lisa Anderson",
     employeeId: "EMP010",
@@ -149,6 +159,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ011",
+    requestId: 11,
     slNo: 11,
     employeeName: "James Taylor",
     employeeId: "EMP011",
@@ -165,6 +176,7 @@ export const requests: EmployeeRequest[] = [
   },
   {
     id: "REQ012",
+    requestId: 12,
     slNo: 12,
     employeeName: "Amanda White",
     employeeId: "EMP012",
@@ -249,8 +261,12 @@ export const transformHrRequestToEmployeeRequest = (
   // Extract employee ID from email or use empId as fallback
   const employeeId = `EMP${String(item.empId).padStart(3, "0")}`;
 
+  // Debug: Log the item to see what's actually in the API response
+  console.log("[TRANSFORM] HrRequestItem:", item);
+
   return {
     id: `REQ${String(item.requestId).padStart(4, "0")}`,
+    requestId: item.requestId,
     slNo,
     employeeName: item.employeeName,
     employeeId,
