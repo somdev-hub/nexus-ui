@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useOrgId } from "@/hooks/use-user-metadata";
 import {
   MonthlyStrengthChart,
   LeaveTypeRadarChart,
-  YearlyStrengthChart,
   DepartmentLeaveChart,
   RoleLeaveChart,
   LeavePredictionChart,
@@ -13,78 +15,29 @@ import {
   OvertimeAnomalyChart,
   FraudDetectionChart
 } from "@/components/charts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BreakStartBreakEndChart } from "@/components/charts/break-start-break-end-chart";
+import { CheckInCheckOutChart } from "@/components/charts/check-in-check-out-chart";
 
-// Mock data for charts
-const monthlyStrengthData = [
-  { month: "Jan", strength: 240 },
-  { month: "Feb", strength: 245 },
-  { month: "Mar", strength: 248 },
-  { month: "Apr", strength: 250 },
-  { month: "May", strength: 255 },
-  { month: "Jun", strength: 260 },
-  { month: "Jul", strength: 265 },
-  { month: "Aug", strength: 262 },
-  { month: "Sep", strength: 268 },
-  { month: "Oct", strength: 270 },
-  { month: "Nov", strength: 272 },
-  { month: "Dec", strength: 275 }
-];
-
-const leaveTypeData = [
-  { leaveType: "Sick Leave", employees: 45 },
-  { leaveType: "Earned Leave", employees: 120 },
-  { leaveType: "Casual Leave", employees: 85 },
-  { leaveType: "Personal Leave", employees: 30 },
-  { leaveType: "Comp. Off", employees: 20 }
-];
-
-const yearlyStrengthData = [
-  { month: "Jan", strength: 240 },
-  { month: "Feb", strength: 245 },
-  { month: "Mar", strength: 248 },
-  { month: "Apr", strength: 250 },
-  { month: "May", strength: 255 },
-  { month: "Jun", strength: 260 },
-  { month: "Jul", strength: 265 },
-  { month: "Aug", strength: 262 },
-  { month: "Sep", strength: 268 },
-  { month: "Oct", strength: 270 },
-  { month: "Nov", strength: 272 },
-  { month: "Dec", strength: 275 }
-];
-
-const departmentLeaveDataMonthly = [
-  { department: "Engineering", leaves: 12 },
-  { department: "Marketing", leaves: 8 },
-  { department: "HR", leaves: 4 },
-  { department: "Finance", leaves: 6 },
-  { department: "Operations", leaves: 9 }
-];
-
-const departmentLeaveDataYearly = [
-  { department: "Engineering", leaves: 120 },
-  { department: "Marketing", leaves: 85 },
-  { department: "HR", leaves: 45 },
-  { department: "Finance", leaves: 65 },
-  { department: "Operations", leaves: 90 }
-];
-
-const roleLeaveDataMonthly = [
-  { role: "Senior Developer", leaves: 4 },
-  { role: "Developer", leaves: 6 },
-  { role: "Manager", leaves: 3 },
-  { role: "Executive", leaves: 2 },
-  { role: "Intern", leaves: 1 }
-];
-
-const roleLeaveDataYearly = [
-  { role: "Senior Developer", leaves: 45 },
-  { role: "Developer", leaves: 65 },
-  { role: "Manager", leaves: 35 },
-  { role: "Executive", leaves: 28 },
-  { role: "Intern", leaves: 15 }
-];
+import {
+  getEmployeeMonthlyStrength,
+  getLeaveTypeDistribution,
+  getCheckInCheckOut,
+  getBreakStartEnd,
+  getYearlyPayrollData,
+  getRoleWiseSalaryIncrement,
+  getDepartmentWiseLeaves,
+  getRoleWiseLeaves
+} from "@/lib/auth-service";
+import type {
+  MonthlyStrengthResponse,
+  LeaveTypeDistributionResponse,
+  CheckInCheckOutResponse,
+  BreakStartEndResponse,
+  YearlyPayrollResponse,
+  RoleWiseSalaryIncrementResponse,
+  DepartmentWiseLeavesResponse,
+  RoleWiseLeavesResponse
+} from "@/types";
 
 const leavePredictionData = [
   { month: "Jan", predicted: 25 },
@@ -99,28 +52,6 @@ const leavePredictionData = [
   { month: "Oct", predicted: 52 },
   { month: "Nov", predicted: 55 },
   { month: "Dec", predicted: 58 }
-];
-
-const yearlyPayrollData = [
-  { month: "Jan", amount: 2400000 },
-  { month: "Feb", amount: 2420000 },
-  { month: "Mar", amount: 2450000 },
-  { month: "Apr", amount: 2480000 },
-  { month: "May", amount: 2510000 },
-  { month: "Jun", amount: 2550000 },
-  { month: "Jul", amount: 2580000 },
-  { month: "Aug", amount: 2600000 },
-  { month: "Sep", amount: 2620000 },
-  { month: "Oct", amount: 2650000 },
-  { month: "Nov", amount: 2680000 },
-  { month: "Dec", amount: 2750000 }
-];
-
-const roleSalaryIncrementData = [
-  { month: "Q1", seniorDeveloper: 850000, developer: 550000, manager: 750000 },
-  { month: "Q2", seniorDeveloper: 860000, developer: 560000, manager: 765000 },
-  { month: "Q3", seniorDeveloper: 875000, developer: 575000, manager: 780000 },
-  { month: "Q4", seniorDeveloper: 890000, developer: 590000, manager: 800000 }
 ];
 
 const payrollPredictionData = [
@@ -157,7 +88,364 @@ const fraudDetectionData: Array<{
   { issue: "Unauthorized Deductions", count: 1, severity: "high" }
 ];
 
+function getMonthYearString(date: Date): string {
+  const monthName = date.toLocaleString("en-US", { month: "long" });
+  const year = date.getFullYear();
+  return `${monthName.toUpperCase()} ${year}`;
+}
+
+const payrollMonthOrder: Array<keyof YearlyPayrollResponse> = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december"
+];
+
+const payrollMonthLabels: Record<keyof YearlyPayrollResponse, string> = {
+  january: "Jan",
+  february: "Feb",
+  march: "Mar",
+  april: "Apr",
+  may: "May",
+  june: "Jun",
+  july: "Jul",
+  august: "Aug",
+  september: "Sep",
+  october: "Oct",
+  november: "Nov",
+  december: "Dec"
+};
+
+const quarterOrder: Array<keyof RoleWiseSalaryIncrementResponse> = [
+  "q1",
+  "q2",
+  "q3",
+  "q4"
+];
+
+const quarterLabels: Record<keyof RoleWiseSalaryIncrementResponse, string> = {
+  q1: "Q1",
+  q2: "Q2",
+  q3: "Q3",
+  q4: "Q4"
+};
+
+function transformYearlyPayrollData(data: YearlyPayrollResponse) {
+  return payrollMonthOrder.map((month) => ({
+    month: payrollMonthLabels[month],
+    amount: data[month] ?? 0
+  }));
+}
+
+function transformRoleWiseSalaryIncrementData(
+  data: RoleWiseSalaryIncrementResponse
+) {
+  const roles = Array.from(
+    new Set(quarterOrder.flatMap((quarter) => Object.keys(data[quarter] || {})))
+  ).sort();
+
+  const chartData = quarterOrder.map((quarter) => {
+    const row: Record<string, string | number> = {
+      month: quarterLabels[quarter]
+    };
+
+    roles.forEach((role) => {
+      row[role] = data[quarter]?.[role] ?? 0;
+    });
+
+    return row;
+  });
+
+  return { chartData, roles };
+}
+
 export default function AnalyticsPage() {
+  const { toast } = useToast();
+  const orgId = useOrgId();
+
+  // API States
+  const [monthlyStrengthData, setMonthlyStrengthData] =
+    useState<MonthlyStrengthResponse | null>(null);
+  const [leaveTypeData, setLeaveTypeData] =
+    useState<LeaveTypeDistributionResponse | null>(null);
+  const [checkInCheckOutData, setCheckInCheckOutData] =
+    useState<CheckInCheckOutResponse | null>(null);
+  const [breakStartEndData, setBreakStartEndData] =
+    useState<BreakStartEndResponse | null>(null);
+  const [departmentLeavesData, setDepartmentLeavesData] =
+    useState<DepartmentWiseLeavesResponse | null>(null);
+  const [roleLeavesData, setRoleLeavesData] =
+    useState<RoleWiseLeavesResponse | null>(null);
+  const [yearlyPayrollApiData, setYearlyPayrollApiData] =
+    useState<YearlyPayrollResponse | null>(null);
+  const [roleWiseSalaryApiData, setRoleWiseSalaryApiData] =
+    useState<RoleWiseSalaryIncrementResponse | null>(null);
+
+  // Loading States
+  const [isLoadingMonthlyStrength, setIsLoadingMonthlyStrength] =
+    useState(true);
+  const [isLoadingLeaveType, setIsLoadingLeaveType] = useState(true);
+  const [isLoadingCheckInCheckOut, setIsLoadingCheckInCheckOut] =
+    useState(true);
+  const [isLoadingBreakStartEnd, setIsLoadingBreakStartEnd] = useState(true);
+  const [isLoadingDepartmentLeaves, setIsLoadingDepartmentLeaves] =
+    useState(true);
+  const [isLoadingRoleLeaves, setIsLoadingRoleLeaves] = useState(true);
+  const [isLoadingYearlyPayroll, setIsLoadingYearlyPayroll] = useState(true);
+  const [isLoadingRoleWiseSalary, setIsLoadingRoleWiseSalary] = useState(true);
+
+  // Month/Year states
+  const [selectedLeaveMonthYear, setSelectedLeaveMonthYear] = useState(
+    getMonthYearString(new Date())
+  );
+  const [
+    selectedCheckInCheckOutMonthYear,
+    setSelectedCheckInCheckOutMonthYear
+  ] = useState(getMonthYearString(new Date()));
+  const [selectedBreakStartEndMonthYear, setSelectedBreakStartEndMonthYear] =
+    useState(getMonthYearString(new Date()));
+  const [
+    selectedDepartmentLeavesMonthYear,
+    setSelectedDepartmentLeavesMonthYear
+  ] = useState(getMonthYearString(new Date()));
+  const [selectedRoleLeavesMonthYear, setSelectedRoleLeavesMonthYear] =
+    useState(getMonthYearString(new Date()));
+
+  // Fetch monthly strength data
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchMonthlyStrength = async () => {
+      try {
+        setIsLoadingMonthlyStrength(true);
+        const data = await getEmployeeMonthlyStrength(orgId);
+        setMonthlyStrengthData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch monthly strength data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingMonthlyStrength(false);
+      }
+    };
+
+    fetchMonthlyStrength();
+  }, [orgId, toast]);
+
+  // Fetch leave type data
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchLeaveType = async () => {
+      try {
+        setIsLoadingLeaveType(true);
+        const data = await getLeaveTypeDistribution(
+          orgId,
+          selectedLeaveMonthYear
+        );
+        setLeaveTypeData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch leave type data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingLeaveType(false);
+      }
+    };
+
+    fetchLeaveType();
+  }, [orgId, selectedLeaveMonthYear, toast]);
+
+  // Fetch check-in check-out data
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchCheckInCheckOut = async () => {
+      try {
+        setIsLoadingCheckInCheckOut(true);
+        const data = await getCheckInCheckOut(
+          orgId,
+          selectedCheckInCheckOutMonthYear
+        );
+        setCheckInCheckOutData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch check-in check-out data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingCheckInCheckOut(false);
+      }
+    };
+
+    fetchCheckInCheckOut();
+  }, [orgId, selectedCheckInCheckOutMonthYear, toast]);
+
+  // Fetch break start-end data
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchBreakStartEnd = async () => {
+      try {
+        setIsLoadingBreakStartEnd(true);
+        const data = await getBreakStartEnd(
+          orgId,
+          selectedBreakStartEndMonthYear
+        );
+        setBreakStartEndData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch break start-end data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingBreakStartEnd(false);
+      }
+    };
+
+    fetchBreakStartEnd();
+  }, [orgId, selectedBreakStartEndMonthYear, toast]);
+
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchDepartmentLeaves = async () => {
+      try {
+        setIsLoadingDepartmentLeaves(true);
+        const data = await getDepartmentWiseLeaves(
+          orgId,
+          selectedDepartmentLeavesMonthYear
+        );
+        setDepartmentLeavesData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch department wise leaves data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingDepartmentLeaves(false);
+      }
+    };
+
+    fetchDepartmentLeaves();
+  }, [orgId, selectedDepartmentLeavesMonthYear, toast]);
+
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchRoleLeaves = async () => {
+      try {
+        setIsLoadingRoleLeaves(true);
+        const data = await getRoleWiseLeaves(
+          orgId,
+          selectedRoleLeavesMonthYear
+        );
+        setRoleLeavesData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch role wise leaves data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingRoleLeaves(false);
+      }
+    };
+
+    fetchRoleLeaves();
+  }, [orgId, selectedRoleLeavesMonthYear, toast]);
+
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchYearlyPayroll = async () => {
+      try {
+        setIsLoadingYearlyPayroll(true);
+        const data = await getYearlyPayrollData(orgId);
+        setYearlyPayrollApiData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch yearly payroll data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingYearlyPayroll(false);
+      }
+    };
+
+    fetchYearlyPayroll();
+  }, [orgId, toast]);
+
+  useEffect(() => {
+    if (!orgId) return;
+
+    const fetchRoleWiseSalary = async () => {
+      try {
+        setIsLoadingRoleWiseSalary(true);
+        const data = await getRoleWiseSalaryIncrement(orgId);
+        setRoleWiseSalaryApiData(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch role wise salary increment data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingRoleWiseSalary(false);
+      }
+    };
+
+    fetchRoleWiseSalary();
+  }, [orgId, toast]);
+
+  const yearlyPayrollChartData = yearlyPayrollApiData
+    ? transformYearlyPayrollData(yearlyPayrollApiData)
+    : [];
+
+  const roleWiseSalaryChartData = roleWiseSalaryApiData
+    ? transformRoleWiseSalaryIncrementData(roleWiseSalaryApiData)
+    : { chartData: [], roles: [] };
+
   return (
     <div className="p-6 space-y-8">
       {/* Header */}
@@ -177,20 +465,43 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MonthlyStrengthChart data={monthlyStrengthData} />
-          <LeaveTypeRadarChart data={leaveTypeData} />
+          <MonthlyStrengthChart
+            data={monthlyStrengthData}
+            isLoading={isLoadingMonthlyStrength}
+          />
+          <LeaveTypeRadarChart
+            data={leaveTypeData}
+            isLoading={isLoadingLeaveType}
+            onMonthYearChange={setSelectedLeaveMonthYear}
+          />
         </div>
 
-        <YearlyStrengthChart data={yearlyStrengthData} />
+        {/* <YearlyStrengthChart data={yearlyStrengthData} /> */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CheckInCheckOutChart
+            data={checkInCheckOutData}
+            isLoading={isLoadingCheckInCheckOut}
+            onMonthYearChange={setSelectedCheckInCheckOutMonthYear}
+          />
+          <BreakStartBreakEndChart
+            data={breakStartEndData}
+            isLoading={isLoadingBreakStartEnd}
+            onMonthYearChange={setSelectedBreakStartEndMonthYear}
+          />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <DepartmentLeaveChart
-            monthlyData={departmentLeaveDataMonthly}
-            yearlyData={departmentLeaveDataYearly}
+            data={departmentLeavesData}
+            isLoading={isLoadingDepartmentLeaves}
+            selectedMonthYear={selectedDepartmentLeavesMonthYear}
+            onMonthYearChange={setSelectedDepartmentLeavesMonthYear}
           />
           <RoleLeaveChart
-            monthlyData={roleLeaveDataMonthly}
-            yearlyData={roleLeaveDataYearly}
+            data={roleLeavesData}
+            isLoading={isLoadingRoleLeaves}
+            selectedMonthYear={selectedRoleLeavesMonthYear}
+            onMonthYearChange={setSelectedRoleLeavesMonthYear}
           />
         </div>
       </div>
@@ -204,14 +515,22 @@ export default function AnalyticsPage() {
       <div className="space-y-6">
         <div className="border-b pb-4">
           <h2 className="text-xl font-bold">Payroll Analytics</h2>
-        
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <YearlyPayrollChart data={yearlyPayrollData} />
+          <YearlyPayrollChart
+            data={yearlyPayrollChartData}
+            isLoading={isLoadingYearlyPayroll}
+          />
 
           <RoleSalaryIncrementChart
-            data={roleSalaryIncrementData}
-            roles={["seniorDeveloper", "developer", "manager"]}
+            data={
+              roleWiseSalaryChartData.chartData as Array<{
+                month: string;
+                [key: string]: string | number;
+              }>
+            }
+            roles={roleWiseSalaryChartData.roles}
+            isLoading={isLoadingRoleWiseSalary}
           />
         </div>
       </div>

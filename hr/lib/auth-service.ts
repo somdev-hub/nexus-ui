@@ -4,7 +4,6 @@ import type {
   LoginRequest,
   SignupRequest,
   AuthResponse,
-  ApiAuthResponse,
   User,
   GrantPermission,
   RoleCompensation,
@@ -15,6 +14,8 @@ import type {
   AttendancePageResponse,
   PayrollEmployeesResponse,
   EmployeeAttendanceResponse,
+  AttendanceQuickUpdateResponse,
+  ToggleAttendanceResponse,
   PayrollInitiationRequest,
   PayrollInitiationResponse,
   ProcessedPayrollsResponse,
@@ -22,7 +23,14 @@ import type {
   PayrollInsightsResponse,
   HrRequestsResponse,
   HrInsightsResponse,
-  HrActionResponse
+  MonthlyStrengthResponse,
+  LeaveTypeDistributionResponse,
+  CheckInCheckOutResponse,
+  BreakStartEndResponse,
+  YearlyPayrollResponse,
+  RoleWiseSalaryIncrementResponse,
+  DepartmentWiseLeavesResponse,
+  RoleWiseLeavesResponse
 } from "@/types";
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -245,7 +253,7 @@ export async function refreshToken(): Promise<string> {
       throw new Error(errorData.error || "Token refresh failed");
     }
 
-    const data = await response.json();
+    await response.json();
     console.log("[AUTH SERVICE] Token refreshed successfully");
 
     // Session is automatically updated in cookies, return empty string
@@ -380,7 +388,7 @@ export async function addUser(
   isDeptHead?: boolean,
   profilePicture?: File,
   hrDocuments?: File[],
-  compensation?: any,
+  compensation?: Record<string, unknown>,
   title?: string,
   personalEmail?: string,
   remarks?: string,
@@ -789,6 +797,34 @@ export async function getEmployeeAttendance(
   }
 }
 
+export async function getAttendanceQuickUpdate(
+  empId: number
+): Promise<AttendanceQuickUpdateResponse> {
+  try {
+    const response = await apiClient.get<AttendanceQuickUpdateResponse>(
+      `/iam/organizations/time-management/quick-update?empId=${empId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch attendance quick update failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function toggleAttendance(
+  userId: number
+): Promise<ToggleAttendanceResponse> {
+  try {
+    const response = await apiClient.get<ToggleAttendanceResponse>(
+      `/iam/organizations/employee/toggle-attendance?userId=${userId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Toggle attendance failed: ${(error as Error).message}`);
+  }
+}
+
 export async function initiatePayroll(
   request: PayrollInitiationRequest
 ): Promise<PayrollInitiationResponse> {
@@ -1018,3 +1054,172 @@ export async function submitHrRequestAction(
     );
   }
 }
+
+// ============================================================================
+// ANALYTICS API FUNCTIONS
+// ============================================================================
+
+export async function getMonthlyStrength(
+  orgId: string
+): Promise<MonthlyStrengthResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    const response = await apiClient.get<MonthlyStrengthResponse>(
+      `/iam/analytics/employee/avg-strength?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch monthly strength failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getLeaveTypeDistribution(
+  orgId: string,
+  monthYear: string
+): Promise<LeaveTypeDistributionResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      monthYear: monthYear
+    });
+
+    const response = await apiClient.get<LeaveTypeDistributionResponse>(
+      `/iam/analytics/leave/type-distribution?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch leave type distribution failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getCheckInCheckOut(
+  orgId: string,
+  monthYear: string
+): Promise<CheckInCheckOutResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      monthYear: monthYear
+    });
+
+    const response = await apiClient.get<CheckInCheckOutResponse>(
+      `/iam/analytics/employee/check-in-check-out?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch check-in check-out failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getBreakStartEnd(
+  orgId: string,
+  monthYear: string
+): Promise<BreakStartEndResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      monthYear: monthYear
+    });
+
+    const response = await apiClient.get<BreakStartEndResponse>(
+      `/iam/analytics/employee/break-start-end?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch break start-end failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getDepartmentWiseLeaves(
+  orgId: string,
+  monthYear: string
+): Promise<DepartmentWiseLeavesResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      monthYear
+    });
+
+    const response = await apiClient.get<DepartmentWiseLeavesResponse>(
+      `/iam/analytics/leaves/department-wise?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch department wise leaves failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getRoleWiseLeaves(
+  orgId: string,
+  monthYear: string
+): Promise<RoleWiseLeavesResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      monthYear
+    });
+
+    const response = await apiClient.get<RoleWiseLeavesResponse>(
+      `/iam/analytics/leaves/role-wise?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch role wise leaves failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getYearlyPayrollData(
+  orgId: string
+): Promise<YearlyPayrollResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    const response = await apiClient.get<YearlyPayrollResponse>(
+      `/iam/analytics/payroll/yearly?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch yearly payroll data failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getRoleWiseSalaryIncrement(
+  orgId: string
+): Promise<RoleWiseSalaryIncrementResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    const response = await apiClient.get<RoleWiseSalaryIncrementResponse>(
+      `/iam/analytics/payroll/role-wise?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch role wise salary increment failed: ${(error as Error).message}`
+    );
+  }
+}
+
+// Export alias for backward compatibility
+export const getEmployeeMonthlyStrength = getMonthlyStrength;

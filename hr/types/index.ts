@@ -603,6 +603,27 @@ export interface EmployeeAttendanceResponse {
   totalDeductions: number;
 }
 
+export interface AttendanceQuickUpdateResponse {
+  lastCheckedInTime: string;
+  lastCheckedOutTime: string;
+  totalBreakTime: string;
+  totalWorkHours: string;
+}
+
+export interface ToggleAttendanceResponse {
+  breakEndTime: string;
+  checkOutTime: string;
+  overtimeHours: number;
+  totalHoursWorked: number;
+  timeManagementId: number;
+  checkInTime: string;
+  effectiveHours: number;
+  breakStartTime: string;
+  isPresent: boolean;
+  message: string;
+  isHalfDay: boolean;
+}
+
 // ============================================================================
 // PAYROLL PAYMENT INITIATION TYPES
 // ============================================================================
@@ -691,6 +712,32 @@ export interface PayrollGraphsResponse {
   salaryVsRole: SalaryVsRoleItem[];
   salaryVsStatus: SalaryVsStatusItem[];
 }
+
+export interface YearlyPayrollResponse {
+  january: number;
+  february: number;
+  march: number;
+  april: number;
+  may: number;
+  june: number;
+  july: number;
+  august: number;
+  september: number;
+  october: number;
+  november: number;
+  december: number;
+}
+
+export interface RoleWiseSalaryIncrementResponse {
+  q1: Record<string, number>;
+  q2: Record<string, number>;
+  q3: Record<string, number>;
+  q4: Record<string, number>;
+}
+
+export type DepartmentWiseLeavesResponse = Record<string, number>;
+
+export type RoleWiseLeavesResponse = Record<string, number>;
 
 // ============================================================================
 // PAYROLL INSIGHTS TYPES
@@ -783,4 +830,35 @@ export interface DeliveryStatusProps {
   steps: DeliveryStep[];
   currentStep: number;
   currentStepDate?: string;
+}
+
+// ============================================================================
+// ANALYTICS TYPES
+// ============================================================================
+
+export interface MonthlyStrengthResponse {
+  totalEmployees: number;
+  monthWiseStrength: Record<string, number>;
+}
+
+export interface LeaveTypeDistributionResponse {
+  [key: string]: number;
+}
+
+export interface CheckInCheckOutData {
+  checkIn: string;
+  checkout: string;
+}
+
+export interface CheckInCheckOutResponse {
+  [key: string]: CheckInCheckOutData;
+}
+
+export interface BreakStartEndData {
+  breakStart: string;
+  breakEnd: string;
+}
+
+export interface BreakStartEndResponse {
+  [key: string]: BreakStartEndData;
 }
