@@ -814,6 +814,22 @@ export interface HrInsightsResponse {
   rejectedCases: number;
 }
 
+export type HeroAnalyticsTrend = "INCREMENT" | "DECREMENT" | "STABLE";
+
+export interface HeroAnalyticsMetric {
+  value: number;
+  difference: number;
+  trend: HeroAnalyticsTrend;
+  comparisonWith: string;
+}
+
+export interface HeroAnalyticsResponse {
+  onLeaveEmployees: HeroAnalyticsMetric;
+  openHrRequests: HeroAnalyticsMetric;
+  presentEmployees: HeroAnalyticsMetric;
+  totalEmployees: HeroAnalyticsMetric;
+}
+
 export type HrActionResponse = string | { message: string };
 
 // ============================================================================

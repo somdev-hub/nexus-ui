@@ -205,11 +205,20 @@ export function SiteHeader({ name = "HR" }) {
   const breakLabel = attendance
     ? formatMinutes(attendance.totalBreakTime)
     : "Loading...";
+  const hasCheckedIn = Boolean(attendance?.lastCheckedInTime);
   const hasCheckedOut = attendance
     ? isCheckedOut(attendance.lastCheckedInTime, attendance.lastCheckedOutTime)
     : false;
-  const statusLabel = hasCheckedOut ? "Checked-Out" : "Checked-in";
-  const statusDotClass = hasCheckedOut ? "bg-red-600" : "bg-green-600";
+  const statusLabel = !hasCheckedIn
+    ? "Not Checked-In"
+    : hasCheckedOut
+      ? "Checked-Out"
+      : "Checked-in";
+  const statusDotClass = !hasCheckedIn
+    ? "bg-orange-600"
+    : hasCheckedOut
+      ? "bg-red-600"
+      : "bg-green-600";
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -272,9 +281,11 @@ export function SiteHeader({ name = "HR" }) {
                 >
                   {isTogglingAttendance
                     ? "Updating..."
-                    : hasCheckedOut
+                    : !hasCheckedIn
                       ? "Check In"
-                      : "Check Out"}
+                      : hasCheckedOut
+                        ? "Check In"
+                        : "Check Out"}
                 </Button>
               </PopoverContent>
             </Popover>

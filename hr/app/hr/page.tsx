@@ -26,11 +26,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  Check
+  Check,
+  Minus
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -39,63 +41,42 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DailyCheckinCheckoutChart } from "@/components/daily-checkin-checkout-line-chart";
 import { WeeklyWorkingHoursChart } from "@/components/weekly-working-hours";
 import { WeeklyEmployeeStrengthChart } from "@/components/weekly-employee-strength-graph";
 import { ExpenseBreakdownChart } from "@/components/expense-breakdown-graph";
+import { useOrgId } from "@/hooks/use-user-metadata";
+import { useToast } from "@/hooks/use-toast";
+import { getHeroAnalytics } from "@/lib/auth-service";
+import type { HeroAnalyticsResponse } from "@/types";
 
-// Mock data for metrics
 const metricCards = [
   {
     title: "Total Employees",
-    value: 248,
-    change: 12,
-    trend: "up",
+    metricKey: "totalEmployees",
     icon: Users,
     color: "text-blue-500"
   },
   {
     title: "Employee Present",
-    value: 210,
-    change: 8,
-    trend: "up",
+    metricKey: "presentEmployees",
     icon: Users,
     color: "text-green-500"
   },
   {
     title: "On Leave",
-    value: 18,
-    change: 3,
-    trend: "down",
+    metricKey: "onLeaveEmployees",
     icon: Clock,
     color: "text-orange-500"
   },
   {
     title: "Pending Requests",
-    value: 5,
-    change: 2,
-    trend: "down",
+    metricKey: "openHrRequests",
     icon: AlertCircle,
     color: "text-red-500"
   }
-];
-
-// Weekly employee strength data
-
-// Weekly working hours data
-
-// Check-in/Check-out times
-const checkInOutData = [
-  { time: "08:00", checkIn: 45, checkOut: 5 },
-  { time: "08:30", checkIn: 120, checkOut: 8 },
-  { time: "09:00", checkIn: 65, checkOut: 12 },
-  { time: "09:30", checkIn: 15, checkOut: 18 },
-  { time: "10:00", checkIn: 5, checkOut: 35 },
-  { time: "17:00", checkIn: 8, checkOut: 45 },
-  { time: "17:30", checkIn: 5, checkOut: 85 },
-  { time: "18:00", checkIn: 2, checkOut: 55 }
-];
+] as const;
 
 // HR Requests data
 const hrRequestsData = [
@@ -165,41 +146,6 @@ const hrRequestsData = [
   }
 ];
 
-// Expense breakdown radar data
-
-// Chart configurations
-const employeeStrengthChartConfig = {
-  strength: {
-    label: "Employees",
-    color: "hsl(var(--chart-1))"
-  }
-};
-
-const workingHoursChartConfig = {
-  hours: {
-    label: "Hours",
-    color: "hsl(var(--chart-2))"
-  }
-};
-
-const checkInOutChartConfig = {
-  checkIn: {
-    label: "Check-in",
-    color: "hsl(var(--chart-1))"
-  },
-  checkOut: {
-    label: "Check-out",
-    color: "hsl(var(--chart-3))"
-  }
-};
-
-const expenseBreakdownChartConfig = {
-  value: {
-    label: "Amount",
-    color: "hsl(var(--chart-5))"
-  }
-};
-
 // Unique request types for filtering
 const requestTypes = [
   "All",
@@ -215,7 +161,75 @@ export default function HRDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [heroAnalytics, setHeroAnalytics] =
+    useState<HeroAnalyticsResponse | null>(null);
+  const [isMetricsLoading, setIsMetricsLoading] = useState(true);
   const itemsPerPage = 5;
+  const orgId = useOrgId();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadHeroAnalytics = async () => {
+      if (!orgId) {
+        if (isActive) {
+          setHeroAnalytics(null);
+          setIsMetricsLoading(false);
+        }
+        return;
+      }
+
+      const parsedOrgId = Number(orgId);
+
+      if (Number.isNaN(parsedOrgId)) {
+        if (isActive) {
+          setHeroAnalytics(null);
+          setIsMetricsLoading(false);
+          toast({
+            title: "Unable to load dashboard metrics",
+            description: "Organization id is invalid.",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+
+      setIsMetricsLoading(true);
+
+      try {
+        const response = await getHeroAnalytics(parsedOrgId);
+
+        if (!isActive) {
+          return;
+        }
+
+        setHeroAnalytics(response.data);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setHeroAnalytics(null);
+        toast({
+          title: "Failed to load dashboard metrics",
+          description:
+            error instanceof Error ? error.message : "Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        if (isActive) {
+          setIsMetricsLoading(false);
+        }
+      }
+    };
+
+    loadHeroAnalytics();
+
+    return () => {
+      isActive = false;
+    };
+  }, [orgId, toast]);
 
   // Filter and search logic
   const filteredRequests = useMemo(() => {
@@ -266,6 +280,26 @@ export default function HRDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {metricCards.map((metric, idx) => {
           const Icon = metric.icon;
+          const metricData = heroAnalytics?.[metric.metricKey];
+          const TrendIcon =
+            metricData?.trend === "DECREMENT"
+              ? TrendingDown
+              : metricData?.trend === "STABLE"
+                ? Minus
+                : TrendingUp;
+          const trendClassName =
+            metricData?.trend === "DECREMENT"
+              ? "text-red-500"
+              : metricData?.trend === "STABLE"
+                ? "text-muted-foreground"
+                : "text-green-500";
+          const trendPrefix =
+            metricData?.trend === "DECREMENT"
+              ? "-"
+              : metricData?.trend === "STABLE"
+                ? ""
+                : "+";
+
           return (
             <Card key={idx} className="overflow-hidden p-4">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
@@ -275,24 +309,40 @@ export default function HRDashboard() {
                 <Icon className={`h-4 w-4 ${metric.color}`} />
               </CardHeader>
               <CardContent className="p-0">
-                <div className="text-2xl font-bold">{metric.value}</div>
-                <div className="flex items-center gap-1 mt-2">
-                  {metric.trend === "up" ? (
-                    <>
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                      <span className="text-xs text-green-500">
-                        +{metric.change} vs last week
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <TrendingDown className="h-4 w-4 text-blue-500" />
-                      <span className="text-xs text-blue-500">
-                        -{metric.change} vs last week
-                      </span>
-                    </>
-                  )}
-                </div>
+                {isMetricsLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-8 w-20" />
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-4 rounded-full" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {metricData?.value ?? "--"}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      {metricData ? (
+                        <>
+                          <TrendIcon className={`h-4 w-4 ${trendClassName}`} />
+                          <span className={`text-xs ${trendClassName}`}>
+                            {trendPrefix}
+                            {metricData.difference} vs{" "}
+                            {metricData.comparisonWith}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Minus className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            No data available
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           );

@@ -23,6 +23,7 @@ import type {
   PayrollInsightsResponse,
   HrRequestsResponse,
   HrInsightsResponse,
+  HeroAnalyticsResponse,
   MonthlyStrengthResponse,
   LeaveTypeDistributionResponse,
   CheckInCheckOutResponse,
@@ -704,6 +705,17 @@ export async function getEmployeeInsights(
     throw new Error(
       `Fetch employee insights failed: ${(error as Error).message}`
     );
+  }
+}
+
+export async function getHeroAnalytics(orgId: number) {
+  try {
+    const response = await apiClient.get<HeroAnalyticsResponse>(
+      `/iam/organizations/hero-analytics?orgId=${orgId}`
+    );
+    return response;
+  } catch (error: unknown) {
+    throw new Error(`Fetch hero analytics failed: ${(error as Error).message}`);
   }
 }
 
