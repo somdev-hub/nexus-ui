@@ -24,6 +24,9 @@ import type {
   HrRequestsResponse,
   HrInsightsResponse,
   HeroAnalyticsResponse,
+  TodayHrRequest,
+  RequestStatus,
+  RequestType,
   MonthlyStrengthResponse,
   LeaveTypeDistributionResponse,
   CheckInCheckOutResponse,
@@ -719,6 +722,53 @@ export async function getHeroAnalytics(orgId: number) {
   }
 }
 
+export async function getTodayHrRequests(
+  orgId: number,
+  options?: {
+    status?: RequestStatus;
+    page?: number;
+    offset?: number;
+    empName?: string;
+    requestType?: RequestType;
+  }
+): Promise<TodayHrRequest[]> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    if (options?.status) {
+      queryParams.append("status", options.status);
+    }
+
+    if (typeof options?.page === "number") {
+      queryParams.append("page", String(options.page));
+    }
+
+    if (typeof options?.offset === "number") {
+      queryParams.append("offset", String(options.offset));
+    }
+
+    if (options?.empName) {
+      queryParams.append("empName", options.empName);
+    }
+
+    if (options?.requestType) {
+      queryParams.append("requestType", options.requestType);
+    }
+
+    const response = await apiClient.get<TodayHrRequest[]>(
+      `/iam/organizations/hr-requests/today?${queryParams.toString()}`
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch today HR requests failed: ${(error as Error).message}`
+    );
+  }
+}
+
 export async function getEmployeeDirectory(
   orgId: string,
   pageNo: number = 0,
@@ -1064,6 +1114,37 @@ export async function submitHrRequestAction(
     throw new Error(
       `Submit HR request action failed: ${(error as Error).message}`
     );
+  }
+}
+
+interface ApplyHrRequestPayload {
+  empId: number;
+  hrRequestType: RequestType;
+  remarks?: string;
+  fromDate?: string;
+  toDate?: string;
+  checkInHours?: string;
+  checkOutHours?: string;
+  halfDay?: boolean;
+  leaveType?: LeaveType;
+}
+
+export async function applyHrRequest(
+  payload: ApplyHrRequestPayload
+): Promise<string> {
+  try {
+    const response = await apiClient.post<string | { message: string }>(
+      "/iam/organizations/hr-request",
+      payload
+    );
+
+    if (typeof response.data === "string") {
+      return response.data;
+    }
+
+    return response.data?.message || "HR request submitted successfully";
+  } catch (error: unknown) {
+    throw new Error(`Apply HR request failed: ${(error as Error).message}`);
   }
 }
 

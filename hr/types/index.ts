@@ -281,8 +281,8 @@ export type LeaveType =
   | "BEREAVEMENT_LEAVE"
   | "MATERNITY_LEAVE"
   | "PATERNITY_LEAVE"
-  | "CASUAL_LEAVE"
-  | "COMP_OFF";
+  | "UNPAID_LEAVE"
+  | "COMPENSATORY_OFF";
 
 export type AttendanceStatus_API =
   | "PRESENT"
@@ -472,6 +472,23 @@ export type RequestStatus =
   | "APPROVED"
   | "REJECTED"
   | "CLOSED";
+
+export interface TodayHrRequest {
+  requestId: number;
+  requestType: RequestType;
+  status: RequestStatus;
+  appliedOn: string;
+  fromDate: string | null;
+  toDate: string | null;
+  checkInHours: string | null;
+  checkOutHours: string | null;
+  halfDay: boolean | null;
+  leaveBalanceUsed: number | null;
+  leaveType: string | null;
+  remarks: string | null;
+  resolutionRemarks: string | null;
+  resolvedOn: string | null;
+}
 
 export type LeaveBalanceType =
   | "Casual"

@@ -94,6 +94,11 @@ const data = {
           title: "HR Requests",
           url: "/hr/requests",
           icon: IconMessageCircle
+        },
+        {
+          title: "Recruitment",
+          url: "/hr/recruitment",
+          icon: IconClipboard
         }
       ]
     }
