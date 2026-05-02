@@ -1316,3 +1316,161 @@ export async function getRoleWiseSalaryIncrement(
 
 // Export alias for backward compatibility
 export const getEmployeeMonthlyStrength = getMonthlyStrength;
+
+// ============================================================================
+// RECRUITMENT API FUNCTIONS
+// ============================================================================
+
+interface CreateHiringRequisitionPayload {
+  title: string;
+  shortDescription: string;
+  description: string;
+  orgId: number;
+  departmentName: string;
+  departmentId: number;
+  roleName: string;
+  openingTillDate: string;
+  totalCompensation: string;
+  hiringType: "PERMANENT" | "CONTRACT" | "INTERN";
+}
+
+export interface RecruitmentRequisition {
+  createdAt: string;
+  departmentName: string;
+  hiringManager: number;
+  hiringStatus: string;
+  hiringType: string;
+  recruitmentId: number;
+  roleName: string;
+  title: string;
+  totalApplicants: number | null;
+}
+
+export interface PaginatedRecruitmentResponse {
+  content: RecruitmentRequisition[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;
+  numberOfElements: number;
+  pageable: {
+    offset: number;
+    pageNumber: number;
+    pageSize: number;
+    paged: boolean;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    unpaged: boolean;
+  };
+  size: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function createHiringRequisition(
+  empId: number,
+  payload: CreateHiringRequisitionPayload
+): Promise<{
+  recruitmentId: number;
+  hiringStatus: string;
+  createdAt: string;
+  [key: string]: unknown;
+}> {
+  try {
+    const response = await apiClient.post<{
+      recruitmentId: number;
+      hiringStatus: string;
+      createdAt: string;
+      [key: string]: unknown;
+    }>(`/iam/recruitment/?empId=${empId}`, payload);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Create hiring requisition failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getOpenRecruitments(
+  orgId: number,
+  options?: {
+    isActive?: boolean;
+    empId?: number;
+    hiringType?: string;
+    hiringStatus?: string;
+    pageNo?: number;
+    pageOffset?: number;
+  }
+): Promise<PaginatedRecruitmentResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    if (options?.isActive !== undefined) {
+      queryParams.append("isActive", String(options.isActive));
+    }
+    if (options?.empId) {
+      queryParams.append("empId", String(options.empId));
+    }
+    if (options?.hiringType) {
+      queryParams.append("hiringType", options.hiringType);
+    }
+    if (options?.hiringStatus) {
+      queryParams.append("hiringStatus", options.hiringStatus);
+    }
+    if (typeof options?.pageNo === "number") {
+      queryParams.append("pageNo", String(options.pageNo));
+    }
+    if (typeof options?.pageOffset === "number") {
+      queryParams.append("pageOffset", String(options.pageOffset));
+    }
+
+    const response = await apiClient.get<PaginatedRecruitmentResponse>(
+      `/iam/recruitment/?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch open recruitments failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getClosedRecruitments(
+  orgId: number,
+  options?: {
+    pageNo?: number;
+    pageOffset?: number;
+  }
+): Promise<PaginatedRecruitmentResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId)
+    });
+
+    if (typeof options?.pageNo === "number") {
+      queryParams.append("pageNo", String(options.pageNo));
+    }
+    if (typeof options?.pageOffset === "number") {
+      queryParams.append("pageOffset", String(options.pageOffset));
+    }
+
+    const response = await apiClient.get<PaginatedRecruitmentResponse>(
+      `/iam/recruitment/closed?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch closed recruitments failed: ${(error as Error).message}`
+    );
+  }
+}

@@ -22,10 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Users } from "lucide-react";
-import { useOrgId } from "@/hooks/use-user-metadata";
+import { useOrgId, useUserId } from "@/hooks/use-user-metadata";
 import { useToast } from "@/hooks/use-toast";
-import { getAllDepartments, getDeptRoles } from "@/lib/auth-service";
+import {
+  getAllDepartments,
+  getDeptRoles,
+  createHiringRequisition
+} from "@/lib/auth-service";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { Textarea } from "./ui/textarea";
 
 type CreateHiringForm = {
   title: string;
@@ -38,7 +43,6 @@ type CreateHiringForm = {
   openingTillDate: string;
   totalCompensation: string;
   hiringType: "PERMANENT" | "CONTRACT" | "INTERN" | "";
-  hiringStatus: "OPEN" | "CLOSED" | "ON_HOLD" | "HIRED" | "";
 };
 
 export function CreateHiringDialog({
@@ -47,6 +51,7 @@ export function CreateHiringDialog({
   smallButton?: boolean;
 }) {
   const orgId = useOrgId();
+  const empId = useUserId();
   const { toast } = useToast();
 
   const [open, setOpen] = useState(false);
@@ -64,8 +69,7 @@ export function CreateHiringDialog({
     roleId: 0,
     openingTillDate: "",
     totalCompensation: "",
-    hiringType: "",
-    hiringStatus: ""
+    hiringType: ""
   });
 
   const [departments, setDepartments] = useState<
@@ -162,8 +166,7 @@ export function CreateHiringDialog({
       !form.roleName ||
       !form.openingTillDate ||
       !form.totalCompensation ||
-      !form.hiringType ||
-      !form.hiringStatus
+      !form.hiringType
     ) {
       toast({
         title: "Missing required fields",
@@ -174,12 +177,35 @@ export function CreateHiringDialog({
       return;
     }
 
+    if (!empId || !orgId) {
+      toast({
+        title: "User information missing",
+        description: "Unable to determine user or organization information.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // TODO: Call API to create hiring requisition
+      const payload = {
+        title: form.title,
+        shortDescription: form.shortDescription,
+        description: form.description,
+        orgId: parseInt(orgId),
+        departmentName: form.departmentName,
+        departmentId: form.deptId,
+        roleName: form.roleName,
+        openingTillDate: form.openingTillDate,
+        totalCompensation: form.totalCompensation,
+        hiringType: form.hiringType
+      };
+
+      await createHiringRequisition(parseInt(empId), payload);
+
       toast({
-        title: "Hiring requisition created",
-        description: `Created requisition for ${form.title}`
+        title: "Hiring requisition created successfully",
+        description: `Requisition for ${form.title} has been created.`
       });
       setOpen(false);
       setForm({
@@ -192,10 +218,10 @@ export function CreateHiringDialog({
         roleId: 0,
         openingTillDate: "",
         totalCompensation: "",
-        hiringType: "",
-        hiringStatus: ""
+        hiringType: ""
       });
     } catch (error) {
+      console.error("Create hiring requisition error:", error);
       toast({
         title: "Failed to create requisition",
         description:
@@ -244,17 +270,34 @@ export function CreateHiringDialog({
                 onChange={handleInputChange}
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="shortDescription">Short Description *</Label>
-              <Input
-                id="shortDescription"
-                name="shortDescription"
-                placeholder="Brief summary of the role"
-                value={form.shortDescription}
-                onChange={handleInputChange}
-              />
+              <Label htmlFor="hiringType">Hiring Type *</Label>
+              <Select
+                value={form.hiringType}
+                onValueChange={(value) =>
+                  handleSelectChange("hiringType", value)
+                }
+              >
+                <SelectTrigger id="hiringType" className="w-full">
+                  <SelectValue placeholder="Select hiring type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERMANENT">Permanent</SelectItem>
+                  <SelectItem value="CONTRACT">Contract</SelectItem>
+                  <SelectItem value="INTERN">Intern</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="shortDescription">Short Description *</Label>
+            <Textarea
+              id="shortDescription"
+              name="shortDescription"
+              placeholder="Brief summary of the role"
+              value={form.shortDescription}
+              onChange={handleInputChange}
+            />
           </div>
 
           <div className="space-y-2">
@@ -349,47 +392,6 @@ export function CreateHiringDialog({
                 value={form.totalCompensation}
                 onChange={handleInputChange}
               />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="hiringType">Hiring Type *</Label>
-              <Select
-                value={form.hiringType}
-                onValueChange={(value) =>
-                  handleSelectChange("hiringType", value)
-                }
-              >
-                <SelectTrigger id="hiringType" className="w-full">
-                  <SelectValue placeholder="Select hiring type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PERMANENT">Permanent</SelectItem>
-                  <SelectItem value="CONTRACT">Contract</SelectItem>
-                  <SelectItem value="INTERN">Intern</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="hiringStatus">Hiring Status *</Label>
-              <Select
-                value={form.hiringStatus}
-                onValueChange={(value) =>
-                  handleSelectChange("hiringStatus", value)
-                }
-              >
-                <SelectTrigger id="hiringStatus" className="w-full">
-                  <SelectValue placeholder="Select hiring status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="OPEN">Open</SelectItem>
-                  <SelectItem value="CLOSED">Closed</SelectItem>
-                  <SelectItem value="ON_HOLD">On Hold</SelectItem>
-                  <SelectItem value="HIRED">Hired</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
