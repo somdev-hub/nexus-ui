@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,6 +132,7 @@ const hiringTypeTone: Record<string, string> = {
 // ============================================================================
 
 function Recruitment() {
+  const router = useRouter();
   const orgId = useOrgId();
   const { toast } = useToast();
 
@@ -408,7 +410,15 @@ function Recruitment() {
                       </TableHeader>
                       <TableBody>
                         {filteredOpenRecruitments.map((requisition) => (
-                          <TableRow key={requisition.recruitmentId}>
+                          <TableRow
+                            key={requisition.recruitmentId}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() =>
+                              router.push(
+                                `/hr/recruitment/${requisition.recruitmentId}`
+                              )
+                            }
+                          >
                             <TableCell className="font-medium">
                               #{requisition.recruitmentId}
                             </TableCell>
@@ -540,7 +550,15 @@ function Recruitment() {
                       </TableHeader>
                       <TableBody>
                         {filteredClosedRecruitments.map((requisition) => (
-                          <TableRow key={requisition.recruitmentId}>
+                          <TableRow
+                            key={requisition.recruitmentId}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() =>
+                              router.push(
+                                `/hr/recruitment/${requisition.recruitmentId}`
+                              )
+                            }
+                          >
                             <TableCell className="font-medium">
                               #{requisition.recruitmentId}
                             </TableCell>

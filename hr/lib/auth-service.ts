@@ -1346,6 +1346,17 @@ export interface RecruitmentRequisition {
   totalApplicants: number | null;
 }
 
+export interface FullRecruitmentRequisition extends RecruitmentRequisition {
+  departmentId: number;
+  description: string;
+  isActive: boolean;
+  openingTillDate: string;
+  orgId: number;
+  shortDescription: string;
+  totalCompensation: string;
+  updatedAt: string;
+}
+
 export interface PaginatedRecruitmentResponse {
   content: RecruitmentRequisition[];
   empty: boolean;
@@ -1471,6 +1482,214 @@ export async function getClosedRecruitments(
   } catch (error: unknown) {
     throw new Error(
       `Fetch closed recruitments failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getRecruitmentDetails(
+  recruitmentId: number
+): Promise<FullRecruitmentRequisition> {
+  try {
+    const response = await apiClient.get<FullRecruitmentRequisition>(
+      `/iam/recruitment/${recruitmentId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch recruitment details failed: ${(error as Error).message}`
+    );
+  }
+}
+
+interface ApplicantDocument {
+  createdOn: string;
+  documentName: string;
+  documentUrl: string;
+  hrDocumentId: number;
+  hrDocumentType: "RESUME" | "COVER_LETTER";
+}
+
+export interface RecruitmentApplicant {
+  applicantAge: number;
+  applicantCity: string;
+  applicantCountry: string;
+  applicantDocuments: ApplicantDocument[];
+  applicantEmail: string;
+  applicantFirstName: string;
+  applicantGender: string;
+  applicantId: number;
+  applicantLastName: string;
+  applicantPhone: string;
+  applicantState: string;
+  previousCompany: string;
+  totalYearsOfExperience: number;
+  applicationStatus: string;
+}
+
+export interface PaginatedApplicantsResponse {
+  content: RecruitmentApplicant[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;
+  numberOfElements: number;
+  pageable: {
+    offset: number;
+    pageNumber: number;
+    pageSize: number;
+    paged: boolean;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    unpaged: boolean;
+  };
+  size: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function getRecruitmentApplicants(
+  recruitmentId: number,
+  options?: {
+    pageNo?: number;
+    pageSize?: number;
+    status?: string;
+    name?: string;
+    gender?: string;
+    minAge?: number;
+    maxAge?: number;
+    appliedFromDate?: string;
+    appliedToDate?: string;
+    yearsOfExperience?: number;
+  }
+): Promise<PaginatedApplicantsResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      recruitmentId: String(recruitmentId)
+    });
+
+    if (typeof options?.pageNo === "number") {
+      queryParams.append("pageNo", String(options.pageNo));
+    }
+    if (typeof options?.pageSize === "number") {
+      queryParams.append("pageSize", String(options.pageSize));
+    }
+    if (options?.status) {
+      queryParams.append("status", options.status);
+    }
+    if (options?.name) {
+      queryParams.append("name", options.name);
+    }
+    if (options?.gender) {
+      queryParams.append("gender", options.gender);
+    }
+    if (typeof options?.minAge === "number") {
+      queryParams.append("minAge", String(options.minAge));
+    }
+    if (typeof options?.maxAge === "number") {
+      queryParams.append("maxAge", String(options.maxAge));
+    }
+    if (options?.appliedFromDate) {
+      queryParams.append("appliedFromDate", options.appliedFromDate);
+    }
+    if (options?.appliedToDate) {
+      queryParams.append("appliedToDate", options.appliedToDate);
+    }
+    if (typeof options?.yearsOfExperience === "number") {
+      queryParams.append(
+        "yearsOfExperience",
+        String(options.yearsOfExperience)
+      );
+    }
+
+    const response = await apiClient.get<PaginatedApplicantsResponse>(
+      `/iam/recruitment/applicant?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch recruitment applicants failed: ${(error as Error).message}`
+    );
+  }
+}
+
+interface ApplicantEducation {
+  applicantEducationId: number;
+  city: string;
+  country: string;
+  createdAt: string;
+  degree: string;
+  endDate: string;
+  institute: string;
+  isActive: boolean;
+  startDate: string;
+  state: string;
+  updatedAt: string;
+}
+
+interface ApplicantExperience {
+  applicantExperienceId: number;
+  createdAt: string;
+  endDate: string;
+  isActive: boolean;
+  jobDescription: string;
+  jobTitle: string;
+  previousCompany: string;
+  startDate: string;
+  updatedAt: string;
+  yearsOfExperience: number;
+}
+
+interface ApplicantSkill {
+  applicantSkillId: number;
+  createdAt: string;
+  isActive: boolean;
+  skillName: string;
+  updatedAt: string;
+}
+
+export interface ApplicantDetail {
+  applicantAddress: string;
+  applicantAge: number;
+  applicantCity: string;
+  applicantCountry: string;
+  applicantDateOfBirth: string;
+  applicantDocuments: ApplicantDocument[];
+  applicantEducations: ApplicantEducation[];
+  applicantEmail: string;
+  applicantExperiences: ApplicantExperience[];
+  applicantFirstName: string;
+  applicantGender: string;
+  applicantId: number;
+  applicantLastName: string;
+  applicantPhone: string;
+  applicantPinCode: string;
+  applicantSkills: ApplicantSkill[];
+  applicantState: string;
+  applicationStatus: string;
+  appliedOn: string;
+  isActive: boolean;
+  updatedOn: string;
+}
+
+export async function getRecruitmentApplicantDetail(
+  applicantId: number
+): Promise<ApplicantDetail> {
+  try {
+    const response = await apiClient.get<ApplicantDetail>(
+      `/iam/recruitment/applicant/${applicantId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch applicant details failed: ${(error as Error).message}`
     );
   }
 }
