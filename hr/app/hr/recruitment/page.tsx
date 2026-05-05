@@ -46,7 +46,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   getOpenRecruitments,
   getClosedRecruitments,
-  PaginatedRecruitmentResponse
+  getRecruitmentAnalytics,
+  PaginatedRecruitmentResponse,
+  RecruitmentAnalytics
 } from "@/lib/auth-service";
 import { CreateHiringDialog } from "@/components/create-hiring-dialog";
 
@@ -61,55 +63,6 @@ type AnalyticsCard = {
   note: string;
   icon: React.ComponentType<{ className?: string }>;
 };
-
-// ============================================================================
-// DATA
-// ============================================================================
-
-const analyticsCards: AnalyticsCard[] = [
-  {
-    title: "Open Roles",
-    value: "18",
-    change: "+4 from last month",
-    note: "Active job openings",
-    icon: BriefcaseBusiness
-  },
-  {
-    title: "Applications",
-    value: "246",
-    change: "+54 this week",
-    note: "Total applications received",
-    icon: Users
-  },
-  {
-    title: "Interviews",
-    value: "34",
-    change: "+8 scheduled",
-    note: "Pending interviews",
-    icon: MessageSquareMore
-  },
-  {
-    title: "Offers Sent",
-    value: "9",
-    change: "2 accepted",
-    note: "Outstanding offers",
-    icon: FileText
-  },
-  {
-    title: "Avg Time to Fill",
-    value: "27 days",
-    change: "-3 days vs average",
-    note: "Average hiring duration",
-    icon: CalendarClock
-  },
-  {
-    title: "Offer Acceptance",
-    value: "83%",
-    change: "+5% this quarter",
-    note: "Conversion rate",
-    icon: CircleDollarSign
-  }
-];
 
 // ============================================================================
 // STYLING MAPS
@@ -136,6 +89,10 @@ function Recruitment() {
   const orgId = useOrgId();
   const { toast } = useToast();
 
+  // Analytics State
+  const [analytics, setAnalytics] = useState<RecruitmentAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
   // Open Recruitments State
   const [openData, setOpenData] = useState<PaginatedRecruitmentResponse | null>(
     null
@@ -154,6 +111,26 @@ function Recruitment() {
   const [closedPage, setClosedPage] = useState(0);
 
   const pageSize = 10;
+
+  // Fetch analytics
+  const fetchAnalytics = useCallback(async () => {
+    if (!orgId) return;
+    setAnalyticsLoading(true);
+    try {
+      const data = await getRecruitmentAnalytics(parseInt(orgId));
+      setAnalytics(data);
+    } catch (error) {
+      console.error("Failed to fetch analytics:", error);
+      toast({
+        title: "Failed to load analytics",
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [orgId, toast]);
 
   // Fetch open recruitments
   const fetchOpenRecruitments = useCallback(async () => {
@@ -206,6 +183,10 @@ function Recruitment() {
 
   // Fetch data on mount and when filters/page changes
   useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  useEffect(() => {
     fetchOpenRecruitments();
   }, [fetchOpenRecruitments]);
 
@@ -247,6 +228,87 @@ function Recruitment() {
 
   const openFilterCount = (openHiringType ? 1 : 0) + (openHiringStatus ? 1 : 0);
 
+  // Build analytics cards from API data
+  const analyticsCards = useMemo(() => {
+    if (!analytics) return [];
+
+    const cards: AnalyticsCard[] = [];
+
+    // Open Roles Card
+    cards.push({
+      title: "Open Roles",
+      value: analytics.openRoles.value.toString(),
+      change:
+        analytics.openRoles.type === "DIFFERENCE_COMPARISON"
+          ? `${analytics.openRoles.trend === "INCREMENT" ? "+" : ""}${analytics.openRoles.difference} from ${analytics.openRoles.comparisonWith}`
+          : `${analytics.openRoles.difference} ${analytics.openRoles.comparisonWith}`,
+      note: analytics.openRoles.description,
+      icon: BriefcaseBusiness
+    });
+
+    // Applications Card
+    cards.push({
+      title: "Applications",
+      value: analytics.currentApplications.value.toString(),
+      change:
+        analytics.currentApplications.type === "DIFFERENCE_COMPARISON"
+          ? `${analytics.currentApplications.trend === "INCREMENT" ? "+" : ""}${analytics.currentApplications.difference} from ${analytics.currentApplications.comparisonWith}`
+          : `${analytics.currentApplications.difference} ${analytics.currentApplications.comparisonWith}`,
+      note: analytics.currentApplications.description,
+      icon: Users
+    });
+
+    // Under Review Card
+    cards.push({
+      title: "Under Review",
+      value: analytics.underReview.value.toString(),
+      change:
+        analytics.underReview.type === "DIFFERENCE_COMPARISON"
+          ? `${analytics.underReview.trend === "INCREMENT" ? "+" : ""}${analytics.underReview.difference} from ${analytics.underReview.comparisonWith}`
+          : `${analytics.underReview.difference} ${analytics.underReview.comparisonWith}`,
+      note: analytics.underReview.description,
+      icon: MessageSquareMore
+    });
+
+    // Offers Sent Card
+    cards.push({
+      title: "Offers Sent",
+      value: analytics.offerSent.value.toString(),
+      change:
+        analytics.offerSent.type === "DIFFERENCE_COMPARISON"
+          ? `${analytics.offerSent.trend === "INCREMENT" ? "+" : ""}${analytics.offerSent.difference} from ${analytics.offerSent.comparisonWith}`
+          : `${analytics.offerSent.difference} ${analytics.offerSent.comparisonWith}`,
+      note: analytics.offerSent.description,
+      icon: FileText
+    });
+
+    // Avg Time to Fill Card
+    cards.push({
+      title: "Avg Time to Fill",
+      value: analytics.recruitmentTAT.value.toString(),
+      change:
+        analytics.recruitmentTAT.type === "DIFFERENCE_COMPARISON"
+          ? `${analytics.recruitmentTAT.trend === "INCREMENT" ? "+" : ""}${analytics.recruitmentTAT.difference} from ${analytics.recruitmentTAT.comparisonWith}`
+          : `${analytics.recruitmentTAT.difference} ${analytics.recruitmentTAT.comparisonWith}`,
+      note: analytics.recruitmentTAT.description,
+      icon: CalendarClock
+    });
+
+    // Offer Acceptance Card
+    cards.push({
+      title: "Offer Acceptance",
+      value: `${analytics.offerAcceptance.value}%`,
+      change:
+        analytics.offerAcceptance.type === "DIFFERENCE_COMPARISON"
+          ? `${analytics.offerAcceptance.trend === "INCREMENT" ? "+" : ""}${analytics.offerAcceptance.difference}% from ${analytics.offerAcceptance.comparisonWith}`
+          : `${analytics.offerAcceptance.difference}% ${analytics.offerAcceptance.comparisonWith}`,
+      note: analytics.offerAcceptance.description,
+      icon: CircleDollarSign
+    });
+
+    return cards;
+  }, [analytics]);
+
   return (
     <div className="space-y-6 p-6">
       <section className="space-y-3 flex justify-between items-center">
@@ -261,37 +323,66 @@ function Recruitment() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {analyticsCards.map((card) => {
-          const Icon = card.icon;
+        {analyticsLoading ? (
+          // Loading skeleton
+          Array(6)
+            .fill(null)
+            .map((_, index) => (
+              <Card key={`skeleton-${index}`} className="p-4 shadow-sm">
+                <CardHeader className="p-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                      <div className="h-8 w-16 animate-pulse rounded bg-muted" />
+                    </div>
+                    <div className="h-12 w-12 animate-pulse rounded-full bg-muted" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="mt-4 space-y-2">
+                    <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-40 animate-pulse rounded bg-muted" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+        ) : analyticsCards.length === 0 ? (
+          <div className="col-span-full text-center py-8">
+            <p className="text-muted-foreground">No analytics data available</p>
+          </div>
+        ) : (
+          analyticsCards.map((card) => {
+            const Icon = card.icon;
 
-          return (
-            <Card key={card.title} className="p-4 shadow-sm">
-              <CardHeader className="p-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {card.title}
-                    </CardTitle>
-                    <div className="mt-3 text-3xl font-semibold tracking-tight">
-                      {card.value}
+            return (
+              <Card key={card.title} className="p-4 shadow-sm">
+                <CardHeader className="p-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {card.title}
+                      </CardTitle>
+                      <div className="mt-3 text-3xl font-semibold tracking-tight">
+                        {card.value}
+                      </div>
+                    </div>
+                    <div className="rounded-full bg-primary/10 p-3 text-primary">
+                      <Icon className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="rounded-full bg-primary/10 p-3 text-primary">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <p className="mt-4 text-sm font-medium text-foreground">
-                  {card.change}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {card.note}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardHeader>
+                <CardContent className="p-0">
+                  <p className="mt-4 text-sm font-medium text-foreground">
+                    {card.change}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {card.note}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </section>
 
       <section className="space-y-6">

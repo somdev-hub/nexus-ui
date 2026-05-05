@@ -1410,6 +1410,31 @@ export async function createHiringRequisition(
   }
 }
 
+export async function updateHiringRequisition(
+  recruitmentId: number,
+  empId: number,
+  payload: CreateHiringRequisitionPayload
+): Promise<{
+  recruitmentId: number;
+  hiringStatus: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}> {
+  try {
+    const response = await apiClient.put<{
+      recruitmentId: number;
+      hiringStatus: string;
+      updatedAt: string;
+      [key: string]: unknown;
+    }>(`/iam/recruitment/${recruitmentId}?empId=${empId}`, payload);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Update hiring requisition failed: ${(error as Error).message}`
+    );
+  }
+}
+
 export async function getOpenRecruitments(
   orgId: number,
   options?: {
@@ -1690,6 +1715,39 @@ export async function getRecruitmentApplicantDetail(
   } catch (error: unknown) {
     throw new Error(
       `Fetch applicant details failed: ${(error as Error).message}`
+    );
+  }
+}
+
+export interface AnalyticsMetric {
+  value: number;
+  type: "DIFFERENCE_COMPARISON" | "VALUE_COMPARISON";
+  difference: number;
+  trend: "INCREMENT" | "DECREMENT" | "STABLE";
+  description: string;
+  comparisonWith: string;
+}
+
+export interface RecruitmentAnalytics {
+  currentApplications: AnalyticsMetric;
+  offerAcceptance: AnalyticsMetric;
+  offerSent: AnalyticsMetric;
+  openRoles: AnalyticsMetric;
+  recruitmentTAT: AnalyticsMetric;
+  underReview: AnalyticsMetric;
+}
+
+export async function getRecruitmentAnalytics(
+  orgId: number
+): Promise<RecruitmentAnalytics> {
+  try {
+    const response = await apiClient.get<RecruitmentAnalytics>(
+      `/iam/recruitment/analytics?orgId=${orgId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch recruitment analytics failed: ${(error as Error).message}`
     );
   }
 }

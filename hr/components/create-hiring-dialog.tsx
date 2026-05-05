@@ -27,7 +27,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   getAllDepartments,
   getDeptRoles,
-  createHiringRequisition
+  createHiringRequisition,
+  updateHiringRequisition,
+  FullRecruitmentRequisition
 } from "@/lib/auth-service";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Textarea } from "./ui/textarea";
@@ -46,30 +48,66 @@ type CreateHiringForm = {
 };
 
 export function CreateHiringDialog({
-  smallButton = false
+  smallButton = false,
+  editData,
+  onSuccess,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange
 }: {
   smallButton?: boolean;
+  editData?: FullRecruitmentRequisition;
+  onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const orgId = useOrgId();
   const empId = useUserId();
   const { toast } = useToast();
 
   const [open, setOpen] = useState(false);
+  const isControlledByParent = externalOpen !== undefined;
+  const dialogOpen = isControlledByParent ? externalOpen : open;
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (isControlledByParent && externalOnOpenChange) {
+      externalOnOpenChange(newOpen);
+    } else {
+      setOpen(newOpen);
+    }
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
-  const [form, setForm] = useState<CreateHiringForm>({
-    title: "",
-    shortDescription: "",
-    description: "",
-    departmentName: "",
-    deptId: 0,
-    roleName: "",
-    roleId: 0,
-    openingTillDate: "",
-    totalCompensation: "",
-    hiringType: ""
+  const [form, setForm] = useState<CreateHiringForm>(() => {
+    if (editData) {
+      return {
+        title: editData.title,
+        shortDescription: editData.shortDescription,
+        description: editData.description,
+        departmentName: editData.departmentName,
+        deptId: editData.departmentId,
+        roleName: editData.roleName,
+        roleId: 0,
+        openingTillDate: editData.openingTillDate,
+        totalCompensation: editData.totalCompensation,
+        hiringType:
+          (editData.hiringType as "PERMANENT" | "CONTRACT" | "INTERN" | "") ||
+          ""
+      };
+    }
+    return {
+      title: "",
+      shortDescription: "",
+      description: "",
+      departmentName: "",
+      deptId: 0,
+      roleName: "",
+      roleId: 0,
+      openingTillDate: "",
+      totalCompensation: "",
+      hiringType: ""
+    };
   });
 
   const [departments, setDepartments] = useState<
@@ -78,7 +116,7 @@ export function CreateHiringDialog({
   const [roles, setRoles] = useState<Array<{ id: number; name: string }>>([]);
 
   useEffect(() => {
-    if (!open || !orgId) return;
+    if (!dialogOpen || !orgId) return;
 
     const fetchDepartments = async () => {
       setIsLoadingDepartments(true);
@@ -86,6 +124,20 @@ export function CreateHiringDialog({
         const parsedOrgId = parseInt(orgId);
         const deptData = await getAllDepartments(parsedOrgId);
         setDepartments(deptData || []);
+
+        // If in edit mode and we have a deptId, fetch roles for that department
+        if (editData && editData.departmentId > 0) {
+          setIsLoadingRoles(true);
+          try {
+            const roleData = await getDeptRoles(editData.departmentId);
+            setRoles(roleData || []);
+          } catch (error) {
+            console.error("Failed to load roles:", error);
+            setRoles([]);
+          } finally {
+            setIsLoadingRoles(false);
+          }
+        }
       } catch (error) {
         toast({
           title: "Failed to load departments",
@@ -100,7 +152,7 @@ export function CreateHiringDialog({
     };
 
     fetchDepartments();
-  }, [open, orgId, toast]);
+  }, [dialogOpen, orgId, editData, toast]);
 
   const handleDepartmentChange = async (deptId: string) => {
     const selectedDept = departments.find((d) => d.deptId === parseInt(deptId));
@@ -171,7 +223,9 @@ export function CreateHiringDialog({
       toast({
         title: "Missing required fields",
         description:
-          "Please fill in all fields to create a hiring requisition.",
+          "Please fill in all fields to " +
+          (editData ? "update" : "create") +
+          " a hiring requisition.",
         variant: "destructive"
       });
       return;
@@ -198,16 +252,31 @@ export function CreateHiringDialog({
         roleName: form.roleName,
         openingTillDate: form.openingTillDate,
         totalCompensation: form.totalCompensation,
-        hiringType: form.hiringType
+        hiringType: form.hiringType as "PERMANENT" | "CONTRACT" | "INTERN"
       };
 
-      await createHiringRequisition(parseInt(empId), payload);
+      if (editData) {
+        // Update mode
+        await updateHiringRequisition(
+          editData.recruitmentId,
+          parseInt(empId),
+          payload
+        );
+        toast({
+          title: "Hiring requisition updated successfully",
+          description: `Requisition for ${form.title} has been updated.`
+        });
+      } else {
+        // Create mode
+        await createHiringRequisition(parseInt(empId), payload);
+        toast({
+          title: "Hiring requisition created successfully",
+          description: `Requisition for ${form.title} has been created.`
+        });
+      }
 
-      toast({
-        title: "Hiring requisition created successfully",
-        description: `Requisition for ${form.title} has been created.`
-      });
-      setOpen(false);
+      handleOpenChange(false);
+      onSuccess?.();
       setForm({
         title: "",
         shortDescription: "",
@@ -221,9 +290,13 @@ export function CreateHiringDialog({
         hiringType: ""
       });
     } catch (error) {
-      console.error("Create hiring requisition error:", error);
+      console.error(
+        (editData ? "Update" : "Create") + " hiring requisition error:",
+        error
+      );
       toast({
-        title: "Failed to create requisition",
+        title:
+          (editData ? "Failed to update" : "Failed to create") + " requisition",
         description:
           error instanceof Error ? error.message : "Please try again later.",
         variant: "destructive"
@@ -234,7 +307,7 @@ export function CreateHiringDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {smallButton ? (
           <Button size="sm" className="cursor-pointer">
@@ -252,9 +325,13 @@ export function CreateHiringDialog({
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto no-scrollbar">
         <DialogHeader>
-          <DialogTitle>Create Hiring Requisition</DialogTitle>
+          <DialogTitle>
+            {editData ? "Edit Hiring Requisition" : "Create Hiring Requisition"}
+          </DialogTitle>
           <DialogDescription>
-            Create a new job opening or hiring requisition
+            {editData
+              ? "Update the job opening details"
+              : "Create a new job opening or hiring requisition"}
           </DialogDescription>
         </DialogHeader>
 
@@ -399,13 +476,19 @@ export function CreateHiringDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Requisition"}
+              {isSubmitting
+                ? editData
+                  ? "Updating..."
+                  : "Creating..."
+                : editData
+                  ? "Update Requisition"
+                  : "Create Requisition"}
             </Button>
           </DialogFooter>
         </form>

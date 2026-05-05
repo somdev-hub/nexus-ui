@@ -46,6 +46,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CreateHiringDialog } from "@/components/create-hiring-dialog";
 import {
   getRecruitmentDetails,
   getRecruitmentApplicants,
@@ -117,6 +118,9 @@ function RecruitmentDetail() {
   const [showApplicantDetail, setShowApplicantDetail] = useState(false);
   const [applicantDetailLoading, setApplicantDetailLoading] = useState(false);
 
+  // Edit dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+
   // Debounce timer ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -178,7 +182,6 @@ function RecruitmentDetail() {
       getRecruitmentApplicants(recruitment.recruitmentId, {
         pageNo: applicantsPage,
         pageSize: pageSize
-        
       })
         .then((data) => setApplicants(data))
         .catch((error) => {
@@ -203,7 +206,7 @@ function RecruitmentDetail() {
   ]);
 
   const fetchApplicants = () => {
-    if (showApplicantsDialog &&recruitment) {
+    if (showApplicantsDialog && recruitment) {
       setApplicantsLoading(true);
       getRecruitmentApplicants(recruitment.recruitmentId, {
         pageNo: applicantsPage,
@@ -327,16 +330,11 @@ function RecruitmentDetail() {
             </p>
           </div>
         </div>
-        <Badge
-          variant="secondary"
-          className={hiringStatusTone[recruitment.hiringStatus] || ""}
-        >
-          {recruitment.hiringStatus}
-        </Badge>
+       <Button variant="outline">Share</Button>
       </div>
 
       {/* Key Information Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-co  ls-4">
         <Card className="p-4 gap-2 shadow-sm">
           <CardHeader className="p-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -506,7 +504,12 @@ function RecruitmentDetail() {
             <Button className="w-full" size="lg" onClick={handleViewApplicants}>
               View Applicants
             </Button>
-            <Button variant="outline" className="w-full" size="lg">
+            <Button
+              variant="outline"
+              className="w-full"
+              size="lg"
+              onClick={() => setShowEditDialog(true)}
+            >
               Edit Requisition
             </Button>
           </div>
