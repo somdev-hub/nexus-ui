@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
+import ChatDialog from "./chat/ChatDialog";
+import { useState } from "react";
 
 const data = {
   user: {
@@ -128,6 +130,7 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
   const { isMobile } = useSidebar();
   const pathname = usePathname();
   const { items, label, showHeader, showActions } = section;
+  const [openChatDialog, setOpenChatDialog] = useState(false);
 
   const isActive = (url: string) => {
     if (url === "/hr") {
@@ -154,6 +157,7 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
                 </SidebarMenuButton>
               </Link>
               <Button
+                onClick={() => setOpenChatDialog(true)}
                 size="icon"
                 className="size-8 group-data-[collapsible=icon]:opacity-0"
                 variant="outline"
@@ -230,6 +234,8 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
           </SidebarMenuItem>
         )}
       </SidebarMenu>
+
+      <ChatDialog showDialog={openChatDialog} setOpenChatDialog={setOpenChatDialog} />
     </SidebarGroup>
   );
 }
@@ -340,6 +346,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           }
         />
       </SidebarFooter>
+
+      
     </Sidebar>
   );
 }

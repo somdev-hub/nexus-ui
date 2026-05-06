@@ -129,9 +129,9 @@ export function LeaveTypeRadarChart({
   const chartData = transformApiData(data);
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 gap-2">
       <CardHeader className="p-0">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-0">
           <div>
             <CardTitle>Leave Type Distribution</CardTitle>
             <CardDescription>Employees by leave type</CardDescription>
@@ -153,7 +153,7 @@ export function LeaveTypeRadarChart({
           </Select>
         </div>
       </CardHeader>
-      <CardContent className="p-0 mt-4">
+      <CardContent className="p-0 mt-2">
         {isLoading ? (
           <div className="flex items-center justify-center h-75">
             <p className="text-gray-500">Loading...</p>

@@ -43,10 +43,15 @@ import {
   X,
   Filter,
   Check,
-  AlertCircle
+  AlertCircle,
+  Share,
+  Copy,
+  Facebook,
+  Linkedin,
+  Mail,
+  Twitter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { CreateHiringDialog } from "@/components/create-hiring-dialog";
 import {
   getRecruitmentDetails,
   getRecruitmentApplicants,
@@ -118,8 +123,8 @@ function RecruitmentDetail() {
   const [showApplicantDetail, setShowApplicantDetail] = useState(false);
   const [applicantDetailLoading, setApplicantDetailLoading] = useState(false);
 
-  // Edit dialog state
-  const [showEditDialog, setShowEditDialog] = useState(false);
+  // Share popover state
+  const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
 
   // Debounce timer ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -285,6 +290,63 @@ function RecruitmentDetail() {
     setApplicantsPage(0);
   };
 
+  const getShareUrl = () => {
+    if (typeof window !== "undefined") {
+      return window.location.href;
+    }
+    return "";
+  };
+
+  const handleCopyLink = async () => {
+    const shareUrl = getShareUrl();
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: "Link copied!",
+        description: "Recruitment link copied to clipboard."
+      });
+    } catch {
+      toast({
+        title: "Failed to copy",
+        description: "Could not copy link to clipboard.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleShareSocial = (
+    platform: "facebook" | "twitter" | "linkedin" | "email"
+  ) => {
+    const shareUrl = getShareUrl();
+    const title = `Check out this job opening: ${recruitment?.title}`;
+    const description = recruitment?.shortDescription || "";
+
+    let url = "";
+
+    switch (platform) {
+      case "facebook":
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(title)}`;
+        break;
+      case "twitter":
+        url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(title)}`;
+        break;
+      case "linkedin":
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+        break;
+      case "email":
+        url = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(description + "\n\n" + shareUrl)}`;
+        break;
+    }
+
+    if (url) {
+      if (platform === "email") {
+        window.location.href = url;
+      } else {
+        window.open(url, "_blank", "width=600,height=400");
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -330,11 +392,96 @@ function RecruitmentDetail() {
             </p>
           </div>
         </div>
-       <Button variant="outline">Share</Button>
+        <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2 cursor-pointer">
+              <Share className="h-4 w-4" />
+              Share recruitment
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold mb-2">
+                  Share this recruitment
+                </h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Copy the link or share on social media
+                </p>
+              </div>
+
+              {/* Copy Link Section */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-lg border">
+                  <input
+                    type="text"
+                    value={getShareUrl()}
+                    readOnly
+                    className="flex-1 bg-transparent text-xs outline-none truncate"
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCopyLink}
+                    className="h-6 w-6 p-0 cursor-pointer group"
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="h-3.5 w-3.5 hover:scale-110 transition-transform" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Social Media Share Buttons */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Share on social media
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleShareSocial("facebook")}
+                    title="Share on Facebook"
+                    className="h-10 w-full"
+                  >
+                    <Facebook className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleShareSocial("twitter")}
+                    title="Share on Twitter"
+                    className="h-10 w-full"
+                  >
+                    <Twitter className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleShareSocial("linkedin")}
+                    title="Share on LinkedIn"
+                    className="h-10 w-full"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleShareSocial("email")}
+                    title="Share via Email"
+                    className="h-10 w-full"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Key Information Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-co  ls-4">
+      {/* <div className="grid gap-4 md:grid-cols-2 lg:grid-co  ls-4">
         <Card className="p-4 gap-2 shadow-sm">
           <CardHeader className="p-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -389,7 +536,7 @@ function RecruitmentDetail() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </div> */}
 
       {/* Main Content */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -433,6 +580,22 @@ function RecruitmentDetail() {
               <CardTitle className="text-base">Quick Details</CardTitle>
             </CardHeader>
             <CardContent className="p-0 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase">
+                  Role
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {recruitment.roleName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase">
+                  Department
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {recruitment.departmentName}
+                </p>
+              </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase">
                   Total Compensation
