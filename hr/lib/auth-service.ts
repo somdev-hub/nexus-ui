@@ -1,3 +1,4 @@
+import { LeaveType } from './../types/index';
 import GlobalConfig from "@/global.config";
 import apiClient, { apiClientMultipart } from "@/lib/api-client";
 import type {

@@ -8,9 +8,13 @@ import { useEffect, useRef } from "react";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
+  typingUsers?: Set<string>;
 }
 
-export function ChatMessages({ messages }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  typingUsers = new Set()
+}: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,7 +50,7 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
   return (
     <ScrollArea className="flex-1 h-72 w-full bg-muted/30">
       <div className="p-4">
-        {Object.entries(groupedMessages).map(([date, msgs],i) => (
+        {Object.entries(groupedMessages).map(([date, msgs], i) => (
           <div key={i} className="mb-6">
             <div className="flex items-center gap-4 mb-4">
               <Separator className="flex-1" />
@@ -56,12 +60,26 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
               <Separator className="flex-1" />
             </div>
             <div className="flex flex-col gap-3">
-              {msgs.map((msg,i) => (
+              {msgs.map((msg, i) => (
                 <MessageBubble key={i} message={msg} />
               ))}
             </div>
           </div>
         ))}
+        {typingUsers.size > 0 && (
+          <div className="flex items-center gap-2 py-2">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" />
+              <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100" />
+              <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-200" />
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {typingUsers.size === 1
+                ? "Someone is typing..."
+                : `${typingUsers.size} people are typing...`}
+            </span>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
     </ScrollArea>
