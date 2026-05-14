@@ -17,8 +17,7 @@ import {
   IconClock,
   IconMoneybag,
   IconClipboard,
-  IconMessageCircle,
-  type Icon
+  IconMessageCircle
 } from "@tabler/icons-react";
 
 import { NavUser } from "@/components/nav-user";
@@ -47,7 +46,7 @@ import {
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 import ChatDialog from "./chat/ChatDialog";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const data = {
   user: {
@@ -111,7 +110,7 @@ const data = {
 interface SidebarNavItem {
   title: string;
   url: string;
-  icon?: Icon;
+  icon?: React.ElementType;
 }
 
 interface SidebarSection {
@@ -124,13 +123,19 @@ interface SidebarSection {
 
 interface SidebarNavSectionProps {
   section: SidebarSection;
+  onOpenChat?: () => void; // Optional callback for opening chat
 }
 
-function SidebarNavSection({ section }: SidebarNavSectionProps) {
+const SidebarNavSection = React.memo(({ section, onOpenChat }: SidebarNavSectionProps) => {
   const { isMobile } = useSidebar();
   const pathname = usePathname();
   const { items, label, showHeader, showActions } = section;
-  const [openChatDialog, setOpenChatDialog] = useState(false);
+  const parentRenderCount = useRef(0);
+
+  useEffect(() => {
+    parentRenderCount.current++;
+    console.log(`🔁 Parent render #${parentRenderCount.current}`);
+  }, []);
 
   const isActive = (url: string) => {
     if (url === "/hr") {
@@ -157,7 +162,7 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
                 </SidebarMenuButton>
               </Link>
               <Button
-                onClick={() => setOpenChatDialog(true)}
+                onClick={() => onOpenChat?.()}
                 size="icon"
                 className="size-8 group-data-[collapsible=icon]:opacity-0"
                 variant="outline"
@@ -235,71 +240,130 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
         )}
       </SidebarMenu>
 
-      <ChatDialog showDialog={openChatDialog} setOpenChatDialog={setOpenChatDialog} />
+      
     </SidebarGroup>
   );
-}
+});
+
+SidebarNavSection.displayName = "SidebarNavSection";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  console.log("🔁 AppSidebar render", new Date().getTime());
   const { user, isAuthenticated } = useAuth();
 
+  const [openChatDialog, setOpenChatDialog] = useState(false);
+
+
+  // ✅ Stable callback — won't change between renders
+  const handleOpenChat = React.useCallback(() => setOpenChatDialog(true), []);
+
   // Filter sidebar sections based on user role
-  const filteredSections = isAuthenticated
-    ? data.sidebarSections.filter((section) => {
-        if (!user) return false;
+  const filteredSections = useMemo(() => {
+    if (!isAuthenticated || !user) {
+      return [];
+    }
+    const roleAccess: Record<string, string[]> = {
+      ROLE_ADMIN: ["main", "Products", "materials", "partnerships", "hr"],
+      ROLE_DIRECTOR: ["main", "Products", "materials", "partnerships", "hr"],
+      ROLE_PRODUCT_MANAGER: [
+        "main",
+        "Products",
+        "materials",
+        "partnerships",
+        "hr"
+      ],
+      ROLE_ACCOUNT_MANAGER: [
+        "main",
+        "Products",
+        "materials",
+        "partnerships",
+        "hr"
+      ],
+      ROLE_OPERATION_MANAGER: [
+        "main",
+        "Products",
+        "materials",
+        "partnerships",
+        "hr"
+      ],
+      ROLE_WAREHOUSE_MANAGER: [
+        "main",
+        "Products",
+        "materials",
+        "partnerships",
+        "hr"
+      ],
+      ROLE_FLEET_MANAGER: [
+        "main",
+        "Products",
+        "materials",
+        "partnerships",
+        "hr"
+      ],
+      CLERK: ["main", "Products", "materials", "partnerships", "hr"],
+      DRIVER: ["main", "Products", "materials", "partnerships", "hr"]
+    };
 
-        // All roles have access to all sections
-        const roleAccess: Record<string, string[]> = {
-          ROLE_ADMIN: ["main", "Products", "materials", "partnerships", "hr"],
-          ROLE_DIRECTOR: [
-            "main",
-            "Products",
-            "materials",
-            "partnerships",
-            "hr"
-          ],
-          ROLE_PRODUCT_MANAGER: [
-            "main",
-            "Products",
-            "materials",
-            "partnerships",
-            "hr"
-          ],
-          ROLE_ACCOUNT_MANAGER: [
-            "main",
-            "Products",
-            "materials",
-            "partnerships",
-            "hr"
-          ],
-          ROLE_OPERATION_MANAGER: [
-            "main",
-            "Products",
-            "materials",
-            "partnerships",
-            "hr"
-          ],
-          ROLE_WAREHOUSE_MANAGER: [
-            "main",
-            "Products",
-            "materials",
-            "partnerships",
-            "hr"
-          ],
-          ROLE_FLEET_MANAGER: [
-            "main",
-            "Products",
-            "materials",
-            "partnerships",
-            "hr"
-          ],
-          CLERK: ["main", "Products", "materials", "partnerships", "hr"],
-          DRIVER: ["main", "Products", "materials", "partnerships", "hr"]
-        };
+    return data.sidebarSections.filter((section) =>
+      roleAccess[user.role]?.includes(section.id)
+    );
+  }, [isAuthenticated, user]);
+  // isAuthenticated
+  //   ? data.sidebarSections.filter((section) => {
+  //       if (!user) return false;
 
-        return roleAccess[user.role]?.includes(section.id) ?? false;
-      })
-    : []; // Empty array if not authenticated
+  //       // All roles have access to all sections
+  //       const roleAccess: Record<string, string[]> = {
+  //         ROLE_ADMIN: ["main", "Products", "materials", "partnerships", "hr"],
+  //         ROLE_DIRECTOR: [
+  //           "main",
+  //           "Products",
+  //           "materials",
+  //           "partnerships",
+  //           "hr"
+  //         ],
+  //         ROLE_PRODUCT_MANAGER: [
+  //           "main",
+  //           "Products",
+  //           "materials",
+  //           "partnerships",
+  //           "hr"
+  //         ],
+  //         ROLE_ACCOUNT_MANAGER: [
+  //           "main",
+  //           "Products",
+  //           "materials",
+  //           "partnerships",
+  //           "hr"
+  //         ],
+  //         ROLE_OPERATION_MANAGER: [
+  //           "main",
+  //           "Products",
+  //           "materials",
+  //           "partnerships",
+  //           "hr"
+  //         ],
+  //         ROLE_WAREHOUSE_MANAGER: [
+  //           "main",
+  //           "Products",
+  //           "materials",
+  //           "partnerships",
+  //           "hr"
+  //         ],
+  //         ROLE_FLEET_MANAGER: [
+  //           "main",
+  //           "Products",
+  //           "materials",
+  //           "partnerships",
+  //           "hr"
+  //         ],
+  //         CLERK: ["main", "Products", "materials", "partnerships", "hr"],
+  //         DRIVER: ["main", "Products", "materials", "partnerships", "hr"]
+  //       };
+
+  //       return roleAccess[user.role]?.includes(section.id) ?? false;
+  //     })
+  //   : []; // Empty array if not authenticated
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -321,7 +385,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {filteredSections.length > 0 ? (
           filteredSections.map((section) => (
-            <SidebarNavSection key={section.id} section={section} />
+            <SidebarNavSection key={section.id} section={section} onOpenChat={handleOpenChat} />
           ))
         ) : (
           <div className="p-4 text-center text-sm text-muted-foreground">
@@ -346,8 +410,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           }
         />
       </SidebarFooter>
-
-      
+      <ChatDialog
+        showDialog={openChatDialog}
+        setOpenChatDialog={setOpenChatDialog}
+      />
     </Sidebar>
   );
 }

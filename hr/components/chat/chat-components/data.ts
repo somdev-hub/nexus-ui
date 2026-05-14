@@ -114,6 +114,7 @@ export const messages: Record<string, ChatMessage[]> = {
 };
 
 export function getInitials(name: string): string {
+  if(!name) return "";
   return name
     .split(" ")
     .map((part) => part[0])
@@ -164,18 +165,34 @@ export async function fetchConversations(
 ): Promise<ChatConversation[]> {
   try {
     const response = await chatApiService.getConversations(orgId);
-    return response.content.map(
-      (conv) =>
-        ({
-          ...conv,
-          type: conv.type || "DIRECT",
-          isGroup: conv.type === "GROUP",
-          participants: conv.participants || [],
-          avatar:
-            conv.avatar ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.name}`
-        }) as ChatConversation
-    );
+    return response.content.map((conv) => {
+      const participants = (conv.participants || []).map((p: any) => ({
+        id: String(p.userId),
+        name: p.userName || "",
+        avatar: undefined,
+        status: p.isActive ? "online" : "offline"
+      }));
+
+      return {
+        id: String(conv.id),
+        name: conv.name || "",
+        type: conv.type || "DIRECT",
+        isGroup: conv.type === "GROUP",
+        participants,
+        participantIds: conv.participantIds || [],
+        avatar:
+          (conv.avatar as string) ||
+          (participants[0]
+            ? undefined
+            : `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.name}`),
+        lastMessage: conv.lastMessage || null,
+        lastMessageTime: conv.lastMessageAt
+          ? new Date(conv.lastMessageAt)
+          : undefined,
+        unreadCount: conv.unreadCount || 0,
+        orgId: conv.orgId
+      } as ChatConversation;
+    });
   } catch (error) {
     console.error("Failed to fetch conversations:", error);
     return mockConversations;
@@ -184,10 +201,13 @@ export async function fetchConversations(
 
 export async function fetchMessages(
   conversationId: string,
-  orgId: string 
+  orgId: string
 ): Promise<ChatMessage[]> {
   try {
-    const response = await chatApiService.getMessages(conversationId, orgId);
+    const response = await chatApiService.getMessages(
+      conversationId,
+      Number(orgId)
+    );
     return response.content.map(
       (msg, index) =>
         ({

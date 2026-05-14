@@ -231,7 +231,7 @@ export default function HRDashboard() {
     return () => {
       isActive = false;
     };
-  }, [orgId, toast]);
+  }, [orgId]);
 
   useEffect(() => {
     let isActive = true;

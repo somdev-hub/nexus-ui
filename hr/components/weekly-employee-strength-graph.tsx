@@ -2,6 +2,7 @@
 
 import { TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import * as React from "react";
 
 import {
   Card,
@@ -46,7 +47,15 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export function WeeklyEmployeeStrengthChart() {
+const chartMargin = {
+  left: 14,
+  right: 14,
+  top: 10
+};
+
+const formatTickLabel = (value: string) => value.slice(0, 3);
+
+const WeeklyEmployeeStrengthChartContent = () => {
   return (
     <Card className="p-4 w-full">
       <CardHeader className="p-0">
@@ -60,11 +69,7 @@ export function WeeklyEmployeeStrengthChart() {
           <AreaChart
             accessibilityLayer
             data={employeeStrengthData}
-            margin={{
-              left: 14,
-              right: 14,
-              top: 10
-            }}
+            margin={chartMargin}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -72,7 +77,7 @@ export function WeeklyEmployeeStrengthChart() {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
+              tickFormatter={formatTickLabel}
             />
             <ChartTooltip
               cursor={false}
@@ -84,6 +89,7 @@ export function WeeklyEmployeeStrengthChart() {
               fill="var(--color-desktop)"
               fillOpacity={0.4}
               stroke="var(--color-desktop)"
+              isAnimationActive={false}
             />
           </AreaChart>
         </ChartContainer>
@@ -102,4 +108,8 @@ export function WeeklyEmployeeStrengthChart() {
       </CardFooter>
     </Card>
   );
-}
+};
+
+export const WeeklyEmployeeStrengthChart = React.memo(
+  WeeklyEmployeeStrengthChartContent
+);

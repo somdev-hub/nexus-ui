@@ -21,10 +21,10 @@ export function ChatHeader({
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="relative shrink-0">
           <Avatar className="size-9">
-            <AvatarImage src={conversation.avatar} alt={conversation.name} />
-            <AvatarFallback>{getInitials(conversation.name)}</AvatarFallback>
+            <AvatarImage src={conversation?.avatar} alt={conversation?.name} />
+            <AvatarFallback>{getInitials(conversation?.name)}</AvatarFallback>
           </Avatar>
-          {conversation.participants.length > 0 && (
+          {conversation?.participants.length > 0 && (
             <span
               className={cn(
                 "absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card",
@@ -34,11 +34,11 @@ export function ChatHeader({
           )}
         </div>
         <div className="min-w-0">
-          <h2 className="font-medium text-sm truncate">{conversation.name}</h2>
+          <h2 className="font-medium text-sm truncate">{conversation?.name}</h2>
           <p className="text-xs text-muted-foreground">
-            {conversation.isGroup
-              ? `${conversation.participants.length} members`
-              : conversation.participants[0]?.status === "online"
+            {conversation?.isGroup
+              ? `${conversation?.participants.length} members`
+              : conversation?.participants[0]?.status === "online"
                 ? "Active now"
                 : "Offline"}
           </p>

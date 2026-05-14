@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatHeader } from "./chat-header";
 import { ChatMessages } from "./chat-messages";
@@ -8,26 +8,124 @@ import { MessageInput } from "./message-input";
 import { ChatEmptyState } from "./empty-state";
 import { UserSearchDialog } from "./user-search-dialog";
 import {
-  conversations as initialConversations,
   messages as initialMessages,
   ChatMessageType
 } from "./data";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useChatWebSocket } from "@/hooks/use-chat-websocket";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { chatApiService } from "@/lib/chat-api";
 
-export function ChatInterface({userId = "0", orgId = "0" }: { orgId?: string, userId?: string }) {
+export function ChatInterface({
+  userId = "0",
+  orgId = "0"
+}: {
+  orgId?: string;
+  userId?: string;
+}) {
+  console.log("🔁 RENDER");
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
   const [chatMessages, setChatMessages] = useState(initialMessages);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [conversationError, setConversationError] = useState<string | null>(null);
 
-  // Use initialConversations directly (in a real app, this would come from API)
-  const conversations = initialConversations;
+  // Store state values in refs for callbacks to access without dependencies
+  const selectedConvRef = useRef<string | null>(null);
+
+  console.log(
+    "🔁 ChatInterface re-rendered, selectedConversationId:",
+    selectedConversationId
+  );
+
+  // Fetch conversations on component mount
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        setIsLoadingConversations(true);
+        setConversationError(null);
+        const numOrgId = parseInt(orgId, 10) || 0;
+        const numUserId=parseInt(userId) || 0;
+        const result = await chatApiService.getConversations(numOrgId, numUserId);
+        setConversations(result?.content || []);
+      } catch (error) {
+        console.error("Failed to fetch conversations:", error);
+        setConversationError("Failed to load conversations");
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    };
+
+    fetchConversations();
+  }, [orgId]);
+
+  // Update refs when state changes
+  useEffect(() => {
+    selectedConvRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  // Callbacks that never change - they use refs instead of closures
+  // ✅ Create ref with empty object once
+  const callbacksRef = useRef<{
+    onMessageReceived?: (message: any) => void;
+    onTypingStatusChanged?: (isTyping: boolean, userId: string) => void;
+    onPresenceChanged?: (event: "joined" | "left", userId: string) => void;
+    onError?: (error: string) => void;
+  }>({
+    // ✅ FIX ISSUE #8: Initialize with placeholder functions to prevent stale closures
+    onMessageReceived: () => {},
+    onTypingStatusChanged: () => {},
+    onPresenceChanged: () => {},
+    onError: () => {}
+  });
+
+  // ✅ Update .current ONLY on mount to prevent infinite reconnects
+  useEffect(() => {
+    callbacksRef.current = {
+      onMessageReceived: (message: any) => {
+        const convId = selectedConvRef.current;
+        if (convId) {
+          setChatMessages((prev) => ({
+            ...prev,
+            [convId]: [
+              ...(prev[convId] || []),
+              {
+                id: message.id || `m${Date.now()}`,
+                senderId: message.senderId,
+                senderName: message.senderName || "Unknown",
+                content: message.content,
+                timestamp: new Date(message.timestamp || Date.now()),
+                isOwn: message.isOwn || false,
+                status: message.status
+              }
+            ]
+          }));
+        }
+      },
+      onTypingStatusChanged: (isTyping: boolean, userId: string) => {
+        setTypingUsers((prev) => {
+          const updated = new Set(prev);
+          if (isTyping) {
+            updated.add(userId);
+          } else {
+            updated.delete(userId);
+          }
+          return updated;
+        });
+      },
+      onPresenceChanged: (event: "joined" | "left", userId: string) => {
+        console.log(`User ${userId} ${event} the conversation`);
+      },
+      onError: (error: string) => {
+        console.error("Chat error:", error);
+      }
+    };
+  }, []);
 
   const selectedConversation = conversations.find(
     (c) => c.id === selectedConversationId
@@ -45,6 +143,9 @@ export function ChatInterface({userId = "0", orgId = "0" }: { orgId?: string, us
   };
 
   // WebSocket hook for real-time messaging
+  // ✅ Pass null-safe stable value
+  const activeConversationId = selectedConversationId ?? "";
+
   const {
     isConnected,
     connectionError: wsError,
@@ -54,45 +155,9 @@ export function ChatInterface({userId = "0", orgId = "0" }: { orgId?: string, us
     notifyLeft
   } = useChatWebSocket({
     userId,
-    conversationId: selectedConversationId || "",
+    conversationId: activeConversationId,
     orgId,
-    onMessageReceived: (message) => {
-      // Add received message to chat
-      if (selectedConversationId) {
-        setChatMessages((prev) => ({
-          ...prev,
-          [selectedConversationId]: [
-            ...(prev[selectedConversationId] || []),
-            {
-              id: message.id || `m${Date.now()}`,
-              senderId: message.senderId,
-              senderName: message.senderName || "Unknown",
-              content: message.content,
-              timestamp: new Date(message.timestamp || Date.now()),
-              isOwn: message.isOwn || false,
-              status: message.status
-            }
-          ]
-        }));
-      }
-    },
-    onTypingStatusChanged: (isTyping, userId) => {
-      setTypingUsers((prev) => {
-        const updated = new Set(prev);
-        if (isTyping) {
-          updated.add(userId);
-        } else {
-          updated.delete(userId);
-        }
-        return updated;
-      });
-    },
-    onPresenceChanged: (event, userId) => {
-      console.log(`User ${userId} ${event} the conversation`);
-    },
-    onError: (error) => {
-      console.error("Chat error:", error);
-    }
+    callbacksRef
   });
 
   const handleSendMessage = (content: string) => {
@@ -146,22 +211,18 @@ export function ChatInterface({userId = "0", orgId = "0" }: { orgId?: string, us
 
   return (
     <div className="flex w-full h-full bg-background flex-col">
-      {/* Error Alert */}
-      {wsError && (
-        <Alert variant="destructive" className="m-2 rounded-md">
+      {/* Error Alerts */}
+      {conversationError && (
+        <div className="m-2 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{wsError}</AlertDescription>
-        </Alert>
+          {conversationError}
+        </div>
       )}
-
-      {/* Connection Status */}
-      {!isConnected && !wsError && selectedConversationId && (
-        <Alert variant="default" className="m-2 rounded-md bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-700">
-            Reconnecting to chat...
-          </AlertDescription>
-        </Alert>
+      {wsError && (
+        <div className="m-2 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          {wsError}
+        </div>
       )}
 
       <div className="flex w-full h-full">
@@ -232,6 +293,7 @@ export function ChatInterface({userId = "0", orgId = "0" }: { orgId?: string, us
         onOpenChange={setIsSearchDialogOpen}
         onUserSelected={handleNewConversation}
         orgId={orgId}
+        userId={userId}
       />
     </div>
   );

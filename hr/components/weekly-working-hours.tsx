@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
@@ -46,7 +47,9 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export function WeeklyWorkingHoursChart() {
+const formatTickLabel = (value: string) => value.slice(0, 3);
+
+const WeeklyWorkingHoursChartContent = () => {
   return (
     <Card className="p-4 w-full">
       <CardHeader className="p-0">
@@ -62,13 +65,18 @@ export function WeeklyWorkingHoursChart() {
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tickFormatter={(value) => value.slice(0, 3)}
+              tickFormatter={formatTickLabel}
             />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent hideLabel />}
             />
-            <Bar dataKey="hours" fill="var(--color-desktop)" radius={8} />
+            <Bar
+              dataKey="hours"
+              fill="var(--color-desktop)"
+              radius={8}
+              isAnimationActive={false}
+            />
           </BarChart>
         </ChartContainer>
       </CardContent>
@@ -82,4 +90,8 @@ export function WeeklyWorkingHoursChart() {
       </CardFooter>
     </Card>
   );
-}
+};
+
+export const WeeklyWorkingHoursChart = React.memo(
+  WeeklyWorkingHoursChartContent
+);

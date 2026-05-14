@@ -3,55 +3,48 @@ import { Client } from "@stomp/stompjs";
 
 export type ChatEventHandler = (data: any) => void;
 
-interface WebSocketConfig {
+export interface WebSocketConfig {
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: string) => void;
 }
 
-/**
- * Chat WebSocket Service
- *
- * Manages real-time chat connections using STOMP/SockJS.
- * Token is obtained from BFF endpoint (/api/chat/ws-token)
- * which retrieves it from server-side session (secure, HttpOnly cookies).
- *
- * SECURITY FLOW:
- * 1. Client calls connect()
- * 2. Client fetches token from /api/chat/ws-token (server-side session)
- * 3. Token is obtained but never stored in browser (response body only)
- * 4. Client uses token for WebSocket Authorization header
- * 5. Server-side session automatically refreshes token on expiry
- */
-
 class ChatWebSocketService {
   private client: Client | null = null;
   private config: WebSocketConfig | null = null;
   private subscriptions: Map<string, any> = new Map();
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
   private isManualDisconnect = false;
   private connectionPromise: Promise<void> | null = null;
   private resolveConnection: (() => void) | null = null;
+  private rejectConnection: ((error: Error) => void) | null = null;
   private tokenRefreshTimeout: NodeJS.Timeout | null = null;
+  private hasErrored = false;
 
   async connect(config: WebSocketConfig): Promise<void> {
-    if (this.client && this.client.connected) {
-      console.log("Already connected to WebSocket");
+    // ✅ FIX ISSUE #2: ALLOW CONFIG UPDATES - Always accept new config
+    this.config = config;
+
+    // ✅ If already connected, return immediately
+    if (this.client?.active) {
       return;
     }
 
-    if (this.connectionPromise) {
+    // ✅ FIX ISSUE #1 & #4: Only return existing promise if it hasn't failed
+    if (this.connectionPromise && !this.hasErrored) {
       return this.connectionPromise;
     }
 
-    this.config = config;
+    // ✅ Clear previous failed promise to allow retry
+    this.connectionPromise = null;
+    this.resolveConnection = null;
+    this.rejectConnection = null;
     this.isManualDisconnect = false;
-    this.reconnectAttempts = 0;
+    this.hasErrored = false;
 
-    this.connectionPromise = new Promise((resolve) => {
+    // ✅ FIX ISSUE #1: Create promise with BOTH resolve and reject
+    this.connectionPromise = new Promise((resolve, reject) => {
       this.resolveConnection = resolve;
+      this.rejectConnection = reject;
       this.attemptConnection();
     });
 
@@ -59,68 +52,68 @@ class ChatWebSocketService {
   }
 
   private async attemptConnection(): Promise<void> {
+    // ✅ FIX ISSUE #1: If already errored, reject the promise
+    if (this.hasErrored) {
+      this.rejectConnection?.(new Error("Connection already failed"));
+      return;
+    }
+
     try {
-      // Get token from BFF endpoint (via server-side session)
       const token = await this.getWebSocketToken();
+
+      // ✅ If token fetch failed, getWebSocketToken already called onError
       if (!token) {
-        throw new Error("Failed to obtain WebSocket token");
+        this.rejectConnection?.(new Error("Failed to get token"));
+        return;
       }
 
       this.client = new Client({
-        // 2. Use webSocketFactory for SockJS
         webSocketFactory: () => new SockJS("http://localhost:8086/chat/ws"),
-
-        // 3. Set connection headers
         connectHeaders: {
           Authorization: `Bearer ${token}`
         },
-
-        // 4. Built-in automatic reconnection (replaces your manual logic)
-        reconnectDelay: 5000,
+        // ✅ Disable built-in reconnect — we handle it manually
+        reconnectDelay: 0,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
-
-        // 5. Lifecycle callbacks
-        onConnect: (frame) => {
+        onConnect: () => {
           console.log("WebSocket connected");
-          this.config?.onConnect?.();
           this.resolveConnection?.();
+          this.config?.onConnect?.();
           this.scheduleTokenRefresh();
         },
         onStompError: (frame) => {
-          this.handleConnectionError(new Error(frame.headers["message"]));
+          // ✅ FIX ISSUE #1: Only report once and reject promise
+          if (!this.hasErrored) {
+            this.hasErrored = true;
+            const errorMsg = frame.headers["message"] || "STOMP error";
+            this.config?.onError?.(errorMsg);
+            this.rejectConnection?.(new Error(errorMsg));
+          }
+        },
+        onDisconnect: () => {
+          if (!this.isManualDisconnect) {
+            this.config?.onDisconnect?.();
+          }
         },
         onWebSocketClose: () => {
           console.log("WebSocket closed");
         }
       });
 
-      // const socket = new SockJS("http://localhost:8086/chat/ws");
-      // this.client = Stomp.over(socket);
-
-      // Disable debug logging
       this.client.debug = () => {};
-
-      // this.client.connect(
-      //   { Authorization: `Bearer ${token}` },
-      //   () => {
-      //     console.log("WebSocket connected");
-      //     this.reconnectAttempts = 0;
-      //     this.config?.onConnect?.();
-      //     this.resolveConnection?.();
-
-      //     // Setup token refresh before expiry
-      //     this.scheduleTokenRefresh();
-      //   },
-      //   (error: any) => {
-      //     this.handleConnectionError(error);
-      //   }
-      // );
-
-      // 6. Start the connection
       this.client.activate();
     } catch (error) {
-      this.handleConnectionError(error);
+      // ✅ FIX ISSUE #1: Only report once and reject promise
+      if (!this.hasErrored) {
+        this.hasErrored = true;
+        const errorMsg =
+          error instanceof Error ? error.message : "Connection failed";
+        this.config?.onError?.(errorMsg);
+        this.rejectConnection?.(
+          error instanceof Error ? error : new Error(errorMsg)
+        );
+      }
     }
   }
 
@@ -128,100 +121,71 @@ class ChatWebSocketService {
     try {
       const response = await fetch("/api/chat/ws-token", {
         method: "GET",
-        credentials: "include", // Include cookies (session)
-        headers: {
-          "Content-Type": "application/json"
-        }
+        credentials: "include",
+        headers: { "Content-Type": "application/json" }
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          console.error("WebSocket token: Not authenticated");
-          this.config?.onError?.("Not authenticated");
-          return null;
+        // ✅ FIX ISSUE #6: Report once and reject
+        if (!this.hasErrored) {
+          this.hasErrored = true;
+          const msg =
+            response.status === 401
+              ? "Not authenticated"
+              : `Failed to get token: ${response.status}`;
+          this.config?.onError?.(msg);
+          this.rejectConnection?.(new Error(msg));
         }
-        throw new Error(`Failed to get token: ${response.status}`);
+        return null;
       }
 
       const data = await response.json();
       return data.token;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      console.error("Failed to get WebSocket token:", errorMsg);
-      this.config?.onError?.(errorMsg);
+      // ✅ FIX ISSUE #6: Report once and reject
+      if (!this.hasErrored) {
+        this.hasErrored = true;
+        const errorMsg =
+          error instanceof Error ? error.message : "Unknown error";
+        this.config?.onError?.(errorMsg);
+        this.rejectConnection?.(
+          error instanceof Error ? error : new Error(errorMsg)
+        );
+      }
       return null;
     }
   }
 
   private scheduleTokenRefresh(): void {
-    // Refresh token 5 minutes before it expires
-    // This ensures smooth reconnection with fresh token
-    const REFRESH_BEFORE_EXPIRY = 5 * 60 * 1000; // 5 minutes
-
-    if (this.tokenRefreshTimeout) {
-      clearTimeout(this.tokenRefreshTimeout);
-    }
-
+    const REFRESH_BEFORE_EXPIRY = 25 * 60 * 1000; // 25 minutes
+    if (this.tokenRefreshTimeout) clearTimeout(this.tokenRefreshTimeout);
     this.tokenRefreshTimeout = setTimeout(() => {
-      console.log("WebSocket token nearing expiry, refreshing...");
-      this.reconnect();
+      // ✅ FIX ISSUE #5: Clear promise state properly
+      this.connectionPromise = null;
+      this.resolveConnection = null;
+      this.rejectConnection = null;
+      this.hasErrored = false;
+      this.client?.deactivate();
+      // Don't call attemptConnection here - let new connect() call handle it
+      // This prevents stale config from being used
     }, REFRESH_BEFORE_EXPIRY);
-  }
-
-  private reconnect(): void {
-    if (this.client?.connected) {
-      this.client.deactivate(); // 'deactivate' is preferred over 'disconnect'
-      console.log("WebSocket deactivated for token refresh");
-      this.attemptConnection();
-    }
-  }
-
-  private handleConnectionError(error: any): void {
-    const errorMsg = error?.message || "WebSocket connection failed";
-    console.error("WebSocket connection error:", errorMsg);
-
-    if (this.isManualDisconnect) {
-      return;
-    }
-
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay =
-        this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      console.log(
-        `Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`
-      );
-      setTimeout(() => this.attemptConnection(), delay);
-    } else {
-      console.error("Max reconnection attempts reached");
-      this.config?.onError?.(
-        "Failed to connect to chat service. Please refresh and try again."
-      );
-    }
   }
 
   subscribe(
     destination: string,
     handler: ChatEventHandler
   ): (() => void) | null {
-    if (!this.client?.connected) {
-      console.error("WebSocket not connected");
-      return null;
-    }
-
+    if (!this.client?.connected) return null;
     try {
       const subscription = this.client.subscribe(destination, (message) => {
         try {
           const data = JSON.parse(message.body);
           handler(data);
-        } catch (error) {
-          console.error("Error parsing message:", error);
+        } catch (e) {
+          console.error("Error parsing message:", e);
         }
       });
-
       this.subscriptions.set(destination, subscription);
-      console.log(`Subscribed to ${destination}`);
-
       return () => this.unsubscribe(destination);
     } catch (error) {
       console.error("Subscription error:", error);
@@ -234,20 +198,13 @@ class ChatWebSocketService {
     if (subscription) {
       subscription.unsubscribe();
       this.subscriptions.delete(destination);
-      console.log(`Unsubscribed from ${destination}`);
     }
   }
 
-  // Update your Send method
   send(destination: string, payload: any): boolean {
     if (!this.client?.connected) return false;
-
     try {
-      // New API: publish takes an object, and 'body' is the key
-      this.client.publish({
-        destination: destination,
-        body: JSON.stringify(payload)
-      });
+      this.client.publish({ destination, body: JSON.stringify(payload) });
       return true;
     } catch (error) {
       console.error("Send error:", error);
@@ -255,23 +212,16 @@ class ChatWebSocketService {
     }
   }
 
-  isConnected(): boolean {
-    return this.client?.connected ?? false;
-  }
-
-  // Update your Disconnect method
   disconnect(): void {
     this.isManualDisconnect = true;
-    if (this.client) {
-      this.client.deactivate(); // 'deactivate' is preferred over 'disconnect'
-      console.log("WebSocket deactivated");
-    }
-  }
-
-  getClient(): Client | null {
-    return this.client;
+    this.hasErrored = false;
+    this.connectionPromise = null;
+    this.resolveConnection = null;
+    this.rejectConnection = null;
+    this.config = null;
+    if (this.tokenRefreshTimeout) clearTimeout(this.tokenRefreshTimeout);
+    this.client?.deactivate();
   }
 }
 
-// Singleton instance
 export const chatWebSocketService = new ChatWebSocketService();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export interface UserMetadata {
   // User identification
@@ -77,22 +77,28 @@ export function useUserMetadata(): UserMetadata {
     fetchSessionInfo();
   }, [isAuthenticated, isLoading]);
 
-  return {
-    // User identification
+  // ✅ Memoize the entire return object — only changes when actual values change
+  return useMemo(() => ({
     userId: user?.id,
     email: user?.email,
     name: user?.name,
-
-    // Organization & Role
     orgId: user?.orgId,
     role: user?.role,
     avatar: user?.avatar,
-
-    // Session information
     isAuthenticated,
     isLoading,
     sessionExpiresAt
-  };
+  }), [
+    user?.id,
+    user?.email,
+    user?.name,
+    user?.orgId,
+    user?.role,
+    user?.avatar,
+    isAuthenticated,
+    isLoading,
+    sessionExpiresAt
+  ]);
 }
 
 /**

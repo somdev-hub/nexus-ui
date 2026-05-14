@@ -15,28 +15,33 @@ interface ChatMessage {
 }
 
 interface ChatConversation {
-  id: string;
-  name: string;
-  avatar?: string;
-  participants?: Array<{
-    id: string | number;
-    name: string;
-    avatar?: string;
-    status?: "online" | "away" | "offline";
-  }>;
-  unreadCount?: number;
+  id: number | string;
+  name?: string | null;
   type: "DIRECT" | "GROUP";
-  participantIds: number[];
-  orgId: string;
-  lastMessage?: string;
-  lastMessageAt?: Date;
-  createdAt?: Date;
+  createdBy?: number;
+  orgId?: number;
+  isActive?: boolean;
+  participantCount?: number;
+  participantIds?: number[];
+  lastMessage?: string | null;
+  lastMessageId?: number | null;
+  lastMessageAt?: string | Date | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  participants?: Array<{
+    userId: number | string;
+    userName?: string | null;
+    joinedAt?: string;
+    isActive?: boolean;
+  }>;
+  avatar?: string;
+  unreadCount?: number;
 }
 
 interface CreateConversationPayload {
   type: "DIRECT" | "GROUP";
   participantIds: number[];
-  orgId: string;
+  orgId: number;
 }
 
 interface ConversationStats {
@@ -83,11 +88,12 @@ class ChatApiService {
    */
 
   async createConversation(
-    payload: CreateConversationPayload
+    payload: CreateConversationPayload,
+    userId: string
   ): Promise<ChatConversation> {
     try {
       const response = await apiClient.post<ChatConversation>(
-        `${IAM_PATH}/chat/conversations`,
+        `${IAM_PATH}/chat/conversations?userId=${userId}`,
         payload
       );
       return response.data;
@@ -99,13 +105,13 @@ class ChatApiService {
 
   async getConversations(
     orgId: number,
+    userId?: number,
     page: number = 0,
     size: number = 50
   ): Promise<{ content: ChatConversation[] }> {
     try {
       const response = await apiClient.get<{ content: ChatConversation[] }>(
-        `${IAM_PATH}/chat/conversations?orgId=${orgId}&page=${page}&size=${size}`
-        
+        `${IAM_PATH}/chat/conversations?orgId=${orgId}&userId=${userId}&page=${page}&size=${size}`
       );
       return response.data;
     } catch (error) {
@@ -116,13 +122,13 @@ class ChatApiService {
 
   async getMessages(
     conversationId: string,
-    orgId: string,
+    orgId: number,
     page: number = 0,
     size: number = 50
   ): Promise<{ content: ChatMessage[] }> {
     try {
       const response = await apiClient.get<{ content: ChatMessage[] }>(
-        `${IAM_PATH}/chat/conversations/${conversationId}/messages?orgId=${orgId}&page=${page}&size=${size}`,
+        `${IAM_PATH}/chat/conversations/${conversationId}/messages?orgId=${orgId}&page=${page}&size=${size}`
       );
       return response.data;
     } catch (error) {
@@ -134,7 +140,7 @@ class ChatApiService {
   async sendMessage(
     userId: string,
     content: MessagePayload,
-    orgId: string
+    orgId: number
   ): Promise<ChatMessage> {
     try {
       const response = await apiClient.post<ChatMessage>(
@@ -156,7 +162,7 @@ class ChatApiService {
   ): Promise<ConversationStats> {
     try {
       const response = await apiClient.get<ConversationStats>(
-        `${IAM_PATH}/chat/conversations/${conversationId}/stats?orgId=${orgId}`,
+        `${IAM_PATH}/chat/conversations/${conversationId}/stats?orgId=${orgId}`
       );
       return response.data;
     } catch (error) {

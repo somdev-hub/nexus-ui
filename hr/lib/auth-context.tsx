@@ -1,15 +1,22 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useMemo,
+  useState
+} from "react";
 import {
   login,
   logout,
   getCurrentUser,
-  getCurrentUserFromSession,
-  User
+  getCurrentUserFromSession
 } from "./auth-service";
 import GlobalConfig from "@/global.config";
-
+import { User } from "@/types";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -21,8 +28,26 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  console.log("🔁 AuthProvider render", new Date().getTime());
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const userRef = useRef<User | null>(null);
+
+  // Keep userRef in sync with user state
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Intercept state setters to find who's calling them
+  const setUserDebug = (val: any) => {
+    console.log("🔴 setUser called", val, new Error().stack);
+    setUser(val);
+  };
+
+  const setIsLoadingDebug = (val: any) => {
+    console.log("🔴 setIsLoading called", val, new Error().stack);
+    setIsLoading(val);
+  };
 
   useEffect(() => {
     // Dummy user for development mode if disableAuth is true
@@ -35,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         orgId: "dev-org",
         avatar: `/avatars/default.jpg`
       };
-      setUser(dummyUser);
+      setUserDebug(dummyUser);
       localStorage.setItem("auth_user", JSON.stringify(dummyUser));
       setIsLoading(false);
       return;
@@ -47,19 +72,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // First try to get user from localStorage (already logged in)
         const currentUser = getCurrentUser();
         if (currentUser) {
-          setUser(currentUser);
+          setUserDebug(currentUser);
         } else {
           // Try to get from server session (may attempt recovery if server restarted)
           const sessionUser = await getCurrentUserFromSession();
           if (sessionUser) {
-            setUser(sessionUser);
+            setUserDebug(sessionUser);
             localStorage.setItem("auth_user", JSON.stringify(sessionUser));
           }
         }
       } catch (error) {
         console.error("Session check failed:", error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingDebug(false);
       }
     };
 
@@ -69,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Refresh every 20 minutes (1200000ms) to stay well before the 50min expiration
     const refreshInterval = setInterval(
       async () => {
-        if (user) {
+        if (userRef.current) {
           try {
             console.log(
               "[AUTH CONTEXT] Performing periodic session refresh..."
@@ -89,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for logout events
     const handleLogout = () => {
-      setUser(null);
+      setUserDebug(null);
       localStorage.removeItem("auth_user");
     };
 
@@ -98,46 +123,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearInterval(refreshInterval);
       window.removeEventListener("auth:logout", handleLogout);
     };
-  }, []);
+  }, []); // Only run on mount, not on user changes
 
-  const handleLogin = async (email: string, password: string) => {
-    setIsLoading(true);
+  // ✅ Stable function references
+  const handleLogin = useCallback(async (email: string, password: string) => {
+    setIsLoadingDebug(true);
     try {
       const response = await login({ email, password });
-
-      // Store user in localStorage and state
-      // Tokens are kept server-side in encrypted cookies
       localStorage.setItem("auth_user", JSON.stringify(response.user));
-      setUser(response.user || null);
+      setUserDebug(response.user || null);
     } catch (error) {
       throw error;
     } finally {
-      setIsLoading(false);
+      setIsLoadingDebug(false);
     }
-  };
+  }, []); // no deps — uses setters which are stable
 
-  const handleLogout = async () => {
-    setIsLoading(true);
+  const handleLogout = useCallback(async () => {
+    setIsLoadingDebug(true);
     try {
       await logout();
-      setUser(null);
+      setUserDebug(null);
     } finally {
-      setIsLoading(false);
+      setIsLoadingDebug(false);
     }
-  };
+  }, []);
+
+  // ✅ Stable context value — only changes when user or isLoading actually changes
+  const contextValue = useMemo(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      login: handleLogin,
+      logout: handleLogout
+    }),
+    [user, isLoading, handleLogin, handleLogout]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login: handleLogin,
-        logout: handleLogout
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }
 

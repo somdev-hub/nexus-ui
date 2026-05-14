@@ -22,13 +22,15 @@ interface UserSearchDialogProps {
   onOpenChange: (open: boolean) => void;
   onUserSelected: (conversationId: string) => void;
   orgId: string;
+  userId: string;
 }
 
 export function UserSearchDialog({
   open,
   onOpenChange,
   onUserSelected,
-  orgId
+  orgId,
+  userId
 }: UserSearchDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
@@ -93,14 +95,17 @@ export function UserSearchDialog({
 
     try {
       // Create new direct conversation
-      const conversation = await chatApiService.createConversation({
-        type: "DIRECT",
-        participantIds: [Number(user.id)],
-        orgId
-      });
+      const conversation = await chatApiService.createConversation(
+        {
+          type: "DIRECT",
+          participantIds: [Number(userId), Number(user.id)],
+          orgId: Number(orgId)
+        },
+        userId
+      );
 
-      // Notify parent component
-      onUserSelected(conversation.id);
+      // Notify parent component (ensure string id)
+      onUserSelected(String(conversation.id));
 
       // Reset and close dialog
       setSearchQuery("");

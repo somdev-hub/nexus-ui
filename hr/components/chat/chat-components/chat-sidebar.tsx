@@ -24,7 +24,7 @@ export function ChatSidebar({
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredConversations = conversations.filter((conv) =>
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
+    conv?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (

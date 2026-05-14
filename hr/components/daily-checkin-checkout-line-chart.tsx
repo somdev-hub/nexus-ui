@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 
@@ -61,7 +62,15 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export function DailyCheckinCheckoutChart() {
+const chartMargin = {
+  left: 14,
+  right: 14,
+  top: 10
+};
+
+const formatTickLabel = (value: string) => value.slice(0, 3);
+
+const DailyCheckinCheckoutChartContent = () => {
   return (
     <Card className="p-4 w-full">
       <CardHeader className="p-0">
@@ -73,11 +82,7 @@ export function DailyCheckinCheckoutChart() {
           <LineChart
             accessibilityLayer={true}
             data={dayWiseCheckInOutData}
-            margin={{
-              left: 14,
-              right: 14,
-              top: 10
-            }}
+            margin={chartMargin}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -85,7 +90,7 @@ export function DailyCheckinCheckoutChart() {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
+              tickFormatter={formatTickLabel}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Line
@@ -94,6 +99,7 @@ export function DailyCheckinCheckoutChart() {
               stroke="var(--color-desktop)"
               strokeWidth={2}
               dot={false}
+              isAnimationActive={false}
             />
             <Line
               dataKey="checkOut"
@@ -101,6 +107,7 @@ export function DailyCheckinCheckoutChart() {
               stroke="var(--color-mobile)"
               strokeWidth={2}
               dot={false}
+              isAnimationActive={false}
             />
           </LineChart>
         </ChartContainer>
@@ -119,4 +126,8 @@ export function DailyCheckinCheckoutChart() {
       </CardFooter>
     </Card>
   );
-}
+};
+
+export const DailyCheckinCheckoutChart = React.memo(
+  DailyCheckinCheckoutChartContent
+);
