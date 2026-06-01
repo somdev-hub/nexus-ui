@@ -474,7 +474,7 @@ export default function AddEmployeePage() {
         formData.isDeptHead,
         profilePicture || undefined,
         hrDocuments,
-        formData.compensation,
+        formData.compensation as unknown as Record<string, unknown>,
         formData.title,
         formData.personalEmail,
         formData.remarks,
@@ -1426,7 +1426,7 @@ export default function AddEmployeePage() {
                               onValueChange={(value) =>
                                 setBankRecord((prev) => ({
                                   ...prev,
-                                  accountType: value
+                                  accountType: value as BankAccountType
                                 }))
                               }
                             >

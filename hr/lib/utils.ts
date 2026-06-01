@@ -8,13 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Returns a placeholder image URL or fallback color if image URL is null
  * @param imageUrl - The image URL to check
- * @param initials - Initials for avatar fallback (e.g., "JS" for John Smith)
  * @returns Placeholder image URL or null for avatar to use fallback
  */
-export function getImageUrl(
-  imageUrl: string | null,
-  initials?: string
-): string | null {
+export function getImageUrl(imageUrl: string | null): string | null {
   if (imageUrl) {
     return imageUrl;
   }

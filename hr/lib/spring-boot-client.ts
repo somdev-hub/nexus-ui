@@ -19,15 +19,17 @@ console.log(
  * - Forces IPv4 resolution only (prevents IPv6 timeout issues with localhost)
  * - 30 second timeout for all requests (increased from 10s for slower API responses)
  * - Enhanced error logging for debugging
+ * - NO default Content-Type header (allows axios to handle it based on data type)
  */
 const createSpringBootClient = (): AxiosInstance => {
   const instance = axios.create({
     baseURL: SPRING_BOOT_API,
     timeout: 30000, // 30 second timeout - increased for slower API responses
-    maxRedirects: 5,
-    headers: {
-      "Content-Type": "application/json"
-    }
+    maxRedirects: 5
+    // NOTE: Do NOT set default Content-Type header
+    // This allows axios to automatically set the correct header based on request data:
+    // - For JSON: axios sets "application/json"
+    // - For FormData: axios sets "multipart/form-data" with proper boundary
   });
 
   // Add request interceptor for logging

@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         userId,
         orgId,
         email,
+        phone,
         name,
         role
       } = refreshResponse.data;
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
       const finalName = name;
       const finalRole = role;
       const finalOrgId = orgId;
-
+      const finalPhone = phone;
       // Create user object
       const user = {
         id: finalUserId.toString(),
@@ -119,7 +120,8 @@ export async function GET(request: NextRequest) {
         name: finalName,
         role: finalRole,
         orgId: finalOrgId.toString(),
-        avatar: `/avatars/${finalName}.jpg`
+        avatar: `/avatars/${finalName}.jpg`,
+        phone: finalPhone
       };
 
       // Generate new session token
@@ -133,7 +135,8 @@ export async function GET(request: NextRequest) {
         email: finalEmail,
         name: finalName,
         role: finalRole,
-        orgId: finalOrgId
+        orgId: finalOrgId,
+        phone: finalPhone
       });
 
       // Create session in memory

@@ -188,7 +188,6 @@ export default function OrganizationPage() {
   // Fetch roles for selected department in grant permission dialog
   useEffect(() => {
     if (grantPermissionFormData.departmentId === 0) {
-      setDeptRoles([]);
       return;
     }
 
@@ -207,18 +206,21 @@ export default function OrganizationPage() {
     };
 
     fetchRoles();
+
+    return () => {
+      setDeptRoles([]);
+    };
   }, [grantPermissionFormData.departmentId]);
 
   // Fetch roles for selected department in compensation dialog
   useEffect(() => {
     if (compensationFormData.deptId === 0) {
-      setCompensationDeptRoles([]);
       return;
     }
 
     const fetchRoles = async () => {
       try {
-        const rolesData = await getDeptRoles(compensationFormData.deptId);
+        const rolesData = await getDeptRoles(compensationFormData.deptId || 0);
         if (rolesData) {
           setCompensationDeptRoles(rolesData);
         }
@@ -229,6 +231,10 @@ export default function OrganizationPage() {
     };
 
     fetchRoles();
+
+    return () => {
+      setCompensationDeptRoles([]);
+    };
   }, [compensationFormData.deptId]);
 
   // Fetch roles table data
@@ -248,7 +254,9 @@ export default function OrganizationPage() {
             employeeCount: role.noOfEmployees,
             createdOn: role.createdOn,
             permissions: role.permissions,
-            status: role.status
+            status: (role.status === "Active" ? "Active" : "Inactive") as
+              | "Active"
+              | "Inactive"
           }));
           setRoles(formattedRoles);
         }
@@ -1232,7 +1240,7 @@ export default function OrganizationPage() {
                   <div className="space-y-2 w-full">
                     <Label htmlFor="comp-department">Department *</Label>
                     <Select
-                      value={compensationFormData.deptId.toString()}
+                      value={(compensationFormData.deptId || 0).toString()}
                       onValueChange={(value) =>
                         setCompensationFormData({
                           ...compensationFormData,

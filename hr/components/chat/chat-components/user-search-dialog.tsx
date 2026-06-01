@@ -13,14 +13,18 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Plus, Loader } from "lucide-react";
 import { searchUsers } from "./data";
-import { chatApiService } from "@/lib/chat-api";
+import {
+  chatApiService,
+  ChatConversation as ApiChatConversation
+} from "@/lib/chat-api";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 import { ChatUser } from "./types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface UserSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUserSelected: (conversationId: string) => void;
+  onUserSelected: (conversation: ApiChatConversation, user: ChatUser) => void;
   orgId: string;
   userId: string;
 }
@@ -32,6 +36,7 @@ export function UserSearchDialog({
   orgId,
   userId
 }: UserSearchDialogProps) {
+  const { avatar, name, email, role, phone } = useUserMetadata();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -94,18 +99,43 @@ export function UserSearchDialog({
     setError(null);
 
     try {
-      // Create new direct conversation
+      // Create new direct conversation with participant details
       const conversation = await chatApiService.createConversation(
         {
-          type: "DIRECT",
+          chatConversationType: "DIRECT",
           participantIds: [Number(userId), Number(user.id)],
-          orgId: Number(orgId)
+          orgId: Number(orgId),
+          chatConversationName: undefined,
+          chatConversationDescription: undefined,
+          participants: [
+            {
+              participantId: Number(userId),
+              participantName: name || "Unknown",
+              participantEmail: email || userId + "@nexus.local",
+              isChatCreator: true,
+              participantMob: phone || "",
+              participantRole: role || "USER",
+              chatParticipantType: "MEMBER",
+              participantAvatar: avatar
+            },
+            {
+              participantId: Number(user.id),
+              participantName: user.name,
+              participantEmail: user.email || user.id + "@nexus.local",
+              isChatCreator: false,
+              participantMob: user.phone || "",
+              participantRole: user.role || "USER",
+              chatParticipantType: "MEMBER",
+              participantAvatar: user.profilePhoto || user.avatar
+            }
+          ]
         },
-        userId
+        Number(orgId),
+        Number(userId)
       );
 
-      // Notify parent component (ensure string id)
-      onUserSelected(String(conversation.id));
+      // Notify parent component with created conversation details.
+      onUserSelected(conversation, user);
 
       // Reset and close dialog
       setSearchQuery("");

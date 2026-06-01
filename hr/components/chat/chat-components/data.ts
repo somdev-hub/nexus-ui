@@ -114,7 +114,7 @@ export const messages: Record<string, ChatMessage[]> = {
 };
 
 export function getInitials(name: string): string {
-  if(!name) return "";
+  if (!name) return "";
   return name
     .split(" ")
     .map((part) => part[0])
@@ -122,9 +122,20 @@ export function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function formatTime(date: Date): string {
+export function formatTime(date?: Date | string | null): string {
+  if (!date) {
+    return "";
+  }
+
+  const normalizedDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(normalizedDate.getTime())) {
+    return "";
+  }
+
   const now = new Date();
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+  const diffInMinutes = Math.floor(
+    (now.getTime() - normalizedDate.getTime()) / 60000
+  );
 
   if (diffInMinutes < 1) return "now";
   if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
@@ -135,7 +146,10 @@ export function formatTime(date: Date): string {
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) return `${diffInDays}d ago`;
 
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return normalizedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric"
+  });
 }
 
 export function formatMessageTime(date: Date): string {
@@ -161,36 +175,68 @@ export function getStatusColor(status?: string): string {
 
 // API Integration Helpers
 export async function fetchConversations(
-  orgId: number
+  orgId: number,
+  userId: number
 ): Promise<ChatConversation[]> {
   try {
-    const response = await chatApiService.getConversations(orgId);
-    return response.content.map((conv) => {
-      const participants = (conv.participants || []).map((p: any) => ({
-        id: String(p.userId),
-        name: p.userName || "",
-        avatar: undefined,
-        status: p.isActive ? "online" : "offline"
-      }));
+    const response = await chatApiService.getConversations(userId, orgId);
+
+    return (response as any[]).map((conv: any) => {
+      const participants: ChatUser[] = (conv.participants || []).map(
+        (p: any) => ({
+          id: String(p.userId),
+          name: p.userName || "",
+          avatar: undefined,
+          status: p.isActive ? "online" : "offline"
+        })
+      );
+
+      const participantId = conv.participantId
+        ? Number(conv.participantId)
+        : null;
+      const sortedParticipants = [...participants].sort((a, b) => {
+        const aIsSelf = Number(a.id) === userId;
+        const bIsSelf = Number(b.id) === userId;
+        if (aIsSelf && !bIsSelf) return 1;
+        if (!aIsSelf && bIsSelf) return -1;
+        return 0;
+      });
+
+      const directParticipant = sortedParticipants.find(
+        (p) => Number(p.id) !== userId
+      );
+
+      const resolvedName =
+        conv.type === "DIRECT"
+          ? conv.participantName?.trim() ||
+            directParticipant?.name?.trim() ||
+            conv.name?.trim() ||
+            `User ${participantId ?? ""}`
+          : conv.name?.trim() || "Unnamed group";
 
       return {
         id: String(conv.id),
-        name: conv.name || "",
+        name: resolvedName,
         type: conv.type || "DIRECT",
         isGroup: conv.type === "GROUP",
-        participants,
+        participants: sortedParticipants,
         participantIds: conv.participantIds || [],
+        participantId: conv.participantId,
+        participantName: conv.participantName,
+        participantEmail: conv.participantEmail,
+        participantRole: conv.participantRole,
+        participantAvatarUrl: conv.participantAvatarUrl,
         avatar:
+          conv.participantAvatarUrl ||
           (conv.avatar as string) ||
-          (participants[0]
-            ? undefined
-            : `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.name}`),
-        lastMessage: conv.lastMessage || null,
+          directParticipant?.avatar ||
+          undefined,
+        lastMessage: conv.lastMessage || "",
         lastMessageTime: conv.lastMessageAt
           ? new Date(conv.lastMessageAt)
           : undefined,
         unreadCount: conv.unreadCount || 0,
-        orgId: conv.orgId
+        orgId: conv.orgId ? String(conv.orgId) : undefined
       } as ChatConversation;
     });
   } catch (error) {
@@ -201,12 +247,14 @@ export async function fetchConversations(
 
 export async function fetchMessages(
   conversationId: string,
-  orgId: string
+  orgId: string,
+  userId: string
 ): Promise<ChatMessage[]> {
   try {
     const response = await chatApiService.getMessages(
-      conversationId,
-      Number(orgId)
+      Number(conversationId),
+      Number(orgId),
+      Number(userId)
     );
     return response.content.map(
       (msg, index) =>

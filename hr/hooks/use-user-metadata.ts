@@ -8,7 +8,7 @@ export interface UserMetadata {
   userId: string | undefined;
   email: string | undefined;
   name: string | undefined;
-
+  phone: string | undefined;
   // Organization & Role
   orgId: string | undefined;
   role: string | undefined;
@@ -82,23 +82,14 @@ export function useUserMetadata(): UserMetadata {
     userId: user?.id,
     email: user?.email,
     name: user?.name,
+    phone: user?.phone,
     orgId: user?.orgId,
     role: user?.role,
     avatar: user?.avatar,
     isAuthenticated,
     isLoading,
     sessionExpiresAt
-  }), [
-    user?.id,
-    user?.email,
-    user?.name,
-    user?.orgId,
-    user?.role,
-    user?.avatar,
-    isAuthenticated,
-    isLoading,
-    sessionExpiresAt
-  ]);
+  }), [user?.id, user?.email, user?.name, user?.phone, user?.orgId, user?.role, user?.avatar, isAuthenticated, isLoading, sessionExpiresAt]);
 }
 
 /**

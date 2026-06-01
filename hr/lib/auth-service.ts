@@ -46,6 +46,7 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
       id: "dev-user-" + Date.now(),
       email: credentials.email,
       name: credentials.email.split("@")[0],
+      phone: "1234567890",
       role: "ROLE_ADMIN",
       orgId: "dev-org",
       avatar: `/avatars/default.jpg`
@@ -107,6 +108,7 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
       id: "dev-user-" + Date.now(),
       email: data.email,
       name: data.name,
+      phone: data.phone || "1234567890",
       role: "ROLE_ADMIN",
       orgId: "dev-org",
       avatar: `/avatars/${data.name}.jpg`

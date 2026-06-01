@@ -10,12 +10,19 @@ import { cn } from "@/lib/utils";
 interface ChatHeaderProps {
   conversation: ChatConversation;
   isMobile?: boolean;
+  currentUserId?: string | number;
 }
 
 export function ChatHeader({
   conversation,
-  isMobile = false
+  isMobile = false,
+  currentUserId
 }: ChatHeaderProps) {
+  const primaryParticipant =
+    conversation?.participants?.find(
+      (participant) => String(participant.id) !== String(currentUserId)
+    ) || conversation?.participants?.[0];
+
   if (isMobile) {
     return (
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -28,7 +35,7 @@ export function ChatHeader({
             <span
               className={cn(
                 "absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card",
-                getStatusColor(conversation.participants[0].status)
+                getStatusColor(primaryParticipant?.status)
               )}
             />
           )}
@@ -38,7 +45,7 @@ export function ChatHeader({
           <p className="text-xs text-muted-foreground">
             {conversation?.isGroup
               ? `${conversation?.participants.length} members`
-              : conversation?.participants[0]?.status === "online"
+              : primaryParticipant?.status === "online"
                 ? "Active now"
                 : "Offline"}
           </p>
@@ -59,7 +66,7 @@ export function ChatHeader({
             <span
               className={cn(
                 "absolute bottom-0 right-0 size-3 rounded-full border-2 border-card",
-                getStatusColor(conversation.participants[0].status)
+                getStatusColor(primaryParticipant?.status)
               )}
             />
           )}
@@ -69,7 +76,7 @@ export function ChatHeader({
           <p className="text-xs text-muted-foreground">
             {conversation.isGroup
               ? `${conversation.participants.length} members`
-              : conversation.participants[0]?.status === "online"
+              : primaryParticipant?.status === "online"
                 ? "Active now"
                 : "Offline"}
           </p>

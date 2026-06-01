@@ -1,5 +1,8 @@
 import type { AttendanceStatus, AttendanceRecord } from "@/types";
 
+// Export types for use in components
+export type { AttendanceStatus, AttendanceRecord };
+
 // Generate dummy attendance data for the past year
 export function generateDummyAttendance(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

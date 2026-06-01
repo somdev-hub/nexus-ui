@@ -126,6 +126,9 @@ function RecruitmentDetail() {
   // Share popover state
   const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
 
+  // Edit dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+
   // Debounce timer ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 

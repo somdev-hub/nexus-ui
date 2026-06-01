@@ -73,6 +73,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  phone: string;
   role: UserRole;
   orgId?: string;
   avatar?: string;
@@ -415,7 +416,8 @@ export interface RoleRecord {
   department: string;
   role: string;
   employeeCount: number;
-  createdOn: string;
+  description?: string;
+  createdOn?: string;
   permissions: string[];
   status: "Active" | "Inactive";
 }
@@ -428,17 +430,24 @@ export interface Role {
 }
 
 export interface RoleCompensation {
-  orgId: number;
+  id?: string;
+  department?: string;
   role: string;
-  deptId: number;
-  minBasePay: number;
-  maxBasePay: number;
-  minTotalBonuses: number;
-  maxTotalBonuses: number;
-  minTotalDeductions: number;
-  maxTotalDeductions: number;
-  minAnnualSalary: string;
-  maxAnnualSalary: string;
+  deptId?: number;
+  orgId?: number;
+  basePay?: number;
+  hra?: number;
+  bonus?: number;
+  deductions?: number;
+  totalCompensation?: number;
+  minBasePay?: number;
+  maxBasePay?: number;
+  minTotalBonuses?: number;
+  maxTotalBonuses?: number;
+  minTotalDeductions?: number;
+  maxTotalDeductions?: number;
+  minAnnualSalary?: string;
+  maxAnnualSalary?: string;
 }
 
 export interface GrantPermission {

@@ -13,19 +13,23 @@ interface ChatSidebarProps {
   selectedConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewChatClick?: () => void;
+  currentUserId?: string | number;
 }
 
 export function ChatSidebar({
   conversations,
   selectedConversationId,
   onSelectConversation,
-  onNewChatClick
+  onNewChatClick,
+  currentUserId
 }: ChatSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredConversations = conversations.filter((conv) =>
-    conv?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredConversations =
+    conversations &&
+    conversations.filter((conv) =>
+      conv?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   return (
     <div className="flex flex-col h-full border-r bg-card">
@@ -61,6 +65,7 @@ export function ChatSidebar({
                 conversation={conversation}
                 isSelected={conversation.id === selectedConversationId}
                 onClick={onSelectConversation}
+                currentUserId={currentUserId}
               />
             ))
           ) : (

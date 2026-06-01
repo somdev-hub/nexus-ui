@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: "dev@example.com",
         name: "Dev User",
         role: "ROLE_ADMIN",
+        phone: "1234567890",
         orgId: "dev-org",
         avatar: `/avatars/default.jpg`
       };

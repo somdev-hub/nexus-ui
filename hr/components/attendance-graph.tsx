@@ -25,6 +25,22 @@ interface CalendarCell {
   day: number;
 }
 
+// Helper to convert display status to AttendanceStatus enum
+const mapDisplayStatusToEnum = (displayStatus: string): AttendanceStatus => {
+  switch (displayStatus) {
+    case "Present":
+      return "present";
+    case "Absent":
+      return "absent";
+    case "On Leave":
+      return "leave";
+    case "Late":
+      return "partial";
+    default:
+      return "present";
+  }
+};
+
 const getStatusColor = (status: AttendanceStatus): string => {
   switch (status) {
     case "present":
@@ -243,7 +259,7 @@ export function AttendanceGraph({
                           <TooltipTrigger asChild>
                             <div
                               className={`w-5 h-5 rounded cursor-pointer transition-all ${getStatusColor(
-                                cell.record.status
+                                mapDisplayStatusToEnum(cell.record.status)
                               )}`}
                             />
                           </TooltipTrigger>

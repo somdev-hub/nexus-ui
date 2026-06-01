@@ -124,7 +124,10 @@ const responseErrorHandler = async (error: AxiosError) => {
 const apiClient = axios.create({
   baseURL: PROXY_BASE,
   withCredentials: true, // Include cookies in requests
-  headers: { "Content-Type": "application/json" },
+  // NOTE: Do NOT set default Content-Type header
+  // This allows axios to automatically set the correct header:
+  // - For JSON: axios sets "application/json"
+  // - For FormData: axios sets "multipart/form-data" with proper boundary
   timeout: 30000 // 30 seconds - increased from default 10s for slower API responses
 });
 

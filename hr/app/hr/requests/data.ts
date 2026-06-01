@@ -24,7 +24,7 @@ export const requests: EmployeeRequest[] = [
     fromDate: "2026-02-03",
     toDate: "2026-02-05",
     leaveBalanceUsed: 3,
-    leaveBalanceType: "Sick Leave"
+    leaveBalanceType: "Sick"
   },
   {
     id: "REQ002",
@@ -93,8 +93,7 @@ export const requests: EmployeeRequest[] = [
     fromDate: "2026-02-01",
     toDate: "2026-02-01",
     checkInHours: "09:00",
-    checkOutHours: "18:00",
-    halfDay: false
+    checkOutHours: "18:00"
   },
   {
     id: "REQ007",
@@ -111,7 +110,7 @@ export const requests: EmployeeRequest[] = [
     fromDate: "2026-02-10",
     toDate: "2026-02-17",
     leaveBalanceUsed: 7,
-    leaveBalanceType: "Earned Leave"
+    leaveBalanceType: "Paid"
   },
   {
     id: "REQ008",
@@ -154,8 +153,7 @@ export const requests: EmployeeRequest[] = [
     fromDate: "2025-09-01",
     toDate: "2026-01-31",
     checkInHours: "09:00",
-    checkOutHours: "18:00",
-    halfDay: false
+    checkOutHours: "18:00"
   },
   {
     id: "REQ011",
@@ -172,7 +170,7 @@ export const requests: EmployeeRequest[] = [
     fromDate: "2026-02-02",
     toDate: "2026-02-04",
     leaveBalanceUsed: 2,
-    leaveBalanceType: "Casual Leave"
+    leaveBalanceType: "Casual"
   },
   {
     id: "REQ012",
@@ -273,13 +271,13 @@ export const transformHrRequestToEmployeeRequest = (
     department: item.department,
     role: item.role,
     requestReceivedDate: item.appliedOn,
-    requestType: item.requestType,
+    requestType: item.requestType as RequestType,
     currentStatus: mapApiStatusToRequestStatus(item.status),
     remarks: item.remarks,
     fromDate: item.fromDate,
     toDate: item.toDate,
     leaveBalanceUsed: item.leaveBalanceUsed,
-    leaveBalanceType: item.leaveType,
+    leaveBalanceType: item.leaveType as LeaveBalanceType | undefined,
     checkInHours: item.checkInHours,
     checkOutHours: item.checkOutHours
   };
