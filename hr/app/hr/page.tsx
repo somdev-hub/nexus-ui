@@ -29,7 +29,8 @@ import {
   Workflow,
   BanknoteArrowDown,
   Check,
-  Minus
+  Minus,
+  PartyPopper
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ import type {
   TodayHrRequest,
   RequestStatus
 } from "@/types";
+import EventOnboardDialog from "@/components/EventOnboardDialog";
 
 const metricCards = [
   {
@@ -632,18 +634,19 @@ export default function HRDashboard() {
         {/* <ExpenseBreakdownChart /> */}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-3 w-1/3 min-h-[40dvh]">
-          <Card className="p-4 items-center justify-center gap-2">
+          {/* <Card className="p-4 items-center justify-center gap-2">
             <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
-              <BanknoteArrowDown />
-              <p className="font-medium">Create Expense</p>
+              <PartyPopper />
+              <p className="font-medium">Onboard Event</p>
             </CardContent>
-          </Card>
+          </Card> */}
           <Card className="p-4 items-center justify-center gap-2">
             <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
               <Workflow />
               <p className="font-medium">Create Workflow</p>
             </CardContent>
           </Card>
+          <EventOnboardDialog />
           <CreateHiringDialog />
           <HrRequestDialog />
         </div>
