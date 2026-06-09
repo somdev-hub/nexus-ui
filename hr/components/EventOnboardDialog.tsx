@@ -24,6 +24,9 @@ import {
   HtmlEditorPreview,
   BOILERPLATE as HTML_BOILERPLATE
 } from "./HtmlEditorPreview";
+import { createEventTemplate } from "@/lib/auth-service";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
+import { useToast } from "@/hooks/use-toast";
 
 enum ParamType {
   BODY_PARAM = "BODY_PARAM",
@@ -53,6 +56,8 @@ const INITIAL_EVENT = {
 };
 
 const EventOnboardDialog = () => {
+  const { userId, orgId } = useUserMetadata();
+  const { toast } = useToast();
   const [eventData, setEventData] = useState(INITIAL_EVENT);
   const [open, setOpen] = useState(false);
   const [pairs, setPairs] = useState<EventParam[]>([{ ...EMPTY_PAIR }]);
@@ -94,10 +99,39 @@ const EventOnboardDialog = () => {
     setPairs([{ ...EMPTY_PAIR }]);
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Event Data:", eventData);
     console.log("Parameter Pairs:", pairs);
+    try {
+      const response = await createEventTemplate({
+        templateName: eventData.eventName,
+        eventTemplateType: eventData.eventType,
+        orgId: Number(orgId),
+        templateParams: pairs.map((pair) => ({
+          paramName: pair.key,
+          paramDefaultValue: pair.defaultValue,
+          templateParamType: pair.paramType,
+          isRequired: pair.isRequired
+        })),
+        templateHtml: eventData.templateHtml
+      });
+      if (response) {
+        toast({
+          title: "Event Created",
+          description: "The event template has been created successfully.",
+          variant: "default"
+        });
+        onClose();
+      }
+    } catch (e) {
+      console.error("Error submitting event data:", e);
+      toast({
+        title: "Error",
+        description: "Failed to create event template.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

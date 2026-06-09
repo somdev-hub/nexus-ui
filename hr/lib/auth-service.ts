@@ -1754,3 +1754,54 @@ export async function getRecruitmentAnalytics(
     );
   }
 }
+
+interface CreateEventTemplateRequest {
+  templateName: string;
+  eventTemplateType: string;
+  orgId: number;
+  templateParams: {
+    paramName: string;
+    paramDefaultValue: string;
+    templateParamType: string;
+    isRequired: boolean;
+  }[];
+  templateHtml: string;
+}
+
+interface CreateEventTemplateResponse {
+  createdAt: string;
+  eventTemplateId: number;
+  eventTemplateType: string;
+  isActive: boolean;
+  orgId: number;
+  templateHtml: string;
+  templateHtmlUrl: string;
+  templateName: string;
+  templateParams: {
+    createdAt: string;
+    isActive: boolean;
+    isRequired: boolean;
+    paramDefaultValue: string;
+    paramName: string;
+    templateParamId: number;
+    templateParamType: string;
+    updatedAt: string;
+  }[];
+  updatedAt: string;
+}
+
+export async function createEventTemplate(
+  request: CreateEventTemplateRequest
+): Promise<CreateEventTemplateResponse> {
+  try {
+    const response = await apiClient.post<CreateEventTemplateResponse>(
+      '/iam/organizations/event-onboarding/template',
+      request
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to create event template: ${(error as Error).message}`
+    );
+  }
+}

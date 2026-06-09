@@ -35,17 +35,35 @@ export const BOILERPLATE = `<!DOCTYPE html>
 // ─── Theme tokens ─────────────────────────────────────────────────────────────
 const THEMES = {
   dark: {
-    bg: "#0d1117", footerBorder: "#21262d", footerText: "#8b949e",
-    lineNums: "#3d4450", code: "#c9d1d9", caret: "#58a6ff",
-    tag: "#7ee787", bracket: "#8b949e", attr: "#79c0ff",
-    eq: "#8b949e", string: "#a5d6ff", comment: "#8b949e", doctype: "#8b949e",
+    bg: "#0d1117",
+    footerBorder: "#21262d",
+    footerText: "#8b949e",
+    lineNums: "#3d4450",
+    code: "#c9d1d9",
+    caret: "#58a6ff",
+    tag: "#7ee787",
+    bracket: "#8b949e",
+    attr: "#79c0ff",
+    eq: "#8b949e",
+    string: "#a5d6ff",
+    comment: "#8b949e",
+    doctype: "#8b949e"
   },
   light: {
-    bg: "#ffffff", footerBorder: "#e2e8f0", footerText: "#64748b",
-    lineNums: "#94a3b8", code: "#1e293b", caret: "#2563eb",
-    tag: "#16a34a", bracket: "#64748b", attr: "#7c3aed",
-    eq: "#64748b", string: "#b45309", comment: "#94a3b8", doctype: "#94a3b8",
-  },
+    bg: "#F6F8FA",
+    footerBorder: "#e2e8f0",
+    footerText: "#64748b",
+    lineNums: "#94a3b8",
+    code: "#1e293b",
+    caret: "#2563eb",
+    tag: "#16a34a",
+    bracket: "#64748b",
+    attr: "#7c3aed",
+    eq: "#64748b",
+    string: "#b45309",
+    comment: "#94a3b8",
+    doctype: "#94a3b8"
+  }
 } as const;
 
 type ThemeKey = keyof typeof THEMES;
@@ -67,12 +85,19 @@ function colorAttrs(attrs: string): string {
 
   while (i < len) {
     // Whitespace
-    if (/\s/.test(attrs[i])) { out += attrs[i++]; continue; }
+    if (/\s/.test(attrs[i])) {
+      out += attrs[i++];
+      continue;
+    }
 
     // Attribute name
     let name = "";
-    while (i < len && attrs[i] !== "=" && !/\s/.test(attrs[i])) name += attrs[i++];
-    if (!name) { out += attrs[i++]; continue; }
+    while (i < len && attrs[i] !== "=" && !/\s/.test(attrs[i]))
+      name += attrs[i++];
+    if (!name) {
+      out += attrs[i++];
+      continue;
+    }
     out += `<span class="hl-attr">${name}</span>`;
 
     // Skip whitespace
@@ -87,7 +112,8 @@ function colorAttrs(attrs: string): string {
       if (i < len && (attrs[i] === '"' || attrs[i] === "'")) {
         // Quoted value — consume until matching close quote (or end of string)
         const q = attrs[i];
-        let val = q; i++;
+        let val = q;
+        i++;
         while (i < len && attrs[i] !== q) val += attrs[i++];
         if (i < len) val += attrs[i++]; // closing quote (may be absent mid-type)
         out += `<span class="hl-string">${val}</span>`;
@@ -106,7 +132,10 @@ function colorAttrs(attrs: string): string {
 function colorTag(raw: string): string {
   // Closing tag: &lt;/tag&gt;
   if (raw.startsWith("&lt;/")) {
-    const inner = raw.slice(5, raw.endsWith("&gt;") ? raw.length - 4 : undefined);
+    const inner = raw.slice(
+      5,
+      raw.endsWith("&gt;") ? raw.length - 4 : undefined
+    );
     return (
       `<span class="hl-bracket">&lt;/</span>` +
       `<span class="hl-tag">${inner.trim()}</span>` +
@@ -124,8 +153,14 @@ function colorTag(raw: string): string {
 
   // Peel off closing bracket(s)
   let closingBracket = "";
-  if (rest.endsWith("&gt;")) { closingBracket = "&gt;"; rest = rest.slice(0, -4); }
-  if (rest.endsWith("/")) { closingBracket = "/&gt;"; rest = rest.slice(0, -1); }
+  if (rest.endsWith("&gt;")) {
+    closingBracket = "&gt;";
+    rest = rest.slice(0, -4);
+  }
+  if (rest.endsWith("/")) {
+    closingBracket = "/&gt;";
+    rest = rest.slice(0, -1);
+  }
 
   return (
     `<span class="hl-bracket">&lt;</span>` +
@@ -172,7 +207,10 @@ function highlightLine(escaped: string): string {
     if (escaped.startsWith("&lt;", i)) {
       let j = i + 4;
       while (j < len) {
-        if (escaped.startsWith("&gt;", j)) { j += 4; break; }
+        if (escaped.startsWith("&gt;", j)) {
+          j += 4;
+          break;
+        }
         // Skip over quoted value so inner > doesn't close the tag prematurely
         if (escaped[j] === '"' || escaped[j] === "'") {
           const q = escaped[j++];
@@ -203,11 +241,17 @@ function toHighlightedLines(raw: string): string[] {
 // Both the display layer and the textarea use it directly so they are always
 // pixel-perfect — no Tailwind class approximation that can drift.
 const GUTTER_W = 56; // px  (≈ 3.5rem at 16px base, enough for 4-digit line nums)
-const EDITOR_PADDING_TOP = 16;  // px  (py-4 = 1rem = 16px)
+const EDITOR_PADDING_TOP = 16; // px  (py-4 = 1rem = 16px)
 const EDITOR_PADDING_RIGHT = 16; // px
 
 function EditorPane({
-  html, lines, onKeyDown, onChange, textareaRef, height, theme,
+  html,
+  lines,
+  onKeyDown,
+  onChange,
+  textareaRef,
+  height,
+  theme
 }: {
   html: string;
   lines: string[];
@@ -227,15 +271,15 @@ function EditorPane({
   };
 
   const monoStyle: React.CSSProperties = {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily:
+      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     fontSize: "13px",
-    lineHeight: "1.6",
+    lineHeight: "1.6"
   };
 
   return (
     <div className="flex flex-col" style={{ background: t.bg }}>
       <div className="relative overflow-hidden" style={{ height }}>
-
         {/* ── Gutter (line numbers) — sits on the left, never scrolls horizontally ── */}
         <div
           aria-hidden
@@ -250,10 +294,12 @@ function EditorPane({
               textAlign: "right",
               color: t.lineNums,
               transform: `translateY(-${scrollTop}px)`,
-              willChange: "transform",
+              willChange: "transform"
             }}
           >
-            {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
+            {lines.map((_, i) => (
+              <div key={i}>{i + 1}</div>
+            ))}
           </div>
         </div>
 
@@ -271,7 +317,7 @@ function EditorPane({
               whiteSpace: "pre",
               color: t.code,
               transform: `translate(-${scrollLeft}px, -${scrollTop}px)`,
-              willChange: "transform",
+              willChange: "transform"
             }}
             dangerouslySetInnerHTML={{ __html: lines.join("\n") }}
           />
@@ -293,7 +339,7 @@ function EditorPane({
             ...monoStyle,
             position: "absolute",
             top: 0,
-            left: GUTTER_W,   // ← same constant, guaranteed alignment
+            left: GUTTER_W, // ← same constant, guaranteed alignment
             right: 0,
             bottom: 0,
             padding: `${EDITOR_PADDING_TOP}px ${EDITOR_PADDING_RIGHT}px 0 0`,
@@ -305,7 +351,7 @@ function EditorPane({
             overflowX: "auto",
             overflowY: "auto",
             outline: "none",
-            border: "none",
+            border: "none"
           }}
         />
       </div>
@@ -313,10 +359,16 @@ function EditorPane({
       {/* Footer */}
       <div
         className="flex items-center border-t px-4 py-1.5 font-mono text-[11px]"
-        style={{ borderColor: t.footerBorder, color: t.footerText, background: t.bg }}
+        style={{
+          borderColor: t.footerBorder,
+          color: t.footerText,
+          background: t.bg
+        }}
       >
-        <span>HTML</span><span className="mx-2 opacity-30">·</span>
-        <span>UTF-8</span><span className="mx-2 opacity-30">·</span>
+        <span>HTML</span>
+        <span className="mx-2 opacity-30">·</span>
+        <span>UTF-8</span>
+        <span className="mx-2 opacity-30">·</span>
         <span>{lines.length} lines</span>
       </div>
 
@@ -336,8 +388,13 @@ function EditorPane({
 // ─── Preview pane ─────────────────────────────────────────────────────────────
 function PreviewPane({ html, height }: { html: string; height: number }) {
   return (
-    <iframe srcDoc={html} title="HTML Preview" sandbox="allow-scripts"
-      className="w-full border-0 bg-white" style={{ height }} />
+    <iframe
+      srcDoc={html}
+      title="HTML Preview"
+      sandbox="allow-scripts"
+      className="w-full border-0 bg-white"
+      style={{ height }}
+    />
   );
 }
 
@@ -350,7 +407,7 @@ const PAIRS: Record<string, string> = {
   "{": "}",
   '"': '"',
   "'": "'",
-  "`": "`",
+  "`": "`"
 };
 
 /**
@@ -364,8 +421,20 @@ function getAutoCloseTag(textBefore: string): string | null {
   const tag = match[1].toLowerCase();
   // Void elements — never auto-close
   const voids = new Set([
-    "area","base","br","col","embed","hr","img","input",
-    "link","meta","param","source","track","wbr",
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr"
   ]);
   if (voids.has(tag)) return null;
   return `</${tag}>`;
@@ -391,13 +460,16 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
   // If value prop is provided use it (controlled), otherwise use internal state
   const html = value !== undefined ? value : internalHtml;
 
-  const setHtml = useCallback((next: string) => {
-    if (onChange) {
-      onChange(next);        // controlled: bubble up to parent
-    } else {
-      setInternalHtml(next); // uncontrolled: manage locally
-    }
-  }, [onChange]);
+  const setHtml = useCallback(
+    (next: string) => {
+      if (onChange) {
+        onChange(next); // controlled: bubble up to parent
+      } else {
+        setInternalHtml(next); // uncontrolled: manage locally
+      }
+    },
+    [onChange]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -411,7 +483,9 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
         e.preventDefault();
         const next = before + "  " + after;
         setHtml(next);
-        requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = ss + 2; });
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = ss + 2;
+        });
         return;
       }
 
@@ -419,7 +493,9 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
       const closers = new Set([")", "]", "}", '"', "'", "`"]);
       if (closers.has(e.key) && after[0] === e.key && ss === se) {
         e.preventDefault();
-        requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = ss + 1; });
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = ss + 1;
+        });
         return;
       }
 
@@ -431,7 +507,9 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
           e.preventDefault();
           const next = before.slice(0, -1) + after.slice(1);
           setHtml(next);
-          requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = ss - 1; });
+          requestAnimationFrame(() => {
+            ta.selectionStart = ta.selectionEnd = ss - 1;
+          });
           return;
         }
       }
@@ -443,7 +521,9 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
           e.preventDefault();
           const next = before + ">" + closing + after;
           setHtml(next);
-          requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = ss + 1; });
+          requestAnimationFrame(() => {
+            ta.selectionStart = ta.selectionEnd = ss + 1;
+          });
           return;
         }
       }
@@ -454,7 +534,9 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
         const closer = PAIRS[e.key];
         const next = before + e.key + closer + after;
         setHtml(next);
-        requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = ss + 1; });
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = ss + 1;
+        });
         return;
       }
 
@@ -484,11 +566,19 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
         <Tabs defaultValue="editor" className="contents">
           <TabsList className="h-8 gap-1 bg-transparent p-0">
             {(["editor", "preview"] as const).map((v) => (
-              <TabsTrigger key={v} value={v} className={cn(
-                "flex items-center gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-1.5 pt-1 text-sm font-medium text-muted-foreground transition-colors",
-                "data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-              )}>
-                {v === "editor" ? <Code2 className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              <TabsTrigger
+                key={v}
+                value={v}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-1.5 pt-1 text-sm font-medium text-muted-foreground transition-colors",
+                  "data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                )}
+              >
+                {v === "editor" ? (
+                  <Code2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </TabsTrigger>
             ))}
@@ -497,31 +587,67 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
       )}
       {splitView && (
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5 font-medium"><Code2 className="h-3.5 w-3.5" /> Editor</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <Code2 className="h-3.5 w-3.5" /> Editor
+          </span>
           <span className="opacity-30">/</span>
-          <span className="flex items-center gap-1.5 font-medium"><Eye className="h-3.5 w-3.5" /> Preview</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <Eye className="h-3.5 w-3.5" /> Preview
+          </span>
         </div>
       )}
 
       <div className="ml-auto flex items-center gap-4">
         <div className="flex items-center gap-1.5">
-          <Sun className={cn("h-3.5 w-3.5 transition-colors", isDark ? "text-muted-foreground/40" : "text-amber-500")} />
-          <Switch id="theme-toggle" checked={isDark} onCheckedChange={(v) => setEditorTheme(v ? "dark" : "light")} className="scale-90" />
-          <Moon className={cn("h-3.5 w-3.5 transition-colors", isDark ? "text-sky-400" : "text-muted-foreground/40")} />
+          <Sun
+            className={cn(
+              "h-3.5 w-3.5 transition-colors",
+              isDark ? "text-muted-foreground/40" : "text-amber-500"
+            )}
+          />
+          <Switch
+            id="theme-toggle"
+            checked={isDark}
+            onCheckedChange={(v) => setEditorTheme(v ? "dark" : "light")}
+            className="scale-90"
+          />
+          <Moon
+            className={cn(
+              "h-3.5 w-3.5 transition-colors",
+              isDark ? "text-sky-400" : "text-muted-foreground/40"
+            )}
+          />
         </div>
         <span className="h-4 w-px bg-border" />
         <div className="flex items-center gap-1.5">
           <Columns2 className="h-3.5 w-3.5 text-muted-foreground" />
-          <Switch id="split-toggle" checked={splitView} onCheckedChange={setSplitView} className="scale-90" />
-          <Label htmlFor="split-toggle" className="text-xs text-muted-foreground cursor-pointer select-none">Split</Label>
+          <Switch
+            id="split-toggle"
+            checked={splitView}
+            onCheckedChange={setSplitView}
+            className="scale-90"
+          />
+          <Label
+            htmlFor="split-toggle"
+            className="text-xs text-muted-foreground cursor-pointer select-none"
+          >
+            Split
+          </Label>
         </div>
       </div>
     </div>
   );
 
   const editorPane = (height: number) => (
-    <EditorPane html={html} lines={lines} onKeyDown={handleKeyDown}
-      onChange={setHtml} textareaRef={textareaRef} height={height} theme={editorTheme} />
+    <EditorPane
+      html={html}
+      lines={lines}
+      onKeyDown={handleKeyDown}
+      onChange={setHtml}
+      textareaRef={textareaRef}
+      height={height}
+      theme={editorTheme}
+    />
   );
 
   if (splitView) {
@@ -530,7 +656,9 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
         {toolbar}
         <div className="flex divide-x divide-border">
           <div className="flex-1 min-w-0">{editorPane(420)}</div>
-          <div className="flex-1 min-w-0"><PreviewPane html={html} height={452} /></div>
+          <div className="flex-1 min-w-0">
+            <PreviewPane html={html} height={452} />
+          </div>
         </div>
       </div>
     );
@@ -540,8 +668,12 @@ export function HtmlEditorPreview({ value, onChange }: HtmlEditorPreviewProps) {
     <div className="w-full overflow-hidden rounded-xl border border-border bg-background shadow-sm">
       <Tabs defaultValue="editor" className="w-full">
         {toolbar}
-        <TabsContent value="editor" className="m-0">{editorPane(420)}</TabsContent>
-        <TabsContent value="preview" className="m-0"><PreviewPane html={html} height={452} /></TabsContent>
+        <TabsContent value="editor" className="m-0">
+          {editorPane(420)}
+        </TabsContent>
+        <TabsContent value="preview" className="m-0">
+          <PreviewPane html={html} height={452} />
+        </TabsContent>
       </Tabs>
     </div>
   );
