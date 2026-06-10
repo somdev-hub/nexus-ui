@@ -44,7 +44,7 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { Building2, PartyPopper } from "lucide-react";
 import ChatDialog from "./chat/ChatDialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -100,6 +100,11 @@ const data = {
           title: "Recruitment",
           url: "/hr/recruitment",
           icon: IconClipboard
+        },
+        {
+          title: "Event Onboarding",
+          url: "/hr/onboarding",
+          icon: PartyPopper
         }
       ]
     }

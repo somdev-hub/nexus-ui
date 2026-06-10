@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent } from "./ui/card";
 import { Minus, PartyPopper, Plus } from "lucide-react";
 import {
@@ -55,7 +57,7 @@ const INITIAL_EVENT = {
   templateHtml: HTML_BOILERPLATE
 };
 
-const EventOnboardDialog = () => {
+const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
   const { userId, orgId } = useUserMetadata();
   const { toast } = useToast();
   const [eventData, setEventData] = useState(INITIAL_EVENT);
@@ -136,14 +138,22 @@ const EventOnboardDialog = () => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Card className="p-4 items-center justify-center gap-2 cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md">
-          <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
-            <PartyPopper />
-            <p className="font-medium">Onboard Event</p>
-          </CardContent>
-        </Card>
-      </DialogTrigger>
+      {smallButton ? (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" >
+            Onboard Event
+          </Button>
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Card className="p-4 items-center justify-center gap-2 cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md">
+            <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
+              <PartyPopper />
+              <p className="font-medium">Onboard Event</p>
+            </CardContent>
+          </Card>
+        </DialogTrigger>
+      )}
 
       <DialogContent className="max-w-6xl max-h-[90dvh] overflow-y-auto no-scrollbar">
         <DialogHeader>

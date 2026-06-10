@@ -1,4 +1,4 @@
-import { LeaveType } from './../types/index';
+import { LeaveType } from "./../types/index";
 import GlobalConfig from "@/global.config";
 import apiClient, { apiClientMultipart } from "@/lib/api-client";
 import type {
@@ -1768,7 +1768,7 @@ interface CreateEventTemplateRequest {
   templateHtml: string;
 }
 
-interface CreateEventTemplateResponse {
+export interface CreateEventTemplateResponse {
   createdAt: string;
   eventTemplateId: number;
   eventTemplateType: string;
@@ -1790,18 +1790,90 @@ interface CreateEventTemplateResponse {
   updatedAt: string;
 }
 
+/**
+ * {
+  "createdAt": "2026-06-09T20:01:39.082Z",
+  "eventTemplateId": 1,
+  "eventTemplateType": "EXTERNAL_MAIL_TEMPLATE",
+  "numberOfParams": 1,
+  "orgId": 24,
+  "templateHtmlUrl": "https://ipfs.filebase.io/ipfs/QmZREaGffg5ue7r3UwhexitZzd71uJVuB1nqJnpPWa5x9j",
+  "templateName": "DEMO_EVENT_TEMPLATE",
+  "updatedAt": "2026-06-09T20:01:39.082Z"
+}
+ */
+
+export interface ShortEventTemplateResponse {
+  createdAt: string;
+  eventTemplateId: number;
+  eventTemplateType: string;
+  orgId: number;
+  templateHtmlUrl: string;
+  templateName: string;
+  updatedAt: string;
+  numberOfParams: number;
+}
+
 export async function createEventTemplate(
   request: CreateEventTemplateRequest
 ): Promise<CreateEventTemplateResponse> {
   try {
     const response = await apiClient.post<CreateEventTemplateResponse>(
-      '/iam/organizations/event-onboarding/template',
+      "/iam/organizations/event-onboarding/template",
       request
     );
     return response.data;
   } catch (error: unknown) {
     throw new Error(
       `Failed to create event template: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEventTemplates(
+  orgId: number
+): Promise<ShortEventTemplateResponse[]> {
+  try {
+    const response = await apiClient.get<ShortEventTemplateResponse[]>(
+      `/iam/organizations/event-onboarding/template?orgId=${orgId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to fetch event templates: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEventTemplateById(
+  templateId: number
+): Promise<CreateEventTemplateResponse> {
+  try {
+    const response = await apiClient.get<CreateEventTemplateResponse>(
+      `/iam/organizations/event-onboarding/template/${templateId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to fetch event template by ID: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function getEventTemplateByName(
+  templateName: string,
+  orgId: number
+): Promise<ShortEventTemplateResponse> {
+  try {
+    const response = await apiClient.get<ShortEventTemplateResponse>(
+      `/iam/organizations/event-onboarding/template/name?templateName=${encodeURIComponent(
+        templateName
+      )}&orgId=${orgId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to fetch event template by name: ${(error as Error).message}`
     );
   }
 }
