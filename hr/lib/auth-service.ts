@@ -1755,7 +1755,8 @@ export async function getRecruitmentAnalytics(
   }
 }
 
-interface CreateEventTemplateRequest {
+export interface CreateEventTemplateRequest {
+  eventTemplateId?: number;
   templateName: string;
   eventTemplateType: string;
   orgId: number;
@@ -1766,6 +1767,7 @@ interface CreateEventTemplateRequest {
     isRequired: boolean;
   }[];
   templateHtml: string;
+  isActive?: boolean;
 }
 
 export interface CreateEventTemplateResponse {
@@ -1874,6 +1876,23 @@ export async function getEventTemplateByName(
   } catch (error: unknown) {
     throw new Error(
       `Failed to fetch event template by name: ${(error as Error).message}`
+    );
+  }
+}
+
+export async function updateEventTemplate(
+  templateUpdate: boolean,
+  request: CreateEventTemplateRequest
+): Promise<CreateEventTemplateResponse> {
+  try {
+    const response = await apiClient.put<CreateEventTemplateResponse>(
+      `/iam/organizations/event-onboarding/template?templateUpdate=${templateUpdate}`,
+      request
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to update event template: ${(error as Error).message}`
     );
   }
 }
