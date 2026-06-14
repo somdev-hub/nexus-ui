@@ -3,25 +3,25 @@
 import EventOnboardDialog from "@/components/EventOnboardDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
-import { eventData as eventDataTemp, perticularEventData } from "./event-data";
+import { perticularEventData } from "./event-data";
 import { formatDate } from "@/lib/utils";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Minus, Plus } from "lucide-react";
@@ -29,641 +29,729 @@ import { useCallback, useEffect, useState } from "react";
 import { HtmlEditorPreview } from "@/components/HtmlEditorPreview";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
 import {
-  CreateEventTemplateResponse,
-  getEventTemplateById,
-  getEventTemplateByName,
-  getEventTemplates,
-  ShortEventTemplateResponse,
-  updateEventTemplate
+    CreateEventTemplateResponse,
+    getEventTemplateById,
+    getEventTemplateByName,
+    getEventTemplates,
+    ShortEventTemplateResponse,
+    triggerEventMail,
+    updateEventTemplate,
+    getEventHitsStatusWise,
+    getEventHitsMonthWise
 } from "@/lib/auth-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogTitle,
-  AlertDialogHeader,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogTitle,
+    AlertDialogHeader,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogAction,
+    AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { EventTriggerAreaChart } from "@/components/charts/event-trigger-area-chart";
+import { EventStatusDonutChart } from "@/components/charts/event-status-donut-chart";
 
 enum ParamType {
-  BODY_PARAM = "BODY_PARAM",
-  TITLE_PARAM = "TITLE_PARAM",
-  null = "null"
+    BODY_PARAM = "BODY_PARAM",
+    TITLE_PARAM = "TITLE_PARAM",
+    null = "null",
 }
 
 interface EventParam {
-  key: string;
-  defaultValue: string;
-  paramType: ParamType;
-  isRequired: boolean;
+    key: string;
+    defaultValue: string;
+    paramType: ParamType;
+    isRequired: boolean;
 }
 
 const EMPTY_PAIR: EventParam = {
-  key: "",
-  defaultValue: "",
-  paramType: ParamType.BODY_PARAM,
-  isRequired: false
+    key: "",
+    defaultValue: "",
+    paramType: ParamType.BODY_PARAM,
+    isRequired: false,
 };
 
 interface TriggerParams {
-  key: string;
-  value: string;
+    key: string;
+    value: string;
 }
 
 const INITIAL_EVENT = {
-  eventName: "",
-  eventType: "",
-  eventTemplateId: null as unknown as number,
-  params: [] as EventParam[],
-  // ← initialise with boilerplate so the editor is never empty
-  templateHtml: ""
+    eventName: "",
+    eventType: "",
+    eventTemplateId: null as unknown as number,
+    params: [] as EventParam[],
+    // ← initialise with boilerplate so the editor is never empty
+    templateHtml: "",
 };
 
 export default function Onboarding() {
-  const { toast } = useToast();
-  const { orgId } = useUserMetadata();
-  const [searchName, setSearchName] = useState("");
-  const [shortEventTemplates, setShortEventTemplates] = useState<
-    ShortEventTemplateResponse[]
-  >([]);
-  const [eventData, setEventData] = useState(
-    null as unknown as typeof INITIAL_EVENT
-  );
-  const [actualEventData, setActualEventData] = useState(
-    null as unknown as typeof INITIAL_EVENT
-  );
-  const [loading, setLoading] = useState({
-    templates: false,
-    particularTemplate: false,
-    search: false,
-    delete: false,
-    update: false
-  });
-  // const [isEdited, setIsEdited] = useState(false);
-  const isEdited =
-    JSON.stringify(eventData) !== JSON.stringify(actualEventData);
-  const [deletion, setDeletion] = useState(false);
-  const hasTemplateHtmlEdited =
-    eventData?.templateHtml !== actualEventData?.templateHtml;
-
-  const [triggerParams, setTriggerParams] = useState({
-    receiverEmails: [""],
-    eventName: "",
-    orgId: -1,
-    params: [] as TriggerParams[]
-  });
-
-  const handleTriggerEvent = async () => {
-    console.log("Triggering event with params:", triggerParams);
-    toast({
-      title: "Event triggered",
-      description: "The event has been successfully triggered.",
-      variant: "default"
+    const { toast } = useToast();
+    const { orgId } = useUserMetadata();
+    const [searchName, setSearchName] = useState("");
+    const [shortEventTemplates, setShortEventTemplates] = useState<
+        ShortEventTemplateResponse[]
+    >([]);
+    const [eventData, setEventData] = useState(
+        null as unknown as typeof INITIAL_EVENT,
+    );
+    const [actualEventData, setActualEventData] = useState(
+        null as unknown as typeof INITIAL_EVENT,
+    );
+    const [loading, setLoading] = useState({
+        templates: false,
+        particularTemplate: false,
+        search: false,
+        delete: false,
+        update: false,
+        mailTrigger: false,
     });
-  };
+    // const [isEdited, setIsEdited] = useState(false);
+    const isEdited =
+        JSON.stringify(eventData) !== JSON.stringify(actualEventData);
+    const [deletion, setDeletion] = useState(false);
+    const hasTemplateHtmlEdited =
+        eventData?.templateHtml !== actualEventData?.templateHtml;
 
-  const [pairs, setPairs] = useState(
-    perticularEventData.templateParams.map((param) => ({
-      key: param.paramName,
-      defaultValue: param.paramDefaultValue,
-      paramType: param.templateParamType,
-      isRequired: param.isRequired
-    }))
-  );
-
-  const addPair = () => {
-    setPairs((p) => [...p, { ...EMPTY_PAIR }]);
-    setEventData((prev) => ({
-      ...prev,
-      params: [...prev.params, { ...EMPTY_PAIR }]
-    }));
-  };
-
-  const removePair = (index: number) => {
-    if (pairs.length === 1) {
-      setPairs([{ ...EMPTY_PAIR }]);
-      setEventData((prev) => ({
-        ...prev,
-        params: [{ ...EMPTY_PAIR }]
-      }));
-      return;
-    }
-    setPairs((p) => p.filter((_, i) => i !== index));
-    // update eventData
-    setEventData((prev) => {
-      const nextParams = prev.params.filter((_, i) => i !== index);
-      return { ...prev, params: nextParams };
+    const [triggerParams, setTriggerParams] = useState({
+        recipientEmails: [""],
+        templateName: "",
+        orgId: -1,
+        templateParams: [] as TriggerParams[],
     });
-    // updateIsEdited();
-  };
 
-  const updatePair = (
-    index: number,
-    field: string,
-    value: string | boolean
-  ) => {
-    setPairs((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-    // update eventData
-    setEventData((prev) => {
-      const nextParams = [...prev.params];
-      nextParams[index] = { ...nextParams[index], [field]: value };
-      return { ...prev, params: nextParams };
-    });
-    // updateIsEdited();
-  };
+    const [eventHitsStatusWise, setEventHitsStatusWise] = useState<Record<string, number>>({});
+    const [eventHitsMonthWise, setEventHitsMonthWise] = useState<Record<string, number>>({});
 
-  const updateEventData = (field: string, value: string) => {
-    setEventData((prev) => ({ ...prev, [field]: value }));
-    // updateIsEdited();
-  };
-
-  const handleSubmitSearchByName = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading((prev) => ({ ...prev, search: true }));
-    try {
-      // Implement search logic here, e.g., filter shortEventTemplates based on eventData.eventName
-      const response = await getEventTemplateByName(searchName, Number(orgId));
-      if (response) {
-        setShortEventTemplates([response]);
-      }
-    } catch (error) {
-      console.error("Error searching event template by name:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, search: false }));
-    }
-  };
-
-  const handleSelectParticularEvent = async (templateId: number) => {
-    try {
-      setEventData(null as unknown as typeof INITIAL_EVENT);
-      setLoading((prev) => ({ ...prev, particularTemplate: true }));
-
-      const response: CreateEventTemplateResponse =
-        await getEventTemplateById(templateId);
-
-      if (response) {
-        const newParams = response.templateParams.map((param) => ({
-          key: param?.paramName,
-          defaultValue: param?.paramDefaultValue,
-          paramType: param?.templateParamType as ParamType,
-          isRequired: param?.isRequired
-        }));
-
-        const newEventData: typeof INITIAL_EVENT = {
-          ...eventData,
-          eventTemplateId: response.eventTemplateId,
-          eventName: response.templateName,
-          eventType: response.eventTemplateType,
-          params: newParams // ← use the same array
-        };
-
-        if (response.templateHtmlUrl) {
-          const htmlResponse = await fetch(response.templateHtmlUrl);
-          newEventData.templateHtml = await htmlResponse.text();
+    const fetchEventHitsStatusWise = async (templateName: string) => {
+        try {
+            const response = await getEventHitsStatusWise(templateName, Number(orgId));
+            if (response) {
+                setEventHitsStatusWise(response);
+            }
+        } catch (error) {
+            console.error("Error fetching event hits status wise:", error);
         }
+    }
 
-        setPairs(newParams); // ← ADD THIS
-        setEventData(newEventData);
-        setActualEventData(newEventData);
-        setTriggerParams((prev) => ({
-          ...prev,
-          eventName: response.templateName,
-          orgId: Number(orgId)
+    const fetchEventHitsMonthWise = async (templateName: string) => {
+        try {
+            const response = await getEventHitsMonthWise(templateName, Number(orgId));
+            if (response) {
+                setEventHitsMonthWise(response);
+            }
+        } catch (error) {
+            console.error("Error fetching event hits month wise:", error);
+        }
+    }
+
+    const handleTriggerEvent = async () => {
+        try {
+            setLoading((prev) => ({ ...prev, mailTrigger: true }));
+            // validations
+            if (!triggerParams.recipientEmails[0]) {
+                toast({
+                    title: "Recipient email is required",
+                    description: "Please enter a recipient email address.",
+                    variant: "warning",
+                });
+                return;
+            }
+            if (triggerParams.templateParams.some((param) => !param.value)) {
+                toast({
+                    title: "All parameters are required",
+                    description: "Please fill in all parameter values.",
+                    variant: "warning",
+                });
+                return;
+            }
+            const response = await triggerEventMail(triggerParams);
+            if (response && response.status === 200) {
+                toast({
+                    title: "Event triggered",
+                    description: "The event has been successfully triggered.",
+                    variant: "success",
+                });
+            } else {
+                toast({
+                    title: "Error triggering event",
+                    description:
+                        "There was an error triggering the event. Please try again.",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error triggering event",
+                description:
+                    "There was an error triggering the event. Please try again.",
+                variant: "destructive",
+            });
+            console.error("Error triggering event:", error);
+        } finally {
+            setLoading((prev) => ({ ...prev, mailTrigger: false }));
+        }
+    };
+
+    const [pairs, setPairs] = useState(
+        perticularEventData.templateParams.map((param) => ({
+            key: param.paramName,
+            defaultValue: param.paramDefaultValue,
+            paramType: param.templateParamType,
+            isRequired: param.isRequired,
+        })),
+    );
+
+    const addPair = () => {
+        setPairs((p) => [...p, { ...EMPTY_PAIR }]);
+        setEventData((prev) => ({
+            ...prev,
+            params: [...prev.params, { ...EMPTY_PAIR }],
         }));
-      }
-    } catch (error) {
-      console.error("Error fetching event template by ID:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, particularTemplate: false }));
-    }
-  };
+    };
 
-  const handleTemplateDelete = async () => {
-    try {
-      setLoading((prev) => ({ ...prev, delete: true }));
-      const response = await updateEventTemplate(false, {
-        eventTemplateId: eventData.eventTemplateId,
-        templateName: eventData.eventName,
-        eventTemplateType: eventData.eventType,
-        orgId: Number(orgId),
-        templateParams: eventData.params.map((param) => ({
-          paramName: param.key,
-          paramDefaultValue: param.defaultValue,
-          templateParamType: param.paramType,
-          isRequired: param.isRequired
-        })),
-        templateHtml: eventData.templateHtml,
-        isActive: false
-      });
-      if (response) {
-        // handle response, e.g., show a success message, refresh the list, etc.
-        setEventData(null as unknown as typeof INITIAL_EVENT);
-        fetchEventTemplates();
-        toast({
-          title: "Template deleted",
-          description: "The event template has been successfully deleted.",
-          variant: "default"
+    const removePair = (index: number) => {
+        if (pairs.length === 1) {
+            setPairs([{ ...EMPTY_PAIR }]);
+            setEventData((prev) => ({
+                ...prev,
+                params: [{ ...EMPTY_PAIR }],
+            }));
+            return;
+        }
+        setPairs((p) => p.filter((_, i) => i !== index));
+        // update eventData
+        setEventData((prev) => {
+            const nextParams = prev.params.filter((_, i) => i !== index);
+            return { ...prev, params: nextParams };
         });
-      }
-      // handle response, e.g., show a success message, refresh the list, etc.
-    } catch (error) {
-      toast({
-        title: "Error deleting template",
-        description:
-          "There was an error deleting the event template. Please try again.",
-        variant: "destructive"
-      });
-      console.error("Error updating event template:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, delete: false }));
-    }
-  };
+        // updateIsEdited();
+    };
 
-  const handleTemplateUpdate = async () => {
-    try {
-      setLoading((prev) => ({ ...prev, update: true }));
-      const response = await updateEventTemplate(hasTemplateHtmlEdited, {
-        eventTemplateId: eventData.eventTemplateId,
-        templateName: eventData.eventName,
-        eventTemplateType: eventData.eventType,
-        orgId: Number(orgId),
-        templateParams: eventData.params.map((param) => ({
-          paramName: param.key,
-          paramDefaultValue: param.defaultValue,
-          templateParamType: param.paramType,
-          isRequired: param.isRequired
-        })),
-        templateHtml: eventData.templateHtml,
-        isActive: true
-      });
-      if (response) {
-        toast({
-          title: "Template updated",
-          description: "The event template has been successfully updated.",
-          variant: "default"
+    const updatePair = (
+        index: number,
+        field: string,
+        value: string | boolean,
+    ) => {
+        setPairs((prev) => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
         });
-      }
-    } catch (error) {
-      toast({
-        title: "Error updating template",
-        description:
-          "There was an error updating the event template. Please try again.",
-        variant: "destructive"
-      });
-      console.error("Error updating event template:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, update: false }));
-    }
-  };
+        // update eventData
+        setEventData((prev) => {
+            const nextParams = [...prev.params];
+            nextParams[index] = { ...nextParams[index], [field]: value };
+            return { ...prev, params: nextParams };
+        });
+        // updateIsEdited();
+    };
 
-  const fetchEventTemplates = useCallback(async () => {
-    try {
-      if (!orgId) return; // ← skip if orgId isn't ready yet
-      setLoading((prev) => ({ ...prev, templates: true }));
-      const response = await getEventTemplates(Number(orgId));
-      // set after sorting according to templateId
-      if (response) {
-        response?.sort((a, b) => a.eventTemplateId - b.eventTemplateId);
-        setShortEventTemplates(response);
-      }
-    } catch (error) {
-      console.error("Error fetching event templates:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, templates: false }));
-    }
-  }, [orgId]);
+    const updateEventData = (field: string, value: string) => {
+        setEventData((prev) => ({ ...prev, [field]: value }));
+        // updateIsEdited();
+    };
 
-  useEffect(() => {
-    fetchEventTemplates();
-  }, [fetchEventTemplates, orgId]);
+    const handleSubmitSearchByName = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading((prev) => ({ ...prev, search: true }));
+        try {
+            // Implement search logic here, e.g., filter shortEventTemplates based on eventData.eventName
+            const response = await getEventTemplateByName(searchName, Number(orgId));
+            if (response) {
+                setShortEventTemplates([response]);
+            }
+        } catch (error) {
+            console.error("Error searching event template by name:", error);
+        } finally {
+            setLoading((prev) => ({ ...prev, search: false }));
+        }
+    };
 
-  const dummyUpdate = () => {
-    setLoading((prev) => ({ ...prev, update: true }));
-    setTimeout(() => {
-      setLoading((prev) => ({ ...prev, update: false }));
-      toast({
-        title: "Template updated",
-        description: "The event template has been successfully updated.",
-        variant: "destructive"
-      });
-    }, 1000);
-  };
+    const handleSelectParticularEvent = async (templateId: number) => {
+        try {
+            setEventData(null as unknown as typeof INITIAL_EVENT);
+            setLoading((prev) => ({ ...prev, particularTemplate: true }));
 
-  return (
-    <div className="space-y-6 p-6">
-      <section className="space-y-3 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Event Onboarding</h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-base">
-            Create and manage event templates for emails and internal
-            communications.
-          </p>
-        </div>
-        <EventOnboardDialog smallButton={true} />
-      </section>
-      <section>
-        <Card className="p-4">
-          <form
-            action=""
-            className=" flex justify-between items-end gap-2"
-            onSubmit={handleSubmitSearchByName}
-          >
-            <div className="space-y-4 w-[90%]">
-              <Label>Search for Event Templates</Label>
-              <Input
-                type="text"
-                placeholder="Search by event name, type, or other criteria"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
-            </div>
-            <div className="w-[10%]">
-              <Button className="w-full" type="submit">
-                Search
-              </Button>
-            </div>
-          </form>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Template ID</TableHead>
-                <TableHead>Event Name</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Updated At</TableHead>
-                <TableHead>Event Type</TableHead>
-                <TableHead>No. of Params</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shortEventTemplates &&
-                shortEventTemplates.length > 0 &&
-                shortEventTemplates?.map((data) => (
-                  <TableRow
-                    key={data.eventTemplateId}
-                    className="cursor-pointer hover:bg-muted"
-                    onClick={() =>
-                      handleSelectParticularEvent(data.eventTemplateId)
-                    }
-                  >
-                    <TableCell className="font-medium">
-                      {data.eventTemplateId}
-                    </TableCell>
-                    <TableCell>{data.templateName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(data.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(data.updatedAt)}
-                    </TableCell>
-                    <TableCell>
-                      {data.eventTemplateType === "EXTERNAL_MAIL_EVENT" ? (
-                        <Badge variant="outline">External Mail Event</Badge>
-                      ) : (
-                        <Badge variant="outline">Internal Event</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {data.numberOfParams}
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </Card>
-      </section>
+            const response: CreateEventTemplateResponse =
+                await getEventTemplateById(templateId);
 
-      {eventData && (
-        <section>
-          <Card className="p-4 gap-2">
-            <h3 className="font-semibold m-0">Test event template</h3>
-            <p className="text-sm text-muted-foreground m-0">
-              Test the event template by sending a test email or notification to
-              yourself. This allows you to preview how the template will appear
-              to recipients and verify that all dynamic parameters are correctly
-              populated.
-            </p>
-            {/* add email id to test */}
-            <div className="flex gap-2 mt-2">
-              <Input
-                type="email"
-                placeholder="Enter your email address"
-                className="flex-1"
-                value={triggerParams.receiverEmails[0]}
-                onChange={(e) =>
-                  setTriggerParams({
-                    ...triggerParams,
-                    receiverEmails: [e.target.value]
-                  })
+            if (response) {
+                const newParams = response.templateParams.map((param) => ({
+                    key: param?.paramName,
+                    defaultValue: param?.paramDefaultValue,
+                    paramType: param?.templateParamType as ParamType,
+                    isRequired: param?.isRequired,
+                }));
+
+                const newEventData: typeof INITIAL_EVENT = {
+                    ...eventData,
+                    eventTemplateId: response.eventTemplateId,
+                    eventName: response.templateName,
+                    eventType: response.eventTemplateType,
+                    params: newParams, // ← use the same array
+                };
+
+                if (response.templateHtmlUrl) {
+                    const htmlResponse = await fetch(response.templateHtmlUrl);
+                    newEventData.templateHtml = await htmlResponse.text();
                 }
-              />
-              <Button onClick={handleTriggerEvent}>Send Test</Button>
-            </div>
-            {/* fill the params */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-              {pairs.map((pair, index) => (
-                <div key={index} className="flex flex-col gap-4">
-                  <Label>{pair.key || `Param ${index + 1}`}</Label>
-                  <Input
-                    type="text"
-                    placeholder={`Enter value for ${pair.key || `Param ${index + 1}`}`}
-                    className="flex-1 p-2"
-                    value={triggerParams.params[index]?.value || ""}
-                    onChange={(e) => {
-                      const newParams = [...triggerParams.params];
-                      newParams[index] = {
-                        key: pair.key,
-                        value: e.target.value
-                      };
-                      setTriggerParams({
-                        ...triggerParams,
-                        params: newParams
-                      });
-                    }}
-                  />
+
+                setPairs(newParams); // ← ADD THIS
+                setEventData(newEventData);
+                setActualEventData(newEventData);
+                setTriggerParams((prev) => ({
+                    ...prev,
+                    templateName: response.templateName,
+                    orgId: Number(orgId),
+                }));
+            }
+
+            fetchEventHitsStatusWise(response.templateName);
+            fetchEventHitsMonthWise(response.templateName);
+        } catch (error) {
+            console.error("Error fetching event template by ID:", error);
+        } finally {
+            setLoading((prev) => ({ ...prev, particularTemplate: false }));
+        }
+    };
+
+    const handleTemplateDelete = async () => {
+        try {
+            setLoading((prev) => ({ ...prev, delete: true }));
+            const response = await updateEventTemplate(false, {
+                eventTemplateId: eventData.eventTemplateId,
+                templateName: eventData.eventName,
+                eventTemplateType: eventData.eventType,
+                orgId: Number(orgId),
+                templateParams: eventData.params.map((param) => ({
+                    paramName: param.key,
+                    paramDefaultValue: param.defaultValue,
+                    templateParamType: param.paramType,
+                    isRequired: param.isRequired,
+                })),
+                templateHtml: eventData.templateHtml,
+                isActive: false,
+            });
+            if (response) {
+                // handle response, e.g., show a success message, refresh the list, etc.
+                setEventData(null as unknown as typeof INITIAL_EVENT);
+                fetchEventTemplates();
+                toast({
+                    title: "Template deleted",
+                    description: "The event template has been successfully deleted.",
+                    variant: "default",
+                });
+            }
+            // handle response, e.g., show a success message, refresh the list, etc.
+        } catch (error) {
+            toast({
+                title: "Error deleting template",
+                description:
+                    "There was an error deleting the event template. Please try again.",
+                variant: "destructive",
+            });
+            console.error("Error updating event template:", error);
+        } finally {
+            setLoading((prev) => ({ ...prev, delete: false }));
+        }
+    };
+
+    const handleTemplateUpdate = async () => {
+        try {
+            setLoading((prev) => ({ ...prev, update: true }));
+            const response = await updateEventTemplate(hasTemplateHtmlEdited, {
+                eventTemplateId: eventData.eventTemplateId,
+                templateName: eventData.eventName,
+                eventTemplateType: eventData.eventType,
+                orgId: Number(orgId),
+                templateParams: eventData.params.map((param) => ({
+                    paramName: param.key,
+                    paramDefaultValue: param.defaultValue,
+                    templateParamType: param.paramType,
+                    isRequired: param.isRequired,
+                })),
+                templateHtml: eventData.templateHtml,
+                isActive: true,
+            });
+            if (response) {
+                toast({
+                    title: "Template updated",
+                    description: "The event template has been successfully updated.",
+                    variant: "default",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error updating template",
+                description:
+                    "There was an error updating the event template. Please try again.",
+                variant: "destructive",
+            });
+            console.error("Error updating event template:", error);
+        } finally {
+            setLoading((prev) => ({ ...prev, update: false }));
+        }
+    };
+
+    const fetchEventTemplates = useCallback(async () => {
+        try {
+            if (!orgId) return; // ← skip if orgId isn't ready yet
+            setLoading((prev) => ({ ...prev, templates: true }));
+            const response = await getEventTemplates(Number(orgId));
+            // set after sorting according to templateId
+            if (response) {
+                response?.sort((a, b) => a.eventTemplateId - b.eventTemplateId);
+                setShortEventTemplates(response);
+            }
+        } catch (error) {
+            console.error("Error fetching event templates:", error);
+        } finally {
+            setLoading((prev) => ({ ...prev, templates: false }));
+        }
+    }, [orgId]);
+
+    useEffect(() => {
+        fetchEventTemplates();
+    }, [fetchEventTemplates, orgId]);
+
+    const dummyUpdate = () => {
+        setLoading((prev) => ({ ...prev, update: true }));
+        setTimeout(() => {
+            setLoading((prev) => ({ ...prev, update: false }));
+            toast({
+                title: "Template updated",
+                description: "The event template has been successfully updated.",
+                variant: "destructive",
+            });
+        }, 1000);
+    };
+
+    return (
+        <div className="space-y-6 p-6">
+            <section className="space-y-3 flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold">Event Onboarding</h1>
+                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-base">
+                        Create and manage event templates for emails and internal
+                        communications.
+                    </p>
                 </div>
-              ))}
-            </div>
-          </Card>
-        </section>
-      )}
+                <EventOnboardDialog smallButton={true} />
+            </section>
+            <section>
+                <Card className="p-4">
+                    <form
+                        action=""
+                        className=" flex justify-between items-end gap-2"
+                        onSubmit={handleSubmitSearchByName}>
+                        <div className="space-y-4 w-[90%]">
+                            <Label>Search for Event Templates</Label>
+                            <Input
+                                type="text"
+                                placeholder="Search by event name, type, or other criteria"
+                                value={searchName}
+                                onChange={(e) => setSearchName(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-[10%]">
+                            <Button className="w-full" type="submit">
+                                Search
+                            </Button>
+                        </div>
+                    </form>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Template ID</TableHead>
+                                <TableHead>Event Name</TableHead>
+                                <TableHead>Created At</TableHead>
+                                <TableHead>Updated At</TableHead>
+                                <TableHead>Event Type</TableHead>
+                                <TableHead>No. of Params</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {shortEventTemplates &&
+                                shortEventTemplates.length > 0 &&
+                                shortEventTemplates?.map((data) => (
+                                    <TableRow
+                                        key={data.eventTemplateId}
+                                        className="cursor-pointer hover:bg-muted"
+                                        onClick={() =>
+                                            handleSelectParticularEvent(data.eventTemplateId)
+                                        }>
+                                        <TableCell className="font-medium">
+                                            {data.eventTemplateId}
+                                        </TableCell>
+                                        <TableCell>{data.templateName}</TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {formatDate(data.createdAt)}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {formatDate(data.updatedAt)}
+                                        </TableCell>
+                                        <TableCell>
+                                            {data.eventTemplateType === "EXTERNAL_MAIL_EVENT" ? (
+                                                <Badge variant="outline">External Mail Event</Badge>
+                                            ) : (
+                                                <Badge variant="outline">Internal Event</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {data.numberOfParams}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                        </TableBody>
+                    </Table>
+                </Card>
+            </section>
 
-      {eventData ? (
-        <section>
-          <Card className="p-4">
-            <h3 className=" font-semibold ">Event Template Details</h3>
-            {/* template name */}
-            <div className="grid md:grid-cols-2 gap-4 ">
-              <div className="space-y-2">
-                <Label>Template Name</Label>
-                <Input
-                  value={eventData.eventName}
-                  onChange={(e) => updateEventData("eventName", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Event Type</Label>
-                <Select
-                  key={eventData.eventType}
-                  value={eventData.eventType}
-                  onValueChange={(v) => updateEventData("eventType", v)}
-                >
-                  <SelectTrigger className="w-full mb-0">
-                    <SelectValue placeholder="Select event type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EXTERNAL_MAIL_TEMPLATE">
-                      External Mail Template
-                    </SelectItem>
-                    <SelectItem value="INTERNAL_NOTIFICATION_TEMPLATE">
-                      Internal Notification Template
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {eventData && (
+                <section>
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
+                            <CardTitle>Event stats</CardTitle>
+                            <CardDescription>
+                                View the statistics of the event template.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0 mt-4">
+                            <div className="flex item-center justify-between gap-4">
+                                <div className="flex-1">
+                                    <EventTriggerAreaChart data={eventHitsMonthWise} />
+                                </div>
+                                <div className="flex-1">
+                                    <EventStatusDonutChart data={eventHitsStatusWise} />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </section>)}
 
-            {/* Param pairs */}
-            <div className="flex-1 space-y-3">
-              <Label>Add template param pairs</Label>
-              {pairs.map((pair, index) => (
-                <div
-                  key={index}
-                  className="group relative rounded-md border border-border p-3 transition-colors hover:border-muted-foreground/50"
-                >
-                  <button
-                    type="button"
-                    onClick={() => removePair(index)}
-                    disabled={pairs.length === 1}
-                    aria-label="Remove row"
-                    className="absolute -right-2.5 -top-2.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity hover:border-destructive hover:text-destructive group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
+            {eventData && (
+                <section>
+                    <Card className="p-4 gap-2">
+                        <h3 className="font-semibold m-0">Test event template</h3>
+                        <p className="text-sm text-muted-foreground m-0">
+                            Test the event template by sending a test email or notification to
+                            yourself. This allows you to preview how the template will appear
+                            to recipients and verify that all dynamic parameters are correctly
+                            populated.
+                        </p>
+                        {/* add email id to test */}
+                        <div className="flex gap-2 mt-2">
+                            <Input
+                                type="email"
+                                placeholder="Enter your email address"
+                                className="flex-1"
+                                value={triggerParams.recipientEmails[0]}
+                                onChange={(e) =>
+                                    setTriggerParams({
+                                        ...triggerParams,
+                                        recipientEmails: [e.target.value],
+                                    })
+                                }
+                            />
+                            <Button onClick={handleTriggerEvent} disabled={loading.mailTrigger}>
+                                {loading.mailTrigger ? <Spinner /> : "Send Test"}
+                            </Button>
+                        </div>
+                        {/* fill the params */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                            {pairs.map((pair, index) => (
+                                <div key={index} className="flex flex-col gap-4">
+                                    <Label>{pair.key || `Param ${index + 1}`}</Label>
+                                    <Input
+                                        type="text"
+                                        placeholder={`Enter value for ${pair.key || `Param ${index + 1}`}`}
+                                        className="flex-1 p-2"
+                                        value={triggerParams.templateParams[index]?.value || ""}
+                                        onChange={(e) => {
+                                            const newParams = [...triggerParams.templateParams];
+                                            newParams[index] = {
+                                                key: pair.key,
+                                                value: e.target.value,
+                                            };
+                                            setTriggerParams({
+                                                ...triggerParams,
+                                                templateParams: newParams,
+                                            });
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                </section>
+            )}
 
-                  <div className="flex flex-wrap gap-2">
-                    <Input
-                      placeholder="Param"
-                      value={pair.key}
-                      className="min-w-30 flex-1"
-                      onChange={(e) => updatePair(index, "key", e.target.value)}
-                    />
-                    <Input
-                      placeholder="Default Value"
-                      value={pair.defaultValue}
-                      className="min-w-30 flex-1"
-                      onChange={(e) =>
-                        updatePair(index, "defaultValue", e.target.value)
-                      }
-                    />
-                    <Select
-                      value={pair.paramType}
-                      onValueChange={(v) => updatePair(index, "paramType", v)}
-                    >
-                      <SelectTrigger className="min-w-40 flex-1">
-                        <SelectValue placeholder="Select parameter type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ParamType.BODY_PARAM}>
-                          Body Parameter
-                        </SelectItem>
-                        <SelectItem value={ParamType.TITLE_PARAM}>
-                          Title Parameter
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id={`switch-${index}`}
-                        checked={pair.isRequired}
-                        onCheckedChange={(v) =>
-                          updatePair(index, "isRequired", v)
-                        }
-                      />
-                      <Label htmlFor={`switch-${index}`}>Required</Label>
-                    </div>
-                  </div>
+            {eventData ? (
+                <section>
+                    <Card className="p-4">
+                        <h3 className=" font-semibold ">Event Template Details</h3>
+                        {/* template name */}
+                        <div className="grid md:grid-cols-2 gap-4 ">
+                            <div className="space-y-2">
+                                <Label>Template Name</Label>
+                                <Input
+                                    value={eventData.eventName}
+                                    onChange={(e) => updateEventData("eventName", e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Event Type</Label>
+                                <Select
+                                    key={eventData.eventType}
+                                    value={eventData.eventType}
+                                    onValueChange={(v) => updateEventData("eventType", v)}>
+                                    <SelectTrigger className="w-full mb-0">
+                                        <SelectValue placeholder="Select event type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="EXTERNAL_MAIL_TEMPLATE">
+                                            External Mail Template
+                                        </SelectItem>
+                                        <SelectItem value="INTERNAL_NOTIFICATION_TEMPLATE">
+                                            Internal Notification Template
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
-                  <button
-                    type="button"
-                    onClick={addPair}
-                    aria-label="Add row below"
-                    className="absolute -bottom-2.5 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity hover:border-primary hover:text-primary group-hover:opacity-100"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                        {/* Param pairs */}
+                        <div className="flex-1 space-y-3">
+                            <Label>Add template param pairs</Label>
+                            {pairs.map((pair, index) => (
+                                <div
+                                    key={index}
+                                    className="group relative rounded-md border border-border p-3 transition-colors hover:border-muted-foreground/50">
+                                    <button
+                                        type="button"
+                                        onClick={() => removePair(index)}
+                                        disabled={pairs.length === 1}
+                                        aria-label="Remove row"
+                                        className="absolute -right-2.5 -top-2.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity hover:border-destructive hover:text-destructive group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0">
+                                        <Minus className="h-3 w-3" />
+                                    </button>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        <Input
+                                            placeholder="Param"
+                                            value={pair.key}
+                                            className="min-w-30 flex-1"
+                                            onChange={(e) => updatePair(index, "key", e.target.value)}
+                                        />
+                                        <Input
+                                            placeholder="Default Value"
+                                            value={pair.defaultValue}
+                                            className="min-w-30 flex-1"
+                                            onChange={(e) =>
+                                                updatePair(index, "defaultValue", e.target.value)
+                                            }
+                                        />
+                                        <Select
+                                            value={pair.paramType}
+                                            onValueChange={(v) => updatePair(index, "paramType", v)}>
+                                            <SelectTrigger className="min-w-40 flex-1">
+                                                <SelectValue placeholder="Select parameter type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={ParamType.BODY_PARAM}>
+                                                    Body Parameter
+                                                </SelectItem>
+                                                <SelectItem value={ParamType.TITLE_PARAM}>
+                                                    Title Parameter
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <div className="flex items-center space-x-2">
+                                            <Switch
+                                                id={`switch-${index}`}
+                                                checked={pair.isRequired}
+                                                onCheckedChange={(v) =>
+                                                    updatePair(index, "isRequired", v)
+                                                }
+                                            />
+                                            <Label htmlFor={`switch-${index}`}>Required</Label>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={addPair}
+                                        aria-label="Add row below"
+                                        className="absolute -bottom-2.5 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity hover:border-primary hover:text-primary group-hover:opacity-100">
+                                        <Plus className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* HTML editor — controlled, pre-seeded with boilerplate */}
+                        <HtmlEditorPreview
+                            value={eventData.templateHtml}
+                            onChange={(html) => updateEventData("templateHtml", html)}
+                        />
+                        <div className="flex gap-4 justify-end mt-2 items-center">
+                            <Button variant="destructive" onClick={() => setDeletion(true)}>
+                                Delete template
+                            </Button>
+                            <Button
+                                disabled={!isEdited || loading.update}
+                                onClick={handleTemplateUpdate}>
+                                {loading.update ? <Spinner /> : "Update template"}
+                            </Button>
+                        </div>
+                    </Card>
+                </section>
+            ) : loading.particularTemplate ? (
+                <SkeletonEventTemplateCard />
+            ) : (
+                <div className="flex items-center justify-center h-40">
+                    <p className="text-muted-foreground">
+                        Select an event template to view details
+                    </p>
                 </div>
-              ))}
-            </div>
-
-            {/* HTML editor — controlled, pre-seeded with boilerplate */}
-            <HtmlEditorPreview
-              value={eventData.templateHtml}
-              onChange={(html) => updateEventData("templateHtml", html)}
-            />
-            <div className="flex gap-4 justify-end mt-2 items-center">
-              <Button variant="destructive" onClick={() => setDeletion(true)}>
-                Delete template
-              </Button>
-              <Button
-                disabled={!isEdited || loading.update}
-                onClick={handleTemplateUpdate}
-              >
-                {loading.update ? <Spinner /> : "Update template"}
-              </Button>
-            </div>
-          </Card>
-        </section>
-      ) : loading.particularTemplate ? (
-        <SkeletonEventTemplateCard />
-      ) : (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-muted-foreground">
-            Select an event template to view details
-          </p>
+            )}
+            <AlertDialog open={deletion} onOpenChange={setDeletion}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will delete the event template and all associated data. This
+                            action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            disabled={loading.delete}
+                            onClick={async () => {
+                                await handleTemplateDelete();
+                                setDeletion(false);
+                            }}>
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
-      )}
-      <AlertDialog open={deletion} onOpenChange={setDeletion}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will delete the event template and all associated data. This
-              action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={loading.delete}
-              onClick={async () => {
-                await handleTemplateDelete();
-                setDeletion(false);
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
+    );
 }
 
 const SkeletonEventTemplateCard = () => (
-  <Card className="p-4 animate-pulse">
-    <Skeleton className="h-4 bg-muted rounded w-1/3 mb-2"></Skeleton>
-    <Skeleton className="h-3 bg-muted rounded w-1/2 mb-1"></Skeleton>
-    <Skeleton className="h-3 bg-muted rounded w-1/4 mb-1"></Skeleton>
-    <Skeleton className="h-3 bg-muted rounded w-1/5"></Skeleton>
-  </Card>
+    <Card className="p-4 animate-pulse">
+        <Skeleton className="h-4 bg-muted rounded w-1/3 mb-2"></Skeleton>
+        <Skeleton className="h-3 bg-muted rounded w-1/2 mb-1"></Skeleton>
+        <Skeleton className="h-3 bg-muted rounded w-1/4 mb-1"></Skeleton>
+        <Skeleton className="h-3 bg-muted rounded w-1/5"></Skeleton>
+    </Card>
 );

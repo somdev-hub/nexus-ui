@@ -4,7 +4,7 @@ import { toast as sonnerToast } from "sonner";
 interface ToastOptions {
   title?: string;
   description?: string;
-  variant?: "default" | "destructive";
+  variant?: "default" | "destructive" | "warning" | "info" | "success";
 }
 
 export function useToast() {
@@ -12,6 +12,14 @@ export function useToast() {
     ({ title, description, variant = "default" }: ToastOptions) => {
       if (variant === "destructive") {
         sonnerToast.error(title || description || "Error", {
+          description: title ? description : undefined
+        });
+      } else if (variant === "warning") {
+        sonnerToast.warning(title || description || "Warning", {
+          description: title ? description : undefined
+        });
+      } else if (variant === "info") {
+        sonnerToast.info(title || description || "Info", {
           description: title ? description : undefined
         });
       } else {
