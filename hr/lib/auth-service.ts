@@ -1761,6 +1761,7 @@ export interface CreateEventTemplateRequest {
     templateName: string;
     eventTemplateType: string;
     orgId: number;
+    eventSubject: string;
     templateParams: {
         paramName: string;
         paramDefaultValue: string;
@@ -1777,6 +1778,7 @@ export interface CreateEventTemplateResponse {
     eventTemplateType: string;
     isActive: boolean;
     orgId: number;
+    eventSubject: string;
     templateHtml: string;
     templateHtmlUrl: string;
     templateName: string;

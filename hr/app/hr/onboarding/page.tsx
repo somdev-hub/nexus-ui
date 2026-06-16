@@ -87,6 +87,7 @@ const INITIAL_EVENT = {
     params: [] as EventParam[],
     // ← initialise with boilerplate so the editor is never empty
     templateHtml: "",
+    subject: "",
 };
 
 export default function Onboarding() {
@@ -294,6 +295,7 @@ export default function Onboarding() {
                     eventName: response.templateName,
                     eventType: response.eventTemplateType,
                     params: newParams, // ← use the same array
+                    subject: response.eventSubject,
                 };
 
                 if (response.templateHtmlUrl) {
@@ -327,6 +329,7 @@ export default function Onboarding() {
                 eventTemplateId: eventData.eventTemplateId,
                 templateName: eventData.eventName,
                 eventTemplateType: eventData.eventType,
+                eventSubject: eventData.subject,
                 orgId: Number(orgId),
                 templateParams: eventData.params.map((param) => ({
                     paramName: param.key,
@@ -368,6 +371,7 @@ export default function Onboarding() {
                 eventTemplateId: eventData.eventTemplateId,
                 templateName: eventData.eventName,
                 eventTemplateType: eventData.eventType,
+                eventSubject: eventData.subject,
                 orgId: Number(orgId),
                 templateParams: eventData.params.map((param) => ({
                     paramName: param.key,
@@ -622,6 +626,16 @@ export default function Onboarding() {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+                        <div className="">
+                            <div className="space-y-2">
+                                <Label>Subject</Label>
+                                <Input
+                                    placeholder="Enter the subject of the email"
+                                    value={eventData.subject ?? ""}
+                                    onChange={(e) => updateEventData("subject", e.target.value)}
+                                />
                             </div>
                         </div>
 
