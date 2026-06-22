@@ -1,11 +1,15 @@
+"use client"
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SquareArrowOutUpRight, UserRoundPen } from 'lucide-react';
+import { useRouter } from 'next/dist/client/components/navigation';
 import Image from 'next/image';
 import React from 'react'
 
 const Profile = () => {
+    const navigator = useRouter();
     const appliedJobs = [
         {
             company: "Cosmos Ltd.",
@@ -37,7 +41,7 @@ const Profile = () => {
         }
     ];
     return (
-        <div>
+        <div className="my-8">
             <Card className="p-4 gap-2">
                 <CardContent className="p-0">
                     <div className="flex justify-between items-center px-8 py-4 border-b">
@@ -76,7 +80,7 @@ const Profile = () => {
                             <h3 className="font-semibold">Applied Jobs</h3>
                             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {appliedJobs.map((job, index) => (
-                                    <Card className={`p-4  ${job.status === "Rejected" ? "bg-red-50" : job.status === "Offer Received" ? "bg-green-50" : ""} hover:cursor-pointer hover:transform hover:scale-105 duration-300`} key={index}>
+                                    <Card className={`p-4  ${job.status === "Rejected" ? "bg-red-50" : job.status === "Offer Received" ? "bg-green-50" : ""} hover:cursor-pointer hover:transform hover:scale-105 duration-300`} key={index} onClick={() => navigator.push(`/recruitment/${index}`)}>
                                         <CardContent className={`p-0`}>
                                             <div className="flex justify-between items-center border-b pb-2 mb-2">
                                                 <div>

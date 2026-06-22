@@ -34,7 +34,7 @@ const RecruitmentPage = () => {
     `;
 
     return (
-        <div>
+        <div className="my-8">
             <Card className="p-4 gap-2">
                 <div className=" border-b-2 p-2 pb-4 flex justify-between items-center">
                     <div className="">

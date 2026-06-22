@@ -10,7 +10,7 @@ import { House, LogOut, UserPlus, UserRound } from 'lucide-react';
 
 const Navbar = () => {
     return (
-        <div>
+        <div className="w-full border-b fixed top-0 z-50 bg-white">
             <Card className="w-full rounded-none border-b">
                 <CardContent className="flex items-center">
                     <div className="p-2 flex items-center justify-start">
@@ -25,7 +25,7 @@ const Navbar = () => {
                             </NavigationMenuItem>
                             <NavigationMenuItem>
                                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-                                    <Link href="/blog"><UserPlus />Recruitment</Link>
+                                    <Link href="/recruitment"><UserPlus />Recruitment</Link>
                                 </NavigationMenuLink>
                             </NavigationMenuItem>
                         </NavigationMenu>
