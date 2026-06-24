@@ -4,13 +4,12 @@ import { PositionOpeningGraph } from '@/components/position-opening-graph';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MoreHorizontalIcon, SlidersHorizontal, TrendingUp } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React from 'react'
 
@@ -92,16 +91,68 @@ const Recruitment = () => {
                 <h1 className="text-2xl font-bold">Welcome to Recruitments</h1>
                 <p>Discover amazing opportunities with our recruitment process.</p>
             </section>
-            <section className="mt-8">
-                <Card className="p-4 gap-2">
+            <section className="mt-8 flex gap-4">
+                <Card className="p-4 gap-2 w-1/3">
+                    <CardHeader className="p-0">
+                        <CardTitle>Total Opportunities Experience wise</CardTitle>
+                        <CardDescription>Explore the distribution of job opportunities based on experience levels.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0 space-y-4 mt-2">
+                        <Card className="p-4 gap-2">
+                            <CardContent className="p-0 flex justify-between items-center">
+                                <div className="">
+                                    <p className="font-medium text-md">Junior level Roles</p>
+                                    <p className="text-gray-500">0-2 years of experience</p>
+                                </div>
+                                <div className="">
+                                    <h1 className="text-4xl font-bold">50+</h1>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="p-4 gap-2">
+                            <CardContent className="p-0 flex justify-between items-center">
+                                <div className="">
+                                    <p className="font-medium text-md">Mid level Roles</p>
+                                    <p className="text-gray-500">3-5 years of experience</p>
+                                </div>
+                                <div className="">
+                                    <h1 className="text-4xl font-bold">20+</h1>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="p-4 gap-2">
+                            <CardContent className="p-0 flex justify-between items-center">
+                                <div className="">
+                                    <p className="font-medium text-md">Senior level Roles</p>
+                                    <p className="text-gray-500">5-10 years of experience</p>
+                                </div>
+                                <div className="">
+                                    <h1 className="text-4xl font-bold">15+</h1>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="p-4 gap-2">
+                            <CardContent className="p-0 flex justify-between items-center">
+                                <div className="">
+                                    <p className="font-medium text-md">Executive level Roles</p>
+                                    <p className="text-gray-500">10+ years of experience</p>
+                                </div>
+                                <div className="">
+                                    <h1 className="text-4xl font-bold">3</h1>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </CardContent>
+                </Card>
+                <Card className="p-4 gap-2 w-2/3">
                     <CardHeader className="p-0">
                         <CardTitle>Companies currently hiring</CardTitle>
                         <CardDescription>Check out the latest job openings from our partner companies.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 mt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {companiesOpenings.map((company, index) => (
-                                <Card key={index} className="p-4 gap-2 mb-4">
+                                <Card key={index} className="p-4 gap-2">
                                     <CardContent className="flex flex-col justify-center gap-2 p-0">
                                         <p className="font-medium">{company.name}</p>
                                         <h3 className="text-4xl font-bold">{company.openings}</h3>
@@ -113,6 +164,30 @@ const Recruitment = () => {
                                     </CardContent>
                                 </Card>
                             ))}
+                        </div>
+                        <div className="">
+                            {/* // pagination */}
+                            <Pagination className="mt-4">
+                                <PaginationContent>
+                                    <PaginationItem>
+                                        <PaginationLink href="#">1</PaginationLink>
+                                    </PaginationItem>
+                                    <PaginationItem>
+                                        <PaginationLink href="#" isActive>
+                                            2
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                    <PaginationItem>
+                                        <PaginationLink href="#">3</PaginationLink>
+                                    </PaginationItem>
+                                    <PaginationItem>
+                                        <PaginationLink href="#">4</PaginationLink>
+                                    </PaginationItem>
+                                    <PaginationItem>
+                                        <PaginationLink href="#">5</PaginationLink>
+                                    </PaginationItem>
+                                </PaginationContent>
+                            </Pagination>
                         </div>
                     </CardContent>
                 </Card>

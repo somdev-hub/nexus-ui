@@ -36,9 +36,10 @@ export function DatePicker({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
+                    type="button"
                     variant="outline"
                     className={cn(
-                        "max(w-50,w-full) justify-start text-left font-normal",
+                        "max(w-50,w-full) justify-start text-left font-normal py-4.5",
                         !date && "text-muted-foreground"
                     )}
                 >
