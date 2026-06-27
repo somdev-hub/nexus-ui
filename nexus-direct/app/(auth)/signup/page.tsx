@@ -13,11 +13,13 @@ import Image from 'next/image';
 import React, { useState } from 'react'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Control, Controller, useForm } from "react-hook-form"
-import { toast } from "sonner"
 import * as z from "zod"
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, LogIn, Upload } from 'lucide-react';
+import { signup } from '@/lib/auth-service';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 
 interface SignupForm {
@@ -320,7 +322,7 @@ export function SignupForm({
     className,
     ...props
 }: React.ComponentProps<"div">) {
-
+    const { toast } = useToast();
     const { control, handleSubmit } = useForm<SignupForm>({
         resolver: zodResolver(signupSchema),
         defaultValues: {
@@ -345,13 +347,46 @@ export function SignupForm({
 
     const [page, setPage] = useState(0);
 
-    const onSubmit = handleSubmit((data) => {
+    const onSubmit = handleSubmit(async (data) => {
         console.log("✅ Success:", data);
-        toast.success("Account created successfully!");
+
+        const response = await signup({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            personalEmail: data.personalEmail,
+            phone: data.phone,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country,
+            pincode: data.pincode,
+            gender: data.gender,
+            age: data.age,
+            dateOfBirth: data.dateOfBirth.toISOString(),
+            password: data.password || "",
+            profilePicture: data.profilePhoto && data.profilePhoto.length > 0 ? data.profilePhoto[0] : null
+        })
+
+        const updatedUser = {
+            id: response.user.id,
+            personalEmail: data.personalEmail,
+            name: `${data.firstName} ${data.lastName}`,
+            role: response.user.role,
+            avatar: response.user.avatar
+        }
+
+        sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
+
+        toast({
+            title: "Signup successful",
+            description: "You can now log in with your credentials.",
+            variant: "success"
+        });
     },
         (errors) => {
             console.log("❌ Validation errors:", errors);  // ← add this
         });
+
 
     return (
         <div className={cn("flex flex-col gap-6 h-[80dvh]", className)} {...props}>
@@ -415,7 +450,7 @@ export function SignupForm({
                                         )}
 
                                 <FieldDescription className="text-center">
-                                    Already have an account? <a href="/login">Log in</a>
+                                    Already have an account? <Link href="login">Log in</Link>
                                 </FieldDescription>
                             </div>
                         </FieldGroup>

@@ -2,35 +2,33 @@ import apiClient, { apiClientMultipart } from "@/lib/api-client";
 
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    orgId?: string;
-    avatar?: string;
-  };
+    accessToken: string;
+    refreshToken: string;
+    tokenType: string;
+    expiresIn: number;
+    user: {
+        id: string;
+        personalEmail: string;
+        name: string;
+        role: string;
+        avatar?: string;
+    };
 }
 
 export interface ApiAuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  userId: string;
-  orgId: string;
-  name: string;
-  role: string;
-  email: string;
+    accessToken: string;
+    refreshToken: string;
+    tokenType: string;
+    expiresIn: number;
+    userId: string;
+    name: string;
+    role: string;
+    personalEmail: string;
 }
 
 export interface LoginRequest {
-  email: string;
-  password: string;
+    personalEmail: string;
+    password: string;
 }
 
 export interface SignupRequest {
@@ -62,34 +60,23 @@ export interface SignupRequest {
     age?: number;
     dateOfBirth?: string; // ISO string
     password: string;
+    profilePicture: File | string | null;
+}
+
+export interface User {
+    id: string;
+    personalEmail: string;
+    name: string;
+    role: string;
+    avatar?: string;
 }
 
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
-    // Dummy auth flow for development mode
-    // if (!GlobalConfig.wowoFeatures.auth) {
-    //     // Create a dummy user from any credentials
-    //     const dummyUser: User = {
-    //         id: "dev-user-" + Date.now(),
-    //         email: credentials.email,
-    //         name: credentials.email.split("@")[0],
-    //         phone: "1234567890",
-    //         role: "ROLE_ADMIN",
-    //         orgId: "dev-org",
-    //         avatar: `/avatars/default.jpg`,
-    //     };
 
-    //     return {
-    //         accessToken: "",
-    //         refreshToken: "",
-    //         tokenType: "Bearer",
-    //         expiresIn: 86400,
-    //         user: dummyUser,
-    //     };
-    // }
 
     try {
-        console.log("[AUTH SERVICE] Logging in user:", credentials.email);
+        console.log("[AUTH SERVICE] Logging in user:", credentials.personalEmail);
 
         // Call Next.js API route instead of Spring Boot directly
         // JWT tokens are kept server-side in encrypted cookies
@@ -112,7 +99,7 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
         }
 
         const data = await response.json();
-        console.log("[AUTH SERVICE] Login successful, user:", data.user?.email);
+        console.log("[AUTH SERVICE] Login successful, user:", data.user?.personalEmail);
 
         return {
             accessToken: "", // Not exposed to frontend
@@ -128,30 +115,10 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
 }
 
 export async function signup(data: SignupRequest): Promise<AuthResponse> {
-    // Dummy auth flow for development mode
-    // if (!GlobalConfig.wowoFeatures.auth) {
-    //     // Create a dummy user from signup data
-    //     const dummyUser: User = {
-    //         id: "dev-user-" + Date.now(),
-    //         email: data.email,
-    //         name: data.name,
-    //         phone: data.phone || "1234567890",
-    //         role: "ROLE_ADMIN",
-    //         orgId: "dev-org",
-    //         avatar: `/avatars/${data.name}.jpg`,
-    //     };
 
-    //     return {
-    //         accessToken: "",
-    //         refreshToken: "",
-    //         tokenType: "Bearer",
-    //         expiresIn: 86400,
-    //         user: dummyUser,
-    //     };
-    // }
 
     try {
-        console.log("[AUTH SERVICE] Starting signup for email:", data.email);
+        console.log("[AUTH SERVICE] Starting signup for email:", data.personalEmail);
 
         const formData = new FormData();
 
@@ -183,21 +150,19 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
             new Blob(
                 [
                     JSON.stringify({
-                        name: data.name,
-                        email: data.email,
-                        personalEmail: data.personalEmail,
-                        password: data.password,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
                         phone: data.phone,
-                        title: data.title,
-                        role: data.role,
+                        personalEmail: data.personalEmail,
+                        address: data.address,
+                        city: data.city,
+                        state: data.state,
+                        country: data.country,
+                        pincode: data.pincode,
                         gender: data.gender,
                         age: data.age,
                         dateOfBirth: data.dateOfBirth,
-                        department: data.department,
-                        address: data.address,
-                        compensation: data.compensation,
-                        orgName: data.orgName,
-                        orgType: data.orgType,
+                        password: data.password
                     }),
                 ],
                 { type: "application/json" },
@@ -227,7 +192,7 @@ export async function signup(data: SignupRequest): Promise<AuthResponse> {
         const data_response = await response.json();
         console.log(
             "[AUTH SERVICE] Signup successful, user:",
-            data_response.user?.email,
+            data_response.user?.personalEmail,
         );
 
         // Store user in localStorage
@@ -296,5 +261,29 @@ export async function refreshToken(): Promise<string> {
     } catch (error: unknown) {
         console.error("[AUTH SERVICE] Token refresh failed:", error);
         throw new Error(`Token refresh failed: ${(error as Error).message}`);
+    }
+}
+
+export function getCurrentUser() {
+    if (typeof window === "undefined") return null;
+    const user = localStorage.getItem("auth_user");
+    return user ? JSON.parse(user) : null;
+}
+
+// Fetch current user from server session
+export async function getCurrentUserFromSession(): Promise<User | null> {
+    try {
+        const response = await fetch("/api/auth/session", {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        return data.user || null;
+    } catch {
+        return null;
     }
 }

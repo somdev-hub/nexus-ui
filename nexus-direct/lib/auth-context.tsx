@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (personalEmail: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -49,22 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Dummy user for development mode if disableAuth is true
-    // if (!GlobalConfig.wowoFeatures.auth) {
-    //   const dummyUser: User = {
-    //     id: "dev-user-default",
-    //     email: "dev@example.com",
-    //     name: "Dev User",
-    //     role: "ROLE_ADMIN",
-    //     phone: "1234567890",
-    //     orgId: "dev-org",
-    //     avatar: `/avatars/default.jpg`
-    //   };
-    //   setUserDebug(dummyUser);
-    //   localStorage.setItem("auth_user", JSON.stringify(dummyUser));
-    //   setIsLoading(false);
-    //   return;
-    // }
 
     // Check session on mount
     const checkSession = async () => {
@@ -128,10 +112,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []); // Only run on mount, not on user changes
 
   // ✅ Stable function references
-  const handleLogin = useCallback(async (email: string, password: string) => {
+  const handleLogin = useCallback(async (personalEmail: string, password: string) => {
     setIsLoadingDebug(true);
     try {
-      const response = await login({ email, password });
+      const response = await login({ personalEmail, password });
       localStorage.setItem("auth_user", JSON.stringify(response.user));
       setUserDebug(response.user || null);
     } catch (error) {
