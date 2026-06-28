@@ -1,3 +1,5 @@
+"use client"
+
 import React from 'react'
 import { Card, CardContent } from './ui/card';
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, navigationMenuTriggerStyle } from './ui/navigation-menu';
@@ -7,8 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Button } from './ui/button';
 import Image from "next/image";
 import { House, LogOut, UserPlus, UserRound } from 'lucide-react';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 
 const Navbar = () => {
+    const { userId, personalEmail, name, avatar, role } = useUserMetadata();
+    console.log("[NAVBAR] User Metadata:", { userId, personalEmail, name, avatar, role });
     return (
         <div className="w-full border-b fixed top-0 z-50 bg-white">
             <Card className="w-full rounded-none border-b">
@@ -35,11 +40,11 @@ const Navbar = () => {
                             <PopoverTrigger>
                                 <Avatar className="cursor-pointer">
                                     <AvatarImage
-                                        src="https://github.com/shadcn.png"
-                                        alt="@shadcn"
+                                        src={avatar != null && avatar != "" ? avatar : "https://github.com/shadcn.png"}
+                                        alt={name || "@shadcn"}
                                         className="grayscale"
                                     />
-                                    <AvatarFallback>CN</AvatarFallback>
+                                    <AvatarFallback>{name ? name.charAt(0) : "CN"}</AvatarFallback>
                                 </Avatar>
                             </PopoverTrigger>
                             <PopoverContent align="end">
@@ -47,16 +52,16 @@ const Navbar = () => {
                                     <div className="flex items-center gap-2">
                                         <div className="rounded-full overflow-hidden">
                                             <Image
-                                                src="https://github.com/shadcn.png"
-                                                alt="@shadcn"
+                                                src={avatar != null && avatar != "" ? avatar : "https://github.com/shadcn.png"}
+                                                alt={name || "@shadcn"}
                                                 width={40}
                                                 height={40}
                                             />
                                         </div>
                                         <div className="ml-2">
-                                            <p className="font-semibold">Ariel</p>
+                                            <p className="font-semibold">{name || "Ariel"}</p>
                                             <p className="text-sm text-gray-500">
-                                                ariel@example.com
+                                                {personalEmail || "ariel@example.com"}
                                             </p>
                                         </div>
                                     </div>

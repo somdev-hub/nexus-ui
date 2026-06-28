@@ -15,10 +15,10 @@ const getSessionStorage = () => {
       createdAt: Date;
       user: {
         id: string;
-        email: string;
+        personalEmail: string;
         name: string;
         role: string;
-        orgId: string;
+        avatar?: string;
       };
     }
   >;
@@ -62,10 +62,10 @@ export function createSession(
   userId: string,
   userData: {
     id: string;
-    email: string;
+    personalEmail: string;
     name: string;
     role: string;
-    orgId: string;
+    avatar?: string;
   },
   accessToken: string,
   refreshToken: string,
@@ -127,7 +127,7 @@ export function getSession(sessionToken: string) {
     return null;
   }
 
-  console.log("[BETTER-AUTH] Session found for user:", session.user?.email);
+  console.log("[BETTER-AUTH] Session found for user:", session.user?.personalEmail);
   return session;
 }
 

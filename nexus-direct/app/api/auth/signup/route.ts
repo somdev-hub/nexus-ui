@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Call Spring Boot backend for registration using centralized client
     const springBootClient = getSpringBootClient();
     const response = await springBootClient.post(
-      `/iam/auth/register`,
+      `/iam/auth/register/applicant`,
       springBootFormData,
       {
         headers: {
@@ -48,21 +48,20 @@ export async function POST(request: NextRequest) {
       accessToken,
       refreshToken,
       expiresIn,
+      personalEmail,
       userId,
-      orgId,
       name,
       role,
-      email: userEmail
+      profilePhoto
     } = response.data;
 
     // Create user object
     const user = {
       id: userId.toString(),
-      email: userEmail,
+      personalEmail,
       name,
       role,
-      orgId: orgId.toString(),
-      avatar: `/avatars/${name}.jpg`
+      avatar: profilePhoto
     };
 
     // Generate session token

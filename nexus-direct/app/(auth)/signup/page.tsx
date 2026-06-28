@@ -16,10 +16,12 @@ import { Control, Controller, useForm } from "react-hook-form"
 import * as z from "zod"
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, LogIn, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, LogIn, Upload } from 'lucide-react';
 import { signup } from '@/lib/auth-service';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { Spinner } from '@/components/ui/spinner';
+import { useRouter } from 'next/dist/client/components/navigation';
 
 
 interface SignupForm {
@@ -27,11 +29,11 @@ interface SignupForm {
     lastName: string;
     personalEmail: string;
     phone: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    pincode?: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    pincode: string;
     gender: Gender;
     age: number;
     dateOfBirth: Date;
@@ -48,20 +50,24 @@ const signupSchema = z.object({
     lastName: z.string().min(2).max(100),
     personalEmail: z.email(),
     phone: z.string().min(10).max(15),
-    address: z.string().optional(),
+    address: z.string().min(2).max(200),
     gender: z.enum(["MALE", "FEMALE", "OTHER"]),
     age: z.number().min(0),
     dateOfBirth: z.date(),
     role: z.string(),
-    password: z.string().min(8).or(z.literal("")).optional(),
-    confirmPassword: z.string().min(8).or(z.literal("")).optional(),
+    city: z.string().min(2).max(100),
+    state: z.string().min(2).max(100),
+    country: z.string().min(2).max(100),
+    pincode: z.string().min(4).max(10),
+    password: z.string().min(6).or(z.literal("")).optional(),
+    confirmPassword: z.string().min(6).or(z.literal("")).optional(),
     profilePhoto: z.any().optional(),
 });
 
 const SignupFormFirstPage = ({
     control
 }: {
-    control: Control<SignupForm, unknown, SignupForm>
+    control: Control<SignupForm, SignupForm>
 }) => {
     return (
 
@@ -119,7 +125,7 @@ const SignupFormFirstPage = ({
 const SignupFormSecondPage = ({
     control
 }: {
-    control: Control<SignupForm, unknown, SignupForm>
+    control: Control<SignupForm, any, SignupForm>
 }) => {
     return (
 
@@ -174,7 +180,7 @@ const SignupFormSecondPage = ({
 const SignupFormThirdPage = ({
     control
 }: {
-    control: Control<SignupForm, unknown, SignupForm>
+    control: Control<SignupForm, any, SignupForm>
 }) => {
     return (
         <>
@@ -240,7 +246,7 @@ const SignupFormThirdPage = ({
 const SignupFormFourthPage = ({
     control
 }: {
-    control: Control<SignupForm, unknown, SignupForm>
+    control: Control<SignupForm, SignupForm>
 }) => {
     const [showPassword, setShowPassword] = useState(false);
     const profilePhotoRef = React.useRef<HTMLInputElement | null>(null);
@@ -299,7 +305,12 @@ const SignupFormFourthPage = ({
                 render={({ field }) => (
                     <Field>
                         <FieldLabel htmlFor="password">Password</FieldLabel>
-                        <Input id="password" type="password" placeholder="********" {...field} />
+                        <div className="relative">
+                            <Input id="password" type={showPassword ? "text" : "password"} placeholder="********" {...field} />
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500 hover:*:text-gray-700">
+                                {showPassword ? <EyeOff onClick={() => setShowPassword(false)} className=" w-4 h-4" /> : <Eye onClick={() => setShowPassword(true)} className="w-4 h-4" />}
+                            </div>
+                        </div>
                     </Field>
                 )}
             />
@@ -323,6 +334,8 @@ export function SignupForm({
     ...props
 }: React.ComponentProps<"div">) {
     const { toast } = useToast();
+    const router = useRouter();
+    const [isLoading, setIsLoading] = useState(false);
     const { control, handleSubmit } = useForm<SignupForm>({
         resolver: zodResolver(signupSchema),
         defaultValues: {
@@ -348,40 +361,54 @@ export function SignupForm({
     const [page, setPage] = useState(0);
 
     const onSubmit = handleSubmit(async (data) => {
-        console.log("✅ Success:", data);
+        try {
+            setIsLoading(true);
+            const response = await signup({
+                firstName: data.firstName,
+                lastName: data.lastName,
+                personalEmail: data.personalEmail,
+                phone: data.phone,
+                address: data.address,
+                city: data.city,
+                state: data.state,
+                country: data.country,
+                pincode: data.pincode,
+                gender: data.gender,
+                age: data.age,
+                dateOfBirth: data.dateOfBirth.toISOString(),
+                password: data.password || "",
+                profilePicture: data.profilePhoto && data.profilePhoto.length > 0 ? data.profilePhoto[0] : null
+            })
 
-        const response = await signup({
-            firstName: data.firstName,
-            lastName: data.lastName,
-            personalEmail: data.personalEmail,
-            phone: data.phone,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            country: data.country,
-            pincode: data.pincode,
-            gender: data.gender,
-            age: data.age,
-            dateOfBirth: data.dateOfBirth.toISOString(),
-            password: data.password || "",
-            profilePicture: data.profilePhoto && data.profilePhoto.length > 0 ? data.profilePhoto[0] : null
-        })
+            const updatedUser = {
+                id: response.user.id,
+                personalEmail: response.user.personalEmail,
+                name: `${data.firstName} ${data.lastName}`,
+                role: response.user.role,
+                avatar: response.user.avatar
+            }
 
-        const updatedUser = {
-            id: response.user.id,
-            personalEmail: data.personalEmail,
-            name: `${data.firstName} ${data.lastName}`,
-            role: response.user.role,
-            avatar: response.user.avatar
+            sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
+
+            toast({
+                title: "Signup successful",
+                description: "Redirecting to homepage...",
+                variant: "success"
+            });
+            console.log("✅ Success:", data);
+            router.push("/");
         }
-
-        sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
-
-        toast({
-            title: "Signup successful",
-            description: "You can now log in with your credentials.",
-            variant: "success"
-        });
+        catch (error) {
+            toast({
+                title: "Signup failed",
+                description: "An error occurred during signup. Please try again.",
+                variant: "destructive"
+            });
+            console.error("❌ Signup error:", error);
+        }
+        finally {
+            setIsLoading(false);
+        }
     },
         (errors) => {
             console.log("❌ Validation errors:", errors);  // ← add this
@@ -432,8 +459,12 @@ export function SignupForm({
                                         ) :
                                         (
                                             <div className="flex flex-col gap-2 mt-4">
-                                                <Button type="submit" className="w-full py-4.5 mt-4" onClick={onSubmit}>
-                                                    Complete Signup <LogIn />
+                                                <Button type="submit" className="w-full py-4.5 mt-4" onClick={onSubmit} disabled={isLoading}>
+                                                    {isLoading ? <Spinner /> : (
+                                                        <>
+                                                            Sign Up <LogIn />
+                                                        </>
+                                                    )}
                                                 </Button>
                                                 {
                                                     page > 0 &&

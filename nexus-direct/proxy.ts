@@ -88,7 +88,7 @@ export async function proxy(request: NextRequest) {
   // Session is valid
   // Redirect authenticated users away from auth pages
   if (isPublicPath && pathname !== "/") {
-    return NextResponse.redirect(new URL("/hr", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   // Add session to request headers for use in server components

@@ -52,13 +52,13 @@ export interface SignupRequest {
     phone?: string;
     personalEmail?: string;
     address?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    pincode?: string;
-    gender?: string;
-    age?: number;
-    dateOfBirth?: string; // ISO string
+    city: string;
+    state: string;
+    country: string;
+    pincode: string;
+    gender: string;
+    age: number;
+    dateOfBirth: string; // ISO string
     password: string;
     profilePicture: File | string | null;
 }
