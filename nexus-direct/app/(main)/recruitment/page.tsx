@@ -3,7 +3,7 @@
 import { PositionOpeningGraph } from '@/components/position-opening-graph';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MoreHorizontalIcon, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React from 'react'
+import { ExperienceWiseBarGraph } from '@/components/experience-wise-bar-graph';
 
 const Recruitment = () => {
     const navigator = useRouter();
@@ -97,8 +97,8 @@ const Recruitment = () => {
                         <CardTitle>Total Opportunities Experience wise</CardTitle>
                         <CardDescription>Explore the distribution of job opportunities based on experience levels.</CardDescription>
                     </CardHeader>
-                    <CardContent className="p-0 space-y-4 mt-2">
-                        <Card className="p-4 gap-2">
+                    <CardContent className="p-0 space-y-4 mt-2 h-full">
+                        {/* <Card className="p-4 gap-2">
                             <CardContent className="p-0 flex justify-between items-center">
                                 <div className="">
                                     <p className="font-medium text-md">Junior level Roles</p>
@@ -141,8 +141,13 @@ const Recruitment = () => {
                                     <h1 className="text-4xl font-bold">3</h1>
                                 </div>
                             </CardContent>
-                        </Card>
+                        </Card> */}
+                        <ExperienceWiseBarGraph />
                     </CardContent>
+                    <CardFooter className="p-0 flex flex-col items-start mt-4">
+                        <h4 className="font-medium">Total current openings: 67</h4>
+                        <p className="text-sm text-gray-500">Showing aggregate of all current openings across companies registered under Nexus Inc.</p>
+                    </CardFooter>
                 </Card>
                 <Card className="p-4 gap-2 w-2/3">
                     <CardHeader className="p-0">

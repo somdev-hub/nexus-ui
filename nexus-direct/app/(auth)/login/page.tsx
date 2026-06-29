@@ -13,11 +13,15 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Image from 'next/image';
-import { LoginRequest } from '@/lib/auth-service';
+import { login, LoginRequest } from '@/lib/auth-service';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from 'zod';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { Spinner } from '@/components/ui/spinner';
+import { LogIn } from 'lucide-react';
 
 const loginSchema = z.object({
     personalEmail: z.email({ message: "Invalid email address" }),
@@ -35,10 +39,42 @@ export function LoginForm({
             password: "",
         },
     })
+    const [loading, setLoading] = React.useState(false);
+    const { toast } = useToast();
+    const router = useRouter();
 
-    const onSubmit = (data: LoginRequest) => {
-        console.log("Login data:", data);
-        // Here you would typically call your login service
+    const onSubmit = async (data: LoginRequest) => {
+        try {
+            setLoading(true);
+            const response = await login(data);
+            const updatedUser = {
+                id: response.user.id,
+                personalEmail: response.user.personalEmail,
+                name: response.user.name,
+                role: response.user.role,
+                avatar: response.user.avatar
+            }
+
+            sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
+
+            toast({
+                title: "Login successful",
+                description: "Redirecting to homepage...",
+                variant: "success"
+            });
+            console.log("✅ Success:", data);
+            router.push("/");
+        } catch (error) {
+            console.error("Login failed:", error);
+            toast({
+                title: "Login failed",
+                description: (error as Error).message || "An error occurred during login.",
+                variant: "destructive"
+            });
+        }
+        finally {
+            setLoading(false);
+        }
     }
 
 
@@ -82,14 +118,14 @@ export function LoginForm({
                                         <Field>
                                             <div className="flex items-center">
                                                 <FieldLabel htmlFor="password">Password</FieldLabel>
-                                                <a
+                                                <Link
                                                     href="/forget-password"
                                                     className="ml-auto text-sm underline-offset-2 hover:underline"
                                                 >
                                                     Forgot your password?
-                                                </a>
+                                                </Link>
                                             </div>
-                                            <Input id="password" type="password" required {...field} />
+                                            <Input id="password" placeholder="••••••••" type="password" required {...field} />
                                             {fieldState.error && (
                                                 <FieldDescription className="text-destructive">
                                                     {fieldState.error.message}
@@ -97,7 +133,14 @@ export function LoginForm({
                                             )}
                                         </Field>)} />
                                 <Field>
-                                    <Button type="submit">Login</Button>
+                                    <Button type="submit" disabled={loading}>
+                                        {loading ? <Spinner /> : (
+                                            <>
+                                                <span>Login</span>
+                                                <LogIn />
+                                            </>
+                                        )}
+                                    </Button>
                                 </Field>
 
                                 <FieldDescription className="text-center">

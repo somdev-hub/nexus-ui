@@ -10,10 +10,39 @@ import { Button } from './ui/button';
 import Image from "next/image";
 import { House, LogOut, UserPlus, UserRound } from 'lucide-react';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { useRouter } from 'next/navigation';
+import { logout } from '@/lib/auth-service';
+import { Spinner } from './ui/spinner';
+import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
-    const { userId, personalEmail, name, avatar, role } = useUserMetadata();
-    console.log("[NAVBAR] User Metadata:", { userId, personalEmail, name, avatar, role });
+    const { personalEmail, name, avatar } = useUserMetadata();
+    const router = useRouter();
+    const [loading, setLoading] = React.useState(false);
+    const { toast } = useToast();
+
+    const handleLogout = async () => {
+        try {
+            setLoading(true);
+            await logout();
+            toast({
+                title: "Logout successful",
+                description: "Redirecting to login page...",
+                variant: "success"
+            });
+            router.push("/login");
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to logout.",
+                variant: "destructive"
+            });
+            console.error("Logout failed:", error);
+        }
+        finally {
+            setLoading(false);
+        }
+    };
     return (
         <div className="w-full border-b fixed top-0 z-50 bg-white">
             <Card className="w-full rounded-none border-b">
@@ -72,8 +101,9 @@ const Navbar = () => {
                                             <UserRound /> Profile
                                         </Button>
                                     </Link>
-                                    <Button variant="destructive">
-                                        <LogOut />Log out</Button>
+                                    <Button variant="destructive" onClick={handleLogout} disabled={loading}>
+                                        {loading ? <Spinner /> : <LogOut />} Log out
+                                    </Button>
                                 </div>
                             </PopoverContent>
                         </Popover>

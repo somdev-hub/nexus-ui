@@ -13,11 +13,11 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[AUTH LOGIN] Received login request");
 
-    const { email, password } = await request.json();
-    console.log("[AUTH LOGIN] Email:", email);
+    const { personalEmail, password } = await request.json();
+    console.log("[AUTH LOGIN] Email:", personalEmail);
 
-    if (!email || !password) {
-      console.log("[AUTH LOGIN] Missing email or password");
+    if (!personalEmail || !password) {
+      console.log("[AUTH LOGIN] Missing personalEmail or password");
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 }
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     // Call Spring Boot backend for authentication using centralized client
     const springBootClient = getSpringBootClient();
     const response = await springBootClient.post(
-      `/iam/auth/login`,
-      { email, password },
+      `/iam/auth/login/applicant`,
+      { personalEmail, password },
       {
         timeout: 30000 // 30 second timeout for debugging
       }
@@ -43,21 +43,20 @@ export async function POST(request: NextRequest) {
       accessToken,
       refreshToken,
       expiresIn,
+      personalEmail: email,
       userId,
-      orgId,
       name,
       role,
-      email: userEmail
+      profilePhoto
     } = response.data;
 
     // Create user object
     const user = {
       id: userId.toString(),
-      email: userEmail,
+      personalEmail: email,
       name,
       role,
-      orgId: orgId.toString(),
-      avatar: `/avatars/${name}.jpg`
+      avatar: profilePhoto
     };
 
     // Generate session token
