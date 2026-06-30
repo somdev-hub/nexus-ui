@@ -7,11 +7,35 @@ import { FileUp, Plus, SquareArrowOutUpRight, UserRoundPen } from 'lucide-react'
 import { useRouter } from 'next/dist/client/components/navigation';
 import Image from 'next/image';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import EducationDialog from '@/components/education-dialog';
+import ExperienceDialog from '@/components/experience-dialog';
+import SkillDialog from '@/components/skill-dialog';
+import { Applicant } from '@/types';
+import { getApplicant } from '@/lib/auth-service';
 
 type PageKey = "Profile Info" | "Jobs Applied" | "Resume" | "Shipping Partner" | "Jobs Rejected";
 
-const ProfileInfo = () => {
+const ProfileInfo = ({ userId }: { userId: string }) => {
+    const [applicant, setApplicant] = useState<Applicant | null>(null);
+
+    const [openEducationDialog, setOpenEducationDialog] = useState(false);
+    const [openExperienceDialog, setOpenExperienceDialog] = useState(false);
+    const [openSkillDialog, setOpenSkillDialog] = useState(false);
+
+    useEffect(()=>{
+        const fetchApplicantData = async () => {
+            try {
+                const response = await getApplicant(Number(userId));
+                setApplicant(response);
+            } catch (error) {
+                console.error("Error fetching applicant data:", error);
+            }
+        };
+
+        fetchApplicantData();
+    }, [userId]);
+
     return (
         <div>
             <h3 className="font-semibold">Profile Info</h3>
@@ -19,23 +43,28 @@ const ProfileInfo = () => {
                 <h4 className="font-medium border-b-2 pb-2 mb-2">Education</h4>
                 <div className="flex w-full bg-gray-100 rounded-full p-2 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-200 duration-300 items-center gap-2 text-gray-700 hover:text-gray-900">
                     <Plus />
-                    <span>Add Education</span>
+                    <span onClick={() => setOpenEducationDialog(true)}>Add Education</span>
                 </div>
             </section>
             <section className="mt-4">
                 <h4 className="font-medium border-b-2 pb-2 mb-2">Work Experience</h4>
                 <div className="flex w-full bg-gray-100 rounded-full p-2 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-200 duration-300 items-center gap-2 text-gray-700 hover:text-gray-900">
                     <Plus />
-                    <span>Add Experience</span>
+                    <span onClick={() => setOpenExperienceDialog(true)}>Add Experience</span>
                 </div>
             </section>
             <section className="mt-4">
                 <h4 className="font-medium border-b-2 pb-2 mb-2">Skills</h4>
                 <div className="flex w-full bg-gray-100 rounded-full p-2 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-200 duration-300 items-center gap-2 text-gray-700 hover:text-gray-900">
                     <Plus />
-                    <span>Add Skill</span>
+                    <span onClick={() => setOpenSkillDialog(true)}>Add Skill</span>
                 </div>
             </section>
+
+            {/* dialogs */}
+            <EducationDialog open={openEducationDialog} onOpenChange={setOpenEducationDialog} />
+            <ExperienceDialog open={openExperienceDialog} onOpenChange={setOpenExperienceDialog} />
+            <SkillDialog open={openSkillDialog} onOpenChange={setOpenSkillDialog} />
         </div>
     );
 };
@@ -105,7 +134,7 @@ const NAV_ITEMS: PageKey[] = [
 
 const Profile = () => {
     const navigator = useRouter();
-    const { personalEmail, name, avatar, role } = useUserMetadata();
+    const { personalEmail, name, avatar, role, userId } = useUserMetadata();
     const [activePage, setActivePage] = useState<PageKey>("Jobs Applied");
 
     const appliedJobs = [
@@ -117,7 +146,7 @@ const Profile = () => {
 
     const renderPage = () => {
         switch (activePage) {
-            case "Profile Info": return <ProfileInfo />;
+            case "Profile Info": return <ProfileInfo userId={userId} />;
             case "Jobs Applied": return <JobsApplied appliedJobs={appliedJobs} navigator={navigator} />;
             case "Resume": return <Resume />;
             case "Shipping Partner": return <div>Shipping Partner</div>;

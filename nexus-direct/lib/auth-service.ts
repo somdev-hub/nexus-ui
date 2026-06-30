@@ -1,4 +1,5 @@
 import apiClient, { apiClientMultipart } from "@/lib/api-client";
+import { Applicant, ApplicantEducation, ApplicantExperience, ApplicantSkill } from "@/types";
 
 
 export interface AuthResponse {
@@ -32,21 +33,7 @@ export interface LoginRequest {
 }
 
 export interface SignupRequest {
-    /**
-     * private String firstName;
-    private String lastName;
-    private String phone;
-    private String personalEmail;
-    private String address;
-    private String city;
-    private String state;
-    private String country;
-    private String pincode;
-    private Gender gender;
-    private Integer age;
-    private Date dateOfBirth;
-    private String password;
-     */
+
     firstName: string;
     lastName: string;
     phone?: string;
@@ -285,5 +272,52 @@ export async function getCurrentUserFromSession(): Promise<User | null> {
         return data.user || null;
     } catch {
         return null;
+    }
+}
+
+export async function getApplicant(applicantId: number): Promise<Applicant | null> {
+    try {
+        const response = await apiClient.get<Applicant>(`/iam/recruitment/applicant/${applicantId}`);
+        if (response.status !== 200) {
+            throw new Error("Failed to fetch applicant");
+        }
+        return response.data;
+    }
+    catch (error: unknown) {
+        console.error("Error fetching applicant:", error);
+        throw new Error("Failed to fetch applicant: " + (error as Error).message);
+    }
+}
+
+export async function addApplicantEducation(education: ApplicantEducation) {
+    try {
+        const response = await apiClient.post<ApplicantEducation>("/iam/recruitment/applicant/education", education);
+        return response;
+    }
+    catch (error: unknown) {
+        console.error("Error adding applicant education:", error);
+        throw new Error("Failed to add applicant education: " + (error as Error).message);
+    }
+}
+
+export async function addApplicantExperience(experience: ApplicantExperience) {
+    try {
+        const response = await apiClient.post<ApplicantExperience>("/iam/recruitment/applicant/experience", experience);
+        return response;
+    }
+    catch (error: unknown) {
+        console.error("Error adding applicant experience:", error);
+        throw new Error("Failed to add applicant experience: " + (error as Error).message);
+    }
+}
+
+export async function addApplicantSkill(skill: ApplicantSkill) {
+    try {
+        const response = await apiClient.post<ApplicantSkill>("/iam/recruitment/applicant/skill", skill);
+        return response;
+    }
+    catch (error: unknown) {
+        console.error("Error adding applicant skill:", error);
+        throw new Error("Failed to add applicant skill: " + (error as Error).message);
     }
 }
