@@ -12,13 +12,14 @@ import { Spinner } from './ui/spinner';
 import { Textarea } from './ui/textarea';
 import { ApplicantExperience } from '@/types';
 import { addApplicantExperience } from '@/lib/auth-service';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 
 
 
 const applicantExperienceSchema = z.object({
     previousCompany: z.string().min(1, { message: "Previous company is required" }),
     jobTitle: z.string().min(1, { message: "Job title is required" }),
-    yearsOfExperience: z.number().min(0, { message: "Years of experience must be a positive number" }),
+    yearsOfExperience: z.float64().min(0, { message: "Years of experience must be a positive number" }),
     jobDescription: z.string().min(1, { message: "Job description is required" }),
     startDate: z.date({ message: "Start date is required" }),
     endDate: z.date({ message: "End date is required" }),
@@ -40,10 +41,11 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
 
     const [loading, setLoading] = React.useState(false);
     const { toast } = useToast();
+    const { userId } = useUserMetadata(); // Assuming you have a hook to get user metadata
     const onSubmit = async (data: ApplicantExperience) => {
         setLoading(true);
         try {
-            const response = await addApplicantExperience(data);
+            const response = await addApplicantExperience(data, Number(userId)); // Pass userId to the function
             if (response.status !== 200) {
                 throw new Error("Failed to add experience details");
             }
@@ -77,10 +79,11 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                     <Controller
                         name="jobTitle"
                         control={control}
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                             <Field>
                                 <FieldLabel>Job Title</FieldLabel>
                                 <Input {...field} placeholder="Enter your job title" />
+                                {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
                             </Field>
                         )}
                     />
@@ -88,20 +91,25 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                         <Controller
                             name="previousCompany"
                             control={control}
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                                 <Field>
                                     <FieldLabel>Previous Company</FieldLabel>
                                     <Input {...field} placeholder="Enter your previous company name" />
+                                    {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
                                 </Field>
                             )}
                         />
                         <Controller
                             name="yearsOfExperience"
                             control={control}
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                                 <Field>
                                     <FieldLabel>Years of Experience</FieldLabel>
-                                    <Input {...field} type="number" placeholder="Enter your years of experience" />
+                                    <Input
+                                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                                        value={field.value}
+                                        type="number" placeholder="Enter your years of experience" />
+                                    {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
                                 </Field>
                             )}
                         />
@@ -109,11 +117,12 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                     <Controller
                         name="jobDescription"
                         control={control}
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                             <Field>
                                 <FieldLabel>Job Description</FieldLabel>
                                 {/* <Input {...field} placeholder="Enter your job description" /> */}
                                 <Textarea {...field} placeholder="Enter your job description" />
+                                {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
                             </Field>
                         )}
                     />
@@ -121,7 +130,7 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                         <Controller
                             name="startDate"
                             control={control}
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                                 <Field>
                                     <FieldLabel>Start Date</FieldLabel>
                                     <DatePicker
@@ -129,13 +138,14 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                                         onDateChange={field.onChange}
                                         placeholder="Select start date"
                                     />
+                                    {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
                                 </Field>
                             )}
                         />
                         <Controller
                             name="endDate"
                             control={control}
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                                 <Field>
                                     <FieldLabel>End Date</FieldLabel>
                                     <DatePicker
@@ -143,6 +153,7 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                                         onDateChange={field.onChange}
                                         placeholder="Select end date"
                                     />
+                                    {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
                                 </Field>
                             )}
                         />

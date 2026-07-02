@@ -3,6 +3,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { FileUp, Plus, SquareArrowOutUpRight, UserRoundPen } from 'lucide-react';
 import { useRouter } from 'next/dist/client/components/navigation';
 import Image from 'next/image';
@@ -13,55 +14,212 @@ import ExperienceDialog from '@/components/experience-dialog';
 import SkillDialog from '@/components/skill-dialog';
 import { Applicant } from '@/types';
 import { getApplicant } from '@/lib/auth-service';
+import { useToast } from '@/hooks/use-toast';
 
 type PageKey = "Profile Info" | "Jobs Applied" | "Resume" | "Shipping Partner" | "Jobs Rejected";
 
-const ProfileInfo = ({ userId }: { userId: string }) => {
+const ProfileInfo = ({ userId }: { userId: string | undefined }) => {
     const [applicant, setApplicant] = useState<Applicant | null>(null);
+    const [loading, setLoading] = useState(true);
 
     const [openEducationDialog, setOpenEducationDialog] = useState(false);
     const [openExperienceDialog, setOpenExperienceDialog] = useState(false);
     const [openSkillDialog, setOpenSkillDialog] = useState(false);
+    const { toast } = useToast();
 
-    useEffect(()=>{
+    useEffect(() => {
         const fetchApplicantData = async () => {
             try {
                 const response = await getApplicant(Number(userId));
                 setApplicant(response);
             } catch (error) {
+                toast({
+                    title: "Error",
+                    description: "Failed to fetch applicant data.",
+                    variant: "destructive",
+                });
                 console.error("Error fetching applicant data:", error);
+            } finally {
+                setLoading(false);
             }
         };
 
         fetchApplicantData();
-    }, [userId]);
+    }, [toast, userId]);
+
+    if (loading) {
+        return (
+            <div className="space-y-8">
+                <section>
+                    <Skeleton className="h-6 w-48 mb-4" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {Array.from({ length: 7 }).map((_, i) => (
+                            <div key={i} className="space-y-2">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-4 w-32" />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+                <section>
+                    <Skeleton className="h-6 w-32 mb-4" />
+                    <Skeleton className="h-20 w-full" />
+                </section>
+                <section>
+                    <Skeleton className="h-6 w-40 mb-4" />
+                    <Skeleton className="h-20 w-full" />
+                </section>
+                <section>
+                    <Skeleton className="h-6 w-24 mb-4" />
+                    <Skeleton className="h-12 w-full" />
+                </section>
+            </div>
+        );
+    }
 
     return (
-        <div>
-            <h3 className="font-semibold">Profile Info</h3>
-            <section className="mt-4">
-                <h4 className="font-medium border-b-2 pb-2 mb-2">Education</h4>
-                <div className="flex w-full bg-gray-100 rounded-full p-2 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-200 duration-300 items-center gap-2 text-gray-700 hover:text-gray-900">
-                    <Plus />
-                    <span onClick={() => setOpenEducationDialog(true)}>Add Education</span>
+        <div className="space-y-8">
+            {/* Personal Information */}
+            <section>
+                <div className="flex items-center justify-between border-b pb-2 mb-4">
+                    <h4 className="font-medium text-lg">Personal Information</h4>
                 </div>
-            </section>
-            <section className="mt-4">
-                <h4 className="font-medium border-b-2 pb-2 mb-2">Work Experience</h4>
-                <div className="flex w-full bg-gray-100 rounded-full p-2 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-200 duration-300 items-center gap-2 text-gray-700 hover:text-gray-900">
-                    <Plus />
-                    <span onClick={() => setOpenExperienceDialog(true)}>Add Experience</span>
-                </div>
-            </section>
-            <section className="mt-4">
-                <h4 className="font-medium border-b-2 pb-2 mb-2">Skills</h4>
-                <div className="flex w-full bg-gray-100 rounded-full p-2 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-200 duration-300 items-center gap-2 text-gray-700 hover:text-gray-900">
-                    <Plus />
-                    <span onClick={() => setOpenSkillDialog(true)}>Add Skill</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Full Name</p>
+                        <p className="text-sm font-medium">{applicant ? `${applicant.applicantFirstName} ${applicant.applicantLastName}` : "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="text-sm font-medium">{applicant ? applicant.applicantEmail : "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="text-sm font-medium">{applicant ? applicant.applicantPhone : "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Address</p>
+                        <p className="text-sm font-medium">{applicant ? `${applicant.applicantAddress}, ${applicant.applicantCity}, ${applicant.applicantState}, ${applicant.applicantCountry} - ${applicant.applicantPinCode}` : "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Date of Birth</p>
+                        <p className="text-sm font-medium">{applicant ? applicant.applicantDateOfBirth : "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Age</p>
+                        <p className="text-sm font-medium">{applicant ? applicant.applicantAge : "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Gender</p>
+                        <p className="text-sm font-medium">{applicant ? applicant.applicantGender : "—"}</p>
+                    </div>
                 </div>
             </section>
 
-            {/* dialogs */}
+            {/* Education */}
+            <section>
+                <div className="flex items-center justify-between border-b pb-2 mb-4">
+                    <h4 className="font-medium text-lg">Education</h4>
+                    <Button variant="outline" size="sm" onClick={() => setOpenEducationDialog(true)}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                    </Button>
+                </div>
+                <div className="space-y-4">
+                    {applicant && applicant.applicantEducations.length > 0 ? (
+                        <div className="space-y-4">
+                            {applicant.applicantEducations.map((education) => (
+                                <div key={education.applicantEducationId} className="flex items-start justify-between p-4 rounded-lg border bg-card">
+                                    <div className="space-y-1">
+                                        <h5 className="font-medium">{education.degree}</h5>
+                                        <p className="text-sm text-muted-foreground">{education.institute}</p>
+                                        <p className="text-sm text-muted-foreground">{education.city}, {education.state}, {education.country}</p>
+                                    </div>
+                                    <span className="text-sm text-muted-foreground whitespace-nowrap ml-4">
+                                        {new Date(education.startDate).getMonth() + 1}/{new Date(education.startDate).getFullYear()} - {new Date(education.endDate).getMonth() + 1}/{new Date(education.endDate).getFullYear()}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div
+                            className="flex w-full items-center justify-center rounded-lg border border-dashed p-8 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                            onClick={() => setOpenEducationDialog(true)}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Education
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Work Experience */}
+            <section>
+                <div className="flex items-center justify-between border-b pb-2 mb-4">
+                    <h4 className="font-medium text-lg">Work Experience</h4>
+                    <Button variant="outline" size="sm" onClick={() => setOpenExperienceDialog(true)}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                    </Button>
+                </div>
+                <div className="space-y-4">
+                    {applicant && applicant.applicantExperiences.length > 0 ? (
+                        <div className="space-y-4">
+                            {applicant.applicantExperiences.map((experience) => (
+                                <div key={experience.applicantExperienceId} className="flex items-start justify-between p-4 rounded-lg border bg-card">
+                                    <div className="space-y-1">
+                                        <h5 className="font-medium">{experience.jobTitle}</h5>
+                                        <p className="text-sm text-muted-foreground">{experience.previousCompany}</p>
+                                    </div>
+                                    <span className="text-sm text-muted-foreground whitespace-nowrap ml-4">
+                                        {new Date(experience.startDate).getMonth() + 1}/{new Date(experience.startDate).getFullYear()} - {new Date(experience.endDate).getMonth() + 1}/{new Date(experience.endDate).getFullYear()}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div
+                            className="flex w-full items-center justify-center rounded-lg border border-dashed p-8 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                            onClick={() => setOpenExperienceDialog(true)}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Experience
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Skills */}
+            <section>
+                <div className="flex items-center justify-between border-b pb-2 mb-4">
+                    <h4 className="font-medium text-lg">Skills</h4>
+                    <Button variant="outline" size="sm" onClick={() => setOpenSkillDialog(true)}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                    </Button>
+                </div>
+                <div>
+                    {applicant && applicant.applicantSkills.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {applicant.applicantSkills.map((skill) => (
+                                <Badge key={skill.applicantSkillId} variant="secondary" className="px-3 py-1 text-sm">
+                                    {skill.skillName}
+                                </Badge>
+                            ))}
+                        </div>
+                    ) : (
+                        <div
+                            className="flex w-full items-center justify-center rounded-lg border border-dashed p-8 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+                            onClick={() => setOpenSkillDialog(true)}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Skill
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Dialogs */}
             <EducationDialog open={openEducationDialog} onOpenChange={setOpenEducationDialog} />
             <ExperienceDialog open={openExperienceDialog} onOpenChange={setOpenExperienceDialog} />
             <SkillDialog open={openSkillDialog} onOpenChange={setOpenSkillDialog} />
@@ -71,11 +229,13 @@ const ProfileInfo = ({ userId }: { userId: string }) => {
 
 const Resume = () => {
     return (
-        <div>
-            <h3 className="font-semibold">Resume</h3>
-            <div className="mt-4 flex w-full border-2 border-dashed border-gray-300 rounded-lg p-8 justify-center text-sm font-medium hover:cursor-pointer hover:bg-gray-100 duration-300 items-center gap-2 text-gray-500 hover:text-gray-700">
-                <FileUp className="w-5 h-5" />
-                <span>Upload Resume</span>
+        <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+                <h4 className="font-medium text-lg">Resume</h4>
+            </div>
+            <div className="flex w-full items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors">
+                <FileUp className="h-5 w-5 mr-2" />
+                Upload Resume
             </div>
         </div>
     );
@@ -83,9 +243,11 @@ const Resume = () => {
 
 const JobsApplied = ({ appliedJobs, navigator }: { appliedJobs: any[], navigator: any }) => {
     return (
-        <div>
-            <h3 className="font-semibold">Applied Jobs</h3>
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+                <h4 className="font-medium text-lg">Applied Jobs</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {appliedJobs.map((job, index) => (
                     <Card
                         className={`p-4 ${job.status === "Rejected" ? "bg-red-50" : job.status === "Offer Received" ? "bg-green-50" : ""} hover:cursor-pointer hover:transform hover:scale-105 duration-300`}
@@ -96,23 +258,23 @@ const JobsApplied = ({ appliedJobs, navigator }: { appliedJobs: any[], navigator
                             <div className="flex justify-between items-center border-b pb-2 mb-2">
                                 <div>
                                     <h4 className="font-medium">{job.position}</h4>
-                                    <p className="text-sm text-gray-500">{job.company}</p>
+                                    <p className="text-sm text-muted-foreground">{job.company}</p>
                                 </div>
-                                <SquareArrowOutUpRight className="w-4 h-4 text-gray-500" />
+                                <SquareArrowOutUpRight className="w-4 h-4 text-muted-foreground" />
                             </div>
                             <ul className="flex flex-col gap-2 text-sm">
                                 <li className="flex justify-between">
-                                    <span className="text-gray-500">Applied on:</span>
+                                    <span className="text-muted-foreground">Applied on:</span>
                                     <span>{job.appliedOn}</span>
                                 </li>
                                 <li className="flex justify-between">
-                                    <span className="text-gray-500">Status:</span>
+                                    <span className="text-muted-foreground">Status:</span>
                                     <Badge variant={job.status === "Rejected" ? "destructive" : job.status === "Offer Received" ? "default" : "secondary"}>
                                         {job.status}
                                     </Badge>
                                 </li>
                                 <li className="flex justify-between">
-                                    <span className="text-gray-500">Location:</span>
+                                    <span className="text-muted-foreground">Location:</span>
                                     <span>{job.location}</span>
                                 </li>
                             </ul>

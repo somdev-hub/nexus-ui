@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Spinner } from './ui/spinner';
 import { ApplicantEducation } from '@/types';
 import { addApplicantEducation } from '@/lib/auth-service';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 
 
 const applicantEducationSchema = z.object({
@@ -38,11 +39,12 @@ const EducationDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: 
     });
     const [loading, setLoading] = React.useState(false);
     const { toast } = useToast();
+    const { userId } = useUserMetadata() // Assuming you have a hook to get user metadata
 
     const onSubmit = async (data: ApplicantEducation) => {
         setLoading(true);
         try {
-            const response = await addApplicantEducation(data);
+            const response = await addApplicantEducation(data, Number(userId)); // Pass userId to the function
             if (response.status !== 200) {
                 throw new Error("Failed to add education details");
             }

@@ -10,6 +10,7 @@ import { Button } from './ui/button';
 import { Spinner } from './ui/spinner';
 import { ApplicantSkill } from '@/types';
 import { addApplicantSkill } from '@/lib/auth-service';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 
 
 
@@ -26,11 +27,12 @@ const SkillDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange: (ope
     });
     const [loading, setLoading] = React.useState(false);
     const { toast } = useToast();
+    const { userId } = useUserMetadata(); // Assuming you have a hook to get user metadata
 
     const onSubmit = async (data: ApplicantSkill) => {
         setLoading(true);
         try {
-            const response = await addApplicantSkill(data);
+            const response = await addApplicantSkill(data, Number(userId)); // Pass userId to the function
             if (response.status !== 200) {
                 throw new Error("Failed to add skill");
             }

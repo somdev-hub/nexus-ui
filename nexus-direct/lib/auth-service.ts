@@ -289,9 +289,9 @@ export async function getApplicant(applicantId: number): Promise<Applicant | nul
     }
 }
 
-export async function addApplicantEducation(education: ApplicantEducation) {
+export async function addApplicantEducation(education: ApplicantEducation, userId?: number) {
     try {
-        const response = await apiClient.post<ApplicantEducation>("/iam/recruitment/applicant/education", education);
+        const response = await apiClient.post<ApplicantEducation>(`/iam/recruitment/applicant/education?userId=${userId}`, education);
         return response;
     }
     catch (error: unknown) {
@@ -300,9 +300,9 @@ export async function addApplicantEducation(education: ApplicantEducation) {
     }
 }
 
-export async function addApplicantExperience(experience: ApplicantExperience) {
+export async function addApplicantExperience(experience: ApplicantExperience, userId?: number) {
     try {
-        const response = await apiClient.post<ApplicantExperience>("/iam/recruitment/applicant/experience", experience);
+        const response = await apiClient.post<ApplicantExperience>(`/iam/recruitment/applicant/experience?userId=${userId}`, experience);
         return response;
     }
     catch (error: unknown) {
@@ -311,9 +311,9 @@ export async function addApplicantExperience(experience: ApplicantExperience) {
     }
 }
 
-export async function addApplicantSkill(skill: ApplicantSkill) {
+export async function addApplicantSkill(skill: ApplicantSkill, userId?: number) {
     try {
-        const response = await apiClient.post<ApplicantSkill>("/iam/recruitment/applicant/skill", skill);
+        const response = await apiClient.post<ApplicantSkill>(`/iam/recruitment/applicant/skill?userId=${userId}`, skill);
         return response;
     }
     catch (error: unknown) {
