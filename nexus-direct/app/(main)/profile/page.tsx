@@ -15,10 +15,11 @@ import SkillDialog from '@/components/skill-dialog';
 import { Applicant } from '@/types';
 import { getApplicant } from '@/lib/auth-service';
 import { useToast } from '@/hooks/use-toast';
+import EditProfileDialog from '@/components/edit-profile-dialog';
 
 type PageKey = "Profile Info" | "Jobs Applied" | "Resume" | "Shipping Partner" | "Jobs Rejected";
 
-const ProfileInfo = ({ userId }: { userId: string | undefined }) => {
+const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }: { userId: string | undefined; editProfileDialogOpen: boolean; setEditProfileDialogOpen: (open: boolean) => void }) => {
     const [applicant, setApplicant] = useState<Applicant | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -223,6 +224,9 @@ const ProfileInfo = ({ userId }: { userId: string | undefined }) => {
             <EducationDialog open={openEducationDialog} onOpenChange={setOpenEducationDialog} />
             <ExperienceDialog open={openExperienceDialog} onOpenChange={setOpenExperienceDialog} />
             <SkillDialog open={openSkillDialog} onOpenChange={setOpenSkillDialog} />
+            {applicant && (
+                <EditProfileDialog open={editProfileDialogOpen} onOpenChange={setEditProfileDialogOpen} applicant={applicant} />
+            )}
         </div>
     );
 };
@@ -298,6 +302,7 @@ const Profile = () => {
     const navigator = useRouter();
     const { personalEmail, name, avatar, role, userId } = useUserMetadata();
     const [activePage, setActivePage] = useState<PageKey>("Jobs Applied");
+    const [editProfileDialogOpen, setEditProfileDialogOpen] = useState(false);
 
     const appliedJobs = [
         { company: "Cosmos Ltd.", position: "Software Engineer", appliedOn: "12th Jun 2026", status: "Under Review", location: "San Francisco, CA" },
@@ -308,7 +313,7 @@ const Profile = () => {
 
     const renderPage = () => {
         switch (activePage) {
-            case "Profile Info": return <ProfileInfo userId={userId} />;
+            case "Profile Info": return <ProfileInfo userId={userId} editProfileDialogOpen={editProfileDialogOpen} setEditProfileDialogOpen={setEditProfileDialogOpen} />;
             case "Jobs Applied": return <JobsApplied appliedJobs={appliedJobs} navigator={navigator} />;
             case "Resume": return <Resume />;
             case "Shipping Partner": return <div>Shipping Partner</div>;
@@ -344,7 +349,7 @@ const Profile = () => {
                                 </p>
                             </div>
                         </div>
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={() => setEditProfileDialogOpen(true)}>
                             <UserRoundPen />
                             Edit Profile
                         </Button>
@@ -374,6 +379,7 @@ const Profile = () => {
                     </div>
                 </CardContent>
             </Card>
+
         </div>
     );
 };

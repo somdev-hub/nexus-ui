@@ -151,7 +151,7 @@ async function ensureValidSession(
         try {
             // Call Spring Boot to refresh tokens
             const springBootClient = getSpringBootClient();
-            const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
+            const refreshResponse = await springBootClient.post(`/iam/auth/refresh/applicant`, {
                 refreshToken
             });
 
@@ -221,7 +221,7 @@ async function handleUnauthorizedWithRetry(
         );
         // Call Spring Boot to refresh tokens
         const springBootClient = getSpringBootClient();
-        const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
+        const refreshResponse = await springBootClient.post(`/iam/auth/refresh/applicant`, {
             refreshToken
         });
 
@@ -406,7 +406,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[API PROXY POST] Session found:", !!session);
     if (session) {
-        console.log("[API PROXY POST] Session user:", session.user?.email);
+        console.log("[API PROXY POST] Session user:", session.user?.personalEmail);
         console.log("[API PROXY POST] Session expires at:", session.expiresAt);
     }
 
@@ -519,7 +519,7 @@ export async function PUT(request: NextRequest) {
 
     console.log("[API PROXY PUT] Session found:", !!session);
     if (session) {
-        console.log("[API PROXY PUT] Session user:", session.user?.email);
+        console.log("[API PROXY PUT] Session user:", session.user?.personalEmail);
         console.log("[API PROXY PUT] Session expires at:", session.expiresAt);
     }
 

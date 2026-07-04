@@ -94,9 +94,8 @@ export async function proxy(request: NextRequest) {
   // Add session to request headers for use in server components
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-user-id", session.user.id);
-  requestHeaders.set("x-user-email", session.user.email);
+  requestHeaders.set("x-user-email", session.user.personalEmail);
   requestHeaders.set("x-user-role", session.user.role);
-  requestHeaders.set("x-org-id", session.user.orgId);
 
   return NextResponse.next({
     request: {

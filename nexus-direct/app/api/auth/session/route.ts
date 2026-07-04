@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
                 "[AUTH SESSION] Calling Spring Boot to validate and refresh token"
             );
             const refreshResponse = await axios.post(
-                `${SPRING_BOOT_API}/iam/auth/refresh`,
+                `${SPRING_BOOT_API}/iam/auth/refresh/applicant`,
                 { refreshToken },
                 {
                     headers: {
@@ -73,8 +73,7 @@ export async function GET(request: NextRequest) {
                 expiresIn,
                 refreshToken: newRefreshToken,
                 userId,
-                orgId,
-                email,
+                email: personalEmail,
                 phone,
                 name,
                 role
@@ -93,25 +92,23 @@ export async function GET(request: NextRequest) {
             }
 
             // Validate that all required user fields are present
-            if (!userId || !email || !name || !role) {
+            if (!userId || !personalEmail || !name || !role) {
                 console.error(
                     "[AUTH SESSION] Missing required user data from refresh response:",
                     {
                         hasUserId: !!userId,
-                        hasEmail: !!email,
+                        hasPersonalEmail: !!personalEmail,
                         hasName: !!name,
-                        hasRole: !!role,
-                        hasOrgId: !!orgId
+                        hasRole: !!role
                     }
                 );
                 throw new Error("Refresh response missing required user data");
             }
 
             const finalUserId = userId;
-            const finalEmail = email;
+            const finalEmail = personalEmail;
             const finalName = name;
             const finalRole = role;
-            const finalOrgId = orgId;
             const finalPhone = phone;
             // Create user object
             const user = {
@@ -119,7 +116,6 @@ export async function GET(request: NextRequest) {
                 personalEmail: finalEmail,
                 name: finalName,
                 role: finalRole,
-                orgId: finalOrgId.toString(),
                 avatar: `/avatars/${finalName}.jpg`,
                 phone: finalPhone
             };
@@ -135,7 +131,6 @@ export async function GET(request: NextRequest) {
                 personalEmail: finalEmail,
                 name: finalName,
                 role: finalRole,
-                orgId: finalOrgId,
                 phone: finalPhone
             });
 
