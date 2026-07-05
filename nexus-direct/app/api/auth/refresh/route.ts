@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
                 userId,
                 email,
                 name,
-                role,
-                orgId
+                role
             } = refreshResponse.data;
 
             console.log("[AUTH REFRESH] New token expiry (seconds):", expiresIn);
@@ -105,7 +104,6 @@ export async function POST(request: NextRequest) {
                     personalEmail: email,
                     name,
                     role,
-                    orgId: orgId.toString(),
                     avatar: `/avatars/${name}.jpg`
                 };
 

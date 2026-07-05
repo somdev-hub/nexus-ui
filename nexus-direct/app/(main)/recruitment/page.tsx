@@ -4,7 +4,7 @@ import { PositionOpeningGraph } from '@/components/position-opening-graph';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,6 +12,81 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { MoreHorizontalIcon, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ExperienceWiseBarGraph } from '@/components/experience-wise-bar-graph';
+
+
+const FilterMenu = () => {
+    return (
+        <DropdownMenu>
+            <Tooltip>
+                <TooltipContent>
+                    <p>Filter</p>
+                </TooltipContent>
+                <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-10 w-10 cursor-pointer">
+                            <SlidersHorizontal />
+                        </Button>
+                    </DropdownMenuTrigger>
+                </TooltipTrigger>
+            </Tooltip>
+            <DropdownMenuContent className="w-40" align="start">
+                <DropdownMenuGroup>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Status</DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                                <DropdownMenuCheckboxItem
+                                    checked={true}
+                                    onCheckedChange={() => { }}
+                                >
+                                    Open
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuItem>Closed</DropdownMenuItem>
+                                <DropdownMenuItem>Cancelled</DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Company</DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                                <form action="">
+                                    <Input type="text" placeholder="Search company..." className="h-8 mb-2" />
+                                </form>
+                                <DropdownMenuCheckboxItem
+                                    checked={true}
+                                    onCheckedChange={() => { }}
+                                >
+                                    TechnoCorp Inc
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuItem>Innovatech Solutions</DropdownMenuItem>
+                                <DropdownMenuItem>GlobalTech Enterprises</DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Location</DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                                <form action="">
+                                    <Input type="text" placeholder="Search location..." className="h-8 mb-2" />
+                                </form>
+                                <DropdownMenuCheckboxItem
+                                    checked={true}
+                                    onCheckedChange={() => { }}
+                                >
+                                    San Francisco, CA
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuItem>New York, NY</DropdownMenuItem>
+                                <DropdownMenuItem>Austin, TX</DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                </DropdownMenuGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
 
 const Recruitment = () => {
     const navigator = useRouter();
@@ -208,14 +283,7 @@ const Recruitment = () => {
                             <form>
                                 <Input type="text" placeholder="Search opportunities..." className="h-10" />
                             </form>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" className="h-10 w-10"><SlidersHorizontal /></Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Filter opportunities</p>
-                                </TooltipContent>
-                            </Tooltip>
+                            <FilterMenu />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 mt-4">
@@ -298,14 +366,7 @@ const Recruitment = () => {
                             <form>
                                 <Input type="text" placeholder="Search opportunities..." className="h-10" />
                             </form>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" className="h-10 w-10"><SlidersHorizontal /></Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Filter opportunities</p>
-                                </TooltipContent>
-                            </Tooltip>
+                            <FilterMenu />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 mt-4">

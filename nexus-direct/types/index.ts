@@ -16,6 +16,7 @@ export interface ApplicantEducation {
     country: string;
     startDate: Date;
     endDate: Date;
+    isActive?: boolean;
 }
 
 export interface ApplicantExperience {
@@ -26,11 +27,13 @@ export interface ApplicantExperience {
     jobDescription: string;
     startDate: Date;
     endDate: Date;
+    isActive?: boolean;
 }
 
 export interface ApplicantSkill {
     applicantSkillId?: number;
     skillName: string;
+    isActive?: boolean;
 }
 
 export interface ApplicantDocument {
@@ -41,6 +44,7 @@ export interface ApplicantDocument {
     hrDocumentType: string;
     documentUrl: string;
     createdOn?: Date;
+    isActive?: boolean;
 }
 
 export interface Applicant {

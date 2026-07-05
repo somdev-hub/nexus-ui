@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
         expiresIn,
         refreshToken: newRefreshToken,
         userId,
-        orgId,
         email,
         name,
         role
@@ -69,10 +68,9 @@ export async function POST(request: NextRequest) {
       // Create user object
       const user = {
         id: userId.toString(),
-        email,
+        personalEmail: email,
         name,
         role,
-        orgId: orgId.toString(),
         avatar: `/avatars/${name}.jpg`
       };
 

@@ -321,3 +321,14 @@ export async function addApplicantSkill(skill: ApplicantSkill, userId?: number) 
         throw new Error("Failed to add applicant skill: " + (error as Error).message);
     }
 }
+
+export async function updateApplicant(applicant: Applicant, userId?: number) {
+    try {
+        const response = await apiClient.put<Applicant>(`/iam/recruitment/applicant?userId=${userId}`, applicant);
+        return response;
+    }
+    catch (error: unknown) {
+        console.error("Error updating applicant:", error);
+        throw new Error("Failed to update applicant: " + (error as Error).message);
+    }
+}

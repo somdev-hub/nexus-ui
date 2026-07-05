@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileUp, Plus, SquareArrowOutUpRight, UserRoundPen } from 'lucide-react';
+import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen } from 'lucide-react';
 import { useRouter } from 'next/dist/client/components/navigation';
 import Image from 'next/image';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
@@ -31,6 +31,7 @@ const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }
     useEffect(() => {
         const fetchApplicantData = async () => {
             try {
+                setLoading(true);
                 const response = await getApplicant(Number(userId));
                 setApplicant(response);
             } catch (error) {
@@ -127,7 +128,7 @@ const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }
                     </Button>
                 </div>
                 <div className="space-y-4">
-                    {applicant && applicant.applicantEducations.length > 0 ? (
+                    {applicant && applicant.applicantEducations?.length > 0 ? (
                         <div className="space-y-4">
                             {applicant.applicantEducations.map((education) => (
                                 <div key={education.applicantEducationId} className="flex items-start justify-between p-4 rounded-lg border bg-card">
@@ -164,7 +165,7 @@ const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }
                     </Button>
                 </div>
                 <div className="space-y-4">
-                    {applicant && applicant.applicantExperiences.length > 0 ? (
+                    {applicant && applicant.applicantExperiences?.length > 0 ? (
                         <div className="space-y-4">
                             {applicant.applicantExperiences.map((experience) => (
                                 <div key={experience.applicantExperienceId} className="flex items-start justify-between p-4 rounded-lg border bg-card">
@@ -200,7 +201,7 @@ const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }
                     </Button>
                 </div>
                 <div>
-                    {applicant && applicant.applicantSkills.length > 0 ? (
+                    {applicant && applicant.applicantSkills?.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                             {applicant.applicantSkills.map((skill) => (
                                 <Badge key={skill.applicantSkillId} variant="secondary" className="px-3 py-1 text-sm">
@@ -301,7 +302,7 @@ const NAV_ITEMS: PageKey[] = [
 const Profile = () => {
     const navigator = useRouter();
     const { personalEmail, name, avatar, role, userId } = useUserMetadata();
-    const [activePage, setActivePage] = useState<PageKey>("Jobs Applied");
+    const [activePage, setActivePage] = useState<PageKey>("Profile Info");
     const [editProfileDialogOpen, setEditProfileDialogOpen] = useState(false);
 
     const appliedJobs = [
@@ -330,12 +331,17 @@ const Profile = () => {
                     <div className="flex justify-between items-center px-8 py-4 border-b">
                         <div className="flex gap-4 items-center">
                             <div className="rounded-full overflow-hidden">
-                                <Image
-                                    src={avatar ?? "https://github.com/shadcn.png"}
-                                    alt={name ?? "User Avatar"}
-                                    width={60}
-                                    height={60}
-                                />
+                                <div className="relative flex items-center justify-center group hover:cursor-pointer hover:opacity-80 hover:bg-black/20 transition-opacity duration-150">
+                                    <Image
+                                        src={avatar ?? "https://github.com/shadcn.png"}
+                                        alt={name ?? "User Avatar"}
+                                        width={60}
+                                        height={60}
+                                    />
+                                    <div className="absolute group-hover:flex hidden items-center justify-center w-full h-full bg-black/30 text-white">
+                                        <Camera className="w-5 h-5" />
+                                    </div>
+                                </div>
                             </div>
                             <div className="flex flex-col gap-1">
                                 <div className="flex gap-2 items-center">
