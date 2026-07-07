@@ -18,53 +18,77 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/components/ui/chart"
+import { PositionPieGraphEntry } from "@/types"
 
 export const description = "A donut chart with text"
 
-const chartData = [
-    { position: "Software Engineer", openings: 275, fill: "var(--color-chrome)" },
-    { position: "Frontend Developer", openings: 200, fill: "var(--color-safari)" },
-    { position: "Data Scientist", openings: 287, fill: "var(--color-firefox)" },
-    { position: "Product Manager", openings: 173, fill: "var(--color-edge)" },
-    { position: "UX Designer", openings: 190, fill: "var(--color-other)" },
+const FALLBACK_COLORS = [
+    "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-3)",
+    "var(--chart-4)",
+    "var(--chart-5)",
 ]
 
-const chartConfig = {
-    openings: {
-        label: "Openings",
-    },
-    chrome: {
-        label: "Software Engineer",
-        color: "var(--chart-1)",
-    },
-    safari: {
-        label: "Frontend Developer",
-        color: "var(--chart-2)",
-    },
-    firefox: {
-        label: "Data Scientist",
-        color: "var(--chart-3)",
-    },
-    edge: {
-        label: "Product Manager",
-        color: "var(--chart-4)",
-    },
-    other: {
-        label: "UX Designer",
-        color: "var(--chart-5)",
-    },
-} satisfies ChartConfig
+const DEFAULT_CHART_DATA: PositionPieGraphEntry[] = [
+    { position: "Software Engineer", openings: 275 },
+    { position: "Frontend Developer", openings: 200 },
+    { position: "Data Scientist", openings: 287 },
+    { position: "Product Manager", openings: 173 },
+    { position: "UX Designer", openings: 190 },
+]
 
-export function PositionOpeningGraph() {
+interface PositionOpeningGraphProps {
+    data?: PositionPieGraphEntry[] | null
+    isLoading?: boolean
+}
+
+export function PositionOpeningGraph({ data, isLoading }: PositionOpeningGraphProps) {
+    const chartData = React.useMemo(() => {
+        const source = data && data.length > 0 ? data : DEFAULT_CHART_DATA
+        return source.map((entry, index) => ({
+            ...entry,
+            fill: FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+        }))
+    }, [data])
+
+    const chartConfig = React.useMemo(() => {
+        const config: ChartConfig = {
+            openings: { label: "Openings" },
+        }
+        chartData.forEach((entry, index) => {
+            const key = `position-${index}`
+            config[key] = {
+                label: entry.position,
+                color: FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+            }
+        })
+        return config
+    }, [chartData])
+
     const totalOpenings = React.useMemo(() => {
         return chartData.reduce((acc, curr) => acc + curr.openings, 0)
-    }, [])
+    }, [chartData])
+
+    if (isLoading) {
+        return (
+            <Card className="flex flex-col p-4 gap-2 w-1/3">
+                <CardHeader className="items-center p-0">
+                    <CardTitle>Current Position Openings</CardTitle>
+                    <CardDescription>Loading...</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 p-0 flex items-center justify-center min-h-[250px]">
+                    <div className="animate-pulse rounded-full bg-muted h-40 w-40" />
+                </CardContent>
+            </Card>
+        )
+    }
 
     return (
         <Card className="flex flex-col p-4 gap-2 w-1/3">
             <CardHeader className="items-center p-0">
                 <CardTitle>Current Position Openings</CardTitle>
-                <CardDescription>January - June 2024</CardDescription>
+                <CardDescription>Position-wise distribution</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 p-0">
                 <ChartContainer
@@ -118,10 +142,10 @@ export function PositionOpeningGraph() {
             </CardContent>
             <CardFooter className="flex-col gap-2 text-sm">
                 <div className="flex items-center gap-2 leading-none font-medium">
-                    Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+                    Across {chartData.length} positions <TrendingUp className="h-4 w-4" />
                 </div>
                 <div className="leading-none text-muted-foreground">
-                    Showing total openings for the last 6 months
+                    Showing total openings by position
                 </div>
             </CardFooter>
         </Card>

@@ -1,5 +1,14 @@
-import apiClient, { apiClientMultipart } from "@/lib/api-client";
-import { Applicant, ApplicantEducation, ApplicantExperience, ApplicantSkill } from "@/types";
+import apiClient from "@/lib/api-client";
+import {
+    Applicant,
+    ApplicantEducation,
+    ApplicantExperience,
+    ApplicantSkill, CompanyOpeningsCardDto,
+    Recruitment,
+    RecruitmentApplicantTableResponse
+} from "@/types";
+import { PaginatedResponse } from "@/types/paginated-response";
+import { AxiosResponse } from "axios";
 
 
 export interface AuthResponse {
@@ -330,5 +339,65 @@ export async function updateApplicant(applicant: Applicant, userId?: number) {
     catch (error: unknown) {
         console.error("Error updating applicant:", error);
         throw new Error("Failed to update applicant: " + (error as Error).message);
+    }
+}
+
+export async function getOpeningsToday(pageNo: number, pageOffset: number, status: string, orgName: string, location: string): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
+    try {
+        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/openings-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}`);
+    }
+    catch (error: unknown) {
+        console.error("Error fetching openings:", error);
+        throw new Error("Failed to fetch openings: " + (error as Error).message);
+    }
+}
+
+export async function getOpeningsBeforeToday(pageNo: number, pageOffset: number, status: string, orgName: string, location: string): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
+    try {
+        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/openings-before-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}`);
+    }
+    catch (error: unknown) {
+        console.error("Error fetching openings:", error);
+        throw new Error("Failed to fetch openings: " + (error as Error).message);
+    }
+}
+
+export async function getPositionPieGraph() {
+    try {
+        return await apiClient.get(`/iam/recruitment/position-pie-graph`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch position pie graph: " + (e as Error).message);
+    }
+}
+
+export interface ExperienceWiseOpeningsMap {
+    [experienceLevel: string]: number;
+}
+
+export async function getOpeningsExperienceWise(): Promise<AxiosResponse<ExperienceWiseOpeningsMap>> {
+    try {
+        return await apiClient.get<ExperienceWiseOpeningsMap>(`/iam/recruitment/openings-experience-wise`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch openings experience-wise: " + (e as Error).message);
+    }
+}
+
+export async function companyWiseOpeningCount(pageNo: number, pageOffset: number): Promise<AxiosResponse<PaginatedResponse<CompanyOpeningsCardDto>>> {
+    try {
+        return await apiClient.get<PaginatedResponse<CompanyOpeningsCardDto>>(`/iam/recruitment/company-wise-opening-count?pageNo=${pageNo}&pageOffset=${pageOffset}`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch company-wise opening count: " + (e as Error).message);
+    }
+}
+
+export async function getRecruitmentById(recruitmentId: number): Promise<AxiosResponse<Recruitment>> {
+    try {
+        return await apiClient.get<Recruitment>(`/iam/recruitment/applicant-view/${recruitmentId}`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch recruitment by ID: " + (e as Error).message);
     }
 }

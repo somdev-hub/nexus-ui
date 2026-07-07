@@ -67,3 +67,52 @@ export interface Applicant {
     applicantSkills: ApplicantSkill[];
     applicantDocuments: ApplicantDocument[];
 }
+
+export interface RecruitmentApplicantTableResponse {
+    recruitmentId: number;
+    roleName: string;
+    orgName: string;
+    location: string;
+    createdAt: Date;
+    status: string;
+    department: string;
+}
+
+export interface CompanyOpeningsCardDto {
+    orgId: number;
+    orgName: string;
+    currentOpenings: number;
+    changeFromLastMonth: number;
+}
+
+export interface PositionPieGraphEntry {
+    position: string;
+    openings: number;
+}
+
+export interface ExperienceWiseOpeningEntry {
+    experienceLevel: string;
+    experience: string;
+    count: number;
+}
+
+export interface Recruitment {
+    createdAt: Date;
+    departmentId: number;
+    departmentName: string;
+    description: string;
+    hiringStatus: string;
+    hiringType: string;
+    isActive: boolean;
+    location: string;
+    maxYearsOfExperience: number;
+    minYearsOfExperience: number;
+    openingTillDate: Date;
+    orgId: number;
+    orgName: string;
+    recruitmentId: number;
+    roleName: string;
+    shortDescription: string;
+    title: string;
+    totalCompensation: string;
+}

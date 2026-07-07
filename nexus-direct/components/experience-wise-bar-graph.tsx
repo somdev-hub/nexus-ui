@@ -1,6 +1,5 @@
 "use client"
 
-import { TrendingUp } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 
 import {
@@ -9,10 +8,11 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/components/ui/chart"
+import { ExperienceWiseOpeningEntry } from "@/types"
 
 export const description = "A bar chart with a custom label"
 
-const chartData = [
+const DEFAULT_CHART_DATA: ExperienceWiseOpeningEntry[] = [
     { experienceLevel: "Junior Roles", experience: "0-2 years", count: 50 },
     { experienceLevel: "Mid-Level Roles", experience: "3-5 years", count: 30 },
     { experienceLevel: "Senior Roles", experience: "6+ years", count: 20 },
@@ -20,17 +20,6 @@ const chartData = [
 ]
 
 const chartConfig = {
-    // desktop: {
-    //     label: "Desktop",
-    //     color: "var(--chart-2)",
-    // },
-    // mobile: {
-    //     label: "Mobile",
-    //     color: "var(--chart-2)",
-    // },
-    // label: {
-    //     color: "var(--background)",
-    // },
     experienceLevel: {
         label: "Experience Level",
         color: "var(--chart-2)",
@@ -41,9 +30,27 @@ const chartConfig = {
     },
 } satisfies ChartConfig
 
-export function ExperienceWiseBarGraph() {
-    return (
+interface ExperienceWiseBarGraphProps {
+    data?: ExperienceWiseOpeningEntry[] | null
+    isLoading?: boolean
+}
 
+export function ExperienceWiseBarGraph({ data, isLoading }: ExperienceWiseBarGraphProps) {
+    const chartData = data && data.length > 0 ? data : DEFAULT_CHART_DATA
+
+    if (isLoading) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="space-y-3 w-full px-4">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="animate-pulse rounded-md bg-muted h-8 w-full" />
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    return (
         <ChartContainer config={chartConfig} className="h-full">
             <BarChart
                 accessibilityLayer
@@ -86,6 +93,5 @@ export function ExperienceWiseBarGraph() {
                 </Bar>
             </BarChart>
         </ChartContainer>
-
     )
 }
