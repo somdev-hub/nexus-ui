@@ -24,7 +24,7 @@ const applicantEducationSchema = z.object({
     endDate: z.date({ message: "End date is required" }),
 });
 
-const EducationDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => {
+const EducationDialog = ({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (open: boolean) => void; onSuccess?: () => void }) => {
     const { control, handleSubmit } = useForm<ApplicantEducation>({
         resolver: zodResolver(applicantEducationSchema),
         defaultValues: {
@@ -52,6 +52,7 @@ const EducationDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: 
                 title: "Education Added",
                 description: "Your education details have been added successfully.",
             });
+            onSuccess?.();
             onOpenChange(false);
         } catch (error: unknown) {
             toast({

@@ -18,7 +18,7 @@ const applicantSkillSchema = z.object({
     skillName: z.string().min(1, { message: "Skill name is required" }),
 });
 
-const SkillDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) => {
+const SkillDialog = ({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (open: boolean) => void; onSuccess?: () => void }) => {
     const { control, handleSubmit } = useForm<ApplicantSkill>({
         resolver: zodResolver(applicantSkillSchema),
         defaultValues: {
@@ -40,6 +40,7 @@ const SkillDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange: (ope
                 title: "Skill Added",
                 description: "Your skill has been added successfully.",
             });
+            onSuccess?.();
             onOpenChange(false);
         } catch (error: unknown) {
             toast({

@@ -116,3 +116,10 @@ export interface Recruitment {
     title: string;
     totalCompensation: string;
 }
+
+export interface RecruitmentFilter {
+    hiringTypes: string[];
+    hiringStatuses: string[];
+    orgNames: string[];
+    locations: string[];
+}

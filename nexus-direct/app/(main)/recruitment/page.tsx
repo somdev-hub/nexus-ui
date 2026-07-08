@@ -29,7 +29,8 @@ import {
     CompanyOpeningsCardDto,
     ExperienceWiseOpeningEntry,
     PositionPieGraphEntry,
-    RecruitmentApplicantTableResponse
+    RecruitmentApplicantTableResponse,
+    RecruitmentFilter
 } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -37,11 +38,33 @@ import {
     getOpeningsBeforeToday,
     getOpeningsExperienceWise,
     getOpeningsToday,
-    getPositionPieGraph
+    getPositionPieGraph,
+    getRecruitmentFilterOptions
 } from "@/lib/auth-service";
+import { useDebounce } from '@/hooks/use-debounce';
 
 
-const FilterMenu = () => {
+const FilterMenu = ({ setFilterOptions }: { setFilterOptions: React.Dispatch<React.SetStateAction<any>> }) => {
+    const [recruitmentFilter, setRecruitmentFilter] = useState<RecruitmentFilter | null>(null);
+    const [selectedFilters, setSelectedFilters] = useState({
+        hiringStatuses: new Set<string>(),
+        orgNames: new Set<string>(),
+        locations: new Set<string>(),
+        hiringTypes: new Set<string>(),
+    });
+    useEffect(() => {
+        const fetchRecruitmentFilterOptions = async () => {
+            try {
+                const response = await getRecruitmentFilterOptions();
+                setRecruitmentFilter(response.data);
+            } catch (error) {
+                console.error("Error fetching recruitment filter options:", error);
+            }
+        };
+
+        fetchRecruitmentFilterOptions();
+    }, []);
+
     return (
         <DropdownMenu>
             <Tooltip>
@@ -62,7 +85,7 @@ const FilterMenu = () => {
                         <DropdownMenuSubTrigger>Status</DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                             <DropdownMenuSubContent>
-                                <DropdownMenuCheckboxItem
+                                {/* <DropdownMenuCheckboxItem
                                     checked={true}
                                     onCheckedChange={() => {
                                     }}
@@ -70,7 +93,25 @@ const FilterMenu = () => {
                                     Open
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuItem>Closed</DropdownMenuItem>
-                                <DropdownMenuItem>Cancelled</DropdownMenuItem>
+                                <DropdownMenuItem>Cancelled</DropdownMenuItem> */}
+                                {recruitmentFilter?.hiringStatuses.map((status) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={status}
+                                        checked={selectedFilters.hiringStatuses.has(status)}
+                                        onCheckedChange={(checked) => {
+                                            const newFilters = { ...selectedFilters };
+                                            if (checked) {
+                                                newFilters.hiringStatuses.add(status);
+                                                setFilterOptions((prev) => ({ ...prev, hiringStatus: status }));
+                                            } else {
+                                                newFilters.hiringStatuses.delete(status);
+                                            }
+                                            setSelectedFilters(newFilters);
+                                        }}
+                                    >
+                                        {status}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
                             </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -81,7 +122,7 @@ const FilterMenu = () => {
                                 <form action="">
                                     <Input type="text" placeholder="Search company..." className="h-8 mb-2" />
                                 </form>
-                                <DropdownMenuCheckboxItem
+                                {/* <DropdownMenuCheckboxItem
                                     checked={true}
                                     onCheckedChange={() => {
                                     }}
@@ -89,7 +130,26 @@ const FilterMenu = () => {
                                     TechnoCorp Inc
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuItem>Innovatech Solutions</DropdownMenuItem>
-                                <DropdownMenuItem>GlobalTech Enterprises</DropdownMenuItem>
+                                <DropdownMenuItem>GlobalTech Enterprises</DropdownMenuItem> */}
+                                {recruitmentFilter?.orgNames.map((orgName) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={orgName}
+                                        checked={selectedFilters.orgNames.has(orgName)}
+                                        onCheckedChange={(checked) => {
+                                            const newFilters = { ...selectedFilters };
+                                            if (checked) {
+                                                newFilters.orgNames.add(orgName);
+                                                setFilterOptions((prev) => ({ ...prev, orgName: orgName }));
+                                            }
+                                            else {
+                                                newFilters.orgNames.delete(orgName);
+                                            }
+                                            setSelectedFilters(newFilters);
+                                        }}
+                                    >
+                                        {orgName}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
                             </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -100,7 +160,7 @@ const FilterMenu = () => {
                                 <form action="">
                                     <Input type="text" placeholder="Search location..." className="h-8 mb-2" />
                                 </form>
-                                <DropdownMenuCheckboxItem
+                                {/* <DropdownMenuCheckboxItem
                                     checked={true}
                                     onCheckedChange={() => {
                                     }}
@@ -108,7 +168,52 @@ const FilterMenu = () => {
                                     San Francisco, CA
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuItem>New York, NY</DropdownMenuItem>
-                                <DropdownMenuItem>Austin, TX</DropdownMenuItem>
+                                <DropdownMenuItem>Austin, TX</DropdownMenuItem> */}
+
+                                {recruitmentFilter?.locations.map((location) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={location}
+                                        checked={selectedFilters.locations.has(location)}
+                                        onCheckedChange={(checked) => {
+                                            const newFilters = { ...selectedFilters };
+                                            if (checked) {
+                                                newFilters.locations.add(location);
+                                                setFilterOptions((prev) => ({ ...prev, location: location }));
+                                            }
+                                            else {
+                                                newFilters.locations.delete(location);
+                                            }
+                                            setSelectedFilters(newFilters);
+                                        }}
+                                    >
+                                        {location}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Hiring Type</DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                                {recruitmentFilter?.hiringTypes.map((type) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={type}
+                                        checked={selectedFilters.hiringTypes.has(type)}
+                                        onCheckedChange={(checked) => {
+                                            const newFilters = { ...selectedFilters };
+                                            if (checked) {
+                                                newFilters.hiringTypes.add(type);
+                                            }
+                                            else {
+                                                newFilters.hiringTypes.delete(type);
+                                            }
+                                            setSelectedFilters(newFilters);
+                                        }}
+                                    >
+                                        {type}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
                             </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -147,6 +252,27 @@ const Recruitment = () => {
 
     const { toast } = useToast();
 
+    // Raw input state — updates instantly as the user types (controlled input)
+    const [searchTermForOpeningsToday, setSearchTermForOpeningsToday] = useState("");
+    const [searchTermForOpeningsBeforeToday, setSearchTermForOpeningsBeforeToday] = useState("");
+
+    // Debounced value — only updates 400ms after typing stops
+    const debouncedSearchTerm = useDebounce(searchTermForOpeningsToday, 400);
+    const debouncedSearchTermBefore = useDebounce(searchTermForOpeningsBeforeToday, 400);
+
+    const [filterOptionsForOpeningsToday, setFilterOptionsForOpeningsToday] = useState<Record<string, string>>({
+        hiringStatus: "",
+        orgName: "",
+        location: "",
+        hiringType: ""
+    });
+    const [filterOptionsForOpeningsBeforeToday, setFilterOptionsForOpeningsBeforeToday] = useState<Record<string, string>>({
+        hiringStatus: "",
+        orgName: "",
+        location: "",
+        hiringType: ""
+    });
+
     const fetchAllData = useCallback(async () => {
         // Fetch all 5 APIs in parallel
         const [
@@ -156,8 +282,8 @@ const Recruitment = () => {
             experienceResult,
             companyResult
         ] = await Promise.allSettled([
-            getOpeningsToday(pageState.today, pageSize, "", "", ""),
-            getOpeningsBeforeToday(pageState.before, pageSize, "", "", ""),
+            getOpeningsToday(pageState.today, pageSize, filterOptionsForOpeningsToday.hiringStatus, filterOptionsForOpeningsToday.orgName, filterOptionsForOpeningsToday.location, debouncedSearchTerm),
+            getOpeningsBeforeToday(pageState.before, pageSize, filterOptionsForOpeningsBeforeToday.hiringStatus, filterOptionsForOpeningsBeforeToday.orgName, filterOptionsForOpeningsBeforeToday.location, debouncedSearchTermBefore),
             getPositionPieGraph(),
             getOpeningsExperienceWise(),
             companyWiseOpeningCount(pageState.company, pageSize),
@@ -213,7 +339,7 @@ const Recruitment = () => {
             experienceWise: false,
             companyCounts: false,
         });
-    }, [pageState, pageSize, toast]);
+    }, [pageState.today, pageState.before, pageState.company, filterOptionsForOpeningsToday.hiringStatus, filterOptionsForOpeningsToday.orgName, filterOptionsForOpeningsToday.location, debouncedSearchTerm, filterOptionsForOpeningsBeforeToday.hiringStatus, filterOptionsForOpeningsBeforeToday.orgName, filterOptionsForOpeningsBeforeToday.location, debouncedSearchTermBefore, toast]);
 
     useEffect(() => {
         fetchAllData(); // eslint-disable-line react-hooks/set-state-in-effect
@@ -359,9 +485,14 @@ const Recruitment = () => {
                         </div>
                         <div className="flex gap-2">
                             <form>
-                                <Input type="text" placeholder="Search opportunities..." className="h-10" />
+                                <Input type="text" placeholder="Search opportunities..." className="h-10"
+                                    value={searchTermForOpeningsToday}
+                                    onChange={(e) => setSearchTermForOpeningsToday(e.target.value)}
+                                />
                             </form>
-                            <FilterMenu />
+                            <FilterMenu
+                                setFilterOptions={setFilterOptionsForOpeningsToday}
+                            />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 mt-4">
@@ -459,9 +590,14 @@ const Recruitment = () => {
                         </div>
                         <div className="flex gap-2">
                             <form>
-                                <Input type="text" placeholder="Search opportunities..." className="h-10" />
+                                <Input type="text" placeholder="Search opportunities..." className="h-10"
+                                    value={searchTermForOpeningsBeforeToday}
+                                    onChange={(e) => setSearchTermForOpeningsBeforeToday(e.target.value)}
+                                />
                             </form>
-                            <FilterMenu />
+                            <FilterMenu
+                                setFilterOptions={setFilterOptionsForOpeningsBeforeToday}
+                            />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 mt-4">

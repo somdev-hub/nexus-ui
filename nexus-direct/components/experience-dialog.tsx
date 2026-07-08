@@ -26,7 +26,7 @@ const applicantExperienceSchema = z.object({
 });
 
 
-const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) => {
+const ExperienceDialog = ({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (open: boolean) => void; onSuccess?: () => void }) => {
     const { control, handleSubmit } = useForm<ApplicantExperience>({
         resolver: zodResolver(applicantExperienceSchema),
         defaultValues: {
@@ -53,6 +53,7 @@ const ExperienceDialog = ({ open, onOpenChange }: { open: boolean, onOpenChange:
                 title: "Experience Added",
                 description: "Your experience details have been added successfully.",
             });
+            onSuccess?.();
             onOpenChange(false);
         } catch (error: unknown) {
             toast({

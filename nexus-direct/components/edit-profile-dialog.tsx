@@ -62,6 +62,7 @@ interface EditProfileDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     applicant: Applicant | null;
+    onSuccess?: () => void;
 }
 
 const buildDefaultValues = (applicant: Applicant | null): ApplicantFormData => ({
@@ -105,7 +106,7 @@ const buildDefaultValues = (applicant: Applicant | null): ApplicantFormData => (
     })) || [],
 });
 
-const EditProfileDialog = ({ open, onOpenChange, applicant }: EditProfileDialogProps) => {
+const EditProfileDialog = ({ open, onOpenChange, applicant, onSuccess }: EditProfileDialogProps) => {
     const { userId } = useUserMetadata();
     const { control, handleSubmit, formState: { errors }, reset, setValue } = useForm<ApplicantFormData>({
         resolver: zodResolver(applicantSchema),
@@ -195,7 +196,7 @@ const EditProfileDialog = ({ open, onOpenChange, applicant }: EditProfileDialogP
             console.log("Updated applicant data to be sent:", updatedApplicant);
 
             const response = await updateApplicant(updatedApplicant, Number(userId));
-            if(response.status !== 200) {
+            if (response.status !== 200) {
                 toast({
                     title: "Error",
                     description: `Failed to update profile. Status code: ${response.status}`,
@@ -208,7 +209,7 @@ const EditProfileDialog = ({ open, onOpenChange, applicant }: EditProfileDialogP
                 description: "Profile updated successfully.",
                 variant: "default",
             });
-            // onProfileUpdated?.(updatedApplicant);
+            onSuccess?.();
             onOpenChange(false);
         } catch (error: unknown) {
             toast({

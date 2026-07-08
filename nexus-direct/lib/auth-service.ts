@@ -5,7 +5,8 @@ import {
     ApplicantExperience,
     ApplicantSkill, CompanyOpeningsCardDto,
     Recruitment,
-    RecruitmentApplicantTableResponse
+    RecruitmentApplicantTableResponse,
+    RecruitmentFilter
 } from "@/types";
 import { PaginatedResponse } from "@/types/paginated-response";
 import { AxiosResponse } from "axios";
@@ -342,9 +343,9 @@ export async function updateApplicant(applicant: Applicant, userId?: number) {
     }
 }
 
-export async function getOpeningsToday(pageNo: number, pageOffset: number, status: string, orgName: string, location: string): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
+export async function getOpeningsToday(pageNo: number, pageOffset: number, status: string, orgName: string, location: string, query: string): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
     try {
-        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/openings-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}`);
+        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/openings-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}&query=${encodeURIComponent(query)}`);
     }
     catch (error: unknown) {
         console.error("Error fetching openings:", error);
@@ -352,9 +353,9 @@ export async function getOpeningsToday(pageNo: number, pageOffset: number, statu
     }
 }
 
-export async function getOpeningsBeforeToday(pageNo: number, pageOffset: number, status: string, orgName: string, location: string): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
+export async function getOpeningsBeforeToday(pageNo: number, pageOffset: number, status: string, orgName: string, location: string, query: string): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
     try {
-        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/openings-before-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}`);
+        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/openings-before-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}&query=${encodeURIComponent(query)}`);
     }
     catch (error: unknown) {
         console.error("Error fetching openings:", error);
@@ -399,5 +400,23 @@ export async function getRecruitmentById(recruitmentId: number): Promise<AxiosRe
     }
     catch (e) {
         throw new Error("Failed to fetch recruitment by ID: " + (e as Error).message);
+    }
+}
+
+export async function getRecruitmentFilterOptions(): Promise<AxiosResponse<RecruitmentFilter>> {
+    try {
+        return await apiClient.get<RecruitmentFilter>(`/iam/recruitment/filter`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch recruitment filter options: " + (e as Error).message);
+    }
+}
+
+export async function searchRecruitment(query: string, pageNo: number, pageOffset: number): Promise<AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>> {
+    try {
+        return await apiClient.get<PaginatedResponse<RecruitmentApplicantTableResponse>>(`/iam/recruitment/search?name=${encodeURIComponent(query)}&pageNo=${pageNo}&pageOffset=${pageOffset}`);
+    }
+    catch (e) {
+        throw new Error("Failed to search recruitment: " + (e as Error).message);
     }
 }
