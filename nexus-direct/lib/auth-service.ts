@@ -420,3 +420,26 @@ export async function searchRecruitment(query: string, pageNo: number, pageOffse
         throw new Error("Failed to search recruitment: " + (e as Error).message);
     }
 }
+
+export async function addApplicantDocument(userId: number, document: File): Promise<AxiosResponse<any>> {
+    try {
+        const formData = new FormData();
+        formData.append("document", document);
+        return await apiClient.post<AxiosResponse<any>>(`/iam/recruitment/applicant/document?userId=${userId}`, formData);
+    }
+    catch (e) {
+        throw new Error("Failed to add applicant document: " + (e as Error).message);
+    }
+}
+
+export async function deleteApplicantDocument(userId: number, documentId: number | undefined): Promise<AxiosResponse<any>> {
+    try {
+        if (documentId === undefined) {
+            throw new Error("Invalid document ID");
+        }
+        return await apiClient.delete<AxiosResponse<any>>(`/iam/recruitment/applicant/document?userId=${userId}&hrDocumentId=${documentId}`);
+    }
+    catch (e) {
+        throw new Error("Failed to delete applicant document: " + (e as Error).message);
+    }
+}

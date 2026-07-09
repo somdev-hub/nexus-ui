@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText } from 'lucide-react';
+import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
@@ -14,9 +14,20 @@ import EducationDialog from '@/components/education-dialog';
 import ExperienceDialog from '@/components/experience-dialog';
 import SkillDialog from '@/components/skill-dialog';
 import { Applicant } from '@/types';
-import { getApplicant } from '@/lib/auth-service';
+import { addApplicantDocument, deleteApplicantDocument, getApplicant } from '@/lib/auth-service';
 import { useToast } from '@/hooks/use-toast';
 import EditProfileDialog from '@/components/edit-profile-dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type PageKey = "Profile Info" | "Jobs Applied" | "Resume" | "Jobs Rejected";
 
@@ -302,8 +313,10 @@ const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }
     );
 };
 
-const Resume = ({ applicant }: { applicant: Applicant | null }) => {
+const Resume = ({ applicant, onSuccess }: { applicant: Applicant | null; onSuccess?: () => void }) => {
     const [uploading, setUploading] = useState(false);
+    const [deletingDocId, setDeletingDocId] = useState<number | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const { toast } = useToast();
     const { userId } = useUserMetadata();
 
@@ -322,14 +335,42 @@ const Resume = ({ applicant }: { applicant: Applicant | null }) => {
         }
         setUploading(true);
         try {
-            // Simulated upload — replace with actual API call when available
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            toast({ title: "Resume Uploaded", description: "Your resume has been uploaded successfully." });
+            const response = await addApplicantDocument(Number(userId), file);
+            if (response.status === 200) {
+                toast({ title: "Resume Uploaded", description: "Your resume has been uploaded successfully." });
+                onSuccess?.();
+            } else {
+                toast({ title: "Upload Failed", description: "Could not upload resume. Please try again.", variant: "destructive" });
+            }
         } catch {
             toast({ title: "Upload Failed", description: "Could not upload resume. Please try again.", variant: "destructive" });
         } finally {
             setUploading(false);
             e.target.value = '';
+        }
+    };
+
+    const handleDeleteClick = (documentId: number | undefined) => {
+        if (documentId === undefined) return;
+        setDeletingDocId(documentId);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (deletingDocId === null || !userId) return;
+        try {
+            const response = await deleteApplicantDocument(Number(userId), deletingDocId);
+            if (response.status === 200) {
+                toast({ title: "Resume Deleted", description: "Your resume has been deleted successfully." });
+                onSuccess?.();
+            } else {
+                toast({ title: "Delete Failed", description: "Could not delete resume. Please try again.", variant: "destructive" });
+            }
+        } catch {
+            toast({ title: "Delete Failed", description: "Could not delete resume. Please try again.", variant: "destructive" });
+        } finally {
+            setDeletingDocId(null);
+            setDeleteDialogOpen(false);
         }
     };
 
@@ -357,12 +398,22 @@ const Resume = ({ applicant }: { applicant: Applicant | null }) => {
                                     </p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="sm" asChild>
-                                <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
-                                    <SquareArrowOutUpRight className="h-4 w-4 mr-1" />
-                                    View
-                                </a>
-                            </Button>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" asChild>
+                                    <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
+                                        <SquareArrowOutUpRight className="h-4 w-4 mr-1" />
+                                        View
+                                    </a>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeleteClick(doc.hrDocumentId)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -387,6 +438,24 @@ const Resume = ({ applicant }: { applicant: Applicant | null }) => {
                 <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" disabled={uploading} />
             </label>
             <p className="text-xs text-muted-foreground text-center">PDF only, max 5MB</p>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Resume</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this resume? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
@@ -528,7 +597,7 @@ const Profile = () => {
         switch (activePage) {
             case "Profile Info": return <ProfileInfo userId={userId} editProfileDialogOpen={editProfileDialogOpen} setEditProfileDialogOpen={setEditProfileDialogOpen} />;
             case "Jobs Applied": return <JobsApplied appliedJobs={appliedJobs} navigator={navigator} />;
-            case "Resume": return <Resume applicant={applicant} />;
+            case "Resume": return <Resume applicant={applicant} onSuccess={() => getApplicant(Number(userId)).then(setApplicant).catch(console.error)} />;
             case "Jobs Rejected": return <JobsRejected appliedJobs={appliedJobs} navigator={navigator} />;
             default: return null;
         }
@@ -539,7 +608,7 @@ const Profile = () => {
             <Card className="p-0 gap-2 h-full overflow-hidden flex flex-col">
                 <CardContent className="p-0 h-full flex flex-col">
                     {/* Header */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-5 border-b bg-gradient-to-r from-muted/30 to-background flex-shrink-0">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-5 border-b bg-linear-to-r from-muted/30 to-background shrink-0">
                         <div className="flex gap-4 items-center">
                             <div className="rounded-full overflow-hidden ring-2 ring-border ring-offset-2 ring-offset-background">
                                 <div className="relative flex items-center justify-center group hover:cursor-pointer">
@@ -577,7 +646,7 @@ const Profile = () => {
                     {/* Body */}
                     <div className="flex flex-col md:flex-row flex-1 min-h-0">
                         {/* Sidebar */}
-                        <div className="md:w-1/5 lg:w-1/6 p-4 border-r border-border bg-muted/20 flex-shrink-0 h-full">
+                        <div className="md:w-1/5 lg:w-1/6 p-4 border-r border-border bg-muted/20 shrink-0 h-full">
                             <ul className="flex flex-col gap-1 text-sm h-full">
                                 {NAV_ITEMS.map((item) => (
                                     <li
