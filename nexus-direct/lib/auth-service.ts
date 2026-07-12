@@ -1,9 +1,13 @@
+
 import apiClient from "@/lib/api-client";
 import {
     Applicant,
+    ApplicantApplicationSchema,
     ApplicantEducation,
     ApplicantExperience,
-    ApplicantSkill, CompanyOpeningsCardDto,
+    ApplicantRecruitmentMapping,
+    ApplicantSkill, ApplicationStatus, CompanyOpeningsCardDto,
+    HasApplicantAppliedResponse,
     Recruitment,
     RecruitmentApplicantTableResponse,
     RecruitmentFilter
@@ -441,5 +445,39 @@ export async function deleteApplicantDocument(userId: number, documentId: number
     }
     catch (e) {
         throw new Error("Failed to delete applicant document: " + (e as Error).message);
+    }
+}
+
+export async function applyForRecruitment(userId: number, recruitmentId: number, hrDocumentIds: number[]): Promise<AxiosResponse<ApplicantRecruitmentMapping>> {
+    try {
+        const payload = {
+            recruitmentId,
+            userId,
+            hrDocumentIds
+        };
+
+        return await apiClient.post<ApplicantRecruitmentMapping>(`/iam/recruitment/applicant/apply`, payload);
+    }
+    catch (e) {
+        throw new Error("Failed to apply for recruitment: " + (e as Error).message);
+    }
+}
+
+export async function getApplicantApplications(userId: number, pageNo: number, pageOffset: number, status?: ApplicationStatus): Promise<AxiosResponse<PaginatedResponse<ApplicantApplicationSchema>>> {
+    try {
+        const statusParam = status ? `&status=${status}` : '';
+        return await apiClient.get<PaginatedResponse<ApplicantApplicationSchema>>(`/iam/recruitment/applicant/applications?userId=${userId}&pageNo=${pageNo}&pageOffset=${pageOffset}${statusParam}`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch applicant applications: " + (e as Error).message);
+    }
+}
+
+export async function hasApplicantApplied(userId: number, recruitmentId: number): Promise<AxiosResponse<HasApplicantAppliedResponse>> {
+    try {
+        return await apiClient.get<HasApplicantAppliedResponse>(`/iam/recruitment/has-applied?userId=${userId}&recruitmentId=${recruitmentId}`);
+    }
+    catch (e) {
+        throw new Error("Failed to check if applicant has applied: " + (e as Error).message);
     }
 }

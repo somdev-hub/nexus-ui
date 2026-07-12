@@ -3,9 +3,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { getRecruitmentById } from '@/lib/auth-service';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { getRecruitmentById, hasApplicantApplied } from '@/lib/auth-service';
 import { Recruitment } from '@/types';
+import ApplyDialog from '@/components/apply-dialog';
 import {
     Bookmark,
     Plus,
@@ -26,7 +29,6 @@ import {
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -92,7 +94,11 @@ const RecruitmentPage = () => {
     const [recruitmentData, setRecruitmentData] = useState<Recruitment | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+    const [applyDialogOpen, setApplyDialogOpen] = useState<boolean>(false);
+    const [hasAlreadyApplied, setHasAlreadyApplied] = useState<boolean>(false);
+    const [checkingApplication, setCheckingApplication] = useState<boolean>(false);
     const { toast } = useToast();
+    const { isAuthenticated, userId } = useUserMetadata();
 
     useEffect(() => {
         const fetchRecruitmentData = async () => {
@@ -114,6 +120,24 @@ const RecruitmentPage = () => {
 
         fetchRecruitmentData();
     }, [id, toast]);
+
+    // Check if the authenticated user has already applied
+    useEffect(() => {
+        if (!isAuthenticated || !userId || !id) return;
+        const checkApplication = async () => {
+            setCheckingApplication(true);
+            try {
+                const response = await hasApplicantApplied(Number(userId), Number(id));
+                setHasAlreadyApplied(response.data?.hasApplied ?? false);
+            } catch {
+                // Silently fail — assume not applied
+                setHasAlreadyApplied(false);
+            } finally {
+                setCheckingApplication(false);
+            }
+        };
+        checkApplication();
+    }, [isAuthenticated, userId, id]);
 
     const handleBookmark = () => {
         setIsBookmarked(!isBookmarked);
@@ -163,10 +187,16 @@ const RecruitmentPage = () => {
     };
 
     const handleApply = () => {
-        toast({
-            title: "Application Started",
-            description: "Redirecting to application form...",
-        });
+        if (!isAuthenticated) {
+            toast({
+                title: "Authentication Required",
+                description: "Please log in to apply for this position.",
+                variant: "destructive",
+            });
+            router.push('/login');
+            return;
+        }
+        setApplyDialogOpen(true);
     };
 
     const getStatusColor = (status: string) => {
@@ -396,14 +426,35 @@ const RecruitmentPage = () => {
 
                                 {/* Action Buttons */}
                                 <div className="space-y-3">
-                                    <Button
-                                        className="w-full gap-2"
-                                        size="lg"
-                                        onClick={handleApply}
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Apply Now
-                                    </Button>
+                                    {hasAlreadyApplied ? (
+                                        <Button
+                                            className="w-full gap-2"
+                                            size="lg"
+                                            variant="secondary"
+                                            disabled
+                                        >
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            Already Applied
+                                        </Button>
+                                    ) : checkingApplication ? (
+                                        <Button
+                                            className="w-full gap-2"
+                                            size="lg"
+                                            disabled
+                                        >
+                                            <Skeleton className="h-4 w-4 rounded-full" />
+                                            Checking...
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            className="w-full gap-2"
+                                            size="lg"
+                                            onClick={handleApply}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Apply Now
+                                        </Button>
+                                    )}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
@@ -469,6 +520,15 @@ const RecruitmentPage = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Apply Dialog */}
+            <ApplyDialog
+                open={applyDialogOpen}
+                onOpenChange={setApplyDialogOpen}
+                recruitmentId={Number(id)}
+                recruitmentTitle={recruitmentData?.title || ''}
+                orgName={recruitmentData?.orgName || ''}
+            />
         </TooltipProvider>
     )
 }

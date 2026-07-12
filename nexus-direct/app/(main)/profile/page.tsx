@@ -5,16 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText, Trash2 } from 'lucide-react';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText, Trash2, Filter, Search, FileSearch, Ban, ThumbsUp, ThumbsDown, CheckCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import EducationDialog from '@/components/education-dialog';
 import ExperienceDialog from '@/components/experience-dialog';
 import SkillDialog from '@/components/skill-dialog';
-import { Applicant } from '@/types';
-import { addApplicantDocument, deleteApplicantDocument, getApplicant } from '@/lib/auth-service';
+import { Applicant, ApplicationStatus, ApplicantApplicationSchema } from '@/types';
+import { addApplicantDocument, deleteApplicantDocument, getApplicant, getApplicantApplications } from '@/lib/auth-service';
 import { useToast } from '@/hooks/use-toast';
 import EditProfileDialog from '@/components/edit-profile-dialog';
 import {
@@ -26,10 +33,9 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-type PageKey = "Profile Info" | "Jobs Applied" | "Resume" | "Jobs Rejected";
+type PageKey = "Profile Info" | "Jobs Applied" | "Resume";
 
 const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }: { userId: string | undefined; editProfileDialogOpen: boolean; setEditProfileDialogOpen: (open: boolean) => void }) => {
     const [applicant, setApplicant] = useState<Applicant | null>(null);
@@ -460,27 +466,33 @@ const Resume = ({ applicant, onSuccess }: { applicant: Applicant | null; onSucce
     );
 }
 
-const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode; bgClass: string }> = {
-    "Under Review": { variant: "secondary", icon: <Clock className="h-3 w-3" />, bgClass: "bg-yellow-50 dark:bg-yellow-950/20" },
-    "Interview Scheduled": { variant: "default", icon: <CheckCircle2 className="h-3 w-3" />, bgClass: "bg-blue-50 dark:bg-blue-950/20" },
-    "Offer Received": { variant: "default", icon: <CheckCircle2 className="h-3 w-3" />, bgClass: "bg-green-50 dark:bg-green-950/20" },
-    "Rejected": { variant: "destructive", icon: <XCircle className="h-3 w-3" />, bgClass: "bg-red-50 dark:bg-red-950/20" },
+const statusConfig: Record<ApplicationStatus, { variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode; label: string; bgClass: string }> = {
+    "APPLIED": { variant: "secondary", icon: <Circle className="h-3 w-3" />, label: "Applied", bgClass: "bg-slate-50 dark:bg-slate-950/20" },
+    "REVIEW": { variant: "secondary", icon: <Search className="h-3 w-3" />, label: "Under Review", bgClass: "bg-yellow-50 dark:bg-yellow-950/20" },
+    "REVIEW_COMPLETED": { variant: "default", icon: <FileSearch className="h-3 w-3" />, label: "Review Completed", bgClass: "bg-blue-50 dark:bg-blue-950/20" },
+    "REVIEW_FAILED": { variant: "destructive", icon: <XCircle className="h-3 w-3" />, label: "Review Failed", bgClass: "bg-red-50 dark:bg-red-950/20" },
+    "INTERVIEW_SCHEDULED": { variant: "default", icon: <Calendar className="h-3 w-3" />, label: "Interview Scheduled", bgClass: "bg-purple-50 dark:bg-purple-950/20" },
+    "INTERVIEW_COMPLETED": { variant: "default", icon: <CheckCircle2 className="h-3 w-3" />, label: "Interview Completed", bgClass: "bg-indigo-50 dark:bg-indigo-950/20" },
+    "SELECTED": { variant: "default", icon: <ThumbsUp className="h-3 w-3" />, label: "Selected", bgClass: "bg-green-50 dark:bg-green-950/20" },
+    "REJECTED": { variant: "destructive", icon: <Ban className="h-3 w-3" />, label: "Rejected", bgClass: "bg-red-50 dark:bg-red-950/20" },
+    "OFFER_ACCEPTED": { variant: "default", icon: <CheckCheck className="h-3 w-3" />, label: "Offer Accepted", bgClass: "bg-emerald-50 dark:bg-emerald-950/20" },
+    "OFFER_REJECTED": { variant: "outline", icon: <ThumbsDown className="h-3 w-3" />, label: "Offer Rejected", bgClass: "bg-orange-50 dark:bg-orange-950/20" },
 };
 
-const JobCard = ({ job, index, navigator }: { job: any; index: number; navigator: any }) => {
-    const config = statusConfig[job.status] || { variant: "secondary" as const, icon: <Circle className="h-3 w-3" />, bgClass: "" };
+const JobCard = ({ application, navigator }: { application: ApplicantApplicationSchema; navigator: ReturnType<typeof useRouter> }) => {
+    const config = statusConfig[application.status] || { variant: "secondary" as const, icon: <Circle className="h-3 w-3" />, label: application.status, bgClass: "" };
     return (
         <Card
             className={`p-4 ${config.bgClass} hover:cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
-            onClick={() => navigator.push(`/recruitment/${index}`)}
+            onClick={() => navigator.push(`/recruitment/${application.recruitmentId}`)}
         >
             <CardContent className="p-0">
                 <div className="flex justify-between items-start border-b pb-3 mb-3">
                     <div>
-                        <h4 className="font-medium text-sm">{job.position}</h4>
+                        <h4 className="font-medium text-sm">{application.roleName}</h4>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                             <Building2 className="h-3 w-3" />
-                            {job.company}
+                            {application.orgName}
                         </p>
                     </div>
                     <SquareArrowOutUpRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -488,18 +500,18 @@ const JobCard = ({ job, index, navigator }: { job: any; index: number; navigator
                 <ul className="flex flex-col gap-2 text-xs">
                     <li className="flex justify-between items-center">
                         <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Applied</span>
-                        <span className="font-medium">{job.appliedOn}</span>
+                        <span className="font-medium">{new Date(application.appliedOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </li>
                     <li className="flex justify-between items-center">
                         <span className="text-muted-foreground">Status</span>
                         <Badge variant={config.variant} className="gap-1 text-xs">
                             {config.icon}
-                            {job.status}
+                            {config.label}
                         </Badge>
                     </li>
                     <li className="flex justify-between items-center">
                         <span className="text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> Location</span>
-                        <span className="font-medium truncate max-w-30">{job.location}</span>
+                        <span className="font-medium truncate max-w-30">{application.location}</span>
                     </li>
                 </ul>
             </CardContent>
@@ -507,56 +519,111 @@ const JobCard = ({ job, index, navigator }: { job: any; index: number; navigator
     );
 };
 
-const JobsApplied = ({ appliedJobs, navigator }: { appliedJobs: any[]; navigator: any }) => {
-    const activeJobs = appliedJobs.filter(j => j.status !== "Rejected");
+const ApplicationsSection = ({ userId, navigator }: { userId: string | undefined; navigator: ReturnType<typeof useRouter> }) => {
+    const [applications, setApplications] = useState<ApplicantApplicationSchema[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'ALL'>('ALL');
+    const { toast } = useToast();
+    const hasFetchedRef = useRef(false);
+
+    useEffect(() => {
+        if (!userId) return;
+        // Only fetch when filter changes or on first mount
+        if (hasFetchedRef.current && statusFilter === 'ALL') return;
+        hasFetchedRef.current = true;
+
+        const fetchApplications = async () => {
+            setLoading(true);
+            try {
+                const response = await getApplicantApplications(
+                    Number(userId),
+                    0,
+                    100,
+                    statusFilter === 'ALL' ? undefined : statusFilter
+                );
+                setApplications(response.data?.content ?? []);
+            } catch {
+                toast({
+                    title: "Error",
+                    description: "Failed to fetch applications.",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchApplications();
+    }, [userId, statusFilter, toast]);
+
+    // Reset fetch guard when filter changes so we re-fetch
+    useEffect(() => {
+        hasFetchedRef.current = false;
+    }, [statusFilter]);
+
+    if (loading) {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2 mb-4">
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-9 w-32" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <Card key={i} className="p-4">
+                            <Skeleton className="h-4 w-32 mb-2" />
+                            <Skeleton className="h-3 w-24 mb-4" />
+                            <Skeleton className="h-3 w-full mb-2" />
+                            <Skeleton className="h-3 w-full mb-2" />
+                            <Skeleton className="h-3 w-20" />
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2 mb-4">
                 <h4 className="font-medium text-lg flex items-center gap-2">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    Applied Jobs
-                    <Badge variant="secondary" className="ml-1 text-xs">{activeJobs.length}</Badge>
+                    Applications
+                    <Badge variant="secondary" className="ml-1 text-xs">{applications.length}</Badge>
                 </h4>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ApplicationStatus | 'ALL')}>
+                    <SelectTrigger className="w-45 h-9 text-xs">
+                        <Filter className="h-3 w-3 mr-1" />
+                        <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">All Statuses</SelectItem>
+                        {Object.entries(statusConfig).map(([key, cfg]) => (
+                            <SelectItem key={key} value={key}>
+                                <span className="flex items-center gap-1.5">
+                                    {cfg.icon}
+                                    {cfg.label}
+                                </span>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
-            {activeJobs.length > 0 ? (
+
+            {applications.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {activeJobs.map((job, index) => (
-                        <JobCard key={index} job={job} index={index} navigator={navigator} />
+                    {applications.map((app) => (
+                        <JobCard key={app.applicantId} application={app} navigator={navigator} />
                     ))}
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                     <Briefcase className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm font-medium text-muted-foreground">No active applications</p>
-                    <p className="text-xs text-muted-foreground mt-1">Start applying to jobs to see them here.</p>
-                </div>
-            )}
-        </div>
-    );
-};
-
-const JobsRejected = ({ appliedJobs, navigator }: { appliedJobs: any[]; navigator: any }) => {
-    const rejectedJobs = appliedJobs.filter(j => j.status === "Rejected");
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2 mb-4">
-                <h4 className="font-medium text-lg flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
-                    Rejected Applications
-                    <Badge variant="outline" className="ml-1 text-xs">{rejectedJobs.length}</Badge>
-                </h4>
-            </div>
-            {rejectedJobs.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {rejectedJobs.map((job, index) => (
-                        <JobCard key={index} job={job} index={index} navigator={navigator} />
-                    ))}
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <CheckCircle2 className="h-12 w-12 text-green-300 dark:text-green-700 mb-4" />
-                    <p className="text-sm font-medium text-muted-foreground">No rejected applications</p>
-                    <p className="text-xs text-muted-foreground mt-1">That&apos;s great news! Keep up the good work.</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                        {statusFilter === 'ALL' ? 'No applications yet' : `No applications with status "${statusConfig[statusFilter]?.label ?? statusFilter}"`}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {statusFilter === 'ALL' ? 'Start applying to jobs to see them here.' : 'Try selecting a different status filter.'}
+                    </p>
                 </div>
             )}
         </div>
@@ -565,9 +632,8 @@ const JobsRejected = ({ appliedJobs, navigator }: { appliedJobs: any[]; navigato
 
 const NAV_ITEMS: { key: PageKey; icon: React.ReactNode; label: string }[] = [
     { key: "Profile Info", icon: <User className="h-4 w-4" />, label: "Profile Info" },
-    { key: "Jobs Applied", icon: <Briefcase className="h-4 w-4" />, label: "Jobs Applied" },
+    { key: "Jobs Applied", icon: <Briefcase className="h-4 w-4" />, label: "Applications" },
     { key: "Resume", icon: <FileText className="h-4 w-4" />, label: "Resume" },
-    { key: "Jobs Rejected", icon: <XCircle className="h-4 w-4" />, label: "Rejected" },
 ];
 
 const Profile = () => {
@@ -585,20 +651,11 @@ const Profile = () => {
             .catch(console.error);
     }, [userId]);
 
-    const appliedJobs = [
-        { company: "Cosmos Ltd.", position: "Software Engineer", appliedOn: "12th Jun 2026", status: "Under Review", location: "San Francisco, CA" },
-        { company: "Nebula Inc.", position: "Frontend Developer", appliedOn: "5th May 2026", status: "Rejected", location: "New York, NY" },
-        { company: "Stellar Solutions", position: "Data Scientist", appliedOn: "20th Apr 2026", status: "Interview Scheduled", location: "Remote" },
-        { company: "Galactic Tech", position: "Product Manager", appliedOn: "15th Mar 2026", status: "Offer Received", location: "Austin, TX" },
-        { company: "Quantum Dynamics", position: "Backend Engineer", appliedOn: "1st Feb 2026", status: "Rejected", location: "Chicago, IL" },
-    ];
-
     const renderPage = () => {
         switch (activePage) {
             case "Profile Info": return <ProfileInfo userId={userId} editProfileDialogOpen={editProfileDialogOpen} setEditProfileDialogOpen={setEditProfileDialogOpen} />;
-            case "Jobs Applied": return <JobsApplied appliedJobs={appliedJobs} navigator={navigator} />;
+            case "Jobs Applied": return <ApplicationsSection userId={userId} navigator={navigator} />;
             case "Resume": return <Resume applicant={applicant} onSuccess={() => getApplicant(Number(userId)).then(setApplicant).catch(console.error)} />;
-            case "Jobs Rejected": return <JobsRejected appliedJobs={appliedJobs} navigator={navigator} />;
             default: return null;
         }
     };
@@ -637,7 +694,7 @@ const Profile = () => {
                                 </p>
                             </div>
                         </div>
-                        <Button variant="outline" onClick={() => setEditProfileDialogOpen(true)} className="flex-shrink-0">
+                        <Button variant="outline" onClick={() => setEditProfileDialogOpen(true)} className="shrink-0">
                             <UserRoundPen className="h-4 w-4 mr-1" />
                             Edit Profile
                         </Button>

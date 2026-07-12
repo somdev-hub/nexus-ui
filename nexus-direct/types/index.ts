@@ -123,3 +123,30 @@ export interface RecruitmentFilter {
     orgNames: string[];
     locations: string[];
 }
+
+export interface ApplicantRecruitmentMapping {
+    applicantRecruitmentMappingId: number;
+    applicationDocuments:          ApplicantDocument[];
+    appliedOn:                     Date;
+    isActive:                      boolean;
+    status:                        string;
+    updatedOn:                     Date;
+}
+
+export type ApplicationStatus = 'APPLIED' | 'REVIEW' | 'REVIEW_COMPLETED' | 'REVIEW_FAILED' | 'INTERVIEW_SCHEDULED' | 'INTERVIEW_COMPLETED' | 'SELECTED' | 'REJECTED' | 'OFFER_ACCEPTED' | 'OFFER_REJECTED';
+
+export interface ApplicantApplicationSchema {
+    applicantId:   number;
+    appliedOn:     Date;
+    location:      string;
+    orgName:       string;
+    recruitmentId: number;
+    roleName:      string;
+    status:        ApplicationStatus;
+    userId:        number;
+}
+
+export interface HasApplicantAppliedResponse {
+    hasApplied: boolean;
+}
+
