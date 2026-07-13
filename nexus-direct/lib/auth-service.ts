@@ -6,7 +6,7 @@ import {
     ApplicantEducation,
     ApplicantExperience,
     ApplicantRecruitmentMapping,
-    ApplicantSkill, ApplicationStatus, CompanyOpeningsCardDto,
+    ApplicantSkill, ApplicationDetailsWithStatusHistory, ApplicationStatus, CompanyOpeningsCardDto,
     HasApplicantAppliedResponse,
     Recruitment,
     RecruitmentApplicantTableResponse,
@@ -479,5 +479,14 @@ export async function hasApplicantApplied(userId: number, recruitmentId: number)
     }
     catch (e) {
         throw new Error("Failed to check if applicant has applied: " + (e as Error).message);
+    }
+}
+
+export async function getApplicationDetailsWithStatusHistory(recruitmentId: number, userId: number): Promise<AxiosResponse<ApplicationDetailsWithStatusHistory>> {
+    try {
+        return await apiClient.get<ApplicationDetailsWithStatusHistory>(`/iam/recruitment/applicant/application/with-status?recruitmentId=${recruitmentId}&userId=${userId}`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch application details with status history: " + (e as Error).message);
     }
 }

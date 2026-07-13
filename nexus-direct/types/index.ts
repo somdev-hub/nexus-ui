@@ -126,27 +126,46 @@ export interface RecruitmentFilter {
 
 export interface ApplicantRecruitmentMapping {
     applicantRecruitmentMappingId: number;
-    applicationDocuments:          ApplicantDocument[];
-    appliedOn:                     Date;
-    isActive:                      boolean;
-    status:                        string;
-    updatedOn:                     Date;
+    applicationDocuments: ApplicantDocument[];
+    appliedOn: Date;
+    isActive: boolean;
+    status: string;
+    updatedOn: Date;
 }
 
 export type ApplicationStatus = 'APPLIED' | 'REVIEW' | 'REVIEW_COMPLETED' | 'REVIEW_FAILED' | 'INTERVIEW_SCHEDULED' | 'INTERVIEW_COMPLETED' | 'SELECTED' | 'REJECTED' | 'OFFER_ACCEPTED' | 'OFFER_REJECTED';
 
 export interface ApplicantApplicationSchema {
-    applicantId:   number;
-    appliedOn:     Date;
-    location:      string;
-    orgName:       string;
+    applicantId: number;
+    appliedOn: Date;
+    location: string;
+    orgName: string;
     recruitmentId: number;
-    roleName:      string;
-    status:        ApplicationStatus;
-    userId:        number;
+    roleName: string;
+    status: ApplicationStatus;
+    userId: number;
 }
 
 export interface HasApplicantAppliedResponse {
     hasApplied: boolean;
 }
+
+export interface ApplicationDetailsWithStatusHistory {
+    applicantRecruitmentMappingId: number;
+    appliedOn: Date;
+    location: string;
+    orgName: string;
+    recruitmentId: number;
+    resumeSubmitted: string;
+    roleName: string;
+    statusHistList: StatusHistList[];
+}
+
+export interface StatusHistList {
+    applicantRecruitmentMappingStatusHistId: number;
+    createdAt: Date;
+    isActive: boolean;
+    status: ApplicationStatus;
+}
+
 

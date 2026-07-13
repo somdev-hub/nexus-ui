@@ -13,7 +13,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText, Trash2, Filter, Search, FileSearch, Ban, ThumbsUp, ThumbsDown, CheckCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,6 +23,7 @@ import { Applicant, ApplicationStatus, ApplicantApplicationSchema } from '@/type
 import { addApplicantDocument, deleteApplicantDocument, getApplicant, getApplicantApplications } from '@/lib/auth-service';
 import { useToast } from '@/hooks/use-toast';
 import EditProfileDialog from '@/components/edit-profile-dialog';
+import ApplicationDetailsDialog from '@/components/application-details-dialog';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -479,12 +479,12 @@ const statusConfig: Record<ApplicationStatus, { variant: "default" | "secondary"
     "OFFER_REJECTED": { variant: "outline", icon: <ThumbsDown className="h-3 w-3" />, label: "Offer Rejected", bgClass: "bg-orange-50 dark:bg-orange-950/20" },
 };
 
-const JobCard = ({ application, navigator }: { application: ApplicantApplicationSchema; navigator: ReturnType<typeof useRouter> }) => {
+const JobCard = ({ application, onClick }: { application: ApplicantApplicationSchema; onClick: (application: ApplicantApplicationSchema) => void }) => {
     const config = statusConfig[application.status] || { variant: "secondary" as const, icon: <Circle className="h-3 w-3" />, label: application.status, bgClass: "" };
     return (
         <Card
             className={`p-4 ${config.bgClass} hover:cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
-            onClick={() => navigator.push(`/recruitment/${application.recruitmentId}`)}
+            onClick={() => onClick(application)}
         >
             <CardContent className="p-0">
                 <div className="flex justify-between items-start border-b pb-3 mb-3">
@@ -519,7 +519,7 @@ const JobCard = ({ application, navigator }: { application: ApplicantApplication
     );
 };
 
-const ApplicationsSection = ({ userId, navigator }: { userId: string | undefined; navigator: ReturnType<typeof useRouter> }) => {
+const ApplicationsSection = ({ userId, onApplicationClick }: { userId: string | undefined; onApplicationClick: (application: ApplicantApplicationSchema) => void }) => {
     const [applications, setApplications] = useState<ApplicantApplicationSchema[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'ALL'>('ALL');
@@ -612,7 +612,7 @@ const ApplicationsSection = ({ userId, navigator }: { userId: string | undefined
             {applications.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {applications.map((app) => (
-                        <JobCard key={app.applicantId} application={app} navigator={navigator} />
+                        <JobCard key={app.applicantId} application={app} onClick={onApplicationClick} />
                     ))}
                 </div>
             ) : (
@@ -637,11 +637,12 @@ const NAV_ITEMS: { key: PageKey; icon: React.ReactNode; label: string }[] = [
 ];
 
 const Profile = () => {
-    const navigator = useRouter();
     const { personalEmail, name, avatar, role, userId } = useUserMetadata();
     const [activePage, setActivePage] = useState<PageKey>("Profile Info");
     const [editProfileDialogOpen, setEditProfileDialogOpen] = useState(false);
     const [applicant, setApplicant] = useState<Applicant | null>(null);
+    const [selectedApplication, setSelectedApplication] = useState<ApplicantApplicationSchema | null>(null);
+    const [applicationDialogOpen, setApplicationDialogOpen] = useState(false);
 
     // Fetch applicant once at top level so Resume can use it
     useEffect(() => {
@@ -651,10 +652,15 @@ const Profile = () => {
             .catch(console.error);
     }, [userId]);
 
+    const handleApplicationClick = (application: ApplicantApplicationSchema) => {
+        setSelectedApplication(application);
+        setApplicationDialogOpen(true);
+    };
+
     const renderPage = () => {
         switch (activePage) {
             case "Profile Info": return <ProfileInfo userId={userId} editProfileDialogOpen={editProfileDialogOpen} setEditProfileDialogOpen={setEditProfileDialogOpen} />;
-            case "Jobs Applied": return <ApplicationsSection userId={userId} navigator={navigator} />;
+            case "Jobs Applied": return <ApplicationsSection userId={userId} onApplicationClick={handleApplicationClick} />;
             case "Resume": return <Resume applicant={applicant} onSuccess={() => getApplicant(Number(userId)).then(setApplicant).catch(console.error)} />;
             default: return null;
         }
@@ -690,7 +696,7 @@ const Profile = () => {
                                 </div>
                                 <p className="text-sm text-muted-foreground flex items-center gap-1">
                                     <Mail className="h-3 w-3" />
-                                    {personalEmail ?? "user@example.com"}
+                                    {personalEmail ?? applicant?.applicantEmail ?? "user@example.com"}
                                 </p>
                             </div>
                         </div>
@@ -729,6 +735,14 @@ const Profile = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Application Details Dialog */}
+            <ApplicationDetailsDialog
+                open={applicationDialogOpen}
+                onOpenChange={setApplicationDialogOpen}
+                application={selectedApplication}
+                userId={userId}
+            />
         </div>
     );
 };
