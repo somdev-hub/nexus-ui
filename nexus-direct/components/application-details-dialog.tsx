@@ -2,7 +2,6 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Skeleton } from './ui/skeleton';
 import { ApplicantApplicationSchema, ApplicationDetailsWithStatusHistory, ApplicationStatus } from '@/types';
