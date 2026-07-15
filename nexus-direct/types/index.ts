@@ -168,4 +168,71 @@ export interface StatusHistList {
     status: ApplicationStatus;
 }
 
+// New dashboard interfaces
+export interface TopOpeningDto {
+    id: number;
+    title: string;
+    department: string;
+    type: string;
+    location: string;
+    postedDate: string;
+    applicationsCount: number;
+    viewsCount: number;
+    status: string;
+    daysOpen: number;
+}
+
+export interface TopRoleDto {
+    role: string;
+    openings: number;
+    applications: number;
+    conversionRate: number;
+}
+
+export interface StatusBreakdownDto {
+    status: string;
+    count: number;
+    color: string;
+}
+
+export interface CompanyInsightDto {
+    orgId: number;
+    orgName: string;
+    totalOpenings: number;
+    totalApplications: number;
+    applicationsThisWeek: number;
+    avgTimeToFill: number;
+    topOpenings: TopOpeningDto[];
+    topRoles: TopRoleDto[];
+    statusBreakdown: StatusBreakdownDto[];
+    hiringTrend: string;
+    trendPercent: number;
+}
+
+export interface ShippingPartnerInsightDto {
+    companyId: number;
+    company: string;
+    companyType: string;
+    monthlyVolume: string;
+    partnersNeeded: number;
+    currentPartners: number;
+    shippingMethods: string[];
+    enrollmentDeadline: string;
+    requirements: string;
+    applicationsReceived: number;
+    approvedPartners: number;
+    pendingReview: number;
+    avgResponseTime: string;
+    partnershipHealth: string;
+}
+
+export interface DashboardStatsDto {
+    label: string;
+    value: string;
+    change: string;
+    changeType: 'positive' | 'negative' | 'neutral';
+    icon: string;
+    color: string;
+}
+
 

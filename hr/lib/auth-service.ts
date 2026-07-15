@@ -1348,6 +1348,10 @@ export interface RecruitmentRequisition {
     roleName: string;
     title: string;
     totalApplicants: number | null;
+    location: string;
+    minYearsOfExperience: number | undefined;
+    maxYearsOfExperience: number | undefined;
+    orgName: string;
 }
 
 export interface FullRecruitmentRequisition extends RecruitmentRequisition {

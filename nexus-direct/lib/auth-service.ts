@@ -6,11 +6,11 @@ import {
     ApplicantEducation,
     ApplicantExperience,
     ApplicantRecruitmentMapping,
-    ApplicantSkill, ApplicationDetailsWithStatusHistory, ApplicationStatus, CompanyOpeningsCardDto,
-    HasApplicantAppliedResponse,
+    ApplicantSkill, ApplicationDetailsWithStatusHistory, ApplicationStatus, CompanyInsightDto, CompanyOpeningsCardDto,
+    DashboardStatsDto, HasApplicantAppliedResponse,
     Recruitment,
     RecruitmentApplicantTableResponse,
-    RecruitmentFilter
+    RecruitmentFilter, ShippingPartnerInsightDto
 } from "@/types";
 import { PaginatedResponse } from "@/types/paginated-response";
 import { AxiosResponse } from "axios";
@@ -488,5 +488,24 @@ export async function getApplicationDetailsWithStatusHistory(recruitmentId: numb
     }
     catch (e) {
         throw new Error("Failed to fetch application details with status history: " + (e as Error).message);
+    }
+}
+
+// New dashboard API functions
+export async function getCompanyInsights(): Promise<AxiosResponse<CompanyInsightDto[]>> {
+    try {
+        return await apiClient.get<CompanyInsightDto[]>(`/iam/recruitment/company-insights`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch company insights: " + (e as Error).message);
+    }
+}
+
+export async function getDashboardStats(): Promise<AxiosResponse<DashboardStatsDto[]>> {
+    try {
+        return await apiClient.get<DashboardStatsDto[]>(`/iam/recruitment/dashboard-stats`);
+    }
+    catch (e) {
+        throw new Error("Failed to fetch dashboard stats: " + (e as Error).message);
     }
 }
