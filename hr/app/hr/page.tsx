@@ -634,22 +634,16 @@ export default function HRDashboard() {
         {/* <ExpenseBreakdownChart /> */}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-3 w-1/3 min-h-[40dvh]">
-          {/* <Card className="p-4 items-center justify-center gap-2">
-            <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
-              <PartyPopper />
-              <p className="font-medium">Onboard Event</p>
-            </CardContent>
-          </Card> */}
-          <Card className="p-4 items-center justify-center gap-2">
-            <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
-              <Workflow />
-              <p className="font-medium">Create Workflow</p>
-            </CardContent>
-          </Card>
-          <EventOnboardDialog />
-          <CreateHiringDialog />
-          <HrRequestDialog />
-        </div>
+                  {/* <Card className="p-4 items-center justify-center gap-2">
+                    <CardContent className="p-0 flex flex-col items-center justify-center gap-2">
+                      <PartyPopper />
+                      <p className="font-medium">Onboard Event</p>
+                    </CardContent>
+                  </Card> */}
+                  <EventOnboardDialog />
+                  <CreateHiringDialog />
+                  <HrRequestDialog />
+                </div>
       </div>
     </div>
   );

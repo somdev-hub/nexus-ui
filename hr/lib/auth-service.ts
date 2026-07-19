@@ -1966,3 +1966,9 @@ export async function getEventHitsStatusWise(templateName: string, orgId: number
         );
     }
 }
+
+// ============================================================================
+// NEXUS BUDDY API FUNCTIONS
+// ============================================================================
+
+// Client Config APIs
