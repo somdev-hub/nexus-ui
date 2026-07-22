@@ -209,9 +209,9 @@ import type {
 } from "@/types/nexus-buddy";
 
 // Client Config APIs
-export async function getNexusBuddyClientConfigs(): Promise<NexusBuddyClientConfigResponse> {
+export async function getNexusBuddyClientConfigs(): Promise<NexusBuddyClientConfig[]> {
    try {
-       const response = await apiClient.get<NexusBuddyClientConfigResponse>(
+       const response = await apiClient.get<NexusBuddyClientConfig[]>(
            `/nexusbuddy/admin/client-configs`
        );
        return response.data;
@@ -281,9 +281,9 @@ export async function deactivateNexusBuddyClientConfig(clientConfigId: number): 
 }
 
 // Tools Config APIs
-export async function getNexusBuddyToolsConfigs(): Promise<NexusBuddyToolsConfigResponse> {
+export async function getNexusBuddyToolsConfigs(): Promise<NexusBuddyToolsConfig[]> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsConfigResponse>(
+       const response = await apiClient.get<NexusBuddyToolsConfig[]>(
            `/nexusbuddy/admin/tools-configs`
        );
        return response.data;
@@ -364,9 +364,9 @@ export async function deactivateNexusBuddyToolsConfig(toolsConfigId: number): Pr
 }
 
 // Tools Param Config APIs
-export async function getNexusBuddyToolsParamConfigs(): Promise<NexusBuddyToolsParamConfigResponse> {
+export async function getNexusBuddyToolsParamConfigs(): Promise<NexusBuddyToolsParamConfig[]> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsParamConfigResponse>(
+       const response = await apiClient.get<NexusBuddyToolsParamConfig[]>(
            `/nexusbuddy/admin/tools-param-configs`
        );
        return response.data;

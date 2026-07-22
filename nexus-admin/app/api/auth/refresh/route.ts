@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Call Spring Boot to refresh tokens
     const springBootClient = getSpringBootClient();
-    const response = await springBootClient.post(`/iam/auth/refresh/admin`, {
+    const response = await springBootClient.post(`/iam/auth/refresh`, {
       refreshToken
     });
 

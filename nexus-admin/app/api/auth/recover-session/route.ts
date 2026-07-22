@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     try {
       // Call Spring Boot to validate and refresh the token
       const refreshResponse = await axios.post(
-        `${SPRING_BOOT_API}/iam/auth/refresh/admin`,
+        `${SPRING_BOOT_API}/iam/auth/refresh`,
         { refreshToken },
         {
           headers: {

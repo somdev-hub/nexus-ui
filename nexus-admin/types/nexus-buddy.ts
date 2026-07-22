@@ -19,17 +19,8 @@ export interface NexusBuddyClientConfigRequest {
   isActive: boolean;
 }
 
-export interface NexusBuddyClientConfigResponse {
-  content: NexusBuddyClientConfig[];
-  pageNo: number;
-  pageSize: number;
-  totalElements: number;
-  totalPages: number;
-  isFirst: boolean;
-  isLast: boolean;
-  hasNext: boolean;
-  hasPrevious: boolean;
-}
+// Backend returns List<ClientConfigResponse> directly, not a paginated wrapper
+export type NexusBuddyClientConfigResponse = NexusBuddyClientConfig[];
 
 export interface NexusBuddyToolsConfig {
   toolsConfigId: number;
@@ -55,17 +46,8 @@ export interface NexusBuddyToolsConfigRequest {
   paramConfigs?: NexusBuddyToolsParamConfigRequest[];
 }
 
-export interface NexusBuddyToolsConfigResponse {
-  content: NexusBuddyToolsConfig[];
-  pageNo: number;
-  pageSize: number;
-  totalElements: number;
-  totalPages: number;
-  isFirst: boolean;
-  isLast: boolean;
-  hasNext: boolean;
-  hasPrevious: boolean;
-}
+// Backend returns List<ToolsConfigResponse> directly, not a paginated wrapper
+export type NexusBuddyToolsConfigResponse = NexusBuddyToolsConfig[];
 
 export interface NexusBuddyToolsParamConfig {
   toolsParamConfigId: number;
@@ -91,16 +73,8 @@ export interface NexusBuddyToolsParamConfigRequest {
   requestBodyJson?: string;
   isActive: boolean;
   toolsConfigId: number;
+  clientConfigId?: number;
 }
 
-export interface NexusBuddyToolsParamConfigResponse {
-  content: NexusBuddyToolsParamConfig[];
-  pageNo: number;
-  pageSize: number;
-  totalElements: number;
-  totalPages: number;
-  isFirst: boolean;
-  isLast: boolean;
-  hasNext: boolean;
-  hasPrevious: boolean;
-}
+// Backend returns List<ToolsParamConfigResponse> directly, not a paginated wrapper
+export type NexusBuddyToolsParamConfigResponse = NexusBuddyToolsParamConfig[];

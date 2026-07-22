@@ -5,6 +5,7 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
+import { DialogContainerContext } from "./dialog";
 
 const Select = SelectPrimitive.Root
 
@@ -69,9 +70,11 @@ function SelectContent({
   Pick<
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
-  >) {
+  > & { container?: HTMLElement | null }) {
+  const dialogContainer = React.useContext(DialogContainerContext)
+
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={dialogContainer ?? undefined}>
       <SelectPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}

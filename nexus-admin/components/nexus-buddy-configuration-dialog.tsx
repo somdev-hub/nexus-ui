@@ -1,16 +1,13 @@
 "use client";
 
 import React, { useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Settings, Server, Code, Database, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Edit, Trash2, Settings, Server, Code, Database, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     getNexusBuddyClientConfigs,
@@ -39,16 +36,17 @@ import type {
     NexusBuddyToolsParamConfig,
     NexusBuddyToolsParamConfigRequest,
 } from "@/types/nexus-buddy";
+import {
+    NexusBuddyClientConfigDialog,
+    NexusBuddyToolsConfigDialog,
+    NexusBuddyToolsParamConfigDialog,
+} from "@/components/nexus-buddy-config-dialogs";
 
 interface NexusBuddyConfigurationDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     smallButton?: boolean;
 }
-
-const httpMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-const paramTypes = ["QUERY", "PATH", "HEADER", "BODY"];
-const dataTypes = ["STRING", "NUMBER", "BOOLEAN", "OBJECT", "ARRAY"];
 
 export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton }: NexusBuddyConfigurationDialogProps) => {
     const { toast } = useToast();
@@ -57,7 +55,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
     const [clientConfigs, setClientConfigs] = React.useState<NexusBuddyClientConfig[]>([]);
     const [activeClientConfigs, setActiveClientConfigs] = React.useState<NexusBuddyClientConfig[]>([]);
     const [loadingClientConfigs, setLoadingClientConfigs] = React.useState(false);
-    const [showClientConfigForm, setShowClientConfigForm] = React.useState(false);
+    const [clientConfigDialogOpen, setClientConfigDialogOpen] = React.useState(false);
     const [editingClientConfig, setEditingClientConfig] = React.useState<NexusBuddyClientConfig | null>(null);
     const [clientConfigForm, setClientConfigForm] = React.useState<NexusBuddyClientConfigRequest>({
         clientName: "",
@@ -65,12 +63,13 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
         healthCheckPath: "",
         isActive: true,
     });
+    const [submittingClientConfig, setSubmittingClientConfig] = React.useState(false);
 
     // State for Tools Configs
     const [toolsConfigs, setToolsConfigs] = React.useState<NexusBuddyToolsConfig[]>([]);
     const [activeToolsConfigs, setActiveToolsConfigs] = React.useState<NexusBuddyToolsConfig[]>([]);
     const [loadingToolsConfigs, setLoadingToolsConfigs] = React.useState(false);
-    const [showToolsConfigForm, setShowToolsConfigForm] = React.useState(false);
+    const [toolsConfigDialogOpen, setToolsConfigDialogOpen] = React.useState(false);
     const [editingToolsConfig, setEditingToolsConfig] = React.useState<NexusBuddyToolsConfig | null>(null);
     const [toolsConfigForm, setToolsConfigForm] = React.useState<NexusBuddyToolsConfigRequest>({
         toolName: "",
@@ -81,12 +80,13 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
         clientConfigId: 0,
     });
     const [selectedClientForTools, setSelectedClientForTools] = React.useState<number | null>(null);
+    const [submittingToolsConfig, setSubmittingToolsConfig] = React.useState(false);
 
     // State for Tools Param Configs
     const [toolsParamConfigs, setToolsParamConfigs] = React.useState<NexusBuddyToolsParamConfig[]>([]);
     const [activeToolsParamConfigs, setActiveToolsParamConfigs] = React.useState<NexusBuddyToolsParamConfig[]>([]);
     const [loadingToolsParamConfigs, setLoadingToolsParamConfigs] = React.useState(false);
-    const [showToolsParamConfigForm, setShowToolsParamConfigForm] = React.useState(false);
+    const [toolsParamConfigDialogOpen, setToolsParamConfigDialogOpen] = React.useState(false);
     const [editingToolsParamConfig, setEditingToolsParamConfig] = React.useState<NexusBuddyToolsParamConfig | null>(null);
     const [toolsParamConfigForm, setToolsParamConfigForm] = React.useState<NexusBuddyToolsParamConfigRequest>({
         paramName: "",
@@ -97,8 +97,10 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
         requestBodyJson: "",
         isActive: true,
         toolsConfigId: 0,
+        clientConfigId: 0,
     });
     const [selectedToolForParams, setSelectedToolForParams] = React.useState<number | null>(null);
+    const [submittingToolsParamConfig, setSubmittingToolsParamConfig] = React.useState(false);
 
     // Load data functions
     const loadClientConfigs = useCallback(async () => {
@@ -108,7 +110,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                 getNexusBuddyClientConfigs(),
                 getNexusBuddyActiveClientConfigs(),
             ]);
-            setClientConfigs(allResponse.content || []);
+            setClientConfigs(allResponse || []);
             setActiveClientConfigs(activeResponse || []);
         } catch (error) {
             toast({ title: "Error", description: "Failed to load client configs", variant: "destructive" });
@@ -123,15 +125,15 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
             let allResponse, activeResponse;
             if (clientConfigId) {
                 const byClient = await getNexusBuddyToolsConfigsByClientConfigId(clientConfigId);
-                allResponse = { content: byClient };
-                activeResponse = byClient.filter(c => c.isActive);
+                allResponse = byClient;
+                activeResponse = byClient.filter((c) => c.isActive);
             } else {
                 [allResponse, activeResponse] = await Promise.all([
                     getNexusBuddyToolsConfigs(),
                     getNexusBuddyActiveToolsConfigs(),
                 ]);
             }
-            setToolsConfigs(allResponse.content || []);
+            setToolsConfigs(allResponse || []);
             setActiveToolsConfigs(activeResponse || []);
         } catch (error) {
             toast({ title: "Error", description: "Failed to load tools configs", variant: "destructive" });
@@ -146,15 +148,15 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
             let allResponse, activeResponse;
             if (toolsConfigId) {
                 const byTool = await getNexusBuddyToolsParamConfigsByToolsConfigId(toolsConfigId);
-                allResponse = { content: byTool };
-                activeResponse = byTool.filter(c => c.isActive);
+                allResponse = byTool;
+                activeResponse = byTool.filter((c) => c.isActive);
             } else {
                 [allResponse, activeResponse] = await Promise.all([
                     getNexusBuddyToolsParamConfigs(),
                     getNexusBuddyActiveToolsParamConfigs(),
                 ]);
             }
-            setToolsParamConfigs(allResponse.content || []);
+            setToolsParamConfigs(allResponse || []);
             setActiveToolsParamConfigs(activeResponse || []);
         } catch (error) {
             toast({ title: "Error", description: "Failed to load tools param configs", variant: "destructive" });
@@ -166,6 +168,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
     // Client Config Handlers
     const handleClientConfigSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmittingClientConfig(true);
         try {
             if (editingClientConfig) {
                 await updateNexusBuddyClientConfig(editingClientConfig.clientConfigId, clientConfigForm);
@@ -174,12 +177,14 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                 await createNexusBuddyClientConfig(clientConfigForm);
                 toast({ title: "Success", description: "Client config created successfully" });
             }
-            setShowClientConfigForm(false);
+            setClientConfigDialogOpen(false);
             setEditingClientConfig(null);
-            resetClientConfigForm();
+            setClientConfigForm({ clientName: "", connectionUrl: "", healthCheckPath: "", isActive: true });
             loadClientConfigs();
         } catch (error) {
             toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setSubmittingClientConfig(false);
         }
     };
 
@@ -191,7 +196,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
             healthCheckPath: config.healthCheckPath || "",
             isActive: config.isActive,
         });
-        setShowClientConfigForm(true);
+        setClientConfigDialogOpen(true);
     };
 
     const handleDeactivateClientConfig = async (id: number) => {
@@ -205,18 +210,10 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
         }
     };
 
-    const resetClientConfigForm = () => {
-        setClientConfigForm({
-            clientName: "",
-            connectionUrl: "",
-            healthCheckPath: "",
-            isActive: true,
-        });
-    };
-
     // Tools Config Handlers
     const handleToolsConfigSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmittingToolsConfig(true);
         try {
             if (editingToolsConfig) {
                 await updateNexusBuddyToolsConfig(editingToolsConfig.toolsConfigId, toolsConfigForm);
@@ -225,12 +222,21 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                 await createNexusBuddyToolsConfig(toolsConfigForm);
                 toast({ title: "Success", description: "Tools config created successfully" });
             }
-            setShowToolsConfigForm(false);
+            setToolsConfigDialogOpen(false);
             setEditingToolsConfig(null);
-            resetToolsConfigForm();
+            setToolsConfigForm({
+                toolName: "",
+                toolDescription: "",
+                endpoint: "",
+                httpMethod: "GET",
+                isActive: true,
+                clientConfigId: selectedClientForTools || 0,
+            });
             loadToolsConfigs(selectedClientForTools || undefined);
         } catch (error) {
             toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setSubmittingToolsConfig(false);
         }
     };
 
@@ -244,7 +250,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
             isActive: config.isActive,
             clientConfigId: config.clientConfigId,
         });
-        setShowToolsConfigForm(true);
+        setToolsConfigDialogOpen(true);
     };
 
     const handleDeactivateToolsConfig = async (id: number) => {
@@ -258,20 +264,10 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
         }
     };
 
-    const resetToolsConfigForm = () => {
-        setToolsConfigForm({
-            toolName: "",
-            toolDescription: "",
-            endpoint: "",
-            httpMethod: "GET",
-            isActive: true,
-            clientConfigId: selectedClientForTools || 0,
-        });
-    };
-
     // Tools Param Config Handlers
     const handleToolsParamConfigSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmittingToolsParamConfig(true);
         try {
             if (editingToolsParamConfig) {
                 await updateNexusBuddyToolsParamConfig(editingToolsParamConfig.toolsParamConfigId, toolsParamConfigForm);
@@ -280,12 +276,23 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                 await createNexusBuddyToolsParamConfig(toolsParamConfigForm);
                 toast({ title: "Success", description: "Tools param config created successfully" });
             }
-            setShowToolsParamConfigForm(false);
+            setToolsParamConfigDialogOpen(false);
             setEditingToolsParamConfig(null);
-            resetToolsParamConfigForm();
+            setToolsParamConfigForm({
+                paramName: "",
+                paramType: "QUERY",
+                dataType: "STRING",
+                isRequired: false,
+                defaultValue: "",
+                requestBodyJson: "",
+                isActive: true,
+                toolsConfigId: selectedToolForParams || 0,
+            });
             loadToolsParamConfigs(selectedToolForParams || undefined);
         } catch (error) {
             toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setSubmittingToolsParamConfig(false);
         }
     };
 
@@ -300,8 +307,9 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
             requestBodyJson: config.requestBodyJson || "",
             isActive: config.isActive,
             toolsConfigId: config.toolsConfigId,
+            clientConfigId: config.toolsConfig?.clientConfigId || 0,
         });
-        setShowToolsParamConfigForm(true);
+        setToolsParamConfigDialogOpen(true);
     };
 
     const handleDeactivateToolsParamConfig = async (id: number) => {
@@ -313,19 +321,6 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
         } catch (error) {
             toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         }
-    };
-
-    const resetToolsParamConfigForm = () => {
-        setToolsParamConfigForm({
-            paramName: "",
-            paramType: "QUERY",
-            dataType: "STRING",
-            isRequired: false,
-            defaultValue: "",
-            requestBodyJson: "",
-            isActive: true,
-            toolsConfigId: selectedToolForParams || 0,
-        });
     };
 
     // Load initial data
@@ -349,7 +344,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                         Onboard Event
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+                <DialogContent id="nexus-buddy-dialog-content" className="max-w-6xl max-h-[90vh] overflow-hidden">
                     <DialogHeader>
                         <DialogTitle>NexusBuddy Configuration</DialogTitle>
                     </DialogHeader>
@@ -368,8 +363,264 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                                 Param Configs
                             </TabsTrigger>
                         </TabsList>
-                        {/* Content tabs will be rendered here */}
+
+                        {/* Client Configs Tab */}
+                        <TabsContent value="clients" className="flex-1 p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold">Client Configurations</h3>
+                                <Button onClick={() => { setEditingClientConfig(null); setClientConfigForm({ clientName: "", connectionUrl: "", healthCheckPath: "", isActive: true }); setClientConfigDialogOpen(true); }}>
+                                    Add Client Config
+                                </Button>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>ID</TableHead>
+                                            <TableHead>Client Name</TableHead>
+                                            <TableHead>Connection URL</TableHead>
+                                            <TableHead>Auth Type</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Created</TableHead>
+                                            <TableHead>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loadingClientConfigs ? (
+                                            <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
+                                        ) : clientConfigs.length === 0 ? (
+                                            <TableRow><TableCell colSpan={7} className="text-center py-8">No client configs found</TableCell></TableRow>
+                                        ) : (
+                                            clientConfigs.map((config) => (
+                                                <TableRow key={config.clientConfigId}>
+                                                    <TableCell>{config.clientConfigId}</TableCell>
+                                                    <TableCell className="font-medium">{config.clientName}</TableCell>
+                                                    <TableCell className="font-mono text-sm truncate max-w-50">{config.connectionUrl}</TableCell>
+                                                    <TableCell className="font-mono text-sm truncate max-w-50">{config.healthCheckPath}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={config.isActive ? "default" : "destructive"}>
+                                                            {config.isActive ? "Active" : "Inactive"}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm">{new Date(config.createdAt).toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEditClientConfig(config)}>
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => handleDeactivateClientConfig(config.clientConfigId)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </TabsContent>
+
+                        {/* Tools Configs Tab */}
+                        <TabsContent value="tools" className="flex-1 p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold">Tools Configurations</h3>
+                                <div className="flex items-center gap-2">
+                                    <Select
+                                        value={activeClientConfigs.find((c) => c.clientConfigId === selectedClientForTools)?.clientName || "Select a client"}
+                                        onValueChange={(v) => {
+                                            const id = v === "all" ? null : v != null ? parseInt(v) : null;
+                                            setSelectedClientForTools(id);
+                                            loadToolsConfigs(id ?? undefined);
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-50">
+                                            <SelectValue placeholder="Filter by client" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Clients</SelectItem>
+                                            {activeClientConfigs.map((c) => (
+                                                <SelectItem key={c.clientConfigId} value={c.clientConfigId.toString()}>
+                                                    {c.clientName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button onClick={() => { setEditingToolsConfig(null); setToolsConfigForm({ toolName: "", toolDescription: "", endpoint: "", httpMethod: "GET", isActive: true, clientConfigId: selectedClientForTools || 0 }); setToolsConfigDialogOpen(true); }} disabled={!selectedClientForTools}>
+                                        Add Tools Config
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>ID</TableHead>
+                                            <TableHead>Tool Name</TableHead>
+                                            <TableHead>Endpoint</TableHead>
+                                            <TableHead>Method</TableHead>
+                                            <TableHead>Client</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Created</TableHead>
+                                            <TableHead>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loadingToolsConfigs ? (
+                                            <TableRow><TableCell colSpan={8} className="text-center py-8">Loading...</TableCell></TableRow>
+                                        ) : toolsConfigs.length === 0 ? (
+                                            <TableRow><TableCell colSpan={8} className="text-center py-8">No tools configs found</TableCell></TableRow>
+                                        ) : (
+                                            toolsConfigs.map((config) => (
+                                                <TableRow key={config.toolsConfigId}>
+                                                    <TableCell>{config.toolsConfigId}</TableCell>
+                                                    <TableCell className="font-medium">{config.toolName}</TableCell>
+                                                    <TableCell className="font-mono text-sm truncate max-w-50">{config.endpoint}</TableCell>
+                                                    <TableCell><Badge variant="secondary">{config.httpMethod}</Badge></TableCell>
+                                                    <TableCell>{config.clientConfig?.clientName || config.clientConfigId}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={config.isActive ? "default" : "destructive"}>
+                                                            {config.isActive ? "Active" : "Inactive"}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm">{new Date(config.createdAt).toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEditToolsConfig(config)}>
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => handleDeactivateToolsConfig(config.toolsConfigId)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </TabsContent>
+
+                        {/* Param Configs Tab */}
+                        <TabsContent value="params" className="flex-1 p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold">Parameter Configurations</h3>
+                                <div className="flex items-center gap-2">
+                                    <Select
+                                        value={selectedToolForParams?.toString() || ""}
+                                        onValueChange={(v) => {
+                                            const id = v ? parseInt(v) : null;
+                                            setSelectedToolForParams(id);
+                                            loadToolsParamConfigs(id ?? undefined);
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-[250px]">
+                                            <SelectValue placeholder="Filter by tool" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="">All Tools</SelectItem>
+                                            {activeToolsConfigs.map((t) => (
+                                                <SelectItem key={t.toolsConfigId} value={t.toolsConfigId.toString()}>
+                                                    {t.toolName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button onClick={() => { setEditingToolsParamConfig(null); setToolsParamConfigForm({ paramName: "", paramType: "QUERY", dataType: "STRING", isRequired: false, defaultValue: "", requestBodyJson: "", isActive: true, toolsConfigId: selectedToolForParams || 0 }); setToolsParamConfigDialogOpen(true); }} disabled={!selectedToolForParams}>
+                                        Add Param Config
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>ID</TableHead>
+                                            <TableHead>Param Name</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Data Type</TableHead>
+                                            <TableHead>Required</TableHead>
+                                            <TableHead>Tool</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Created</TableHead>
+                                            <TableHead>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loadingToolsParamConfigs ? (
+                                            <TableRow><TableCell colSpan={9} className="text-center py-8">Loading...</TableCell></TableRow>
+                                        ) : toolsParamConfigs.length === 0 ? (
+                                            <TableRow><TableCell colSpan={9} className="text-center py-8">No param configs found</TableCell></TableRow>
+                                        ) : (
+                                            toolsParamConfigs.map((config) => (
+                                                <TableRow key={config.toolsParamConfigId}>
+                                                    <TableCell>{config.toolsParamConfigId}</TableCell>
+                                                    <TableCell className="font-medium">{config.paramName}</TableCell>
+                                                    <TableCell><Badge variant="secondary">{config.paramType}</Badge></TableCell>
+                                                    <TableCell><Badge variant="outline">{config.dataType}</Badge></TableCell>
+                                                    <TableCell>{config.isRequired ? "Yes" : "No"}</TableCell>
+                                                    <TableCell>{config.toolsConfig?.toolName || config.toolsConfigId}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={config.isActive ? "default" : "destructive"}>
+                                                            {config.isActive ? "Active" : "Inactive"}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm">{new Date(config.createdAt).toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEditToolsParamConfig(config)}>
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => handleDeactivateToolsParamConfig(config.toolsParamConfigId)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </TabsContent>
                     </Tabs>
+
+                    <NexusBuddyClientConfigDialog
+                        open={clientConfigDialogOpen}
+                        onOpenChange={setClientConfigDialogOpen}
+                        editingConfig={editingClientConfig}
+                        form={clientConfigForm}
+                        submitting={submittingClientConfig}
+                        onFormChange={setClientConfigForm}
+                        onSubmit={handleClientConfigSubmit}
+                    />
+
+                    <NexusBuddyToolsConfigDialog
+                        open={toolsConfigDialogOpen}
+                        onOpenChange={setToolsConfigDialogOpen}
+                        editingConfig={editingToolsConfig}
+                        form={toolsConfigForm}
+                        submitting={submittingToolsConfig}
+                        activeClientConfigs={activeClientConfigs}
+                        onFormChange={setToolsConfigForm}
+                        onSubmit={handleToolsConfigSubmit}
+                    />
+
+                    <NexusBuddyToolsParamConfigDialog
+                        open={toolsParamConfigDialogOpen}
+                        onOpenChange={setToolsParamConfigDialogOpen}
+                        editingConfig={editingToolsParamConfig}
+                        form={toolsParamConfigForm}
+                        submitting={submittingToolsParamConfig}
+                        activeClientConfigs={activeClientConfigs}
+                        activeToolsConfigs={activeToolsConfigs}
+                        onFormChange={setToolsParamConfigForm}
+                        onSubmit={handleToolsParamConfigSubmit}
+                    />
                 </DialogContent>
             </Dialog>
         );
@@ -383,7 +634,7 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                     NexusBuddy Configuration
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+            <DialogContent className="max-w-6xl">
                 <DialogHeader>
                     <DialogTitle>NexusBuddy Configuration</DialogTitle>
                 </DialogHeader>
@@ -405,72 +656,13 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                     </TabsList>
 
                     {/* Client Configs Tab */}
-                    <TabsContent value="clients" className="flex-1 overflow-auto p-4">
+                    <TabsContent value="clients" className="flex-1 p-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Client Configurations</h3>
-                            <Button onClick={() => { setEditingClientConfig(null); resetClientConfigForm(); setShowClientConfigForm(true); }}>
-                                <Plus className="mr-2 h-4 w-4" />
+                            <Button onClick={() => { setEditingClientConfig(null); setClientConfigForm({ clientName: "", connectionUrl: "", healthCheckPath: "", isActive: true }); setClientConfigDialogOpen(true); }}>
                                 Add Client Config
                             </Button>
                         </div>
-
-                        {showClientConfigForm && (
-                            <div className="mb-6 p-4 border rounded-lg bg-muted/50">
-                                <h4 className="font-medium mb-4">{editingClientConfig ? "Edit" : "Create"} Client Config</h4>
-                                <form onSubmit={handleClientConfigSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="clientName">Client Name *</Label>
-                                            <Input
-                                                id="clientName"
-                                                value={clientConfigForm.clientName}
-                                                onChange={(e) => setClientConfigForm({ ...clientConfigForm, clientName: e.target.value })}
-                                                placeholder="Enter client name"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="connectionUrl">Connection URL</Label>
-                                            <Input
-                                                id="connectionUrl"
-                                                value={clientConfigForm.connectionUrl || ""}
-                                                onChange={(e) => setClientConfigForm({ ...clientConfigForm, connectionUrl: e.target.value })}
-                                                placeholder="https://api.example.com"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="healthCheckPath">Health Check Path</Label>
-                                            <Input
-                                                id="healthCheckPath"
-                                                value={clientConfigForm.healthCheckPath || ""}
-                                                onChange={(e) => setClientConfigForm({ ...clientConfigForm, healthCheckPath: e.target.value })}
-                                                placeholder="/health"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-y-2">
-                                        <Label htmlFor="isActive" className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                id="isActive"
-                                                checked={clientConfigForm.isActive}
-                                                onChange={(e) => setClientConfigForm({ ...clientConfigForm, isActive: e.target.checked })}
-                                                className="rounded border-input"
-                                            />
-                                            Active
-                                        </Label>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button type="button" variant="outline" onClick={() => { setShowClientConfigForm(false); setEditingClientConfig(null); resetClientConfigForm(); }}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit">{editingClientConfig ? "Update" : "Create"}</Button>
-                                    </DialogFooter>
-                                </form>
-                            </div>
-                        )}
 
                         <div className="overflow-x-auto">
                             <Table>
@@ -526,110 +718,35 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                     </TabsContent>
 
                     {/* Tools Configs Tab */}
-                    <TabsContent value="tools" className="flex-1 overflow-auto p-4">
+                    <TabsContent value="tools" className="flex-1 p-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Tools Configurations</h3>
                             <div className="flex items-center gap-2">
-                                <Select value={selectedClientForTools?.toString() || ""} onValueChange={(v) => { setSelectedClientForTools(v ? parseInt(v) : null); loadToolsConfigs(v ? parseInt(v) : undefined); }}>
+                                <Select
+                                    value={activeClientConfigs.find((c) => c.clientConfigId === selectedClientForTools)?.clientName || "Select a client"}
+                                    onValueChange={(v) => {
+                                        const id = v === "all" ? null : v != null ? parseInt(v) : null;
+                                        setSelectedClientForTools(id);
+                                        loadToolsConfigs(id ?? undefined);
+                                    }}
+                                >
                                     <SelectTrigger className="w-50">
                                         <SelectValue placeholder="Filter by client" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Clients</SelectItem>
-                                        {activeClientConfigs.map(c => (
-                                            <SelectItem key={c.clientConfigId} value={c.clientConfigId.toString()}>{c.clientName}</SelectItem>
+                                        <SelectItem value="all">All Clients</SelectItem>
+                                        {activeClientConfigs.map((c) => (
+                                            <SelectItem key={c.clientConfigId} value={c.clientConfigId.toString()}>
+                                                {c.clientName}
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <Button onClick={() => { setEditingToolsConfig(null); resetToolsConfigForm(); setShowToolsConfigForm(true); }} disabled={!selectedClientForTools}>
-                                    <Plus className="mr-2 h-4 w-4" />
+                                <Button onClick={() => { setEditingToolsConfig(null); setToolsConfigForm({ toolName: "", toolDescription: "", endpoint: "", httpMethod: "GET", isActive: true, clientConfigId: selectedClientForTools || 0 }); setToolsConfigDialogOpen(true); }} disabled={!selectedClientForTools}>
                                     Add Tools Config
                                 </Button>
                             </div>
                         </div>
-
-                        {showToolsConfigForm && (
-                            <div className="mb-6 p-4 border rounded-lg bg-muted/50">
-                                <h4 className="font-medium mb-4">{editingToolsConfig ? "Edit" : "Create"} Tools Config</h4>
-                                <form onSubmit={handleToolsConfigSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="toolName">Tool Name *</Label>
-                                            <Input
-                                                id="toolName"
-                                                value={toolsConfigForm.toolName}
-                                                onChange={(e) => setToolsConfigForm({ ...toolsConfigForm, toolName: e.target.value })}
-                                                placeholder="Enter tool name"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="toolDescription">Tool Description</Label>
-                                            <Input
-                                                id="toolDescription"
-                                                value={toolsConfigForm.toolDescription || ""}
-                                                onChange={(e) => setToolsConfigForm({ ...toolsConfigForm, toolDescription: e.target.value })}
-                                                placeholder="Optional description"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="endpoint">Endpoint *</Label>
-                                            <Input
-                                                id="endpoint"
-                                                value={toolsConfigForm.endpoint}
-                                                onChange={(e) => setToolsConfigForm({ ...toolsConfigForm, endpoint: e.target.value })}
-                                                placeholder="/api/v1/resource"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="httpMethod">HTTP Method</Label>
-                                            <Select value={toolsConfigForm.httpMethod} onValueChange={(v) => setToolsConfigForm({ ...toolsConfigForm, httpMethod: v || "GET" })}>
-                                                <SelectTrigger id="httpMethod">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {httpMethods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="clientConfigId">Client Config *</Label>
-                                        <Select value={toolsConfigForm.clientConfigId.toString()} onValueChange={(v) => setToolsConfigForm({ ...toolsConfigForm, clientConfigId: v ? parseInt(v) : 0 })}>
-                                            <SelectTrigger id="clientConfigId">
-                                                <SelectValue placeholder="Select client" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {activeClientConfigs.map(c => (
-                                                    <SelectItem key={c.clientConfigId} value={c.clientConfigId.toString()}>{c.clientName}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="flex items-center space-y-2">
-                                        <Label htmlFor="toolsIsActive" className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                id="toolsIsActive"
-                                                checked={toolsConfigForm.isActive}
-                                                onChange={(e) => setToolsConfigForm({ ...toolsConfigForm, isActive: e.target.checked })}
-                                                className="rounded border-input"
-                                            />
-                                            Active
-                                        </Label>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button type="button" variant="outline" onClick={() => { setShowToolsConfigForm(false); setEditingToolsConfig(null); resetToolsConfigForm(); }}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit">{editingToolsConfig ? "Update" : "Create"}</Button>
-                                    </DialogFooter>
-                                </form>
-                            </div>
-                        )}
 
                         <div className="overflow-x-auto">
                             <Table>
@@ -683,136 +800,35 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                     </TabsContent>
 
                     {/* Param Configs Tab */}
-                    <TabsContent value="params" className="flex-1 overflow-auto p-4">
+                    <TabsContent value="params" className="flex-1 p-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Parameter Configurations</h3>
                             <div className="flex items-center gap-2">
-                                <Select value={selectedToolForParams?.toString() || ""} onValueChange={(v) => { setSelectedToolForParams(v ? parseInt(v) : null); loadToolsParamConfigs(v ? parseInt(v) : undefined); }}>
-                                    <SelectTrigger className="w-62.5">
+                                <Select
+                                    value={selectedToolForParams?.toString() || ""}
+                                    onValueChange={(v) => {
+                                        const id = v ? parseInt(v) : null;
+                                        setSelectedToolForParams(id);
+                                        loadToolsParamConfigs(id ?? undefined);
+                                    }}
+                                >
+                                    <SelectTrigger className="w-[250px]">
                                         <SelectValue placeholder="Filter by tool" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="">All Tools</SelectItem>
-                                        {activeToolsConfigs.map(t => (
-                                            <SelectItem key={t.toolsConfigId} value={t.toolsConfigId.toString()}>{t.toolName}</SelectItem>
+                                        {activeToolsConfigs.map((t) => (
+                                            <SelectItem key={t.toolsConfigId} value={t.toolsConfigId.toString()}>
+                                                {t.toolName}
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <Button onClick={() => { setEditingToolsParamConfig(null); resetToolsParamConfigForm(); setShowToolsParamConfigForm(true); }} disabled={!selectedToolForParams}>
-                                    <Plus className="mr-2 h-4 w-4" />
+                                <Button onClick={() => { setEditingToolsParamConfig(null); setToolsParamConfigForm({ paramName: "", paramType: "QUERY", dataType: "STRING", isRequired: false, defaultValue: "", requestBodyJson: "", isActive: true, toolsConfigId: selectedToolForParams || 0 }); setToolsParamConfigDialogOpen(true); }} disabled={!selectedToolForParams}>
                                     Add Param Config
                                 </Button>
                             </div>
                         </div>
-
-                        {showToolsParamConfigForm && (
-                            <div className="mb-6 p-4 border rounded-lg bg-muted/50">
-                                <h4 className="font-medium mb-4">{editingToolsParamConfig ? "Edit" : "Create"} Parameter Config</h4>
-                                <form onSubmit={handleToolsParamConfigSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="paramName">Parameter Name *</Label>
-                                            <Input
-                                                id="paramName"
-                                                value={toolsParamConfigForm.paramName}
-                                                onChange={(e) => setToolsParamConfigForm({ ...toolsParamConfigForm, paramName: e.target.value })}
-                                                placeholder="Enter parameter name"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="paramType">Parameter Type</Label>
-                                            <Select value={toolsParamConfigForm.paramType} onValueChange={(v) => setToolsParamConfigForm({ ...toolsParamConfigForm, paramType: v || "QUERY" })}>
-                                                <SelectTrigger id="paramType">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {paramTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="dataType">Data Type</Label>
-                                            <Select value={toolsParamConfigForm.dataType} onValueChange={(v) => setToolsParamConfigForm({ ...toolsParamConfigForm, dataType: v || "STRING" })}>
-                                                <SelectTrigger id="dataType">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {dataTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="toolsConfigId">Tool *</Label>
-                                            <Select value={toolsParamConfigForm.toolsConfigId.toString()} onValueChange={(v) => setToolsParamConfigForm({ ...toolsParamConfigForm, toolsConfigId: v ? parseInt(v) : 0 })}>
-                                                <SelectTrigger id="toolsConfigId">
-                                                    <SelectValue placeholder="Select tool" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {activeToolsConfigs.map(t => (
-                                                        <SelectItem key={t.toolsConfigId} value={t.toolsConfigId.toString()}>{t.toolName}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="defaultValue">Default Value</Label>
-                                        <Input
-                                            id="defaultValue"
-                                            value={toolsParamConfigForm.defaultValue || ""}
-                                            onChange={(e) => setToolsParamConfigForm({ ...toolsParamConfigForm, defaultValue: e.target.value })}
-                                            placeholder="Default value"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="requestBodyJson">Request Body JSON</Label>
-                                        <Textarea
-                                            id="requestBodyJson"
-                                            value={toolsParamConfigForm.requestBodyJson || ""}
-                                            onChange={(e) => setToolsParamConfigForm({ ...toolsParamConfigForm, requestBodyJson: e.target.value })}
-                                            placeholder='{"key": "value"}'
-                                            rows={2}
-                                            className="font-mono text-sm"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="flex items-center space-y-2">
-                                            <Label htmlFor="isRequired" className="flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    id="isRequired"
-                                                    checked={toolsParamConfigForm.isRequired}
-                                                    onChange={(e) => setToolsParamConfigForm({ ...toolsParamConfigForm, isRequired: e.target.checked })}
-                                                    className="rounded border-input"
-                                                />
-                                                Required
-                                            </Label>
-                                        </div>
-                                        <div className="flex items-center space-y-2">
-                                            <Label htmlFor="paramIsActive" className="flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    id="paramIsActive"
-                                                    checked={toolsParamConfigForm.isActive}
-                                                    onChange={(e) => setToolsParamConfigForm({ ...toolsParamConfigForm, isActive: e.target.checked })}
-                                                    className="rounded border-input"
-                                                />
-                                                Active
-                                            </Label>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button type="button" variant="outline" onClick={() => { setShowToolsParamConfigForm(false); setEditingToolsParamConfig(null); resetToolsParamConfigForm(); }}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit">{editingToolsParamConfig ? "Update" : "Create"}</Button>
-                                    </DialogFooter>
-                                </form>
-                            </div>
-                        )}
 
                         <div className="overflow-x-auto">
                             <Table>
@@ -867,9 +883,42 @@ export const NexusBuddyConfigurationDialog = ({ open, onOpenChange, smallButton 
                         </div>
                     </TabsContent>
                 </Tabs>
+
+                <NexusBuddyClientConfigDialog
+                    open={clientConfigDialogOpen}
+                    onOpenChange={setClientConfigDialogOpen}
+                    editingConfig={editingClientConfig}
+                    form={clientConfigForm}
+                    submitting={submittingClientConfig}
+                    onFormChange={setClientConfigForm}
+                    onSubmit={handleClientConfigSubmit}
+                />
+
+                <NexusBuddyToolsConfigDialog
+                    open={toolsConfigDialogOpen}
+                    onOpenChange={setToolsConfigDialogOpen}
+                    editingConfig={editingToolsConfig}
+                    form={toolsConfigForm}
+                    submitting={submittingToolsConfig}
+                    activeClientConfigs={activeClientConfigs}
+                    onFormChange={setToolsConfigForm}
+                    onSubmit={handleToolsConfigSubmit}
+                />
+
+                <NexusBuddyToolsParamConfigDialog
+                    open={toolsParamConfigDialogOpen}
+                    onOpenChange={setToolsParamConfigDialogOpen}
+                    editingConfig={editingToolsParamConfig}
+                    form={toolsParamConfigForm}
+                    submitting={submittingToolsParamConfig}
+                    activeClientConfigs={activeClientConfigs}
+                    activeToolsConfigs={activeToolsConfigs}
+                    onFormChange={setToolsParamConfigForm}
+                    onSubmit={handleToolsParamConfigSubmit}
+                />
             </DialogContent>
         </Dialog>
     );
-};
+}
 
 export default NexusBuddyConfigurationDialog;

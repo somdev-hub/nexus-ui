@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         "[AUTH SESSION ADMIN] Calling Spring Boot to validate and refresh token"
       );
       const refreshResponse = await axios.post(
-        `${SPRING_BOOT_API}/iam/auth/refresh/admin`,
+        `${SPRING_BOOT_API}/iam/auth/refresh`,
         { refreshToken },
         {
           headers: {

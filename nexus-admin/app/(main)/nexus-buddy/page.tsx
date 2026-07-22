@@ -120,7 +120,7 @@ export default function NexusBuddyPage() {
                 getNexusBuddyClientConfigs(),
                 getNexusBuddyActiveClientConfigs(),
             ]);
-            setClientConfigs(allResponse.content || []);
+            setClientConfigs(allResponse || []);
             setActiveClientConfigs(activeResponse || []);
         } catch (error) {
             console.error("Failed to load client configs:", error);
@@ -130,48 +130,46 @@ export default function NexusBuddyPage() {
         }, []);
 
     const loadToolsConfigs = useCallback(async (clientConfigId?: number) => {
-        setLoadingToolsConfigs(true);
-        try {
-            let response;
-            if (clientConfigId) {
-                const byClient = await getNexusBuddyToolsConfigsByClientConfigId(clientConfigId);
-                response = { content: byClient };
-            } else {
-                response = await getNexusBuddyToolsConfigs();
-            }
-            setToolsConfigs(response.content || []);
+            setLoadingToolsConfigs(true);
+            try {
+                let toolsConfigs;
+                if (clientConfigId) {
+                    toolsConfigs = await getNexusBuddyToolsConfigsByClientConfigId(clientConfigId);
+                } else {
+                    toolsConfigs = await getNexusBuddyToolsConfigs();
+                }
+                setToolsConfigs(toolsConfigs || []);
             
-            // Also load active tools configs for dropdowns
-            const activeResponse = await getNexusBuddyActiveToolsConfigs();
-            setActiveToolsConfigs(activeResponse || []);
-        } catch (error) {
-            console.error("Failed to load tools configs:", error);
-        } finally {
-            setLoadingToolsConfigs(false);
-        }
-        }, []);
+                // Also load active tools configs for dropdowns
+                const activeToolsConfigs = await getNexusBuddyActiveToolsConfigs();
+                setActiveToolsConfigs(activeToolsConfigs || []);
+            } catch (error) {
+                console.error("Failed to load tools configs:", error);
+            } finally {
+                setLoadingToolsConfigs(false);
+            }
+            }, []);
 
         const loadToolsParamConfigs = useCallback(async (toolsConfigId?: number) => {
-        setLoadingToolsParamConfigs(true);
-        try {
-            let response;
-            if (toolsConfigId) {
-                const byTool = await getNexusBuddyToolsParamConfigsByToolsConfigId(toolsConfigId);
-                response = { content: byTool };
-            } else {
-                response = await getNexusBuddyToolsParamConfigs();
-            }
-            setToolsParamConfigs(response.content || []);
+            setLoadingToolsParamConfigs(true);
+            try {
+                let toolsParamConfigs;
+                if (toolsConfigId) {
+                    toolsParamConfigs = await getNexusBuddyToolsParamConfigsByToolsConfigId(toolsConfigId);
+                } else {
+                    toolsParamConfigs = await getNexusBuddyToolsParamConfigs();
+                }
+                setToolsParamConfigs(toolsParamConfigs || []);
             
-            // Also load active param configs for dropdowns
-            const activeResponse = await getNexusBuddyActiveToolsParamConfigs();
-            setActiveToolsParamConfigs(activeResponse || []);
-        } catch (error) {
-            console.error("Failed to load tools param configs:", error);
-        } finally {
-            setLoadingToolsParamConfigs(false);
-        }
-        }, []);
+                // Also load active param configs for dropdowns
+                const activeToolsParamConfigs = await getNexusBuddyActiveToolsParamConfigs();
+                setActiveToolsParamConfigs(activeToolsParamConfigs || []);
+            } catch (error) {
+                console.error("Failed to load tools param configs:", error);
+            } finally {
+                setLoadingToolsParamConfigs(false);
+            }
+            }, []);
 
     // Load initial data
     React.useEffect(() => {
