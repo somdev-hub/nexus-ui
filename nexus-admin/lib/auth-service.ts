@@ -209,10 +209,10 @@ import type {
 } from "@/types/nexus-buddy";
 
 // Client Config APIs
-export async function getNexusBuddyClientConfigs(): Promise<NexusBuddyClientConfig[]> {
+export async function getNexusBuddyClientConfigs(page = 0, size = 20, sortBy = "clientConfigId", sortDir = "asc"): Promise<NexusBuddyClientConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyClientConfig[]>(
-           `/nexusbuddy/admin/client-configs`
+       const response = await apiClient.get<NexusBuddyClientConfigResponse>(
+           `/nexusbuddy/admin/client-configs?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -231,10 +231,10 @@ export async function getNexusBuddyClientConfigById(clientConfigId: number): Pro
    }
 }
 
-export async function getNexusBuddyActiveClientConfigs(): Promise<NexusBuddyClientConfig[]> {
+export async function getNexusBuddyActiveClientConfigs(page = 0, size = 20, sortBy = "clientConfigId", sortDir = "asc"): Promise<NexusBuddyClientConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyClientConfig[]>(
-           `/nexusbuddy/admin/client-configs/active`
+       const response = await apiClient.get<NexusBuddyClientConfigResponse>(
+           `/nexusbuddy/admin/client-configs/active?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -281,10 +281,10 @@ export async function deactivateNexusBuddyClientConfig(clientConfigId: number): 
 }
 
 // Tools Config APIs
-export async function getNexusBuddyToolsConfigs(): Promise<NexusBuddyToolsConfig[]> {
+export async function getNexusBuddyToolsConfigs(page = 0, size = 20, sortBy = "toolsConfigId", sortDir = "asc"): Promise<NexusBuddyToolsConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsConfig[]>(
-           `/nexusbuddy/admin/tools-configs`
+       const response = await apiClient.get<NexusBuddyToolsConfigResponse>(
+           `/nexusbuddy/admin/tools-configs?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -303,10 +303,10 @@ export async function getNexusBuddyToolsConfigById(toolsConfigId: number): Promi
    }
 }
 
-export async function getNexusBuddyActiveToolsConfigs(): Promise<NexusBuddyToolsConfig[]> {
+export async function getNexusBuddyActiveToolsConfigs(page = 0, size = 20, sortBy = "toolsConfigId", sortDir = "asc"): Promise<NexusBuddyToolsConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsConfig[]>(
-           `/nexusbuddy/admin/tools-configs/active`
+       const response = await apiClient.get<NexusBuddyToolsConfigResponse>(
+           `/nexusbuddy/admin/tools-configs/active?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -314,10 +314,10 @@ export async function getNexusBuddyActiveToolsConfigs(): Promise<NexusBuddyTools
    }
 }
 
-export async function getNexusBuddyToolsConfigsByClientConfigId(clientConfigId: number): Promise<NexusBuddyToolsConfig[]> {
+export async function getNexusBuddyToolsConfigsByClientConfigId(clientConfigId: number, page = 0, size = 20, sortBy = "toolsConfigId", sortDir = "asc"): Promise<NexusBuddyToolsConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsConfig[]>(
-           `/nexusbuddy/admin/tools-configs/client/${clientConfigId}`
+       const response = await apiClient.get<NexusBuddyToolsConfigResponse>(
+           `/nexusbuddy/admin/tools-configs/client/${clientConfigId}?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -364,10 +364,10 @@ export async function deactivateNexusBuddyToolsConfig(toolsConfigId: number): Pr
 }
 
 // Tools Param Config APIs
-export async function getNexusBuddyToolsParamConfigs(): Promise<NexusBuddyToolsParamConfig[]> {
+export async function getNexusBuddyToolsParamConfigs(page = 0, size = 20, sortBy = "toolsParamConfigId", sortDir = "asc"): Promise<NexusBuddyToolsParamConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsParamConfig[]>(
-           `/nexusbuddy/admin/tools-param-configs`
+       const response = await apiClient.get<NexusBuddyToolsParamConfigResponse>(
+           `/nexusbuddy/admin/tools-param-configs?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -386,10 +386,10 @@ export async function getNexusBuddyToolsParamConfigById(toolsParamConfigId: numb
    }
 }
 
-export async function getNexusBuddyActiveToolsParamConfigs(): Promise<NexusBuddyToolsParamConfig[]> {
+export async function getNexusBuddyActiveToolsParamConfigs(page = 0, size = 20, sortBy = "toolsParamConfigId", sortDir = "asc"): Promise<NexusBuddyToolsParamConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsParamConfig[]>(
-           `/nexusbuddy/admin/tools-param-configs/active`
+       const response = await apiClient.get<NexusBuddyToolsParamConfigResponse>(
+           `/nexusbuddy/admin/tools-param-configs/active?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {
@@ -397,10 +397,10 @@ export async function getNexusBuddyActiveToolsParamConfigs(): Promise<NexusBuddy
    }
 }
 
-export async function getNexusBuddyToolsParamConfigsByToolsConfigId(toolsConfigId: number): Promise<NexusBuddyToolsParamConfig[]> {
+export async function getNexusBuddyToolsParamConfigsByToolsConfigId(toolsConfigId: number, page = 0, size = 20, sortBy = "toolsParamConfigId", sortDir = "asc"): Promise<NexusBuddyToolsParamConfigResponse> {
    try {
-       const response = await apiClient.get<NexusBuddyToolsParamConfig[]>(
-           `/nexusbuddy/admin/tools-param-configs/tool/${toolsConfigId}`
+       const response = await apiClient.get<NexusBuddyToolsParamConfigResponse>(
+           `/nexusbuddy/admin/tools-param-configs/tool/${toolsConfigId}?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
        );
        return response.data;
    } catch (error: unknown) {

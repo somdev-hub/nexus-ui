@@ -3,78 +3,105 @@
 // ============================================================================
 
 export interface NexusBuddyClientConfig {
-  clientConfigId: number;
-  clientName: string;
-  connectionUrl: string;
-  healthCheckPath: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+    clientConfigId: number;
+    clientName: string;
+    connectionUrl: string;
+    healthCheckPath: string;
+    isActive: boolean;
+    createdOn: string;
+    updatedOn: string;
 }
 
 export interface NexusBuddyClientConfigRequest {
-  clientName: string;
-  connectionUrl?: string;
-  healthCheckPath?: string;
-  isActive: boolean;
+    clientName: string;
+    connectionUrl?: string;
+    healthCheckPath?: string;
+    isActive: boolean;
 }
 
-// Backend returns List<ClientConfigResponse> directly, not a paginated wrapper
-export type NexusBuddyClientConfigResponse = NexusBuddyClientConfig[];
+export interface NexusBuddyPageResponse<T> {
+    content: T[];
+    pageable: {
+        pageNumber: number;
+        pageSize: number;
+        offset: number;
+        paged: boolean;
+        unpaged: boolean;
+        sort: {
+            sorted: boolean;
+            unsorted: boolean;
+            empty: boolean;
+        };
+    };
+    totalPages: number;
+    totalElements: number;
+    last: boolean;
+    first: boolean;
+    size: number;
+    number: number;
+    sort: {
+        sorted: boolean;
+        unsorted: boolean;
+        empty: boolean;
+    };
+    numberOfElements: number;
+    empty: boolean;
+}
+
+export type NexusBuddyClientConfigResponse = NexusBuddyPageResponse<NexusBuddyClientConfig>;
 
 export interface NexusBuddyToolsConfig {
-  toolsConfigId: number;
-  toolName: string;
-  toolDescription?: string;
-  endpoint: string;
-  httpMethod: string;
-  isActive: boolean;
-  clientConfigId: number;
-  clientConfig?: NexusBuddyClientConfig;
-  createdAt: string;
-  updatedAt: string;
-  paramConfigs?: NexusBuddyToolsParamConfig[];
+    toolsConfigId: number;
+    toolName: string;
+    toolDescription?: string;
+    endpoint: string;
+    httpMethod: string;
+    isActive: boolean;
+    clientConfigId: number;
+    createdAt: string;
+    updatedAt: string;
+    paramConfigs?: NexusBuddyToolsParamConfig[];
 }
 
 export interface NexusBuddyToolsConfigRequest {
-  toolName: string;
-  toolDescription?: string;
-  endpoint: string;
-  httpMethod: string;
-  isActive: boolean;
-  clientConfigId: number;
-  paramConfigs?: NexusBuddyToolsParamConfigRequest[];
+    toolName: string;
+    toolDescription?: string;
+    endpoint: string;
+    httpMethod: string;
+    isActive: boolean;
+    clientConfigId: number;
+    paramConfigs?: NexusBuddyToolsParamConfigRequest[];
 }
 
-// Backend returns List<ToolsConfigResponse> directly, not a paginated wrapper
-export type NexusBuddyToolsConfigResponse = NexusBuddyToolsConfig[];
+export type NexusBuddyToolsConfigResponse = NexusBuddyPageResponse<NexusBuddyToolsConfig>;
 
 export interface NexusBuddyToolsParamConfig {
-  toolsParamConfigId: number;
-  paramName: string;
-  paramType: string;
-  dataType: string;
-  isRequired: boolean;
-  defaultValue?: string;
-  requestBodyJson?: string;
-  isActive: boolean;
-  toolsConfigId: number;
-  toolsConfig?: NexusBuddyToolsConfig;
-  createdAt: string;
-  updatedAt: string;
+    toolsParamConfigId: number;
+    paramName: string;
+    paramType: string;
+    dataType: string;
+    isRequired: boolean;
+    defaultValue?: string;
+    requestBodyJson?: string;
+    description?: string;
+    isActive: boolean;
+    toolsConfigId: number;
+    clientConfigId: number;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface NexusBuddyToolsParamConfigRequest {
-  paramName: string;
-  paramType: string;
-  dataType: string;
-  isRequired: boolean;
-  defaultValue?: string;
-  requestBodyJson?: string;
-  isActive: boolean;
-  toolsConfigId: number;
-  clientConfigId?: number;
+    paramName: string;
+    paramType: string;
+    dataType: string;
+    isRequired: boolean;
+    defaultValue?: string;
+    requestBodyJson?: string;
+    description?: string;
+    isActive: boolean;
+    toolsConfigId: number;
+    clientConfigId?: number;
 }
 
-// Backend returns List<ToolsParamConfigResponse> directly, not a paginated wrapper
-export type NexusBuddyToolsParamConfigResponse = NexusBuddyToolsParamConfig[];
+export type NexusBuddyToolsParamConfigResponse = NexusBuddyPageResponse<NexusBuddyToolsParamConfig>;

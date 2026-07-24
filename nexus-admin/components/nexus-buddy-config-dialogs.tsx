@@ -242,9 +242,11 @@ export const NexusBuddyToolsParamConfigDialog = ({
     onSubmit,
 }: NexusBuddyToolsParamConfigDialogProps) => {
     // Filter tools based on selected client
-    const filteredToolsConfigs = form.clientConfigId > 0
-        ? activeToolsConfigs.filter(t => t.clientConfigId === form.clientConfigId)
+    console.log("[ACTIVE TOOLS CONFIGS]", activeToolsConfigs);
+    const filteredToolsConfigs = (form.clientConfigId || 0) > 0
+        ? activeToolsConfigs.filter(t => t.clientConfigId === (form.clientConfigId || 0))
         : activeToolsConfigs;
+    console.log("[FILTERED TOOLS CONFIGS]", filteredToolsConfigs);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -267,7 +269,7 @@ export const NexusBuddyToolsParamConfigDialog = ({
                         <div className="space-y-2">
                             <Label htmlFor="paramType">Parameter Type</Label>
                             <Select value={form.paramType} onValueChange={(v) => onFormChange({ ...form, paramType: v || "QUERY" })}>
-                                <SelectTrigger id="paramType">
+                                <SelectTrigger id="paramType" className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -284,7 +286,7 @@ export const NexusBuddyToolsParamConfigDialog = ({
                         <div className="space-y-2">
                             <Label htmlFor="dataType">Data Type</Label>
                             <Select value={form.dataType} onValueChange={(v) => onFormChange({ ...form, dataType: v || "STRING" })}>
-                                <SelectTrigger id="dataType">
+                                <SelectTrigger id="dataType" className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -299,10 +301,10 @@ export const NexusBuddyToolsParamConfigDialog = ({
                         <div className="space-y-2">
                             <Label htmlFor="clientConfigId">Client Config</Label>
                             <Select
-                                value={form.clientConfigId > 0 ? form.clientConfigId.toString() : ""}
+                                value={form.clientConfigId ? activeClientConfigs.find(c => c.clientConfigId === form.clientConfigId)?.clientName.toString() : ""}
                                 onValueChange={(v) => onFormChange({ ...form, clientConfigId: v ? parseInt(v) : 0, toolsConfigId: 0 })}
                             >
-                                <SelectTrigger id="clientConfigId">
+                                <SelectTrigger id="clientConfigId" className="w-full">
                                     <SelectValue placeholder="Select a client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -319,10 +321,10 @@ export const NexusBuddyToolsParamConfigDialog = ({
                     <div className="space-y-2">
                         <Label htmlFor="toolsConfigId">Tool *</Label>
                         <Select
-                            value={form.toolsConfigId > 0 ? form.toolsConfigId.toString() : ""}
+                            value={form.toolsConfigId > 0 ? filteredToolsConfigs.find(t => t.toolsConfigId === form.toolsConfigId)?.toolName.toString() : ""}
                             onValueChange={(v) => onFormChange({ ...form, toolsConfigId: v ? parseInt(v) : 0 })}
                         >
-                            <SelectTrigger id="toolsConfigId">
+                            <SelectTrigger id="toolsConfigId" className="w-full">
                                 <SelectValue placeholder="Select tool" />
                             </SelectTrigger>
                             <SelectContent>
@@ -354,6 +356,10 @@ export const NexusBuddyToolsParamConfigDialog = ({
                             rows={2}
                             className="font-mono text-sm"
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea id="description" value={form.description || ""} onChange={(e) => onFormChange({ ...form, description: e.target.value })} placeholder="Describe what this parameter is for" rows={2} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex items-center space-y-2">
