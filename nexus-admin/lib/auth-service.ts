@@ -191,6 +191,24 @@ export function getCurrentUser() {
   return user ? JSON.parse(user) : null;
 }
 
+// Fetch current user from server session
+export async function getCurrentUserFromSession(): Promise<User | null> {
+  try {
+    const response = await fetch("/api/auth/session", {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data.user || null;
+  } catch {
+    return null;
+  }
+}
+
 // ============================================================================
 // NEXUS BUDDY API FUNCTIONS
 // ============================================================================
@@ -443,5 +461,215 @@ export async function deactivateNexusBuddyToolsParamConfig(toolsParamConfigId: n
        return response.data?.message || "Tools param config deactivated successfully";
    } catch (error: unknown) {
        throw new Error(`Deactivate NexusBuddy tools param config failed: ${(error as Error).message}`);
+   }
+}
+
+// ============================================================================
+// NEXUS BUDDY DASHBOARD API FUNCTIONS
+// ============================================================================
+
+import type {
+    DashboardSummaryResponse,
+    ClientHealthResponse,
+    RequestTrendsResponse,
+    ToolUsageResponse,
+    PerformanceResponse,
+    ConfigInsightsResponse,
+    DashboardQueryParams,
+} from "@/types/nexus-buddy-dashboard";
+
+export async function getNexusBuddyDashboardSummary(params: DashboardQueryParams = {}): Promise<DashboardSummaryResponse> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       if (params.clientIds && params.clientIds.length > 0) {
+           params.clientIds.forEach(id => searchParams.append("clientIds", id.toString()));
+       }
+       
+       const response = await apiClient.get<DashboardSummaryResponse>(
+           `/nexusbuddy/admin/dashboard/summary?${searchParams.toString()}`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch NexusBuddy dashboard summary failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getNexusBuddyClientHealth(params: DashboardQueryParams = {}): Promise<ClientHealthResponse[]> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       if (params.clientIds && params.clientIds.length > 0) {
+           params.clientIds.forEach(id => searchParams.append("clientIds", id.toString()));
+       }
+       
+       const response = await apiClient.get<ClientHealthResponse[]>(
+           `/nexusbuddy/admin/dashboard/client-health?${searchParams.toString()}`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch NexusBuddy client health failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getNexusBuddyRequestTrends(params: DashboardQueryParams = {}): Promise<RequestTrendsResponse> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       if (params.clientIds && params.clientIds.length > 0) {
+           params.clientIds.forEach(id => searchParams.append("clientIds", id.toString()));
+       }
+       
+       const response = await apiClient.get<RequestTrendsResponse>(
+           `/nexusbuddy/admin/dashboard/requests/trends?${searchParams.toString()}`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch NexusBuddy request trends failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getNexusBuddyToolUsage(params: DashboardQueryParams = {}): Promise<ToolUsageResponse> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       if (params.clientIds && params.clientIds.length > 0) {
+           params.clientIds.forEach(id => searchParams.append("clientIds", id.toString()));
+       }
+       
+       const response = await apiClient.get<ToolUsageResponse>(
+           `/nexusbuddy/admin/dashboard/tools/usage?${searchParams.toString()}`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch NexusBuddy tool usage failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getNexusBuddyPerformance(params: DashboardQueryParams = {}): Promise<PerformanceResponse> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       if (params.clientIds && params.clientIds.length > 0) {
+           params.clientIds.forEach(id => searchParams.append("clientIds", id.toString()));
+       }
+       
+       const response = await apiClient.get<PerformanceResponse>(
+           `/nexusbuddy/admin/dashboard/performance?${searchParams.toString()}`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch NexusBuddy performance failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getNexusBuddyConfigInsights(): Promise<ConfigInsightsResponse> {
+   try {
+       const response = await apiClient.get<ConfigInsightsResponse>(
+           `/nexusbuddy/admin/dashboard/config-insights`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch NexusBuddy config insights failed: ${(error as Error).message}`);
+   }
+}
+
+// ============================================================================
+// CLIENT INSIGHTS API FUNCTIONS
+// ============================================================================
+
+import type {
+    ClientInsightsSummary,
+    ResponseTimeDataPoint,
+    HourlyHitsDataPoint,
+    FailureGraphDataPoint,
+    ToolInsightsData,
+    LogEntry,
+    ClientInsightsFilters,
+    SpringPageResponse,
+    PaginatedResponse,
+    ClientInsightsResponse,
+} from "@/types/client-insights";
+
+export async function getClientInsights(clientId: number, params: { start?: string; end?: string; range?: string } = {}): Promise<ClientInsightsResponse> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       
+       const response = await apiClient.get<ClientInsightsResponse>(
+           `/nexusbuddy/admin/client-insights/${clientId}?${searchParams.toString()}`
+       );
+       return response.data;
+   } catch (error: unknown) {
+       throw new Error(`Fetch client insights failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getClientToolInsights(clientId: number, params: { start?: string; end?: string; range?: string; page?: number; pageSize?: number } = {}): Promise<PaginatedResponse<ToolInsightsData>> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (params.range) searchParams.set("range", params.range);
+       if (params.start) searchParams.set("start", params.start);
+       if (params.end) searchParams.set("end", params.end);
+       // Backend uses 0-based pageNo and pageOffset
+       if (params.page !== undefined) searchParams.set("pageNo", params.page.toString());
+       if (params.pageSize) searchParams.set("pageOffset", params.pageSize.toString());
+       
+       const response = await apiClient.get<SpringPageResponse<ToolInsightsData>>(
+           `/nexusbuddy/admin/client-insights/${clientId}/tools?${searchParams.toString()}`
+       );
+       // Transform Spring Page to frontend PaginatedResponse
+       const springPage = response.data;
+       return {
+           data: springPage.content,
+           total: springPage.totalElements,
+           page: springPage.number + 1, // Convert 0-based to 1-based for UI
+           pageSize: springPage.size,
+           totalPages: springPage.totalPages
+       };
+   } catch (error: unknown) {
+       throw new Error(`Fetch client tool insights failed: ${(error as Error).message}`);
+   }
+}
+
+export async function getClientLogs(clientId: number, filters: ClientInsightsFilters): Promise<PaginatedResponse<LogEntry>> {
+   try {
+       const searchParams = new URLSearchParams();
+       if (filters.toolName) searchParams.set("toolName", filters.toolName);
+       if (filters.success !== undefined) searchParams.set("status", filters.success ? "success" : "failure");
+       if (filters.statusCode) searchParams.set("statusCode", filters.statusCode.toString());
+       if (filters.httpMethod) searchParams.set("httpMethod", filters.httpMethod);
+       if (filters.fromDate) searchParams.set("startDate", filters.fromDate);
+       if (filters.toDate) searchParams.set("endDate", filters.toDate);
+       // Backend uses 0-based pageNo and pageOffset
+       searchParams.set("pageNo", filters.page.toString());
+       searchParams.set("pageOffset", filters.pageSize.toString());
+       
+       const response = await apiClient.get<SpringPageResponse<LogEntry>>(
+           `/nexusbuddy/admin/client-insights/${clientId}/logs?${searchParams.toString()}`
+       );
+       // Transform Spring Page to frontend PaginatedResponse
+       const springPage = response.data;
+       return {
+           data: springPage.content,
+           total: springPage.totalElements,
+           page: springPage.number + 1, // Convert 0-based to 1-based for UI
+           pageSize: springPage.size,
+           totalPages: springPage.totalPages
+       };
+   } catch (error: unknown) {
+       throw new Error(`Fetch client logs failed: ${(error as Error).message}`);
    }
 }

@@ -1,101 +1,195 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, refreshSession } from "@/lib/better-auth";
+import {
+  refreshSession,
+  getSession,
+  deleteSession,
+  createSession
+} from "@/lib/better-auth";
+import { randomUUID } from "crypto";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 
 const SESSION_COOKIE_NAME = "auth-session";
 const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+const SPRING_BOOT_API =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[AUTH REFRESH] Received refresh request");
+    console.log("[AUTH REFRESH] Refresh token request received");
 
     const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
 
-    if (!sessionToken) {
-      console.log("[AUTH REFRESH] No session token in cookies");
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
+    console.log("[AUTH REFRESH] Session token from cookies:", !!sessionToken);
+    console.log("[AUTH REFRESH] Refresh token from cookies:", !!refreshToken);
 
+    // If no refresh token, we can't do anything
     if (!refreshToken) {
-      console.log("[AUTH REFRESH] No refresh token in cookies");
+      console.error("[AUTH REFRESH] Missing refresh token");
       return NextResponse.json(
-        { error: "Refresh token not available" },
+        { error: "Missing refresh token" },
         { status: 401 }
       );
     }
 
-    // Get current session
-    const session = getSession(sessionToken);
-    if (!session) {
-      console.log("[AUTH REFRESH] Session not found or expired");
-      return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    // If we have sessionToken, try to use it; otherwise we'll create a new one
+    let session = null;
+    if (sessionToken) {
+      session = getSession(sessionToken);
+      if (!session) {
+        console.log(
+          "[AUTH REFRESH] Session token provided but not found in memory"
+        );
+      }
     }
 
-    console.log("[AUTH REFRESH] Calling Spring Boot to refresh tokens");
+    try {
+      console.log("[AUTH REFRESH] Calling Spring Boot refresh endpoint");
+      console.log("[AUTH REFRESH] Spring Boot API URL:", SPRING_BOOT_API);
 
-    // Call Spring Boot to refresh tokens
-    const springBootClient = getSpringBootClient();
-    const response = await springBootClient.post(`/iam/auth/refresh`, {
-      refreshToken
-    });
+      // Call Spring Boot to refresh tokens using centralized client
+      const springBootClient = getSpringBootClient();
+      const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
+        refreshToken
+      });
 
-    const {
-      accessToken: newAccessToken,
-      expiresIn,
-      refreshToken: newRefreshToken
-    } = response.data;
+      console.log(
+        "[AUTH REFRESH] Spring Boot response status:",
+        refreshResponse.status
+      );
 
-    console.log(
-      "[AUTH REFRESH] Token refresh successful, new expiry:",
-      expiresIn
-    );
+      const {
+        accessToken: newAccessToken,
+        expiresIn,
+        refreshToken: newRefreshToken,
+        userId,
+        email,
+        name,
+        role
+      } = refreshResponse.data;
 
-    // Update session with new tokens
-    refreshSession(sessionToken, newAccessToken, expiresIn, newRefreshToken);
+      console.log("[AUTH REFRESH] New token expiry (seconds):", expiresIn);
 
-    // Create response
-    const responseData = NextResponse.json({
-      success: true,
-      expiresIn
-    });
+      // Use existing sessionToken or generate a new one if missing
+      // This handles cases where the session token cookie wasn't sent or was lost
+      let finalSessionToken = sessionToken;
 
-    // Update refresh token cookie if new one provided
-    if (newRefreshToken) {
-      responseData.cookies.set(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, {
+      if (!finalSessionToken) {
+        console.log(
+          "[AUTH REFRESH] No session token in cookies, generating new one for recovery"
+        );
+        finalSessionToken = randomUUID();
+      }
+
+      // If we have an existing session, update it
+      if (session) {
+        console.log("[AUTH REFRESH] Updating existing session");
+        refreshSession(
+          finalSessionToken,
+          newAccessToken,
+          expiresIn,
+          newRefreshToken
+        );
+      } else {
+        // Session not in memory - create a new one
+        console.log(
+          "[AUTH REFRESH] Creating new session from refresh response"
+        );
+
+        // Create user object from refresh response
+        const user = {
+          id: userId.toString(),
+          email,
+          name,
+          role,
+          avatar: `/avatars/${name}.jpg`
+        };
+
+        createSession(
+          finalSessionToken,
+          userId.toString(),
+          user,
+          newAccessToken,
+          newRefreshToken,
+          expiresIn
+        );
+
+        console.log(
+          "[AUTH REFRESH] Session created/recovered with existing token:",
+          sessionToken
+        );
+      }
+
+      // Create response
+      const response = NextResponse.json({
+        success: true,
+        user: session?.user || {
+          id: userId.toString(),
+          email,
+          name,
+          role
+        }
+      });
+
+      console.log(
+        "[AUTH REFRESH] Setting session cookie with maxAge:",
+        expiresIn
+      );
+
+      // Set session cookie (new token if it was missing, or existing token)
+      response.cookies.set(SESSION_COOKIE_NAME, finalSessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+        maxAge: expiresIn,
         path: "/"
       });
-    }
 
-    return responseData;
-  } catch (error: unknown) {
-    console.error("[AUTH REFRESH] Error:", error);
+      // Set/update refresh token cookie
+      if (newRefreshToken) {
+        response.cookies.set(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: 30 * 24 * 60 * 60,
+          path: "/"
+        });
+      }
 
-    if (error instanceof Error && "response" in error) {
-        const axiosError = error as { response?: { status?: number; data?: unknown }; message: string };
-      console.error("[AUTH REFRESH] Axios error:", {
-        status: axiosError.response?.status,
-          data: axiosError.response?.data as Record<string, unknown> | undefined,
-        message: axiosError.message
-      });
+      console.log("[AUTH REFRESH] Session refresh completed successfully");
+      return response;
+    } catch (refreshError: unknown) {
+      // Refresh failed, clear session if it exists
+      console.error("[AUTH REFRESH] Refresh failed:", refreshError);
 
-      if (axiosError.response?.status === 401) {
-        return NextResponse.json(
-          { error: "Refresh token expired, please login again" },
-          { status: 401 }
+      if (refreshError instanceof Error && "response" in refreshError) {
+        const axiosError = refreshError as { response?: { status?: number; data?: unknown } };
+        console.error(
+          "[AUTH REFRESH] Axios error status:",
+          axiosError.response?.status
+        );
+        console.error(
+          "[AUTH REFRESH] Axios error data:",
+          axiosError.response?.data
         );
       }
-            const errorData = axiosError.response?.data as { message?: string } | undefined;
-            return NextResponse.json(
-              { error: errorData?.message || "Token refresh failed" },
-              { status: axiosError.response?.status || 500 }
-            );
-    }
 
-    return NextResponse.json({ error: "Token refresh failed" }, { status: 500 });
+      // Only delete session if we have a sessionToken
+      if (sessionToken) {
+        deleteSession(sessionToken);
+      }
+
+      const response = NextResponse.json(
+        { error: "Token refresh failed" },
+        { status: 401 }
+      );
+      response.cookies.delete(SESSION_COOKIE_NAME);
+      response.cookies.delete(REFRESH_TOKEN_COOKIE_NAME);
+
+      return response;
+    }
+  } catch (error) {
+    console.error("[AUTH REFRESH] Unexpected error:", error);
+    return NextResponse.json({ error: "Refresh failed" }, { status: 500 });
   }
 }

@@ -10,6 +10,7 @@ export interface NexusBuddyClientConfig {
     isActive: boolean;
     createdOn: string;
     updatedOn: string;
+    allowedUsersList?: string[];
 }
 
 export interface NexusBuddyClientConfigRequest {
@@ -17,6 +18,7 @@ export interface NexusBuddyClientConfigRequest {
     connectionUrl?: string;
     healthCheckPath?: string;
     isActive: boolean;
+    allowedUsersList?: string[];
 }
 
 export interface NexusBuddyPageResponse<T> {
@@ -81,8 +83,8 @@ export interface NexusBuddyToolsParamConfig {
     paramType: string;
     dataType: string;
     isRequired: boolean;
-    defaultValue?: string;
-    requestBodyJson?: string;
+    defaultValue?: any;
+    requestBodyJson?: any;
     description?: string;
     isActive: boolean;
     toolsConfigId: number;
@@ -96,8 +98,8 @@ export interface NexusBuddyToolsParamConfigRequest {
     paramType: string;
     dataType: string;
     isRequired: boolean;
-    defaultValue?: string;
-    requestBodyJson?: string;
+    defaultValue?: any;
+    requestBodyJson?: any;
     description?: string;
     isActive: boolean;
     toolsConfigId: number;

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, refreshSession } from "@/lib/better-auth";
-import axios from "axios";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 
 const SESSION_COOKIE_NAME = "auth-session";
@@ -171,13 +170,14 @@ async function ensureValidSession(
       return { valid: true };
     } catch (refreshError: unknown) {
       console.error("[API PROXY] Proactive refresh failed:");
-      if (axios.isAxiosError(refreshError)) {
+      if (refreshError instanceof Error && "response" in refreshError) {
+        const axiosError = refreshError as { response?: { status?: number; data?: unknown } };
         console.error(
-          `[API PROXY] Refresh error status: ${refreshError.response?.status}`
+          `[API PROXY] Refresh error status: ${axiosError.response?.status}`
         );
         console.error(
           `[API PROXY] Refresh error data:`,
-          refreshError.response?.data
+          axiosError.response?.data
         );
       } else {
         console.error("[API PROXY] Refresh error:", refreshError);
@@ -246,8 +246,8 @@ async function handleUnauthorizedWithRetry(
     } catch (retryError: unknown) {
       console.error("[API PROXY] Retry failed after refresh:", retryError);
       if (
-        axios.isAxiosError(retryError) &&
-        retryError.response?.status === 401
+        retryError instanceof Error && "response" in retryError &&
+        (retryError as { response?: { status?: number } }).response?.status === 401
       ) {
         return {
           success: false,
@@ -261,13 +261,14 @@ async function handleUnauthorizedWithRetry(
     }
   } catch (refreshError: unknown) {
     console.error("[API PROXY] Refresh during retry failed:");
-    if (axios.isAxiosError(refreshError)) {
+    if (refreshError instanceof Error && "response" in refreshError) {
+      const axiosError = refreshError as { response?: { status?: number; data?: unknown } };
       console.error(
-        `[API PROXY] Refresh error status: ${refreshError.response?.status}`
+        `[API PROXY] Refresh error status: ${axiosError.response?.status}`
       );
       console.error(
         `[API PROXY] Refresh error data:`,
-        refreshError.response?.data
+        axiosError.response?.data
       );
     } else {
       console.error("[API PROXY] Refresh error:", refreshError);
@@ -329,11 +330,12 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[API PROXY GET] Request failed");
 
-    if (axios.isAxiosError(error)) {
-      console.error(`[API PROXY GET] Error status: ${error.response?.status}`);
-      console.error("[API PROXY GET] Error data:", error.response?.data);
+    if (error instanceof Error && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
+      console.error(`[API PROXY GET] Error status: ${axiosError.response?.status}`);
+      console.error("[API PROXY GET] Error data:", axiosError.response?.data);
 
-      if (error.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         console.log(
           "[API PROXY GET] Got 401, session token valid, token might be rejected by backend"
         );
@@ -356,9 +358,10 @@ export async function GET(request: NextRequest) {
         }
         return retryResult.response!;
       }
+
       return NextResponse.json(
-        error.response?.data || { error: "Request failed" },
-        { status: error.response?.status || 500 }
+        axiosError.response?.data || { error: "Request failed" },
+        { status: axiosError.response?.status || 500 }
       );
     }
 
@@ -448,12 +451,13 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[API PROXY POST] Error:", error);
 
-    if (axios.isAxiosError(error)) {
+    if (error instanceof Error && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
       console.error(
         "[API PROXY POST] Axios error response:",
-        error.response?.data
+        axiosError.response?.data
       );
-      if (error.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         // Token might be stale, try to refresh and retry
         const contentType = request.headers.get("content-type") || "";
         let body: unknown;
@@ -470,8 +474,8 @@ export async function POST(request: NextRequest) {
         );
       }
       return NextResponse.json(
-        error.response?.data || { error: "Request failed" },
-        { status: error.response?.status || 500 }
+        axiosError.response?.data || { error: "Request failed" },
+        { status: axiosError.response?.status || 500 }
       );
     }
 
@@ -558,12 +562,13 @@ export async function PUT(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[API PROXY PUT] Error:", error);
 
-    if (axios.isAxiosError(error)) {
+    if (error instanceof Error && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
       console.error(
         "[API PROXY PUT] Axios error response:",
-        error.response?.data
+        axiosError.response?.data
       );
-      if (error.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         console.log(
           "[API PROXY PUT] Got 401 on PUT, body already consumed, returning error"
         );
@@ -573,8 +578,8 @@ export async function PUT(request: NextRequest) {
         );
       }
       return NextResponse.json(
-        error.response?.data || { error: "Request failed" },
-        { status: error.response?.status || 500 }
+        axiosError.response?.data || { error: "Request failed" },
+        { status: axiosError.response?.status || 500 }
       );
     }
 
@@ -642,12 +647,13 @@ export async function DELETE(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[API PROXY DELETE] Error:", error);
 
-    if (axios.isAxiosError(error)) {
+    if (error instanceof Error && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
       console.error(
         "[API PROXY DELETE] Axios error response:",
-        error.response?.data
+        axiosError.response?.data
       );
-      if (error.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         console.log(
           "[API PROXY DELETE] Got 401 on DELETE, returning error"
         );
@@ -657,8 +663,8 @@ export async function DELETE(request: NextRequest) {
         );
       }
       return NextResponse.json(
-        error.response?.data || { error: "Request failed" },
-        { status: error.response?.status || 500 }
+        axiosError.response?.data || { error: "Request failed" },
+        { status: axiosError.response?.status || 500 }
       );
     }
 

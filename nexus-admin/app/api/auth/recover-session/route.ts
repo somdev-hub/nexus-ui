@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
 import { createSession, getSession } from "@/lib/better-auth";
+import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { randomUUID } from "crypto";
 
 const SESSION_COOKIE_NAME = "auth-session";
@@ -40,14 +40,10 @@ export async function POST(request: NextRequest) {
 
     try {
       // Call Spring Boot to validate and refresh the token
-      const refreshResponse = await axios.post(
-        `${SPRING_BOOT_API}/iam/auth/refresh`,
-        { refreshToken },
-        {
-          headers: {
-            "Content-Type": "application/json"
-          }
-        }
+      const springBootClient = getSpringBootClient();
+      const refreshResponse = await springBootClient.post(
+        `/iam/auth/refresh`,
+        { refreshToken }
       );
 
       console.log(
@@ -121,14 +117,15 @@ export async function POST(request: NextRequest) {
     } catch (refreshError: unknown) {
       console.error("[AUTH RECOVER ADMIN] Recovery failed:", refreshError);
 
-      if (axios.isAxiosError(refreshError)) {
+      if (refreshError instanceof Error && "response" in refreshError) {
+        const axiosError = refreshError as { response?: { status?: number; data?: unknown } };
         console.error(
           "[AUTH RECOVER ADMIN] Axios error status:",
-          refreshError.response?.status
+          axiosError.response?.status
         );
         console.error(
           "[AUTH RECOVER ADMIN] Axios error data:",
-          refreshError.response?.data
+          axiosError.response?.data
         );
       }
 

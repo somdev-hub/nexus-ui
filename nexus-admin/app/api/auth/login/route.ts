@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { createSession } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
@@ -109,16 +108,17 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[AUTH LOGIN ADMIN] Error:", error);
 
-    if (axios.isAxiosError(error)) {
+    if (error instanceof Error && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown }; code?: string };
       console.error("[AUTH LOGIN ADMIN] Axios error:", {
-        status: error.response?.status,
-        data: error.response?.data,
+        status: axiosError.response?.status,
+        data: axiosError.response?.data,
         message: error.message,
-        code: error.code
+        code: axiosError.code
       });
 
       // Handle timeout specifically
-      if (error.code === "ECONNABORTED") {
+      if (axiosError.code === "ECONNABORTED") {
         console.error(
           `[AUTH LOGIN ADMIN] Request timeout - Spring Boot at ${SPRING_BOOT_API} is not responding`
         );
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Handle connection refused
-      if (error.code === "ECONNREFUSED") {
+      if (axiosError.code === "ECONNREFUSED") {
         console.error(
           `[AUTH LOGIN ADMIN] Connection refused - Spring Boot at ${SPRING_BOOT_API} is not reachable`
         );
@@ -143,15 +143,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (error.response?.status === 401) {
+      if (axiosError.response?.status === 401) {
         return NextResponse.json(
           { error: "Invalid credentials" },
           { status: 401 }
         );
       }
+
       return NextResponse.json(
-        { error: error.response?.data?.message || "Login failed" },
-        { status: error.response?.status || 500 }
+        { error: (axiosError.response?.data as { message?: string })?.message || "Login failed" },
+        { status: axiosError.response?.status || 500 }
       );
     }
 

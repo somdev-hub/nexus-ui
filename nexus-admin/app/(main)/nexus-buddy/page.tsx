@@ -81,6 +81,7 @@ export default function NexusBuddyPage() {
         connectionUrl: "",
         healthCheckPath: "",
         isActive: true,
+        allowedUsersList: [],
     });
     const [submittingClient, setSubmittingClient] = useState(false);
 
@@ -106,7 +107,7 @@ export default function NexusBuddyPage() {
         dataType: "STRING",
         isRequired: false,
         defaultValue: "",
-        requestBodyJson: "",
+        requestBodyJson: null,
         description: "",
         isActive: true,
         toolsConfigId: 0,
@@ -232,7 +233,7 @@ export default function NexusBuddyPage() {
 
     const handleCreateClient = () => {
         setEditingClient(null);
-        setClientForm({ clientName: "", connectionUrl: "", healthCheckPath: "", isActive: true });
+        setClientForm({ clientName: "", connectionUrl: "", healthCheckPath: "", isActive: true, allowedUsersList: [] });
         setClientDialogOpen(true);
     };
 
@@ -243,6 +244,7 @@ export default function NexusBuddyPage() {
             connectionUrl: client.connectionUrl,
             healthCheckPath: client.healthCheckPath,
             isActive: client.isActive,
+            allowedUsersList: client.allowedUsersList || [],
         });
         setClientDialogOpen(true);
     };
@@ -358,7 +360,7 @@ export default function NexusBuddyPage() {
             dataType: "STRING",
             isRequired: false,
             defaultValue: "",
-            requestBodyJson: "",
+            requestBodyJson: null,
             description: "",
             isActive: true,
             toolsConfigId,
@@ -376,7 +378,7 @@ export default function NexusBuddyPage() {
             dataType: param.dataType,
             isRequired: param.isRequired,
             defaultValue: param.defaultValue || "",
-            requestBodyJson: param.requestBodyJson || "",
+            requestBodyJson: param.requestBodyJson ?? null,
             description: param.description || "",
             isActive: param.isActive,
             toolsConfigId: param.toolsConfigId,
@@ -656,7 +658,7 @@ export default function NexusBuddyPage() {
                                                                             const paramsResponse = paramsResponses[tool.toolsConfigId];
                                                                             const params = paramsResponse?.content || [];
                                                                             const totalParamsPages = paramsResponse?.totalPages || 0;
-
+                                                                            console.log("[PARAMS]", tool.toolsConfigId, params);
                                                                             return (
                                                                                 <React.Fragment key={tool.toolsConfigId}>
                                                                                     <TableRow>

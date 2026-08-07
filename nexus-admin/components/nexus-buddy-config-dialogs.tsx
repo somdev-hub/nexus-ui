@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,23 @@ export const NexusBuddyClientConfigDialog = ({
     onFormChange,
     onSubmit,
 }: NexusBuddyClientConfigDialogProps) => {
+    const [allowedUsersInput, setAllowedUsersInput] = useState<string>("");
+
+    // Sync allowedUsersInput with form.allowedUsersList
+    React.useEffect(() => {
+        if (form.allowedUsersList && form.allowedUsersList.length > 0) {
+            setAllowedUsersInput(form.allowedUsersList.join(", "));
+        } else {
+            setAllowedUsersInput("");
+        }
+    }, [form.allowedUsersList]);
+
+    const handleAllowedUsersChange = (value: string) => {
+        setAllowedUsersInput(value);
+        const domains = value.split(",").map(d => d.trim()).filter(d => d.length > 0);
+        onFormChange({ ...form, allowedUsersList: domains });
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">
@@ -71,6 +88,20 @@ export const NexusBuddyClientConfigDialog = ({
                                 placeholder="/health"
                             />
                         </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="allowedUsersList">Allowed Users List (Domains)</Label>
+                        <Textarea
+                            id="allowedUsersList"
+                            value={allowedUsersInput}
+                            onChange={(e) => handleAllowedUsersChange(e.target.value)}
+                            placeholder="localhost:3001, localhost:3002, example.com"
+                            rows={3}
+                            className="resize-none"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Comma-separated list of domains that can access this client config's tools (e.g., localhost:3001)
+                        </p>
                     </div>
                     <div className="flex items-center space-y-2">
                         <Label htmlFor="isActive" className="flex items-center gap-2 cursor-pointer">
@@ -321,11 +352,13 @@ export const NexusBuddyToolsParamConfigDialog = ({
                     <div className="space-y-2">
                         <Label htmlFor="toolsConfigId">Tool *</Label>
                         <Select
-                            value={form.toolsConfigId > 0 ? filteredToolsConfigs.find(t => t.toolsConfigId === form.toolsConfigId)?.toolName.toString() : ""}
+                            value={form.toolsConfigId > 0 ? form.toolsConfigId.toString() : ""}
                             onValueChange={(v) => onFormChange({ ...form, toolsConfigId: v ? parseInt(v) : 0 })}
                         >
                             <SelectTrigger id="toolsConfigId" className="w-full">
-                                <SelectValue placeholder="Select tool" />
+                                {form.toolsConfigId > 0
+                                    ? filteredToolsConfigs.find(t => t.toolsConfigId === form.toolsConfigId)?.toolName
+                                    : "Select tool"}
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="">Select a tool</SelectItem>
@@ -350,8 +383,15 @@ export const NexusBuddyToolsParamConfigDialog = ({
                         <Label htmlFor="requestBodyJson">Request Body JSON</Label>
                         <Textarea
                             id="requestBodyJson"
-                            value={form.requestBodyJson || ""}
-                            onChange={(e) => onFormChange({ ...form, requestBodyJson: e.target.value })}
+                            value={form.requestBodyJson ? (typeof form.requestBodyJson === 'string' ? form.requestBodyJson : JSON.stringify(form.requestBodyJson, null, 2)) : ""}
+                            onChange={(e) => {
+                                try {
+                                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
+                                    onFormChange({ ...form, requestBodyJson: parsed });
+                                } catch {
+                                    onFormChange({ ...form, requestBodyJson: e.target.value });
+                                }
+                            }}
                             placeholder='{"key": "value"}'
                             rows={2}
                             className="font-mono text-sm"

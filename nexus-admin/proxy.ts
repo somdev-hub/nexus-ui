@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/better-auth";
+import GlobalConfig from "@/global.config";
 
-const publicPaths = ["/login", "/signup", "/"];
+const publicPaths = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"];
 const SESSION_COOKIE_NAME = "auth-session";
 const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
 
@@ -24,12 +25,12 @@ export async function proxy(request: NextRequest) {
   // Check if dummy mode is enabled (auth disabled)
   // In dummy mode, allow all routes without authentication
   // Use GlobalConfig.wowoFeatures.auth to determine mode
-  // const isDummyMode = !GlobalConfig.wowoFeatures.auth;
+  const isDummyMode = !GlobalConfig.wowoFeatures.auth;
 
-  // if (isDummyMode) {
-  //   console.log("[MIDDLEWARE] Dummy mode enabled - allowing all routes");
-  //   return NextResponse.next();
-  // }
+  if (isDummyMode) {
+    console.log("[MIDDLEWARE] Dummy mode enabled - allowing all routes");
+    return NextResponse.next();
+  }
 
   console.log("[MIDDLEWARE] Real auth mode - enforcing authentication");
 

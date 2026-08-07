@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { createSession } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
@@ -14,7 +13,7 @@ export async function POST(request: NextRequest) {
     console.log("[AUTH SIGNUP ADMIN] Received signup request");
 
     const contentType = request.headers.get("content-type");
-        let body: Record<string, unknown>;
+    let body: Record<string, unknown>;
 
     if (contentType?.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -128,18 +127,19 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[AUTH SIGNUP ADMIN] Error:", error);
 
-    if (axios.isAxiosError(error)) {
+    if (error instanceof Error && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
       console.error("[AUTH SIGNUP ADMIN] Axios error:", {
-        status: error.response?.status,
-        data: error.response?.data,
+        status: axiosError.response?.status,
+        data: axiosError.response?.data,
         message: error.message,
-        code: error.code
+        code: (error as { code?: string }).code
       });
 
       // Return Spring Boot error response
       return NextResponse.json(
-        error.response?.data || { error: "Signup failed" },
-        { status: error.response?.status || 500 }
+        axiosError.response?.data || { error: "Signup failed" },
+        { status: axiosError.response?.status || 500 }
       );
     }
 
