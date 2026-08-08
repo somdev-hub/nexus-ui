@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import GlobalConfig from "@/global.config";
 
 const publicPaths = ["/login", "/signup", "/"];
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 
 /**
- * Middleware to handle:
+ * Proxy to handle:
  * - Session validation
  * - Token refresh when expired
  * - Redirecting authenticated users from auth pages
  * - Redirecting unauthenticated users from protected pages
  * - Allowing all routes in dummy mode (when auth is disabled)
  */
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for API routes and static files
@@ -37,9 +40,18 @@ export async function proxy(request: NextRequest) {
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
 
+  console.log("[PROXY] Request path:", pathname);
+  console.log("[PROXY] Session cookie name:", SESSION_COOKIE_NAME);
+  console.log("[PROXY] Session token from cookies:", !!sessionToken);
+  console.log("[PROXY] Refresh token from cookies:", !!refreshToken);
+  console.log(
+    "[PROXY] All cookies:",
+    request.cookies.getAll().map((c) => c.name),
+  );
+
   // Check if path is public
   const isPublicPath = publicPaths.some(
-    (path) => pathname === path || pathname.startsWith(path + "/")
+    (path) => pathname === path || pathname.startsWith(path + "/"),
   );
 
   // No session token
@@ -48,7 +60,7 @@ export async function proxy(request: NextRequest) {
     // The API proxy or auth endpoints will attempt session recovery
     if (refreshToken && !isPublicPath) {
       console.log(
-        "[MIDDLEWARE] Session missing but refresh token available - allowing request for recovery"
+        "[MIDDLEWARE] Session missing but refresh token available - allowing request for recovery",
       );
       return NextResponse.next();
     }
@@ -68,7 +80,7 @@ export async function proxy(request: NextRequest) {
     // If we don't have a refresh token, we're definitely logged out
     if (!refreshToken) {
       console.log(
-        "[MIDDLEWARE] No session and no refresh token - redirecting to login"
+        "[MIDDLEWARE] No session and no refresh token - redirecting to login",
       );
       const res = NextResponse.redirect(new URL("/login", request.url));
       res.cookies.delete(SESSION_COOKIE_NAME);
@@ -80,7 +92,7 @@ export async function proxy(request: NextRequest) {
     // This can happen due to hot reload or server restart
     // Allow the request to proceed - the auth context and proxy will attempt recovery
     console.log(
-      "[MIDDLEWARE] Session missing but refresh token exists - allowing request for recovery"
+      "[MIDDLEWARE] Session missing but refresh token exists - allowing request for recovery",
     );
     return NextResponse.next();
   }
@@ -100,8 +112,8 @@ export async function proxy(request: NextRequest) {
 
   return NextResponse.next({
     request: {
-      headers: requestHeaders
-    }
+      headers: requestHeaders,
+    },
   });
 }
 
@@ -113,6 +125,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)"
-  ]
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 };

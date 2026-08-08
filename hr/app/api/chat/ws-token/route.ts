@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 
 /**
  * WebSocket Token Endpoint
@@ -19,7 +20,8 @@ import { getSession } from "@/lib/better-auth";
  * 5. Server-side session refreshes token automatically on expiry
  */
 
-const SESSION_COOKIE_NAME = "auth-session";
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,15 +47,15 @@ export async function GET(request: NextRequest) {
       {
         token: session.accessToken,
         expiresAt: session.expiresAt,
-        userId: session.userId
+        userId: session.userId,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("[CHAT WS TOKEN] Error:", error);
     return NextResponse.json(
       { error: "Failed to retrieve token" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

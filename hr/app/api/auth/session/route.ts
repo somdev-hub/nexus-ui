@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/better-auth";
+import { COOKIE_NAMES, createSession, getSession } from "@/lib/better-auth";
 import axios from "axios";
-import { createSession, deleteSession } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -25,13 +25,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         user: session.user,
-        sessionExpiry: session.expiresAt
+        sessionExpiry: session.expiresAt,
       });
     }
 
     // Session not in memory - try to recover using refresh token
     console.log(
-      "[AUTH SESSION] Session not in memory, attempting recovery with refresh token"
+      "[AUTH SESSION] Session not in memory, attempting recovery with refresh token",
     );
 
     const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       // Clear invalid session cookie
       const response = NextResponse.json(
         { error: "Session expired and cannot be recovered" },
-        { status: 401 }
+        { status: 401 },
       );
       response.cookies.delete(SESSION_COOKIE_NAME);
       return response;
@@ -50,22 +50,22 @@ export async function GET(request: NextRequest) {
     // Attempt to recover the session
     try {
       console.log(
-        "[AUTH SESSION] Calling Spring Boot to validate and refresh token"
+        "[AUTH SESSION] Calling Spring Boot to validate and refresh token",
       );
       const refreshResponse = await axios.post(
         `${SPRING_BOOT_API}/iam/auth/refresh`,
         { refreshToken },
         {
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
-          timeout: 5000
-        }
+          timeout: 5000,
+        },
       );
 
       console.log(
         "[AUTH SESSION] Refresh response received:",
-        JSON.stringify(refreshResponse.data, null, 2)
+        JSON.stringify(refreshResponse.data, null, 2),
       );
 
       const {
@@ -77,17 +77,17 @@ export async function GET(request: NextRequest) {
         email,
         phone,
         name,
-        role
+        role,
       } = refreshResponse.data;
 
       // Validate required fields from refresh response
       if (!newAccessToken || !expiresIn) {
         console.log(
-          "[AUTH SESSION] Refresh response missing accessToken or expiresIn"
+          "[AUTH SESSION] Refresh response missing accessToken or expiresIn",
         );
         console.log(
           "[AUTH SESSION] Response data keys:",
-          Object.keys(refreshResponse.data)
+          Object.keys(refreshResponse.data),
         );
         throw new Error("Invalid refresh response from Spring Boot");
       }
@@ -101,8 +101,8 @@ export async function GET(request: NextRequest) {
             hasEmail: !!email,
             hasName: !!name,
             hasRole: !!role,
-            hasOrgId: !!orgId
-          }
+            hasOrgId: !!orgId,
+          },
         );
         throw new Error("Refresh response missing required user data");
       }
@@ -121,14 +121,14 @@ export async function GET(request: NextRequest) {
         role: finalRole,
         orgId: finalOrgId.toString(),
         avatar: `/avatars/${finalName}.jpg`,
-        phone: finalPhone
+        phone: finalPhone,
       };
 
       // Generate new session token
       const newSessionToken = randomUUID();
 
       console.log(
-        "[AUTH SESSION] Session recovered, creating new in-memory session"
+        "[AUTH SESSION] Session recovered, creating new in-memory session",
       );
       console.log("[AUTH SESSION] Recovered user:", {
         id: finalUserId,
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
         name: finalName,
         role: finalRole,
         orgId: finalOrgId,
-        phone: finalPhone
+        phone: finalPhone,
       });
 
       // Create session in memory
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         user,
         newAccessToken,
         newRefreshToken,
-        expiresIn
+        expiresIn,
       );
 
       // Return the recovered session
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
         success: true,
         user,
         recovered: true,
-        sessionExpiry: new Date(Date.now() + expiresIn * 1000)
+        sessionExpiry: new Date(Date.now() + expiresIn * 1000),
       });
 
       // Set new session cookie
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: expiresIn,
-        path: "/"
+        path: "/",
       });
 
       // Update refresh token if provided
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
           maxAge: 30 * 24 * 60 * 60,
-          path: "/"
+          path: "/",
         });
       }
 
@@ -185,14 +185,14 @@ export async function GET(request: NextRequest) {
       if (axios.isAxiosError(recoveryError)) {
         console.error(
           "[AUTH SESSION] Recovery error status:",
-          recoveryError.response?.status
+          recoveryError.response?.status,
         );
       }
 
       // Recovery failed - session is lost
       const response = NextResponse.json(
         { error: "Session expired" },
-        { status: 401 }
+        { status: 401 },
       );
       response.cookies.delete(SESSION_COOKIE_NAME);
       response.cookies.delete(REFRESH_TOKEN_COOKIE_NAME);
@@ -202,7 +202,7 @@ export async function GET(request: NextRequest) {
     console.error("Session check error:", error);
     return NextResponse.json(
       { error: "Session check failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

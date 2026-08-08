@@ -92,6 +92,9 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
 
     console.log("[AUTH SERVICE] Response status:", response.status);
     console.log("[AUTH SERVICE] Response ok:", response.ok);
+    console.log("[AUTH SERVICE] Response headers:", [
+      ...response.headers.entries(),
+    ]);
 
     if (!response.ok) {
       const error = await response.json();

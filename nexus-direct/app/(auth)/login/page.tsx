@@ -43,10 +43,13 @@ export function LoginForm({
     const { toast } = useToast();
     const router = useRouter();
 
-    const onSubmit = async (data: LoginRequest) => {
+    const onSubmit = async (data: LoginRequest, e?: React.BaseSyntheticEvent) => {
+        e?.stopPropagation();
         try {
             setLoading(true);
+            console.log("[LOGIN PAGE] Calling login with:", data.personalEmail);
             const response = await login(data);
+            console.log("[LOGIN PAGE] Login successful, redirecting to /");
             const updatedUser = {
                 id: response.user.id,
                 personalEmail: response.user.personalEmail,
@@ -65,7 +68,7 @@ export function LoginForm({
             console.log("✅ Success:", data);
             router.push("/");
         } catch (error) {
-            console.error("Login failed:", error);
+            console.error("[LOGIN PAGE] Login error:", error);
             toast({
                 title: "Login failed",
                 description: (error as Error).message || "An error occurred during login.",
@@ -82,7 +85,7 @@ export function LoginForm({
         <div className={cn("flex flex-col gap-6 h-[70dvh]", className)} {...props}>
             <Card className="overflow-hidden p-0 h-full">
                 <CardContent className="grid p-0 md:grid-cols-2 h-full">
-                    <form className="p-6 md:p-8" onSubmit={handleSubmit(onSubmit)}>
+                    <form className="p-6 md:p-8" onSubmit={handleSubmit(onSubmit)} action="javascript:void(0)">
                         <FieldGroup className="gap-10">
                             <div className="flex flex-col items-center gap-2 text-center">
                                 <h1 className="text-2xl font-bold">Welcome back</h1>

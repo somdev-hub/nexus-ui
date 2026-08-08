@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { createSession } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 
 const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,6 +96,14 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[AUTH LOGIN ADMIN] Session cookie set with token:", sessionToken);
+    console.log("[AUTH LOGIN ADMIN] Cookie name:", SESSION_COOKIE_NAME);
+    console.log("[AUTH LOGIN ADMIN] Cookie options:", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: expiresIn,
+      path: "/"
+    });
 
     // Set refresh token in separate HttpOnly cookie
     responseData.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
@@ -102,6 +113,9 @@ export async function POST(request: NextRequest) {
       maxAge: 30 * 24 * 60 * 60, // 30 days
       path: "/"
     });
+
+    console.log("[AUTH LOGIN ADMIN] Refresh cookie set");
+    console.log("[AUTH LOGIN ADMIN] Refresh cookie name:", REFRESH_TOKEN_COOKIE_NAME);
 
     console.log("[AUTH LOGIN ADMIN] Returning successful response");
     return responseData;

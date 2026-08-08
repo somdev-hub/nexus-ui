@@ -360,7 +360,8 @@ export function SignupForm({
 
     const [page, setPage] = useState(0);
 
-    const onSubmit = handleSubmit(async (data) => {
+    const onSubmit = handleSubmit(async (data, e) => {
+        e?.stopPropagation();
         try {
             setIsLoading(true);
             const response = await signup({
@@ -419,7 +420,7 @@ export function SignupForm({
         <div className={cn("flex flex-col gap-6 h-[80dvh]", className)} {...props}>
             <Card className="overflow-hidden p-0 h-full">
                 <CardContent className="grid p-0 md:grid-cols-2 h-full">
-                    <form className="p-6 md:p-8" onClick={(e) => e.preventDefault()}>
+                    <form className="p-6 md:p-8" onSubmit={handleSubmit(onSubmit)} action="javascript:void(0)">
                         <FieldGroup className="">
                             <div className="flex flex-col items-center gap-2 text-center">
                                 <h1 className="text-2xl font-bold">Create an account</h1>

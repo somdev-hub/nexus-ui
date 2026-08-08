@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 import { createSession } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 
 const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,10 +38,10 @@ export async function POST(request: NextRequest) {
       {
         headers: {
           // Let axios set Content-Type with proper boundary for FormData
-          "Content-Type": "multipart/form-data"
+          "Content-Type": "multipart/form-data",
         },
-        timeout: 90000 // 90 second timeout for file uploads and processing
-      }
+        timeout: 90000, // 90 second timeout for file uploads and processing
+      },
     );
 
     console.log("[AUTH SIGNUP] Spring Boot response status:", response.status);
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
       orgId,
       name,
       role,
-      email: userEmail
+      email: userEmail,
     } = response.data;
 
     // Create user object
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
       name,
       role,
       orgId: orgId.toString(),
-      avatar: `/avatars/${name}.jpg`
+      avatar: `/avatars/${name}.jpg`,
     };
 
     // Generate session token
@@ -77,11 +80,11 @@ export async function POST(request: NextRequest) {
       user,
       accessToken,
       refreshToken,
-      expiresIn
+      expiresIn,
     );
 
     console.log(
-      "[AUTH SIGNUP] Session created, preparing response with cookies"
+      "[AUTH SIGNUP] Session created, preparing response with cookies",
     );
 
     // Create response with user data
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user,
       tokenType: "Bearer",
-      expiresIn
+      expiresIn,
     });
 
     // Set secure session cookie (HttpOnly, Secure, SameSite)
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: expiresIn,
-      path: "/"
+      path: "/",
     });
 
     console.log("[AUTH SIGNUP] Session cookie set with token:", sessionToken);
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: "/"
+      path: "/",
     });
 
     console.log("[AUTH SIGNUP] Returning successful response");
@@ -122,19 +125,19 @@ export async function POST(request: NextRequest) {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message,
-        code: error.code
+        code: error.code,
       });
 
       // Return Spring Boot error response
       return NextResponse.json(
         error.response?.data || { error: "Signup failed" },
-        { status: error.response?.status || 500 }
+        { status: error.response?.status || 500 },
       );
     }
 
     return NextResponse.json(
       { error: "Signup failed: " + (error as Error).message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

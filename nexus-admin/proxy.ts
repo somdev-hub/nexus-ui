@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import GlobalConfig from "@/global.config";
 
 const publicPaths = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"];
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 
 /**
- * Middleware to handle:
+ * Proxy to handle:
  * - Session validation
  * - Token refresh when expired
  * - Redirecting authenticated users from auth pages
  * - Redirecting unauthenticated users from protected pages
  * - Allowing all routes in dummy mode (when auth is disabled)
  */
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for API routes and static files
@@ -36,6 +39,12 @@ export async function proxy(request: NextRequest) {
 
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
+
+  console.log("[PROXY] Request path:", pathname);
+  console.log("[PROXY] Session cookie name:", SESSION_COOKIE_NAME);
+  console.log("[PROXY] Session token from cookies:", !!sessionToken);
+  console.log("[PROXY] Refresh token from cookies:", !!refreshToken);
+  console.log("[PROXY] All cookies:", request.cookies.getAll().map(c => c.name));
 
   // Check if path is public
   const isPublicPath = publicPaths.some(

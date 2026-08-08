@@ -1,24 +1,24 @@
 "use client"
 
-import * as React from "react"
-import { MessageCircle, X, Send, Sparkles, Copy, Check, Loader2, Bug, Terminal, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Toaster } from "@/components/ui/sonner"
-import { cn } from "@/lib/utils"
-import { useNexusBuddy } from "@/hooks/use-nexus-buddy"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import rehypeRaw from "rehype-raw"
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
     ChatBubble,
     ChatBubbleGroup,
     ChatInput,
     ChatMessages,
     ChatScroller,
-    ChatTimestamp,
     ChatStatus,
-} from "@/components/ui/chat"
+    ChatTimestamp,
+} from "@/components/ui/chat";
+import { Toaster } from "@/components/ui/sonner";
+import { useNexusBuddy } from "@/hooks/use-nexus-buddy";
+import { cn } from "@/lib/utils";
+import { Bug, Check, Copy, Loader2, MessageCircle, Sparkles, Terminal, Trash2, X } from "lucide-react";
+import * as React from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import remarkGfm from "remark-gfm";
 
 interface Message {
     id: string

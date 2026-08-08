@@ -3,14 +3,16 @@ import {
   refreshSession,
   getSession,
   deleteSession,
-  createSession
+  createSession,
 } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 import axios from "axios";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest) {
       console.error("[AUTH REFRESH] Missing refresh token");
       return NextResponse.json(
         { error: "Missing refresh token" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
       session = getSession(sessionToken);
       if (!session) {
         console.log(
-          "[AUTH REFRESH] Session token provided but not found in memory"
+          "[AUTH REFRESH] Session token provided but not found in memory",
         );
       }
     }
@@ -51,12 +53,12 @@ export async function POST(request: NextRequest) {
       // Call Spring Boot to refresh tokens using centralized client
       const springBootClient = getSpringBootClient();
       const refreshResponse = await springBootClient.post(`/iam/auth/refresh`, {
-        refreshToken
+        refreshToken,
       });
 
       console.log(
         "[AUTH REFRESH] Spring Boot response status:",
-        refreshResponse.status
+        refreshResponse.status,
       );
 
       const {
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
         email,
         name,
         role,
-        orgId
+        orgId,
       } = refreshResponse.data;
 
       console.log("[AUTH REFRESH] New token expiry (seconds):", expiresIn);
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       if (!finalSessionToken) {
         console.log(
-          "[AUTH REFRESH] No session token in cookies, generating new one for recovery"
+          "[AUTH REFRESH] No session token in cookies, generating new one for recovery",
         );
         finalSessionToken = randomUUID();
       }
@@ -91,12 +93,12 @@ export async function POST(request: NextRequest) {
           finalSessionToken,
           newAccessToken,
           expiresIn,
-          newRefreshToken
+          newRefreshToken,
         );
       } else {
         // Session not in memory - create a new one
         console.log(
-          "[AUTH REFRESH] Creating new session from refresh response"
+          "[AUTH REFRESH] Creating new session from refresh response",
         );
 
         // Create user object from refresh response
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
           name,
           role,
           orgId: orgId.toString(),
-          avatar: `/avatars/${name}.jpg`
+          avatar: `/avatars/${name}.jpg`,
         };
 
         createSession(
@@ -115,12 +117,12 @@ export async function POST(request: NextRequest) {
           user,
           newAccessToken,
           newRefreshToken,
-          expiresIn
+          expiresIn,
         );
 
         console.log(
           "[AUTH REFRESH] Session created/recovered with existing token:",
-          sessionToken
+          sessionToken,
         );
       }
 
@@ -132,13 +134,13 @@ export async function POST(request: NextRequest) {
           email,
           name,
           role,
-          orgId: orgId.toString()
-        }
+          orgId: orgId.toString(),
+        },
       });
 
       console.log(
         "[AUTH REFRESH] Setting session cookie with maxAge:",
-        expiresIn
+        expiresIn,
       );
 
       // Set session cookie (new token if it was missing, or existing token)
@@ -147,7 +149,7 @@ export async function POST(request: NextRequest) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: expiresIn,
-        path: "/"
+        path: "/",
       });
 
       // Set/update refresh token cookie
@@ -157,7 +159,7 @@ export async function POST(request: NextRequest) {
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
           maxAge: 30 * 24 * 60 * 60,
-          path: "/"
+          path: "/",
         });
       }
 
@@ -170,11 +172,11 @@ export async function POST(request: NextRequest) {
       if (axios.isAxiosError(refreshError)) {
         console.error(
           "[AUTH REFRESH] Axios error status:",
-          refreshError.response?.status
+          refreshError.response?.status,
         );
         console.error(
           "[AUTH REFRESH] Axios error data:",
-          refreshError.response?.data
+          refreshError.response?.data,
         );
       }
 
@@ -185,7 +187,7 @@ export async function POST(request: NextRequest) {
 
       const response = NextResponse.json(
         { error: "Token refresh failed" },
-        { status: 401 }
+        { status: 401 },
       );
       response.cookies.delete(SESSION_COOKIE_NAME);
       response.cookies.delete(REFRESH_TOKEN_COOKIE_NAME);

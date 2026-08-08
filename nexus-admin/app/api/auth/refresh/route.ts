@@ -5,11 +5,13 @@ import {
   deleteSession,
   createSession
 } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import { randomUUID } from "crypto";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -145,6 +147,9 @@ export async function POST(request: NextRequest) {
         path: "/"
       });
 
+      console.log("[AUTH REFRESH] Session cookie set with token:", finalSessionToken);
+      console.log("[AUTH REFRESH] Cookie name:", SESSION_COOKIE_NAME);
+
       // Set/update refresh token cookie
       if (newRefreshToken) {
         response.cookies.set(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, {
@@ -154,7 +159,9 @@ export async function POST(request: NextRequest) {
           maxAge: 30 * 24 * 60 * 60,
           path: "/"
         });
-      }
+
+        console.log("[AUTH REFRESH] Refresh cookie set");
+        console.log("[AUTH REFRESH] Refresh cookie name:", REFRESH_TOKEN_COOKIE_NAME);
 
       console.log("[AUTH REFRESH] Session refresh completed successfully");
       return response;

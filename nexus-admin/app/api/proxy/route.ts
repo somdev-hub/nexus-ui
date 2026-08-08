@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, refreshSession } from "@/lib/better-auth";
+import { COOKIE_NAMES } from "@/lib/better-auth";
 import { getSpringBootClient } from "@/lib/spring-boot-client";
 
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 const SPRING_BOOT_API =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -63,7 +65,7 @@ function appendBodyAsQueryParams(
  * ┌──────────────────────────────────────────────────────────┐
  * │ Next.js Server (This Route)                              │
  * │                                                          │
- * │ 1. Get sessionToken from cookies (auth-session)         │
+ * │ 1. Get sessionToken from cookies (module-specific)      │
  * │ 2. Retrieve encrypted session from memory:              │
  * │    { userId, accessToken, refreshToken, expiresAt }    │
  * │ 3. Add Authorization header:                            │

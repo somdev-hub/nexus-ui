@@ -1,8 +1,21 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 
+// Module-specific configuration
+const MODULE_NAME = "nexus-admin";
+// Use __Host- prefix only in production (requires HTTPS)
+// In development, use regular cookie names since we're on HTTP
+const isProduction = process.env.NODE_ENV === "production";
+const SESSION_COOKIE_NAME = isProduction 
+  ? `__Host-nexus-${MODULE_NAME}-session` 
+  : `nexus-${MODULE_NAME}-session`;
+const REFRESH_TOKEN_COOKIE_NAME = isProduction 
+  ? `__Host-nexus-${MODULE_NAME}-refresh` 
+  : `nexus-${MODULE_NAME}-refresh`;
+
 // Use globalThis to persist session storage across hot reloads
 // This ensures sessions survive module reloads during development
+// Each module gets its own isolated storage using a namespaced key
 const getSessionStorage = () => {
   type SessionMap = Map<
     string,
@@ -23,22 +36,29 @@ const getSessionStorage = () => {
     }
   >;
 
-  const global = globalThis as unknown as { sessionStorage?: SessionMap };
+  const global = globalThis as unknown as { 
+    sessionStorage?: Record<string, SessionMap> 
+  };
 
   if (!global.sessionStorage) {
-    global.sessionStorage = new Map() as SessionMap;
+    global.sessionStorage = {};
   }
-  return global.sessionStorage as SessionMap;
+  
+  if (!global.sessionStorage[MODULE_NAME]) {
+    global.sessionStorage[MODULE_NAME] = new Map() as SessionMap;
+  }
+  
+  return global.sessionStorage[MODULE_NAME] as SessionMap;
 };
 
 // Export for debugging
 export const getDebugSessionStorage = () => {
   console.log(
-    "[BETTER-AUTH DEBUG] Current sessions:",
+    `[BETTER-AUTH DEBUG] [${MODULE_NAME}] Current sessions:`,
     getSessionStorage().size
   );
   console.log(
-    "[BETTER-AUTH DEBUG] Session keys:",
+    `[BETTER-AUTH DEBUG] [${MODULE_NAME}] Session keys:`,
     Array.from(getSessionStorage().keys())
   );
   return getSessionStorage();
@@ -55,6 +75,12 @@ export const auth = betterAuth({
 
   plugins: [nextCookies()]
 });
+
+// Export cookie names for use in middleware and API routes
+export const COOKIE_NAMES = {
+  SESSION: SESSION_COOKIE_NAME,
+  REFRESH: REFRESH_TOKEN_COOKIE_NAME,
+};
 
 // Helper functions for session management
 export function createSession(

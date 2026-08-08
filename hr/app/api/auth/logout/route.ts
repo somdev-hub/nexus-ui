@@ -1,8 +1,9 @@
+import { COOKIE_NAMES, deleteSession } from "@/lib/better-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { deleteSession, getSession } from "@/lib/better-auth";
 
-const SESSION_COOKIE_NAME = "auth-session";
-const REFRESH_TOKEN_COOKIE_NAME = "refresh-token";
+// Use module-specific cookie names
+const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;
+const REFRESH_TOKEN_COOKIE_NAME = COOKIE_NAMES.REFRESH;
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Create response
     const response = NextResponse.json({
       success: true,
-      message: "Logged out successfully"
+      message: "Logged out successfully",
     });
 
     // Clear cookies

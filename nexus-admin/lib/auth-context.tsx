@@ -89,10 +89,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleLogin = useCallback(async (email: string, password: string) => {
         setIsLoading(true);
         try {
+            console.log("[AUTH CONTEXT] handleLogin called with:", email);
             const response = await login({ email, password });
+            console.log("[AUTH CONTEXT] Login response:", response);
             localStorage.setItem("auth_user", JSON.stringify(response.user));
             setUser(response.user || null);
+            console.log("[AUTH CONTEXT] User set in context:", response.user);
         } catch (error) {
+            console.error("[AUTH CONTEXT] Login error:", error);
             throw error;
         } finally {
             setIsLoading(false);

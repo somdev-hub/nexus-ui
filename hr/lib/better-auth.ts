@@ -1,8 +1,21 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 
+// Module-specific configuration
+const MODULE_NAME = "hr";
+// Use __Host- prefix only in production (requires HTTPS)
+// In development, use regular cookie names since we're on HTTP
+const isProduction = process.env.NODE_ENV === "production";
+const SESSION_COOKIE_NAME = isProduction
+  ? `__Host-nexus-${MODULE_NAME}-session`
+  : `nexus-${MODULE_NAME}-session`;
+const REFRESH_TOKEN_COOKIE_NAME = isProduction
+  ? `__Host-nexus-${MODULE_NAME}-refresh`
+  : `nexus-${MODULE_NAME}-refresh`;
+
 // Use globalThis to persist session storage across hot reloads
 // This ensures sessions survive module reloads during development
+// Each module gets its own isolated storage using a namespaced key
 const getSessionStorage = () => {
   type SessionMap = Map<
     string,
@@ -23,23 +36,30 @@ const getSessionStorage = () => {
     }
   >;
 
-  const global = globalThis as unknown as { sessionStorage?: SessionMap };
+  const global = globalThis as unknown as {
+    sessionStorage?: Record<string, SessionMap>;
+  };
 
   if (!global.sessionStorage) {
-    global.sessionStorage = new Map() as SessionMap;
+    global.sessionStorage = {};
   }
-  return global.sessionStorage as SessionMap;
+
+  if (!global.sessionStorage[MODULE_NAME]) {
+    global.sessionStorage[MODULE_NAME] = new Map() as SessionMap;
+  }
+
+  return global.sessionStorage[MODULE_NAME] as SessionMap;
 };
 
 // Export for debugging
 export const getDebugSessionStorage = () => {
   console.log(
-    "[BETTER-AUTH DEBUG] Current sessions:",
-    getSessionStorage().size
+    `[BETTER-AUTH DEBUG] [${MODULE_NAME}] Current sessions:`,
+    getSessionStorage().size,
   );
   console.log(
-    "[BETTER-AUTH DEBUG] Session keys:",
-    Array.from(getSessionStorage().keys())
+    `[BETTER-AUTH DEBUG] [${MODULE_NAME}] Session keys:`,
+    Array.from(getSessionStorage().keys()),
   );
   return getSessionStorage();
 };
@@ -53,8 +73,14 @@ export const auth = betterAuth({
 
   database: undefined, // Don't use database - we'll use custom session storage
 
-  plugins: [nextCookies()]
+  plugins: [nextCookies()],
 });
+
+// Export cookie names for use in middleware and API routes
+export const COOKIE_NAMES = {
+  SESSION: SESSION_COOKIE_NAME,
+  REFRESH: REFRESH_TOKEN_COOKIE_NAME,
+};
 
 // Helper functions for session management
 export function createSession(
@@ -69,7 +95,7 @@ export function createSession(
   },
   accessToken: string,
   refreshToken: string,
-  expiresIn: number
+  expiresIn: number,
 ) {
   const expiresAt = new Date(Date.now() + expiresIn * 1000);
   const storage = getSessionStorage();
@@ -87,7 +113,7 @@ export function createSession(
     refreshToken,
     expiresAt,
     createdAt: new Date(),
-    user: userData
+    user: userData,
   });
 
   console.log("[BETTER-AUTH] Session stored. Total sessions:", storage.size);
@@ -98,7 +124,7 @@ export function createSession(
   if (verify) {
     console.log(
       "[BETTER-AUTH] ✓ Session verified in storage for token:",
-      sessionToken
+      sessionToken,
     );
   } else {
     console.error("[BETTER-AUTH] ✗ FAILED to verify session in storage!");
@@ -140,7 +166,7 @@ export function refreshSession(
   sessionToken: string,
   newAccessToken: string,
   expiresIn?: number,
-  newRefreshToken?: string
+  newRefreshToken?: string,
 ) {
   const storage = getSessionStorage();
   const session = storage.get(sessionToken);
@@ -156,13 +182,13 @@ export function refreshSession(
     session.expiresAt = new Date(Date.now() + expirySeconds * 1000);
     console.log(
       "[BETTER-AUTH] Session refreshed. New expiry:",
-      session.expiresAt
+      session.expiresAt,
     );
   } else {
     // Session lost from memory (due to hot reload or other reason)
     // This shouldn't happen in normal operation, but log it for visibility
     console.warn(
-      "[BETTER-AUTH] WARNING: Session not found in storage during refresh. Session may have been lost due to server restart or hot reload. Token update deferred to session creation."
+      "[BETTER-AUTH] WARNING: Session not found in storage during refresh. Session may have been lost due to server restart or hot reload. Token update deferred to session creation.",
     );
   }
 }
