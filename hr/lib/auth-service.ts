@@ -36,6 +36,15 @@ import type {
   RoleWiseSalaryIncrementResponse,
   DepartmentWiseLeavesResponse,
   RoleWiseLeavesResponse,
+  // Team types
+  Team,
+  TeamMember,
+  TeamHierarchyResponse,
+  CreateTeamRequest,
+  UpdateTeamRequest,
+  AddTeamMemberRequest,
+  UpdateTeamMemberRequest,
+  ChangeManagerRequest,
 } from "@/types";
 import { AxiosResponse } from "axios";
 
@@ -1983,3 +1992,228 @@ export async function getEventHitsStatusWise(
 // ============================================================================
 
 // Client Config APIs
+
+// ============================================================================
+// TEAM MANAGEMENT API FUNCTIONS
+// ============================================================================
+
+export async function createTeam(request: CreateTeamRequest): Promise<Team> {
+  try {
+    const response = await apiClient.post<Team>("/iam/team/create", request);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Create team failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getTeam(teamId: number): Promise<Team> {
+  try {
+    const response = await apiClient.get<Team>(`/iam/team/${teamId}`);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Get team failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getTeamsByDepartment(
+  departmentId: number,
+): Promise<Team[]> {
+  try {
+    const response = await apiClient.get<Team[]>(
+      `/iam/team/department/${departmentId}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Get teams by department failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getAllTeamsByDepartment(
+  departmentId: number,
+): Promise<Team[]> {
+  try {
+    const response = await apiClient.get<Team[]>(
+      `/iam/team/department/${departmentId}/all`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Get all teams by department failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getEligibleLeads(
+  departmentId: number,
+): Promise<Array<{ id: number; name: string; email: string }>> {
+  try {
+    const response = await apiClient.get<
+      Array<{ id: number; name: string; email: string }>
+    >(`/iam/team/department/${departmentId}/eligible-leads`);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Get eligible leads failed: ${(error as Error).message}`);
+  }
+}
+
+export async function updateTeam(
+  teamId: number,
+  request: UpdateTeamRequest,
+): Promise<Team> {
+  try {
+    const response = await apiClient.put<Team>(`/iam/team/${teamId}`, request);
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Update team failed: ${(error as Error).message}`);
+  }
+}
+
+export async function deleteTeam(teamId: number): Promise<void> {
+  try {
+    await apiClient.delete(`/iam/team/${teamId}`);
+  } catch (error: unknown) {
+    throw new Error(`Delete team failed: ${(error as Error).message}`);
+  }
+}
+
+export async function addTeamMember(
+  teamId: number,
+  request: AddTeamMemberRequest,
+): Promise<TeamMember> {
+  try {
+    const response = await apiClient.post<TeamMember>(
+      `/iam/team/${teamId}/member/add`,
+      request,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Add team member failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getTeamMembers(teamId: number): Promise<TeamMember[]> {
+  try {
+    const response = await apiClient.get<TeamMember[]>(
+      `/iam/team/${teamId}/members`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Get team members failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getTeamHierarchy(
+  teamId: number,
+): Promise<TeamHierarchyResponse> {
+  try {
+    console.log(
+      `[DEBUG auth-service] getTeamHierarchy called for teamId: ${teamId}`,
+    );
+    const response = await apiClient.get<TeamHierarchyResponse>(
+      `/iam/team/${teamId}/hierarchy`,
+    );
+    console.log(`[DEBUG auth-service] getTeamHierarchy response:`, {
+      teamId: response.data.teamId,
+      teamName: response.data.teamName,
+      root: response.data.root
+        ? {
+            member: response.data.root.member,
+            childrenCount: response.data.root.children?.length || 0,
+          }
+        : null,
+    });
+    return response.data;
+  } catch (error: unknown) {
+    console.error(`[DEBUG auth-service] getTeamHierarchy error:`, error);
+    throw new Error(`Get team hierarchy failed: ${(error as Error).message}`);
+  }
+}
+
+export async function updateTeamMember(
+  memberId: number,
+  request: UpdateTeamMemberRequest,
+): Promise<TeamMember> {
+  try {
+    const response = await apiClient.put<TeamMember>(
+      `/iam/team/member/${memberId}`,
+      request,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Update team member failed: ${(error as Error).message}`);
+  }
+}
+
+export async function changeManager(
+  memberId: number,
+  request: ChangeManagerRequest,
+): Promise<TeamMember> {
+  try {
+    const response = await apiClient.put<TeamMember>(
+      `/iam/team/member/${memberId}/manager`,
+      request,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Change manager failed: ${(error as Error).message}`);
+  }
+}
+
+export async function removeTeamMember(memberId: number): Promise<void> {
+  try {
+    await apiClient.delete(`/iam/team/member/${memberId}`);
+  } catch (error: unknown) {
+    throw new Error(`Remove team member failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getSubordinates(
+  teamId: number,
+  managerId: number,
+): Promise<TeamMember[]> {
+  try {
+    const response = await apiClient.get<TeamMember[]>(
+      `/iam/teams/${teamId}/members/${managerId}/subordinates`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Get subordinates failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getUserManagedTeams(userId: number): Promise<Team[]> {
+  try {
+    const response = await apiClient.get<Team[]>(
+      `/iam/teams/user/${userId}/managed`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Get user managed teams failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getTeamLead(teamId: number): Promise<TeamMember | null> {
+  try {
+    const response = await apiClient.get<TeamMember>(
+      `/iam/teams/${teamId}/lead`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Get team lead failed: ${(error as Error).message}`);
+  }
+}
+
+export async function getManagers(teamId: number): Promise<TeamMember[]> {
+  try {
+    const response = await apiClient.get<TeamMember[]>(
+      `/iam/teams/${teamId}/managers`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Get managers failed: ${(error as Error).message}`);
+  }
+}

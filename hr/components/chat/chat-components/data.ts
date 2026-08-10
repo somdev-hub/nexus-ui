@@ -17,10 +17,10 @@ export const mockConversations: ChatConversation[] = [
         id: "user-1",
         name: "Sarah Anderson",
         avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-        status: "online"
-      }
-    ]
-  }
+        status: "online",
+      },
+    ],
+  },
 ];
 
 export const conversations = mockConversations;
@@ -37,7 +37,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
       content: "Hey, how was your weekend?",
       timestamp: new Date(Date.now() - 20 * 60000),
-      isOwn: false
+      isOwn: false,
     },
     {
       id: "m2",
@@ -45,7 +45,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderName: "You",
       content: "Pretty good! Just relaxed at home. You?",
       timestamp: new Date(Date.now() - 18 * 60000),
-      isOwn: true
+      isOwn: true,
     },
     {
       id: "m3",
@@ -54,7 +54,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
       content: "Nice! I went hiking with some friends",
       timestamp: new Date(Date.now() - 15 * 60000),
-      isOwn: false
+      isOwn: false,
     },
     {
       id: "m4",
@@ -62,7 +62,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderName: "You",
       content: "That sounds nice! We should grab coffee soon",
       timestamp: new Date(Date.now() - 10 * 60000),
-      isOwn: true
+      isOwn: true,
     },
     {
       id: "m5",
@@ -71,8 +71,8 @@ export const messages: Record<string, ChatMessage[]> = {
       senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
       content: "That sounds great! Let me check my calendar.",
       timestamp: new Date(Date.now() - 5 * 60000),
-      isOwn: false
-    }
+      isOwn: false,
+    },
   ],
   "2": [
     {
@@ -82,7 +82,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
       content: "Morning everyone! Quick design sync at 10am?",
       timestamp: new Date(Date.now() - 30 * 60000),
-      isOwn: false
+      isOwn: false,
     },
     {
       id: "m7",
@@ -91,7 +91,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emily",
       content: "Sounds good! I can make it",
       timestamp: new Date(Date.now() - 25 * 60000),
-      isOwn: false
+      isOwn: false,
     },
     {
       id: "m8",
@@ -99,7 +99,7 @@ export const messages: Record<string, ChatMessage[]> = {
       senderName: "You",
       content: "Count me in!",
       timestamp: new Date(Date.now() - 20 * 60000),
-      isOwn: true
+      isOwn: true,
     },
     {
       id: "m9",
@@ -108,9 +108,9 @@ export const messages: Record<string, ChatMessage[]> = {
       senderAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
       content: "Just pushed the new design system updates",
       timestamp: new Date(Date.now() - 2 * 60000),
-      isOwn: false
-    }
-  ]
+      isOwn: false,
+    },
+  ],
 };
 
 export function getInitials(name: string): string {
@@ -134,7 +134,7 @@ export function formatTime(date?: Date | string | null): string {
 
   const now = new Date();
   const diffInMinutes = Math.floor(
-    (now.getTime() - normalizedDate.getTime()) / 60000
+    (now.getTime() - normalizedDate.getTime()) / 60000,
   );
 
   if (diffInMinutes < 1) return "now";
@@ -148,7 +148,7 @@ export function formatTime(date?: Date | string | null): string {
 
   return normalizedDate.toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
   });
 }
 
@@ -156,7 +156,7 @@ export function formatMessageTime(date: Date): string {
   return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true
+    hour12: true,
   });
 }
 
@@ -176,7 +176,7 @@ export function getStatusColor(status?: string): string {
 // API Integration Helpers
 export async function fetchConversations(
   orgId: number,
-  userId: number
+  userId: number,
 ): Promise<ChatConversation[]> {
   try {
     const response = await chatApiService.getConversations(userId, orgId);
@@ -187,8 +187,8 @@ export async function fetchConversations(
           id: String(p.userId),
           name: p.userName || "",
           avatar: undefined,
-          status: p.isActive ? "online" : "offline"
-        })
+          status: p.isActive ? "online" : "offline",
+        }),
       );
 
       const participantId = conv.participantId
@@ -203,7 +203,7 @@ export async function fetchConversations(
       });
 
       const directParticipant = sortedParticipants.find(
-        (p) => Number(p.id) !== userId
+        (p) => Number(p.id) !== userId,
       );
 
       const resolvedName =
@@ -236,7 +236,7 @@ export async function fetchConversations(
           ? new Date(conv.lastMessageAt)
           : undefined,
         unreadCount: conv.unreadCount || 0,
-        orgId: conv.orgId ? String(conv.orgId) : undefined
+        orgId: conv.orgId ? String(conv.orgId) : undefined,
       } as ChatConversation;
     });
   } catch (error) {
@@ -248,26 +248,29 @@ export async function fetchConversations(
 export async function fetchMessages(
   conversationId: string,
   orgId: string,
-  userId: string
+  userId: string,
 ): Promise<ChatMessage[]> {
   try {
     const response = await chatApiService.getMessages(
       Number(conversationId),
+      Number(userId),
       Number(orgId),
-      Number(userId)
     );
-    return response.content.map(
+    return response.map(
       (msg, index) =>
         ({
-          id: msg.id || `m${index}`,
-          senderId: msg.senderId,
-          senderName: msg.senderName || "Unknown",
-          senderAvatar: msg.senderAvatar,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp ?? Date.now()),
-          isOwn: msg.isOwn || false,
-          status: msg.status || "delivered"
-        }) as ChatMessage
+          id: msg.chatMessageId?.toString() || `m${index}`,
+          senderId:
+            msg.chatConversationParticipant?.participantId?.toString() ||
+            "unknown",
+          senderName:
+            msg.chatConversationParticipant?.participantName || "Unknown",
+          senderAvatar: msg.chatConversationParticipant?.participantAvatar,
+          content: msg.chatMessageText || "",
+          timestamp: new Date(msg.sentAt ?? Date.now()),
+          isOwn: false, // This would need to be determined based on current user
+          status: msg.chatMessageStatus?.toLowerCase() || "delivered",
+        }) as ChatMessage,
     );
   } catch (error) {
     console.error("Failed to fetch messages:", error);
@@ -284,7 +287,7 @@ export async function searchUsers(name: string): Promise<ChatUser[]> {
       profilePhoto: user.profilePhoto,
       email: user.email,
       department: user.department,
-      avatar: user.profilePhoto
+      avatar: user.profilePhoto,
     }));
   } catch (error) {
     console.error("Failed to search users:", error);

@@ -2,47 +2,47 @@ import type { Department, RoleRecord, RoleCompensation } from "@/types";
 
 export const departmentsData: Department[] = [
   {
-    departmentId: "DEPT001",
+    departmentId: 1,
     departmentName: "Engineering",
     members: 12,
     roles: 10,
-    departmentHead: "John Doe"
+    departmentHead: "John Doe",
   },
   {
-    departmentId: "DEPT002",
+    departmentId: 2,
     departmentName: "Marketing",
     members: 8,
     roles: 5,
-    departmentHead: "Sarah Smith"
+    departmentHead: "Sarah Smith",
   },
   {
-    departmentId: "DEPT003",
+    departmentId: 3,
     departmentName: "Sales",
     members: 15,
     roles: 7,
-    departmentHead: "Michael Johnson"
+    departmentHead: "Michael Johnson",
   },
   {
-    departmentId: "DEPT004",
+    departmentId: 4,
     departmentName: "Operations",
     members: 6,
     roles: 3,
-    departmentHead: "David Brown"
+    departmentHead: "David Brown",
   },
   {
-    departmentId: "DEPT005",
+    departmentId: 5,
     departmentName: "HR",
     members: 4,
     roles: 2,
-    departmentHead: "Jessica Davis"
+    departmentHead: "Jessica Davis",
   },
   {
-    departmentId: "DEPT006",
+    departmentId: 6,
     departmentName: "Finance",
     members: 5,
     roles: 2,
-    departmentHead: "Emma Wilson"
-  }
+    departmentHead: "Emma Wilson",
+  },
 ];
 
 export const rolesData: RoleRecord[] = [
@@ -57,9 +57,9 @@ export const rolesData: RoleRecord[] = [
       "Review PRs",
       "Deploy Code",
       "Manage Team",
-      "Access Servers"
+      "Access Servers",
     ],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE002",
@@ -68,7 +68,7 @@ export const rolesData: RoleRecord[] = [
     employeeCount: 5,
     description: "Entry-level developer for feature implementation",
     permissions: ["Create Code", "Push Changes", "View Documentation"],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE003",
@@ -80,9 +80,9 @@ export const rolesData: RoleRecord[] = [
       "Manage Infrastructure",
       "Deploy Code",
       "Monitor Systems",
-      "Configure CI/CD"
+      "Configure CI/CD",
     ],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE004",
@@ -94,9 +94,9 @@ export const rolesData: RoleRecord[] = [
       "Create Campaigns",
       "Manage Budget",
       "Analyze Reports",
-      "Team Management"
+      "Team Management",
     ],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE005",
@@ -105,7 +105,7 @@ export const rolesData: RoleRecord[] = [
     employeeCount: 3,
     description: "Create marketing content and materials",
     permissions: ["Create Content", "Edit Assets", "Publish Content"],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE006",
@@ -117,9 +117,9 @@ export const rolesData: RoleRecord[] = [
       "Manage Team",
       "View Reports",
       "Approve Deals",
-      "Manage Budgets"
+      "Manage Budgets",
     ],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE007",
@@ -128,7 +128,7 @@ export const rolesData: RoleRecord[] = [
     employeeCount: 8,
     description: "Execute sales and client management",
     permissions: ["View CRM", "Create Deals", "Track Calls", "Generate Quotes"],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE008",
@@ -137,7 +137,7 @@ export const rolesData: RoleRecord[] = [
     employeeCount: 1,
     description: "Oversee operational activities",
     permissions: ["Manage Processes", "View Analytics", "Approve Workflows"],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE009",
@@ -149,9 +149,9 @@ export const rolesData: RoleRecord[] = [
       "Create Employee",
       "Manage Leave",
       "Process Payroll",
-      "Manage Policies"
+      "Manage Policies",
     ],
-    status: "Active"
+    status: "Active",
   },
   {
     id: "ROLE010",
@@ -163,10 +163,10 @@ export const rolesData: RoleRecord[] = [
       "Process Payments",
       "Create Reports",
       "Manage Accounts",
-      "Audit Transactions"
+      "Audit Transactions",
     ],
-    status: "Active"
-  }
+    status: "Active",
+  },
 ];
 
 export const roleCompensationData: RoleCompensation[] = [
@@ -178,7 +178,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 10200,
     bonus: 15000,
     deductions: 5000,
-    totalCompensation: 105200
+    totalCompensation: 105200,
   },
   {
     id: "COMP002",
@@ -188,7 +188,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 6600,
     bonus: 5000,
     deductions: 3000,
-    totalCompensation: 63600
+    totalCompensation: 63600,
   },
   {
     id: "COMP003",
@@ -198,7 +198,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 9000,
     bonus: 12000,
     deductions: 4500,
-    totalCompensation: 91500
+    totalCompensation: 91500,
   },
   {
     id: "COMP004",
@@ -208,7 +208,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 8640,
     bonus: 10000,
     deductions: 3500,
-    totalCompensation: 87140
+    totalCompensation: 87140,
   },
   {
     id: "COMP005",
@@ -218,7 +218,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 5400,
     bonus: 3000,
     deductions: 2000,
-    totalCompensation: 51400
+    totalCompensation: 51400,
   },
   {
     id: "COMP006",
@@ -228,7 +228,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 8400,
     bonus: 20000,
     deductions: 4000,
-    totalCompensation: 94400
+    totalCompensation: 94400,
   },
   {
     id: "COMP007",
@@ -238,7 +238,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 6000,
     bonus: 10000,
     deductions: 2500,
-    totalCompensation: 63500
+    totalCompensation: 63500,
   },
   {
     id: "COMP008",
@@ -248,7 +248,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 7800,
     bonus: 8000,
     deductions: 3000,
-    totalCompensation: 77800
+    totalCompensation: 77800,
   },
   {
     id: "COMP009",
@@ -258,7 +258,7 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 7200,
     bonus: 7000,
     deductions: 2500,
-    totalCompensation: 71700
+    totalCompensation: 71700,
   },
   {
     id: "COMP010",
@@ -268,6 +268,6 @@ export const roleCompensationData: RoleCompensation[] = [
     hra: 7440,
     bonus: 8000,
     deductions: 2800,
-    totalCompensation: 74640
-  }
+    totalCompensation: 74640,
+  },
 ];

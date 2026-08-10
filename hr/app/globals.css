@@ -131,3 +131,41 @@
     display: none;
   }
 }
+
+/* ReactFlow cursor visibility fixes */
+.react-flow {
+  cursor: default !important;
+}
+
+.react-flow__viewport {
+  cursor: grab !important;
+}
+
+.react-flow__viewport:active {
+  cursor: grabbing !important;
+}
+
+.react-flow__node {
+  cursor: pointer !important;
+}
+
+.react-flow__edge-path {
+  cursor: crosshair !important;
+}
+
+.react-flow__background {
+  cursor: grab !important;
+}
+
+/* Ensure nodes are visible and properly layered */
+.react-flow__node {
+  z-index: 10;
+}
+
+.react-flow__edge {
+  z-index: 5;
+}
+
+.react-flow__background {
+  z-index: 1;
+}

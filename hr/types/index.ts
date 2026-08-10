@@ -7,6 +7,9 @@ import { OrgType } from "./OrgType";
 import { PermissionAction } from "./PermissionAction";
 import { ResourceType } from "./ResourceTypes";
 
+// Team types
+export * from "./team";
+
 export type UserRole =
   | "ROLE_ADMIN"
   | "ROLE_DIRECTOR"
@@ -404,11 +407,17 @@ export interface WorkTask {
 // ============================================================================
 
 export interface Department {
-  departmentId: string;
+  departmentId: number;
   departmentName: string;
   members: number;
   roles: number;
   departmentHead: string;
+}
+
+// API Department response type (from IAM service)
+export interface ApiDepartment {
+  deptId: number;
+  deptName: string;
 }
 
 export interface RoleRecord {
