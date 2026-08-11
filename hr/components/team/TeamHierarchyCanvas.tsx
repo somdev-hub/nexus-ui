@@ -76,8 +76,8 @@ function TeamNode({ data }: { data: CustomNodeData }) {
 	return (
 		<div
 			className={`group flex flex-col items-center p-3 rounded-lg border-2 transition-all ${isSelected
-					? "border-blue-500 bg-blue-50 shadow-lg"
-					: "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
+				? "border-blue-500 bg-blue-50 shadow-lg"
+				: "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
 				}`}
 			onClick={onClick}
 			style={{ minWidth: "200px", maxWidth: "240px" }}
@@ -350,7 +350,7 @@ export function TeamHierarchyCanvas({
 		// Initial fitView after mount - use a timeout to ensure nodes are rendered
 		setTimeout(() => {
 			if (computedNodes.length > 0 && reactFlowInstance.current) {
-				reactFlowInstance.current.fitView({ padding: 0.15, duration: 500 });
+				reactFlowInstance.current.fitView({ padding: 0.4, duration: 500, minZoom: 0.1, maxZoom: 0.85 });
 			}
 		}, 100);
 	}, [computedNodes.length]);
@@ -358,15 +358,14 @@ export function TeamHierarchyCanvas({
 	// Fit view when nodes/edges change (e.g., expand/collapse)
 	React.useEffect(() => {
 		if (isMounted.current && reactFlowInstance.current && computedNodes.length > 0) {
-			console.log(`[DEBUG TeamHierarchyCanvas] Fitting view, nodes: ${computedNodes.length}`);
-			reactFlowInstance.current.fitView({ padding: 0.15, duration: 300 });
+			reactFlowInstance.current.fitView({ padding: 0.4, duration: 300, minZoom: 0.1, maxZoom: 0.85 });
 		}
 	}, [computedNodes, computedEdges]);
 
 	return (
 		<div
 			ref={reactFlowWrapper}
-			className={`w-full h-[600px] rounded-lg border border-gray-200 bg-white ${className}`}
+			className={`w-full h-[600px] rounded-lg border border-gray-200 bg-gray-50 ${className}`}
 			style={{
 				width: "100%",
 				height: "600px",
@@ -381,13 +380,16 @@ export function TeamHierarchyCanvas({
 				onConnect={onConnect}
 				nodeTypes={nodeTypes}
 				edgeTypes={edgeTypes}
-				fitView={false}
+				fitView={true}
+				fitViewOptions={{ padding: 0.4, minZoom: 0.1, maxZoom: 0.85 }}
+				minZoom={0.1}
+				maxZoom={1.5}
 				attributionPosition="bottom-right"
 				proOptions={{ hideAttribution: true }}
-				defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+				defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
 			>
 				<Background
-					color="#e5e7eb"
+					color="#d1d5db"
 					gap={16}
 					size={1}
 				/>

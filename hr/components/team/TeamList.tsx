@@ -1,19 +1,15 @@
 "use client";
 
-import { CreateTeamDialog } from "@/components/create-team-dialog";
+import { TeamManagementDialog } from "./TeamManagementDialog";
 import { Team } from "@/types";
 import { Building2, Loader2, Search, Users } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface TeamListProps {
 	teams: Team[];
@@ -32,8 +28,10 @@ export function TeamList({
 	isLoading = false,
 	selectedTeamId,
 }: TeamListProps) {
+	const { toast } = useToast();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [editingTeam, setEditingTeam] = useState<Team | undefined>(undefined);
+	const [deleteTeamId, setDeleteTeamId] = useState<number | null>(null);
 
 	const filteredTeams = teams.filter((team) => {
 		const matchesSearch =
@@ -43,18 +41,36 @@ export function TeamList({
 		return matchesSearch;
 	});
 
-	const handleCreateClick = () => {
-		setEditingTeam(undefined);
-	};
-
 	const handleEditClick = (team: Team, e: React.MouseEvent) => {
 		e.stopPropagation();
 		setEditingTeam(team);
 	};
 
 	const handleDeleteTeam = async (teamId: number) => {
-		if (window.confirm("Are you sure you want to delete this team? This action cannot be undone.")) {
-			await onDeleteTeam(teamId);
+		setDeleteTeamId(teamId);
+	};
+
+	const confirmDeleteTeam = async () => {
+		if (!deleteTeamId) return;
+		try {
+			await onDeleteTeam(deleteTeamId);
+			toast({
+				title: "Team Deleted",
+				description: "The team has been successfully deleted.",
+				variant: "success",
+			});
+			onRefresh();
+		} catch (err) {
+			const message =
+				err instanceof Error ? err.message : "Failed to delete team";
+			toast({
+				title: "Failed to Delete Team",
+				description: message,
+				variant: "destructive",
+			});
+			console.error("Error deleting team:", err);
+		} finally {
+			setDeleteTeamId(null);
 		}
 	};
 
@@ -84,10 +100,11 @@ export function TeamList({
 						/>
 					</div>
 
-					{/* Create Team Button - uses CreateTeamDialog */}
-					<CreateTeamDialog
+					{/* Create Team Button - uses TeamManagementDialog */}
+					<TeamManagementDialog
+						mode="team"
 						smallButton={true}
-						editData={editingTeam}
+						editTeamData={editingTeam}
 						onSuccess={() => {
 							setEditingTeam(undefined);
 							onRefresh();
@@ -152,7 +169,7 @@ export function TeamList({
 											</span>
 										</div>
 									</div>
-									<div className="flex items-center gap-2 flex-shrink-0">
+									<div className="flex items-center gap-2 shrink-0">
 										<Button
 											variant="ghost"
 											size="sm"
@@ -185,6 +202,23 @@ export function TeamList({
 					</div>
 				)}
 			</CardContent>
+
+			<AlertDialog open={deleteTeamId !== null} onOpenChange={(open) => !open && setDeleteTeamId(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Team</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to delete this team? This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmDeleteTeam} disabled={isLoading} className="bg-red-600 hover:bg-red-700">
+							{isLoading ? "Deleting..." : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</Card>
 	);
 }

@@ -13,10 +13,10 @@ import {
 	Users
 } from "lucide-react";
 import { useState } from "react";
-import { AddMemberForm } from "./AddMemberForm";
 import { TeamForm } from "./TeamForm";
 import { TeamMemberCard } from "./TeamMemberCard";
 import { TeamHierarchyCanvas } from "./TeamHierarchyCanvas";
+import { TeamManagementDialog } from "./TeamManagementDialog";
 
 interface TeamDetailProps {
 	team: Team | null;
@@ -315,7 +315,6 @@ export function TeamDetail({
 										showActions={true}
 										onEdit={setEditingMember}
 										onRemove={handleRemoveMember}
-										onChangeManager={(m) => setEditingMember(m)}
 										onViewSubordinates={(m) => console.log("View subordinates:", m)}
 									/>
 								))}
@@ -430,25 +429,29 @@ export function TeamDetail({
 
 			{/* Modals */}
 			{showAddMemberForm && (
-				<AddMemberForm
-					teamId={team.teamId}
+				<TeamManagementDialog
+					mode="member"
 					teamMembers={members}
 					availableUsers={availableUsers}
-					onSubmit={handleAddMember}
-					onClose={() => setShowAddMemberForm(false)}
+					onMemberSubmit={handleAddMember}
+					onMemberClose={() => setShowAddMemberForm(false)}
 					isLoading={isLoading}
+					open={showAddMemberForm}
+					onOpenChange={setShowAddMemberForm}
 				/>
 			)}
 
 			{editingMember && (
-				<AddMemberForm
-					teamId={team.teamId}
+				<TeamManagementDialog
+					mode="member"
 					teamMembers={members}
 					availableUsers={availableUsers}
-					onSubmit={handleUpdateMember}
-					onClose={() => setEditingMember(null)}
+					onMemberSubmit={handleUpdateMember}
+					onMemberClose={() => setEditingMember(null)}
 					isLoading={isLoading}
 					editingMember={editingMember}
+					open={!!editingMember}
+					onOpenChange={(open) => !open && setEditingMember(null)}
 				/>
 			)}
 

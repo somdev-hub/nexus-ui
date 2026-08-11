@@ -1,7 +1,7 @@
 "use client";
 
 import { CreateHiringDialog } from "@/components/create-hiring-dialog";
-import { CreateTeamDialog } from "@/components/create-team-dialog";
+import { TeamManagementDialog } from "@/components/team/TeamManagementDialog";
 import { DailyCheckinCheckoutChart } from "@/components/daily-checkin-checkout-line-chart";
 import EventOnboardDialog from "@/components/EventOnboardDialog";
 import { HrRequestDialog } from "@/components/hr-request-dialog";
@@ -668,7 +668,7 @@ export default function HRDashboard() {
                       <p className="font-medium">Onboard Event</p>
                     </CardContent>
                   </Card> */}
-					<CreateTeamDialog />
+					<TeamManagementDialog mode="team" />
 					<EventOnboardDialog />
 					<CreateHiringDialog />
 					<HrRequestDialog />

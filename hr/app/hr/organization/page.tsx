@@ -72,7 +72,6 @@ import {
 	getEmployeeDirectory
 } from "@/lib/auth-service";
 import DepartmentTab from "@/components/department-tab";
-import { CreateTeamDialog } from "@/components/create-team-dialog";
 
 export default function OrganizationPage() {
 	// Get organization ID from user metadata
@@ -1603,9 +1602,6 @@ export default function OrganizationPage() {
 					<span className="ml-3 text-muted-foreground">Loading departments...</span>
 				</div>
 			)}
-
-			{/* Create Team Dialog */}
-			<CreateTeamDialog />
 		</div>
 	);
 }

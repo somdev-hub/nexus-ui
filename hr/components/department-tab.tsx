@@ -18,13 +18,9 @@ import { useCallback, useEffect, useState } from "react";
 import { TeamDetail, TeamList } from "./team";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogAction, AlertDialogCancel, AlertDialogTitle, AlertDialogDescription } from "./ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface DepartmentTabProps {
 	departments: ApiDepartment[];
@@ -37,12 +33,14 @@ const DepartmentTab = ({
 	availableUsers,
 	onRefresh,
 }: DepartmentTabProps) => {
+	const { toast } = useToast();
 	const [teams, setTeams] = useState<Team[]>([]);
 	const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 	const [hierarchy, setHierarchy] = useState<TeamHierarchyResponse | null>(null);
 	const [members, setMembers] = useState<TeamMember[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [deleteTeamId, setDeleteTeamId] = useState<number | null>(null);
 
 	// Load teams when departments change
 	const loadTeams = useCallback(async () => {
@@ -80,7 +78,7 @@ const DepartmentTab = ({
 	useEffect(() => {
 		console.log('[DepartmentTab] useEffect triggered, departments:', departments);
 		loadTeams();
-	}, [loadTeams]);
+	}, [loadTeams, departments]);
 
 	const handleSelectTeam = async (team: Team) => {
 		console.log(`[DEBUG DepartmentTab] handleSelectTeam called for team: ${team.teamName} (id: ${team.teamId})`);
@@ -135,23 +133,38 @@ const DepartmentTab = ({
 	};
 
 	const handleDeleteTeam = async (teamId: number) => {
-		if (!window.confirm("Are you sure you want to delete this team?")) return;
+		setDeleteTeamId(teamId);
+	};
 
+	const confirmDeleteTeam = async () => {
+		if (!deleteTeamId) return;
 		setLoading(true);
 		try {
-			await deleteTeam(teamId);
-			setTeams((prev) => prev.filter((t) => t.teamId !== teamId));
-			if (selectedTeam?.teamId === teamId) {
+			await deleteTeam(deleteTeamId);
+			setTeams((prev) => prev.filter((t) => t.teamId !== deleteTeamId));
+			if (selectedTeam?.teamId === deleteTeamId) {
 				setSelectedTeam(null);
 				setHierarchy(null);
 				setMembers([]);
 			}
+			toast({
+				title: "Team Deleted",
+				description: "The team has been successfully deleted.",
+				variant: "success",
+			});
 			onRefresh?.();
 		} catch (err) {
-			setError("Failed to delete team");
+			const message = err instanceof Error ? err.message : "Failed to delete team";
+			setError(message);
+			toast({
+				title: "Failed to Delete Team",
+				description: message,
+				variant: "destructive",
+			});
 			console.error("Error deleting team:", err);
 		} finally {
 			setLoading(false);
+			setDeleteTeamId(null);
 		}
 	};
 
@@ -159,9 +172,21 @@ const DepartmentTab = ({
 		setLoading(true);
 		try {
 			await addTeamMember(teamId, data);
-			onRefresh?.();
+			toast({
+				title: "Member Added",
+				description: "The member has been successfully added.",
+				variant: "success",
+			});
+			const updatedMembers = await getTeamMembers(teamId);
+			setMembers(updatedMembers);
 		} catch (err) {
-			setError("Failed to add member");
+			const message = err instanceof Error ? err.message : "Failed to add member";
+			setError(message);
+			toast({
+				title: "Failed to Add Member",
+				description: message,
+				variant: "destructive",
+			});
 			console.error("Error adding member:", err);
 		} finally {
 			setLoading(false);
@@ -172,9 +197,21 @@ const DepartmentTab = ({
 		setLoading(true);
 		try {
 			await updateTeamMember(memberId, data);
-			onRefresh?.();
+			toast({
+				title: "Member Updated",
+				description: "The member has been successfully updated.",
+				variant: "success",
+			});
+			const updatedMembers = await getTeamMembers(teamId);
+			setMembers(updatedMembers);
 		} catch (err) {
-			setError("Failed to update member");
+			const message = err instanceof Error ? err.message : "Failed to update member";
+			setError(message);
+			toast({
+				title: "Failed to Update Member",
+				description: message,
+				variant: "destructive",
+			});
 			console.error("Error updating member:", err);
 		} finally {
 			setLoading(false);
@@ -185,9 +222,21 @@ const DepartmentTab = ({
 		setLoading(true);
 		try {
 			await removeTeamMember(memberId);
-			onRefresh?.();
+			toast({
+				title: "Member Removed",
+				description: "The member has been successfully removed.",
+				variant: "success",
+			});
+			const updatedMembers = await getTeamMembers(teamId);
+			setMembers(updatedMembers);
 		} catch (err) {
-			setError("Failed to remove member");
+			const message = err instanceof Error ? err.message : "Failed to remove member";
+			setError(message);
+			toast({
+				title: "Failed to Remove Member",
+				description: message,
+				variant: "destructive",
+			});
 			console.error("Error removing member:", err);
 		} finally {
 			setLoading(false);
@@ -198,9 +247,25 @@ const DepartmentTab = ({
 		setLoading(true);
 		try {
 			await changeManager(memberId, data);
-			onRefresh?.();
+			toast({
+				title: "Manager Changed",
+				description: "The manager has been successfully changed.",
+				variant: "success",
+			});
+			const [updatedMembers, updatedHierarchy] = await Promise.all([
+				getTeamMembers(teamId),
+				getTeamHierarchy(teamId),
+			]);
+			setMembers(updatedMembers);
+			setHierarchy(updatedHierarchy);
 		} catch (err) {
-			setError("Failed to change manager");
+			const message = err instanceof Error ? err.message : "Failed to change manager";
+			setError(message);
+			toast({
+				title: "Failed to Change Manager",
+				description: message,
+				variant: "destructive",
+			});
 			console.error("Error changing manager:", err);
 		} finally {
 			setLoading(false);
@@ -338,6 +403,23 @@ const DepartmentTab = ({
 					)}
 				</CardContent>
 			</Card>
+
+			<AlertDialog open={deleteTeamId !== null} onOpenChange={(open) => !open && setDeleteTeamId(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Team</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to delete this team? This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmDeleteTeam} disabled={loading} className="bg-red-600 hover:bg-red-700">
+							{loading ? "Deleting..." : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 };
