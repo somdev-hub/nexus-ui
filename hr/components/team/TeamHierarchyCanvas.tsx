@@ -362,6 +362,18 @@ export function TeamHierarchyCanvas({
 		}
 	}, [computedNodes, computedEdges]);
 
+	// Center on selected member when selectedMemberId changes
+	React.useEffect(() => {
+		if (isMounted.current && reactFlowInstance.current && selectedMemberId !== undefined) {
+			const selectedNode = computedNodes.find(n => n.id === `node-${selectedMemberId}`);
+			if (selectedNode) {
+				reactFlowInstance.current.setCenter(selectedNode.position.x, selectedNode.position.y, { duration: 500 });
+				// Also ensure the node is visible by expanding its ancestors
+				// This would require traversing up the tree, but for now just center on it
+			}
+		}
+	}, [selectedMemberId, computedNodes]);
+
 	return (
 		<div
 			ref={reactFlowWrapper}

@@ -45,6 +45,7 @@ import {
 	PaginationNext,
 	PaginationPrevious
 } from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Users, Briefcase } from "lucide-react";
 import { rolesData } from "./data";
@@ -708,67 +709,85 @@ export default function OrganizationPage() {
 
 			{/* Organization Overview Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-				<Card className="p-4 gap-2">
-					<CardHeader className="p-0">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Total Departments
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="p-0">
-						<div className="flex items-center justify-between">
-							<p className="text-3xl font-bold">
-								{overviewData.totalDepartments}
-							</p>
-							<Briefcase className="w-8 h-8 text-blue-500 opacity-50" />
-						</div>
-					</CardContent>
-				</Card>
+				{departmentsLoading ? (
+					Array.from({ length: 4 }).map((_, i) => (
+						<Card key={i} className="p-4 gap-2">
+							<CardHeader className="p-0">
+								<Skeleton className="h-4 w-3/4" />
+							</CardHeader>
+							<CardContent className="p-0">
+								<div className="flex items-center justify-between">
+									<Skeleton className="h-8 w-1/4" />
+									<Skeleton className="h-8 w-8 rounded-full" />
+								</div>
+							</CardContent>
+						</Card>
+					))
+				) : (
+					<>
+						<Card className="p-4 gap-2">
+							<CardHeader className="p-0">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Total Departments
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="p-0">
+								<div className="flex items-center justify-between">
+									<p className="text-3xl font-bold">
+										{overviewData.totalDepartments}
+									</p>
+									<Briefcase className="w-8 h-8 text-blue-500 opacity-50" />
+								</div>
+							</CardContent>
+						</Card>
 
-				<Card className="p-4 gap-2">
-					<CardHeader className="p-0">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Total Employees
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="p-0">
-						<div className="flex items-center justify-between">
-							<p className="text-3xl font-bold">
-								{overviewData.totalEmployees}
-							</p>
-							<Users className="w-8 h-8 text-green-500 opacity-50" />
-						</div>
-					</CardContent>
-				</Card>
+						<Card className="p-4 gap-2">
+							<CardHeader className="p-0">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Total Employees
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="p-0">
+								<div className="flex items-center justify-between">
+									<p className="text-3xl font-bold">
+										{overviewData.totalEmployees}
+									</p>
+									<Users className="w-8 h-8 text-green-500 opacity-50" />
+								</div>
+							</CardContent>
+						</Card>
 
-				<Card className="p-4 gap-2">
-					<CardHeader className="p-0">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Total Roles
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="p-0">
-						<div className="flex items-center justify-between">
-							<p className="text-3xl font-bold">{overviewData.totalRoles}</p>
-							<Briefcase className="w-8 h-8 text-purple-500 opacity-50" />
-						</div>
-					</CardContent>
-				</Card>
+						<Card className="p-4 gap-2">
+							<CardHeader className="p-0">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Total Roles
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="p-0">
+								<div className="flex items-center justify-between">
+									<p className="text-3xl font-bold">{overviewData.totalRoles}</p>
+									<Briefcase className="w-8 h-8 text-purple-500 opacity-50" />
+								</div>
+							</CardContent>
+						</Card>
 
-				<Card className="p-4 gap-2">
-					<CardHeader className="p-0">
-						<CardTitle className="text-sm font-medium text-muted-foreground">
-							Total Permissions
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="p-0">
-						<div className="flex items-center justify-between">
-							<p className="text-3xl font-bold">
-								{overviewData.totalPermissions}
-							</p>
-							<Badge className="bg-green-500">Active</Badge>
-						</div>
-					</CardContent>
-				</Card>
+						<Card className="p-4 gap-2">
+							<CardHeader className="p-0">
+								<CardTitle className="text-sm font-medium text-muted-foreground">
+									Total Permissions
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="p-0">
+								<div className="flex items-center justify-between">
+									<p className="text-3xl font-bold">
+										{overviewData.totalPermissions}
+									</p>
+									<Badge className="bg-green-500">Active</Badge>
+								</div>
+							</CardContent>
+						</Card>
+					</>
+				)}
 			</div>
 
 			{/* Department Cards */}
@@ -821,30 +840,53 @@ export default function OrganizationPage() {
 						</DialogContent>
 					</Dialog>
 				</div>
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{departments.map((dept) => (
-						<Card key={dept.departmentId} className="p-4 gap-2">
-							<CardHeader className="p-0">
-								<CardTitle className="text-lg">{dept.departmentName}</CardTitle>
-								<CardDescription>
-									Head: {dept.departmentHead ? dept.departmentHead : "TBA"}
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="p-0 space-y-2">
-								<div className="flex justify-between items-center">
-									<span className="text-sm text-muted-foreground">
-										Employees
-									</span>
-									<Badge>{dept.members}</Badge>
-								</div>
-								<div className="flex justify-between items-center">
-									<span className="text-sm text-muted-foreground">Roles</span>
-									<Badge>{dept.roles}</Badge>
-								</div>
-							</CardContent>
-						</Card>
-					))}
-				</div>
+				{departmentsLoading ? (
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+						{Array.from({ length: 6 }).map((_, i) => (
+							<Card key={i} className="p-4 gap-2">
+								<CardHeader className="p-0">
+									<Skeleton className="h-5 w-1/2" />
+									<Skeleton className="h-4 w-3/4" />
+								</CardHeader>
+								<CardContent className="p-0 space-y-2">
+									<div className="flex justify-between items-center">
+										<Skeleton className="h-4 w-1/3" />
+										<Skeleton className="h-5 w-1/4" />
+									</div>
+									<div className="flex justify-between items-center">
+										<Skeleton className="h-4 w-1/4" />
+										<Skeleton className="h-5 w-1/4" />
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				) : (
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+						{departments.map((dept) => (
+							<Card key={dept.departmentId} className="p-4 gap-2">
+								<CardHeader className="p-0">
+									<CardTitle className="text-lg">{dept.departmentName}</CardTitle>
+									<CardDescription>
+										Head: {dept.departmentHead ? dept.departmentHead : "TBA"}
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="p-0 space-y-2">
+									<div className="flex justify-between items-center">
+										<span className="text-sm text-muted-foreground">
+											Employees
+										</span>
+										<Badge>{dept.members}</Badge>
+									</div>
+									<div className="flex justify-between items-center">
+										<span className="text-sm text-muted-foreground">Roles</span>
+										<Badge>{dept.roles}</Badge>
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				)}
 			</div>
 
 			{/* Roles Table */}
@@ -1191,53 +1233,71 @@ export default function OrganizationPage() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 space-y-4">
-					<HRTable columns={roleColumns} data={rolesPaginatedData} />
-					{rolesTotalPages > 1 && (
-						<div className="flex justify-center">
-							<Pagination>
-								<PaginationContent>
-									<PaginationItem>
-										<PaginationPrevious
-											onClick={() =>
-												setRolesCurrentPage((prev) => Math.max(prev - 1, 1))
-											}
-											className={
-												rolesCurrentPage === 1
-													? "pointer-events-none opacity-50"
-													: "cursor-pointer"
-											}
-										/>
-									</PaginationItem>
-									{Array.from({ length: rolesTotalPages }, (_, i) => i + 1).map(
-										(page) => (
-											<PaginationItem key={page}>
-												<PaginationLink
-													onClick={() => setRolesCurrentPage(page)}
-													isActive={rolesCurrentPage === page}
-													className="cursor-pointer"
-												>
-													{page}
-												</PaginationLink>
-											</PaginationItem>
-										)
-									)}
-									<PaginationItem>
-										<PaginationNext
-											onClick={() =>
-												setRolesCurrentPage((prev) =>
-													Math.min(prev + 1, rolesTotalPages)
-												)
-											}
-											className={
-												rolesCurrentPage === rolesTotalPages
-													? "pointer-events-none opacity-50"
-													: "cursor-pointer"
-											}
-										/>
-									</PaginationItem>
-								</PaginationContent>
-							</Pagination>
+					{departmentsLoading ? (
+						<div className="space-y-3">
+							{Array.from({ length: 5 }).map((_, i) => (
+								<div key={i} className="flex items-center space-x-4 p-3">
+									<Skeleton className="h-4 w-32" />
+									<Skeleton className="h-4 w-32" />
+									<Skeleton className="h-4 w-16" />
+									<Skeleton className="h-4 w-24" />
+									<Skeleton className="h-4 w-24" />
+									<Skeleton className="h-4 w-20" />
+									<Skeleton className="h-4 w-20" />
+								</div>
+							))}
 						</div>
+					) : (
+						<>
+							<HRTable columns={roleColumns} data={rolesPaginatedData} />
+							{rolesTotalPages > 1 && (
+								<div className="flex justify-center">
+									<Pagination>
+										<PaginationContent>
+											<PaginationItem>
+												<PaginationPrevious
+													onClick={() =>
+														setRolesCurrentPage((prev) => Math.max(prev - 1, 1))
+													}
+													className={
+														rolesCurrentPage === 1
+															? "pointer-events-none opacity-50"
+															: "cursor-pointer"
+													}
+												/>
+											</PaginationItem>
+											{Array.from({ length: rolesTotalPages }, (_, i) => i + 1).map(
+												(page) => (
+													<PaginationItem key={page}>
+														<PaginationLink
+															onClick={() => setRolesCurrentPage(page)}
+															isActive={rolesCurrentPage === page}
+															className="cursor-pointer"
+														>
+															{page}
+														</PaginationLink>
+													</PaginationItem>
+												)
+											)}
+											<PaginationItem>
+												<PaginationNext
+													onClick={() =>
+														setRolesCurrentPage((prev) =>
+															Math.min(prev + 1, rolesTotalPages)
+														)
+													}
+													className={
+														rolesCurrentPage === rolesTotalPages
+															? "pointer-events-none opacity-50"
+															: "cursor-pointer"
+													}
+												/>
+											</PaginationItem>
+										</PaginationContent>
+									</Pagination>
+								</div>
+							)}
+						</>
 					)}
 				</CardContent>
 			</Card>
@@ -1496,62 +1556,110 @@ export default function OrganizationPage() {
 					</Dialog>
 				</CardHeader>
 				<CardContent className="p-0 space-y-4">
-					<HRTable columns={compensationColumns} data={compensations} />
-					{compensationTotalPages > 1 && (
-						<div className="flex justify-center">
-							<Pagination>
-								<PaginationContent>
-									<PaginationItem>
-										<PaginationPrevious
-											onClick={() =>
-												setCompensationCurrentPage((prev) =>
-													Math.max(prev - 1, 1)
-												)
-											}
-											className={
-												compensationCurrentPage === 1
-													? "pointer-events-none opacity-50"
-													: "cursor-pointer"
-											}
-										/>
-									</PaginationItem>
-									{Array.from(
-										{ length: compensationTotalPages },
-										(_, i) => i + 1
-									).map((page) => (
-										<PaginationItem key={page}>
-											<PaginationLink
-												onClick={() => setCompensationCurrentPage(page)}
-												isActive={compensationCurrentPage === page}
-												className="cursor-pointer"
-											>
-												{page}
-											</PaginationLink>
-										</PaginationItem>
-									))}
-									<PaginationItem>
-										<PaginationNext
-											onClick={() =>
-												setCompensationCurrentPage((prev) =>
-													Math.min(prev + 1, compensationTotalPages)
-												)
-											}
-											className={
-												compensationCurrentPage === compensationTotalPages
-													? "pointer-events-none opacity-50"
-													: "cursor-pointer"
-											}
-										/>
-									</PaginationItem>
-								</PaginationContent>
-							</Pagination>
+					{departmentsLoading ? (
+						<div className="space-y-3">
+							{Array.from({ length: 5 }).map((_, i) => (
+								<div key={i} className="flex items-center space-x-4 p-3">
+									<Skeleton className="h-4 w-32" />
+									<Skeleton className="h-4 w-32" />
+									<Skeleton className="h-4 w-16" />
+									<Skeleton className="h-4 w-16" />
+									<Skeleton className="h-4 w-16" />
+									<Skeleton className="h-4 w-16" />
+									<Skeleton className="h-4 w-16" />
+									<Skeleton className="h-4 w-16" />
+								</div>
+							))}
 						</div>
+					) : (
+						<>
+							<HRTable columns={compensationColumns} data={compensations} />
+							{compensationTotalPages > 1 && (
+								<div className="flex justify-center">
+									<Pagination>
+										<PaginationContent>
+											<PaginationItem>
+												<PaginationPrevious
+													onClick={() =>
+														setCompensationCurrentPage((prev) =>
+															Math.max(prev - 1, 1)
+														)
+													}
+													className={
+														compensationCurrentPage === 1
+															? "pointer-events-none opacity-50"
+															: "cursor-pointer"
+													}
+												/>
+											</PaginationItem>
+											{Array.from(
+												{ length: compensationTotalPages },
+												(_, i) => i + 1
+											).map((page) => (
+												<PaginationItem key={page}>
+													<PaginationLink
+														onClick={() => setCompensationCurrentPage(page)}
+														isActive={compensationCurrentPage === page}
+														className="cursor-pointer"
+													>
+														{page}
+													</PaginationLink>
+												</PaginationItem>
+											))}
+											<PaginationItem>
+												<PaginationNext
+													onClick={() =>
+														setCompensationCurrentPage((prev) =>
+															Math.min(prev + 1, compensationTotalPages)
+														)
+													}
+													className={
+														compensationCurrentPage === compensationTotalPages
+															? "pointer-events-none opacity-50"
+															: "cursor-pointer"
+													}
+												/>
+											</PaginationItem>
+										</PaginationContent>
+									</Pagination>
+								</div>
+							)}
+						</>
 					)}
 				</CardContent>
 			</Card>
 
 			{/* Department & Teams Tab */}
-			{!departmentsLoading && (
+			{departmentsLoading ? (
+				<div className="space-y-4">
+					{Array.from({ length: 3 }).map((_, i) => (
+						<Card key={i} className="p-4">
+							<div className="flex items-center justify-between mb-4">
+								<Skeleton className="h-6 w-48" />
+								<Skeleton className="h-8 w-24" />
+							</div>
+							<div className="space-y-3">
+								{Array.from({ length: 3 }).map((_, j) => (
+									<div key={j} className="flex items-center justify-between p-3 border rounded-lg">
+										<div className="flex items-center space-x-3">
+											<Skeleton className="h-8 w-8 rounded-full" />
+											<div className="space-y-1">
+												<Skeleton className="h-4 w-32" />
+												<Skeleton className="h-3 w-24" />
+											</div>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Skeleton className="h-6 w-20 rounded" />
+											<Skeleton className="h-6 w-20 rounded" />
+											<Skeleton className="h-6 w-20 rounded" />
+										</div>
+									</div>
+								))}
+							</div>
+						</Card>
+					))}
+				</div>
+			) : (
 				<DepartmentTab
 					departments={departments.map((dept): ApiDepartment => {
 						// Handle both Department (initial) and ApiDepartment (from API) formats
@@ -1595,12 +1703,6 @@ export default function OrganizationPage() {
 						}
 					}}
 				/>
-			)}
-			{departmentsLoading && (
-				<div className="flex items-center justify-center py-12">
-					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-					<span className="ml-3 text-muted-foreground">Loading departments...</span>
-				</div>
 			)}
 		</div>
 	);

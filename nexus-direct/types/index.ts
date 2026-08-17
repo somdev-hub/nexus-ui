@@ -1,238 +1,244 @@
 export interface User {
-    id: string;
-    personalEmail: string;
-    name: string;
-    phone: string;
-    role: string;
-    avatar?: string;
+  id: string;
+  personalEmail: string;
+  name: string;
+  phone: string;
+  role: string;
+  avatar?: string;
 }
 
 export interface ApplicantEducation {
-    applicantEducationId?: number;
-    institute: string;
-    degree: string;
-    city: string;
-    state: string;
-    country: string;
-    startDate: Date;
-    endDate: Date;
-    isActive?: boolean;
+  applicantEducationId?: number;
+  institute: string;
+  degree: string;
+  city: string;
+  state: string;
+  country: string;
+  startDate: Date;
+  endDate: Date;
+  isActive?: boolean;
 }
 
 export interface ApplicantExperience {
-    applicantExperienceId?: number;
-    previousCompany: string;
-    jobTitle: string;
-    yearsOfExperience: number;
-    jobDescription: string;
-    startDate: Date;
-    endDate: Date;
-    isActive?: boolean;
+  applicantExperienceId?: number;
+  previousCompany: string;
+  jobTitle: string;
+  yearsOfExperience: number;
+  jobDescription: string;
+  startDate: Date;
+  endDate: Date;
+  isActive?: boolean;
 }
 
 export interface ApplicantSkill {
-    applicantSkillId?: number;
-    skillName: string;
-    isActive?: boolean;
+  applicantSkillId?: number;
+  skillName: string;
+  isActive?: boolean;
 }
 
 export interface ApplicantDocument {
-
-
-    hrDocumentId?: number;
-    documentName: string;
-    hrDocumentType: string;
-    documentUrl: string;
-    createdOn?: Date;
-    isActive?: boolean;
+  hrDocumentId?: number;
+  documentName: string;
+  hrDocumentType: string;
+  documentUrl: string;
+  createdOn?: Date;
+  isActive?: boolean;
 }
 
 export interface Applicant {
-
-    applicantId?: number;
-    applicantFirstName: string;
-    applicantLastName: string;
-    applicantEmail: string;
-    applicantPhone: string;
-    applicantGender: string;
-    applicantDateOfBirth: string;
-    applicantAge: number;
-    applicantAddress: string;
-    applicantCity: string;
-    applicantState: string;
-    applicantCountry: string;
-    applicantPinCode: string;
-    applicantEducations: ApplicantEducation[];
-    applicantExperiences: ApplicantExperience[];
-    applicantSkills: ApplicantSkill[];
-    applicantDocuments: ApplicantDocument[];
+  applicantId?: number;
+  applicantFirstName: string;
+  applicantLastName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  applicantGender: string;
+  applicantDateOfBirth: string;
+  applicantAge: number;
+  applicantAddress: string;
+  applicantCity: string;
+  applicantState: string;
+  applicantCountry: string;
+  applicantPinCode: string;
+  applicantEducations: ApplicantEducation[];
+  applicantExperiences: ApplicantExperience[];
+  applicantSkills: ApplicantSkill[];
+  applicantDocuments: ApplicantDocument[];
+  applicantRecruitmentMappingId?: number;
 }
 
 export interface RecruitmentApplicantTableResponse {
-    recruitmentId: number;
-    roleName: string;
-    orgName: string;
-    location: string;
-    createdAt: Date;
-    status: string;
-    department: string;
+  recruitmentId: number;
+  roleName: string;
+  orgName: string;
+  location: string;
+  createdAt: Date;
+  status: string;
+  department: string;
 }
 
 export interface CompanyOpeningsCardDto {
-    orgId: number;
-    orgName: string;
-    currentOpenings: number;
-    changeFromLastMonth: number;
+  orgId: number;
+  orgName: string;
+  currentOpenings: number;
+  changeFromLastMonth: number;
 }
 
 export interface PositionPieGraphEntry {
-    position: string;
-    openings: number;
+  position: string;
+  openings: number;
 }
 
 export interface ExperienceWiseOpeningEntry {
-    experienceLevel: string;
-    experience: string;
-    count: number;
+  experienceLevel: string;
+  experience: string;
+  count: number;
 }
 
 export interface Recruitment {
-    createdAt: Date;
-    departmentId: number;
-    departmentName: string;
-    description: string;
-    hiringStatus: string;
-    hiringType: string;
-    isActive: boolean;
-    location: string;
-    maxYearsOfExperience: number;
-    minYearsOfExperience: number;
-    openingTillDate: Date;
-    orgId: number;
-    orgName: string;
-    recruitmentId: number;
-    roleName: string;
-    shortDescription: string;
-    title: string;
-    totalCompensation: string;
+  createdAt: Date;
+  departmentId: number;
+  departmentName: string;
+  description: string;
+  hiringStatus: string;
+  hiringType: string;
+  isActive: boolean;
+  location: string;
+  maxYearsOfExperience: number;
+  minYearsOfExperience: number;
+  openingTillDate: Date;
+  orgId: number;
+  orgName: string;
+  recruitmentId: number;
+  roleName: string;
+  shortDescription: string;
+  title: string;
+  totalCompensation: string;
 }
 
 export interface RecruitmentFilter {
-    hiringTypes: string[];
-    hiringStatuses: string[];
-    orgNames: string[];
-    locations: string[];
+  hiringTypes: string[];
+  hiringStatuses: string[];
+  orgNames: string[];
+  locations: string[];
 }
 
 export interface ApplicantRecruitmentMapping {
-    applicantRecruitmentMappingId: number;
-    applicationDocuments: ApplicantDocument[];
-    appliedOn: Date;
-    isActive: boolean;
-    status: string;
-    updatedOn: Date;
+  applicantRecruitmentMappingId: number;
+  applicationDocuments: ApplicantDocument[];
+  appliedOn: Date;
+  isActive: boolean;
+  status: string;
+  updatedOn: Date;
 }
 
-export type ApplicationStatus = 'APPLIED' | 'REVIEW' | 'REVIEW_COMPLETED' | 'REVIEW_FAILED' | 'INTERVIEW_SCHEDULED' | 'INTERVIEW_COMPLETED' | 'SELECTED' | 'REJECTED' | 'OFFER_ACCEPTED' | 'OFFER_REJECTED';
+export type ApplicationStatus =
+  | "APPLIED"
+  | "REVIEW"
+  | "REVIEW_COMPLETED"
+  | "REVIEW_FAILED"
+  | "INTERVIEW_SCHEDULED"
+  | "INTERVIEW_COMPLETED"
+  | "SELECTED"
+  | "REJECTED"
+  | "OFFER_ACCEPTED"
+  | "OFFER_REJECTED";
 
 export interface ApplicantApplicationSchema {
-    applicantId: number;
-    appliedOn: Date;
-    location: string;
-    orgName: string;
-    recruitmentId: number;
-    roleName: string;
-    status: ApplicationStatus;
-    userId: number;
+  applicantId: number;
+  appliedOn: Date;
+  location: string;
+  orgName: string;
+  recruitmentId: number;
+  roleName: string;
+  status: ApplicationStatus;
+  userId: number;
 }
 
 export interface HasApplicantAppliedResponse {
-    hasApplied: boolean;
+  hasApplied: boolean;
 }
 
 export interface ApplicationDetailsWithStatusHistory {
-    applicantRecruitmentMappingId: number;
-    appliedOn: Date;
-    location: string;
-    orgName: string;
-    recruitmentId: number;
-    resumeSubmitted: string;
-    roleName: string;
-    statusHistList: StatusHistList[];
+  applicantRecruitmentMappingId: number;
+  appliedOn: Date;
+  location: string;
+  orgName: string;
+  recruitmentId: number;
+  resumeSubmitted: string;
+  roleName: string;
+  statusHistList: StatusHistList[];
 }
 
 export interface StatusHistList {
-    applicantRecruitmentMappingStatusHistId: number;
-    createdAt: Date;
-    isActive: boolean;
-    status: ApplicationStatus;
+  applicantRecruitmentMappingStatusHistId: number;
+  createdAt: Date;
+  isActive: boolean;
+  status: ApplicationStatus;
 }
 
 // New dashboard interfaces
 export interface TopOpeningDto {
-    id: number;
-    title: string;
-    department: string;
-    type: string;
-    location: string;
-    postedDate: string;
-    applicationsCount: number;
-    viewsCount: number;
-    status: string;
-    daysOpen: number;
+  id: number;
+  title: string;
+  department: string;
+  type: string;
+  location: string;
+  postedDate: string;
+  applicationsCount: number;
+  viewsCount: number;
+  status: string;
+  daysOpen: number;
 }
 
 export interface TopRoleDto {
-    role: string;
-    openings: number;
-    applications: number;
-    conversionRate: number;
+  role: string;
+  openings: number;
+  applications: number;
+  conversionRate: number;
 }
 
 export interface StatusBreakdownDto {
-    status: string;
-    count: number;
-    color: string;
+  status: string;
+  count: number;
+  color: string;
 }
 
 export interface CompanyInsightDto {
-    orgId: number;
-    orgName: string;
-    totalOpenings: number;
-    totalApplications: number;
-    applicationsThisWeek: number;
-    avgTimeToFill: number;
-    topOpenings: TopOpeningDto[];
-    topRoles: TopRoleDto[];
-    statusBreakdown: StatusBreakdownDto[];
-    hiringTrend: string;
-    trendPercent: number;
+  orgId: number;
+  orgName: string;
+  totalOpenings: number;
+  totalApplications: number;
+  applicationsThisWeek: number;
+  avgTimeToFill: number;
+  topOpenings: TopOpeningDto[];
+  topRoles: TopRoleDto[];
+  statusBreakdown: StatusBreakdownDto[];
+  hiringTrend: string;
+  trendPercent: number;
 }
 
 export interface ShippingPartnerInsightDto {
-    companyId: number;
-    company: string;
-    companyType: string;
-    monthlyVolume: string;
-    partnersNeeded: number;
-    currentPartners: number;
-    shippingMethods: string[];
-    enrollmentDeadline: string;
-    requirements: string;
-    applicationsReceived: number;
-    approvedPartners: number;
-    pendingReview: number;
-    avgResponseTime: string;
-    partnershipHealth: string;
+  companyId: number;
+  company: string;
+  companyType: string;
+  monthlyVolume: string;
+  partnersNeeded: number;
+  currentPartners: number;
+  shippingMethods: string[];
+  enrollmentDeadline: string;
+  requirements: string;
+  applicationsReceived: number;
+  approvedPartners: number;
+  pendingReview: number;
+  avgResponseTime: string;
+  partnershipHealth: string;
 }
 
 export interface DashboardStatsDto {
-    label: string;
-    value: string;
-    change: string;
-    changeType: 'positive' | 'negative' | 'neutral';
-    icon: string;
-    color: string;
+  label: string;
+  value: string;
+  change: string;
+  changeType: "positive" | "negative" | "neutral";
+  icon: string;
+  color: string;
 }
-
-

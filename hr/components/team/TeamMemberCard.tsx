@@ -16,11 +16,11 @@ interface TeamMemberCardProps {
 function getRoleIcon(role: TeamRole, size: number = 16) {
 	switch (role) {
 		case "TEAM_LEAD":
-			return <UserCheck className={`w-${size / 4} h-${size / 4} text-amber-500`} title="Team Lead" />;
+			return <UserCheck className={`w-${size / 4} h-${size / 4} text-amber-500`} />;
 		case "MANAGER":
-			return <UserCog className={`w-${size / 4} h-${size / 4} text-blue-500`} title="Manager" />;
+			return <UserCog className={`w-${size / 4} h-${size / 4} text-blue-500`} />;
 		case "EMPLOYEE":
-			return <User className={`w-${size / 4} h-${size / 4} text-green-500`} title="Employee" />;
+			return <User className={`w-${size / 4} h-${size / 4} text-green-500`} />;
 	}
 }
 
@@ -58,15 +58,12 @@ export function TeamMemberCard({
 	const isFullMember = "subordinates" in member;
 	const userName = "user" in member ? member.user.name : member.userName;
 	const userEmail = "user" in member ? member.user.email : member.userEmail;
-	const userId = "user" in member ? member.user.id : member.userId;
 	const profilePhoto = "user" in member ? member.user.profilePhoto : undefined;
 
 	const handleActionClick = (action: "edit" | "remove" | "view-subordinates", e: React.MouseEvent) => {
 		e.stopPropagation();
-		// Only call callbacks if member is a full TeamMember (has subordinates property)
 		const isFullMember = "subordinates" in member;
 		const fullMember = isFullMember ? member : null;
-
 		switch (action) {
 			case "edit":
 				if (fullMember) onEdit?.(fullMember);
@@ -83,21 +80,15 @@ export function TeamMemberCard({
 	if (compact) {
 		return (
 			<div className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
-				<div className="relative flex-shrink-0">
+				<div className="relative shrink-0">
 					{profilePhoto ? (
-						<img
-							src={profilePhoto}
-							alt={userName}
-							className="w-8 h-8 rounded-full object-cover"
-						/>
+						<img src={profilePhoto} alt={userName} className="w-8 h-8 rounded-full object-cover" />
 					) : (
 						<div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600">
 							{getInitials(userName)}
 						</div>
 					)}
-					<div className="absolute -bottom-1 -right-1">
-						{getRoleIcon(member.role, 12)}
-					</div>
+					<div className="absolute -bottom-1 -right-1">{getRoleIcon(member.role, 12)}</div>
 				</div>
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-2">
@@ -117,20 +108,12 @@ export function TeamMemberCard({
 				{showActions && (
 					<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 						{onEdit && (
-							<button
-								onClick={(e) => handleActionClick("edit", e)}
-								className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-								title="Edit"
-							>
+							<button onClick={(e) => handleActionClick("edit", e)} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700" title="Edit">
 								<Edit2 className="w-3 h-3" />
 							</button>
 						)}
 						{onRemove && (
-							<button
-								onClick={(e) => handleActionClick("remove", e)}
-								className="p-1 rounded hover:bg-red-50 text-gray-500 hover:text-red-600"
-								title="Remove"
-							>
+							<button onClick={(e) => handleActionClick("remove", e)} className="p-1 rounded hover:bg-red-50 text-gray-500 hover:text-red-600" title="Remove">
 								<Trash2 className="w-3 h-3" />
 							</button>
 						)}
@@ -144,23 +127,16 @@ export function TeamMemberCard({
 		<div className="group bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
 			<div className="flex items-start gap-4">
 				{/* Avatar */}
-				<div className="relative flex-shrink-0">
+				<div className="relative shrink-0">
 					{profilePhoto ? (
-						<img
-							src={profilePhoto}
-							alt={userName}
-							className="w-12 h-12 rounded-full object-cover"
-						/>
+						<img src={profilePhoto} alt={userName} className="w-12 h-12 rounded-full object-cover" />
 					) : (
 						<div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-medium text-gray-600">
 							{getInitials(userName)}
 						</div>
 					)}
-					<div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full shadow-sm">
-						{getRoleIcon(member.role, 20)}
-					</div>
+					<div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full shadow-sm">{getRoleIcon(member.role, 20)}</div>
 				</div>
-
 				{/* Member Info */}
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-3">
@@ -177,57 +153,35 @@ export function TeamMemberCard({
 							)}
 						</div>
 					</div>
-
 					{member.teamPosition && (
 						<div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
 							<Settings className="w-4 h-4 text-gray-400" />
 							<span>{member.teamPosition}</span>
 						</div>
 					)}
-
 					{isFullMember && member.subordinates.length > 0 && (
 						<div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
 							<UserPlus className="w-4 h-4 text-gray-400" />
 							<span>{member.subordinates.length} direct report{member.subordinates.length !== 1 ? "s" : ""}</span>
 							{onViewSubordinates && (
-								<button
-									onClick={(e) => handleActionClick("view-subordinates", e)}
-									className="ml-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
-								>
+								<button onClick={(e) => handleActionClick("view-subordinates", e)} className="ml-2 text-blue-600 hover:text-blue-800 text-xs font-medium">
 									View all
 								</button>
 							)}
 						</div>
 					)}
 				</div>
-
 				{/* Actions */}
 				{showActions && (
 					<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 						{onEdit && (
-							<button
-								onClick={(e) => handleActionClick("edit", e)}
-								className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-								title="Edit member"
-							>
+							<button onClick={(e) => handleActionClick("edit", e)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700" title="Edit member">
 								<Edit2 className="w-4 h-4" />
 							</button>
 						)}
-						{onViewSubordinates && isFullMember && member.subordinates.length > 0 && (
-							<button
-								onClick={(e) => handleActionClick("view-subordinates", e)}
-								className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-								title="View subordinates"
-							>
-								<UserPlus className="w-4 h-4" />
-							</button>
-						)}
+						
 						{onRemove && (
-							<button
-								onClick={(e) => handleActionClick("remove", e)}
-								className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600"
-								title="Remove member"
-							>
+							<button onClick={(e) => handleActionClick("remove", e)} className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600" title="Remove member">
 								<Trash2 className="w-4 h-4" />
 							</button>
 						)}
@@ -237,5 +191,3 @@ export function TeamMemberCard({
 		</div>
 	);
 }
-
-export default TeamMemberCard;

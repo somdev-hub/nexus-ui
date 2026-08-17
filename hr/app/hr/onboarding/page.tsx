@@ -37,7 +37,8 @@ import {
     triggerEventMail,
     updateEventTemplate,
     getEventHitsStatusWise,
-    getEventHitsMonthWise
+    getEventHitsMonthWise,
+    decrypt
 } from "@/lib/auth-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { EventTriggerAreaChart } from "@/components/charts/event-trigger-area-chart";
 import { EventStatusDonutChart } from "@/components/charts/event-status-donut-chart";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 enum ParamType {
     BODY_PARAM = "BODY_PARAM",
@@ -83,12 +87,37 @@ interface TriggerParams {
 const INITIAL_EVENT = {
     eventName: "",
     eventType: "",
-    eventTemplateId: null as unknown as number,
+    eventTemplateId: undefined as unknown as number,
     params: [] as EventParam[],
     // ← initialise with boilerplate so the editor is never empty
     templateHtml: "",
     subject: "",
 };
+
+const eventParamSchema = z.object({
+    key: z.string().min(1, "Parameter name is required"),
+    defaultValue: z.string(),
+    paramType: z.enum(["BODY_PARAM", "TITLE_PARAM", "null"] as const),
+    isRequired: z.boolean(),
+});
+
+const triggerParamSchema = z.object({
+    key: z.string().min(1, "Parameter key is required"),
+    value: z.string().min(1, "Parameter value is required"),
+});
+
+const onboardingFormSchema = z.object({
+    eventName: z.string().min(1, "Event name is required"),
+    eventType: z.string().min(1, "Event type is required"),
+    eventTemplateId: z.number().nullable().optional(),
+    params: z.array(eventParamSchema).min(1, "At least one parameter is required"),
+    templateHtml: z.string(),
+    subject: z.string().min(1, "Subject is required"),
+});
+
+type OnboardingFormValues = z.infer<typeof onboardingFormSchema>;
+type EventParamFormValues = z.infer<typeof eventParamSchema>;
+type TriggerParamFormValues = z.infer<typeof triggerParamSchema>;
 
 export default function Onboarding() {
     const { toast } = useToast();
@@ -97,12 +126,6 @@ export default function Onboarding() {
     const [shortEventTemplates, setShortEventTemplates] = useState<
         ShortEventTemplateResponse[]
     >([]);
-    const [eventData, setEventData] = useState(
-        null as unknown as typeof INITIAL_EVENT,
-    );
-    const [actualEventData, setActualEventData] = useState(
-        null as unknown as typeof INITIAL_EVENT,
-    );
     const [loading, setLoading] = useState({
         templates: false,
         particularTemplate: false,
@@ -111,12 +134,42 @@ export default function Onboarding() {
         update: false,
         mailTrigger: false,
     });
-    // const [isEdited, setIsEdited] = useState(false);
-    const isEdited =
-        JSON.stringify(eventData) !== JSON.stringify(actualEventData);
     const [deletion, setDeletion] = useState(false);
-    const hasTemplateHtmlEdited =
-        eventData?.templateHtml !== actualEventData?.templateHtml;
+
+    const {
+        control,
+        register,
+        handleSubmit,
+        setValue,
+        getValues,
+        watch,
+        reset,
+        formState: { errors, isDirty },
+    } = useForm<OnboardingFormValues>({
+        resolver: zodResolver(onboardingFormSchema),
+        defaultValues: {
+            eventName: "",
+            eventType: "",
+            eventTemplateId: null,
+            params: [],
+            templateHtml: "",
+            subject: "",
+        },
+    });
+
+    const { fields, append, remove, update } = useFieldArray({
+        control,
+        name: "params",
+    });
+
+    const watchedParams = watch("params");
+    const watchedTemplateHtml = watch("templateHtml");
+    const watchedEventName = watch("eventName");
+    const watchedEventType = watch("eventType");
+    const watchedSubject = watch("subject");
+
+    const hasTemplateHtmlEdited = watchedTemplateHtml !== "";
+    const isEdited = isDirty;
 
     const [triggerParams, setTriggerParams] = useState({
         recipientEmails: [""],
@@ -153,7 +206,6 @@ export default function Onboarding() {
     const handleTriggerEvent = async () => {
         try {
             setLoading((prev) => ({ ...prev, mailTrigger: true }));
-            // validations
             if (!triggerParams.recipientEmails[0]) {
                 toast({
                     title: "Recipient email is required",
@@ -198,70 +250,40 @@ export default function Onboarding() {
         }
     };
 
-    const [pairs, setPairs] = useState(
-        perticularEventData.templateParams.map((param) => ({
-            key: param.paramName,
-            defaultValue: param.paramDefaultValue,
-            paramType: param.templateParamType,
-            isRequired: param.isRequired,
-        })),
-    );
-
     const addPair = () => {
-        setPairs((p) => [...p, { ...EMPTY_PAIR }]);
-        setEventData((prev) => ({
-            ...prev,
-            params: [...prev.params, { ...EMPTY_PAIR }],
-        }));
+        append({
+            key: "",
+            defaultValue: "",
+            paramType: "BODY_PARAM",
+            isRequired: false,
+        });
     };
 
     const removePair = (index: number) => {
-        if (pairs.length === 1) {
-            setPairs([{ ...EMPTY_PAIR }]);
-            setEventData((prev) => ({
-                ...prev,
-                params: [{ ...EMPTY_PAIR }],
-            }));
+        if (fields.length === 1) {
+            update(0, {
+                key: "",
+                defaultValue: "",
+                paramType: "BODY_PARAM",
+                isRequired: false,
+            });
             return;
         }
-        setPairs((p) => p.filter((_, i) => i !== index));
-        // update eventData
-        setEventData((prev) => {
-            const nextParams = prev.params.filter((_, i) => i !== index);
-            return { ...prev, params: nextParams };
-        });
-        // updateIsEdited();
+        remove(index);
     };
 
     const updatePair = (
         index: number,
-        field: string,
+        field: keyof EventParamFormValues,
         value: string | boolean,
     ) => {
-        setPairs((prev) => {
-            const next = [...prev];
-            next[index] = { ...next[index], [field]: value };
-            return next;
-        });
-        // update eventData
-        setEventData((prev) => {
-            const nextParams = [...prev.params];
-            nextParams[index] = { ...nextParams[index], [field]: value };
-            return { ...prev, params: nextParams };
-        });
-        // updateIsEdited();
-    };
-
-    const updateEventData = (field: string, value: string) => {
-        setEventData((prev) => ({ ...prev, [field]: value }));
-        // updateIsEdited();
+        update(index, { [field]: value } as EventParamFormValues);
     };
 
     const handleSubmitSearchByName = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading((prev) => ({ ...prev, search: true }));
         try {
-            // Implement search logic here, e.g., filter shortEventTemplates based on eventData.eventName
             const response = await getEventTemplateByName(searchName, Number(orgId));
             if (response) {
                 setShortEventTemplates([response]);
@@ -275,9 +297,7 @@ export default function Onboarding() {
 
     const handleSelectParticularEvent = async (templateId: number) => {
         try {
-            setEventData(null as unknown as typeof INITIAL_EVENT);
             setLoading((prev) => ({ ...prev, particularTemplate: true }));
-
             const response: CreateEventTemplateResponse =
                 await getEventTemplateById(templateId);
 
@@ -289,23 +309,25 @@ export default function Onboarding() {
                     isRequired: param?.isRequired,
                 }));
 
-                const newEventData: typeof INITIAL_EVENT = {
-                    ...eventData,
+                const formValues: OnboardingFormValues = {
                     eventTemplateId: response.eventTemplateId,
                     eventName: response.templateName,
                     eventType: response.eventTemplateType,
-                    params: newParams, // ← use the same array
+                    params: newParams,
                     subject: response.eventSubject,
+                    templateHtml: "",
                 };
 
                 if (response.templateHtmlUrl) {
                     const htmlResponse = await fetch(response.templateHtmlUrl);
-                    newEventData.templateHtml = await htmlResponse.text();
+                    let htmlResponseText = await htmlResponse.text();
+                    if (!htmlResponseText.startsWith("<!DOCTYPE html>")) {
+                        htmlResponseText = await decrypt(htmlResponseText);
+                    }
+                    formValues.templateHtml = htmlResponseText;
                 }
 
-                setPairs(newParams); // ← ADD THIS
-                setEventData(newEventData);
-                setActualEventData(newEventData);
+                reset(formValues);
                 setTriggerParams((prev) => ({
                     ...prev,
                     templateName: response.templateName,
@@ -325,24 +347,31 @@ export default function Onboarding() {
     const handleTemplateDelete = async () => {
         try {
             setLoading((prev) => ({ ...prev, delete: true }));
+            const values = getValues();
             const response = await updateEventTemplate(false, {
-                eventTemplateId: eventData.eventTemplateId,
-                templateName: eventData.eventName,
-                eventTemplateType: eventData.eventType,
-                eventSubject: eventData.subject,
+                eventTemplateId: values.eventTemplateId ?? undefined,
+                templateName: values.eventName,
+                eventTemplateType: values.eventType,
+                eventSubject: values.subject,
                 orgId: Number(orgId),
-                templateParams: eventData.params.map((param) => ({
+                templateParams: values.params.map((param) => ({
                     paramName: param.key,
                     paramDefaultValue: param.defaultValue,
                     templateParamType: param.paramType,
                     isRequired: param.isRequired,
                 })),
-                templateHtml: eventData.templateHtml,
+                templateHtml: values.templateHtml,
                 isActive: false,
             });
             if (response) {
-                // handle response, e.g., show a success message, refresh the list, etc.
-                setEventData(null as unknown as typeof INITIAL_EVENT);
+                reset({
+                    eventName: "",
+                    eventType: "",
+                    eventTemplateId: null,
+                    params: [],
+                    templateHtml: "",
+                    subject: "",
+                });
                 fetchEventTemplates();
                 toast({
                     title: "Template deleted",
@@ -350,7 +379,6 @@ export default function Onboarding() {
                     variant: "default",
                 });
             }
-            // handle response, e.g., show a success message, refresh the list, etc.
         } catch (error) {
             toast({
                 title: "Error deleting template",
@@ -367,21 +395,25 @@ export default function Onboarding() {
     const handleTemplateUpdate = async () => {
         try {
             setLoading((prev) => ({ ...prev, update: true }));
-            const response = await updateEventTemplate(hasTemplateHtmlEdited, {
-                eventTemplateId: eventData.eventTemplateId,
-                templateName: eventData.eventName,
-                eventTemplateType: eventData.eventType,
-                eventSubject: eventData.subject,
-                orgId: Number(orgId),
-                templateParams: eventData.params.map((param) => ({
-                    paramName: param.key,
-                    paramDefaultValue: param.defaultValue,
-                    templateParamType: param.paramType,
-                    isRequired: param.isRequired,
-                })),
-                templateHtml: eventData.templateHtml,
-                isActive: true,
-            });
+            const values = getValues();
+            const response = await updateEventTemplate(
+                values.templateHtml !== "",
+                {
+                    eventTemplateId: values.eventTemplateId ?? undefined,
+                    templateName: values.eventName,
+                    eventTemplateType: values.eventType,
+                    eventSubject: values.subject,
+                    orgId: Number(orgId),
+                    templateParams: values.params.map((param) => ({
+                        paramName: param.key,
+                        paramDefaultValue: param.defaultValue,
+                        templateParamType: param.paramType,
+                        isRequired: param.isRequired,
+                    })),
+                    templateHtml: values.templateHtml,
+                    isActive: true,
+                },
+            );
             if (response) {
                 toast({
                     title: "Template updated",
@@ -404,10 +436,9 @@ export default function Onboarding() {
 
     const fetchEventTemplates = useCallback(async () => {
         try {
-            if (!orgId) return; // ← skip if orgId isn't ready yet
+            if (!orgId) return;
             setLoading((prev) => ({ ...prev, templates: true }));
             const response = await getEventTemplates(Number(orgId));
-            // set after sorting according to templateId
             if (response) {
                 response?.sort((a, b) => a.eventTemplateId - b.eventTemplateId);
                 setShortEventTemplates(response);
@@ -516,7 +547,7 @@ export default function Onboarding() {
                 </Card>
             </section>
 
-            {eventData && (
+            {(watchedEventName || watchedEventType || watchedSubject) && (
                 <section>
                     <Card className="p-4 gap-2">
                         <CardHeader className="p-0">
@@ -536,9 +567,10 @@ export default function Onboarding() {
                             </div>
                         </CardContent>
                     </Card>
-                </section>)}
+                </section>
+            )}
 
-            {eventData && (
+            {(watchedEventName || watchedEventType || watchedSubject) && (
                 <section>
                     <Card className="p-4 gap-2">
                         <h3 className="font-semibold m-0">Test event template</h3>
@@ -568,18 +600,18 @@ export default function Onboarding() {
                         </div>
                         {/* fill the params */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                            {pairs.map((pair, index) => (
+                            {fields.map((field, index) => (
                                 <div key={index} className="flex flex-col gap-4">
-                                    <Label>{pair.key || `Param ${index + 1}`}</Label>
+                                    <Label>{field.key || `Param ${index + 1}`}</Label>
                                     <Input
                                         type="text"
-                                        placeholder={`Enter value for ${pair.key || `Param ${index + 1}`}`}
+                                        placeholder={`Enter value for ${field.key || `Param ${index + 1}`}`}
                                         className="flex-1 p-2"
                                         value={triggerParams.templateParams[index]?.value || ""}
                                         onChange={(e) => {
                                             const newParams = [...triggerParams.templateParams];
                                             newParams[index] = {
-                                                key: pair.key,
+                                                key: field.key,
                                                 value: e.target.value,
                                             };
                                             setTriggerParams({
@@ -595,7 +627,7 @@ export default function Onboarding() {
                 </section>
             )}
 
-            {eventData ? (
+            {(watchedEventName || watchedEventType || watchedSubject) ? (
                 <section>
                     <Card className="p-4">
                         <h3 className=" font-semibold ">Event Template Details</h3>
@@ -604,52 +636,65 @@ export default function Onboarding() {
                             <div className="space-y-2">
                                 <Label>Template Name</Label>
                                 <Input
-                                    value={eventData.eventName}
-                                    onChange={(e) => updateEventData("eventName", e.target.value)}
+                                    {...register("eventName")}
+                                    placeholder="Enter template name"
                                 />
+                                {errors.eventName && (
+                                    <p className="text-sm text-destructive">{errors.eventName.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label>Event Type</Label>
-                                <Select
-                                    key={eventData.eventType}
-                                    value={eventData.eventType}
-                                    onValueChange={(v) => updateEventData("eventType", v)}>
-                                    <SelectTrigger className="w-full mb-0">
-                                        <SelectValue placeholder="Select event type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="EXTERNAL_MAIL_TEMPLATE">
-                                            External Mail Template
-                                        </SelectItem>
-                                        <SelectItem value="INTERNAL_NOTIFICATION_TEMPLATE">
-                                            Internal Notification Template
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Controller
+                                    name="eventType"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Select
+                                            value={field.value}
+                                            onValueChange={field.onChange}>
+                                            <SelectTrigger className="w-full mb-0">
+                                                <SelectValue placeholder="Select event type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="EXTERNAL_MAIL_TEMPLATE">
+                                                    External Mail Template
+                                                </SelectItem>
+                                                <SelectItem value="INTERNAL_NOTIFICATION_TEMPLATE">
+                                                    Internal Notification Template
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                                {errors.eventType && (
+                                    <p className="text-sm text-destructive">{errors.eventType.message}</p>
+                                )}
                             </div>
                         </div>
                         <div className="">
                             <div className="space-y-2">
                                 <Label>Subject</Label>
                                 <Input
+                                    {...register("subject")}
                                     placeholder="Enter the subject of the email"
-                                    value={eventData.subject ?? ""}
-                                    onChange={(e) => updateEventData("subject", e.target.value)}
                                 />
+                                {errors.subject && (
+                                    <p className="text-sm text-destructive">{errors.subject.message}</p>
+                                )}
                             </div>
                         </div>
 
                         {/* Param pairs */}
                         <div className="flex-1 space-y-3">
                             <Label>Add template param pairs</Label>
-                            {pairs.map((pair, index) => (
+                            {fields.map((field, index) => (
                                 <div
-                                    key={index}
+                                    key={field.id}
                                     className="group relative rounded-md border border-border p-3 transition-colors hover:border-muted-foreground/50">
                                     <button
                                         type="button"
                                         onClick={() => removePair(index)}
-                                        disabled={pairs.length === 1}
+                                        disabled={fields.length === 1}
                                         aria-label="Remove row"
                                         className="absolute -right-2.5 -top-2.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity hover:border-destructive hover:text-destructive group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0">
                                         <Minus className="h-3 w-3" />
@@ -658,40 +703,50 @@ export default function Onboarding() {
                                     <div className="flex flex-wrap gap-2">
                                         <Input
                                             placeholder="Param"
-                                            value={pair.key}
+                                            value={field.key}
                                             className="min-w-30 flex-1"
                                             onChange={(e) => updatePair(index, "key", e.target.value)}
                                         />
                                         <Input
                                             placeholder="Default Value"
-                                            value={pair.defaultValue}
+                                            value={field.defaultValue}
                                             className="min-w-30 flex-1"
                                             onChange={(e) =>
                                                 updatePair(index, "defaultValue", e.target.value)
                                             }
                                         />
-                                        <Select
-                                            value={pair.paramType}
-                                            onValueChange={(v) => updatePair(index, "paramType", v)}>
-                                            <SelectTrigger className="min-w-40 flex-1">
-                                                <SelectValue placeholder="Select parameter type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value={ParamType.BODY_PARAM}>
-                                                    Body Parameter
-                                                </SelectItem>
-                                                <SelectItem value={ParamType.TITLE_PARAM}>
-                                                    Title Parameter
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <Controller
+                                            name={`params.${index}.paramType`}
+                                            control={control}
+                                            render={({ field: selectField }) => (
+                                                <Select
+                                                    value={selectField.value}
+                                                    onValueChange={selectField.onChange}>
+                                                    <SelectTrigger className="min-w-40 flex-1">
+                                                        <SelectValue placeholder="Select parameter type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value={ParamType.BODY_PARAM}>
+                                                            Body Parameter
+                                                        </SelectItem>
+                                                        <SelectItem value={ParamType.TITLE_PARAM}>
+                                                            Title Parameter
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
                                         <div className="flex items-center space-x-2">
-                                            <Switch
-                                                id={`switch-${index}`}
-                                                checked={pair.isRequired}
-                                                onCheckedChange={(v) =>
-                                                    updatePair(index, "isRequired", v)
-                                                }
+                                            <Controller
+                                                name={`params.${index}.isRequired`}
+                                                control={control}
+                                                render={({ field: switchField }) => (
+                                                    <Switch
+                                                        id={`switch-${index}`}
+                                                        checked={switchField.value}
+                                                        onCheckedChange={switchField.onChange}
+                                                    />
+                                                )}
                                             />
                                             <Label htmlFor={`switch-${index}`}>Required</Label>
                                         </div>
@@ -706,12 +761,21 @@ export default function Onboarding() {
                                     </button>
                                 </div>
                             ))}
+                            {errors.params && (
+                                <p className="text-sm text-destructive">{errors.params.root?.message || errors.params.message}</p>
+                            )}
                         </div>
 
                         {/* HTML editor — controlled, pre-seeded with boilerplate */}
-                        <HtmlEditorPreview
-                            value={eventData.templateHtml}
-                            onChange={(html) => updateEventData("templateHtml", html)}
+                        <Controller
+                            name="templateHtml"
+                            control={control}
+                            render={({ field }) => (
+                                <HtmlEditorPreview
+                                    value={field.value ?? ""}
+                                    onChange={field.onChange}
+                                />
+                            )}
                         />
                         <div className="flex gap-4 justify-end mt-2 items-center">
                             <Button variant="destructive" onClick={() => setDeletion(true)}>

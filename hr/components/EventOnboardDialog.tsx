@@ -11,6 +11,9 @@ import {
     DialogTrigger
 } from "./ui/dialog";
 import { useState } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import {
@@ -50,6 +53,23 @@ const EMPTY_PAIR: EventParam = {
     isRequired: false
 };
 
+const eventParamSchema = z.object({
+    key: z.string().min(1, "Parameter name is required"),
+    defaultValue: z.string(),
+    paramType: z.enum(["BODY_PARAM", "TITLE_PARAM"] as const),
+    isRequired: z.boolean(),
+});
+
+const eventOnboardSchema = z.object({
+    eventName: z.string().min(1, "Event name is required"),
+    eventType: z.string().min(1, "Event type is required"),
+    subject: z.string().min(1, "Subject is required"),
+    params: z.array(eventParamSchema).min(1, "At least one parameter is required"),
+    templateHtml: z.string().min(1, "Template HTML is required"),
+});
+
+type EventOnboardFormValues = z.infer<typeof eventOnboardSchema>;
+
 const INITIAL_EVENT = {
     eventName: "",
     eventType: "",
@@ -62,74 +82,97 @@ const INITIAL_EVENT = {
 const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
     const { userId, orgId } = useUserMetadata();
     const { toast } = useToast();
-    const [eventData, setEventData] = useState(INITIAL_EVENT);
     const [open, setOpen] = useState(false);
-    const [pairs, setPairs] = useState<EventParam[]>([{ ...EMPTY_PAIR }]);
     const [loading, setLoading] = useState({
         saveTemplate: false,
     });
 
-    const addPair = () => setPairs((p) => [...p, { ...EMPTY_PAIR }]);
+    const {
+        control,
+        register,
+        handleSubmit,
+        formState: { errors },
+        reset,
+        watch,
+    } = useForm<EventOnboardFormValues>({
+        resolver: zodResolver(eventOnboardSchema),
+        defaultValues: {
+            eventName: "",
+            eventType: "",
+            subject: "",
+            params: [{ ...EMPTY_PAIR }],
+            templateHtml: HTML_BOILERPLATE,
+        },
+    });
+
+    const { fields, append, remove, update } = useFieldArray({
+        control,
+        name: "params",
+    });
+
+    const watchedTemplateHtml = watch("templateHtml");
+
+    const addPair = () =>
+        append({
+            key: "",
+            defaultValue: "",
+            paramType: ParamType.BODY_PARAM,
+            isRequired: false,
+        });
 
     const removePair = (index: number) => {
-        if (pairs.length === 1) {
-            setPairs([{ ...EMPTY_PAIR }]);
+        if (fields.length === 1) {
+            update(0, {
+                key: "",
+                defaultValue: "",
+                paramType: ParamType.BODY_PARAM,
+                isRequired: false,
+            });
             return;
         }
-        setPairs((p) => p.filter((_, i) => i !== index));
+        remove(index);
     };
-
-    const updateEventData = (field: string, value: string) =>
-        setEventData((prev) => ({ ...prev, [field]: value }));
 
     const updatePair = (
         index: number,
-        field: string,
-        value: string | boolean
+        field: keyof EventParam,
+        value: string | boolean,
     ) => {
-        setPairs((prev) => {
-            const next = [...prev];
-            next[index] = { ...next[index], [field]: value };
-            return next;
-        });
-        // update eventData
-        setEventData((prev) => {
-            const nextParams = [...prev.params];
-            nextParams[index] = { ...nextParams[index], [field]: value };
-            return { ...prev, params: nextParams };
-        });
+        update(index, { ...fields[index], [field]: value } as EventParam);
     };
 
     const onClose = () => {
         setOpen(false);
-        setEventData(INITIAL_EVENT);
-        setPairs([{ ...EMPTY_PAIR }]);
+        reset({
+            eventName: "",
+            eventType: "",
+            subject: "",
+            params: [{ ...EMPTY_PAIR }],
+            templateHtml: HTML_BOILERPLATE,
+        });
     };
 
-    const onSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        console.log("Event Data:", eventData);
-        console.log("Parameter Pairs:", pairs);
+    const onSubmit = async (values: EventOnboardFormValues) => {
         try {
             setLoading({ ...loading, saveTemplate: true });
             const response = await createEventTemplate({
-                templateName: eventData.eventName,
-                eventTemplateType: eventData.eventType,
-                eventSubject: eventData.subject,
+                templateName: values.eventName,
+                eventTemplateType: values.eventType,
+                eventSubject: values.subject,
                 orgId: Number(orgId),
-                templateParams: pairs.map((pair) => ({
-                    paramName: pair.key,
-                    paramDefaultValue: pair.defaultValue,
-                    templateParamType: pair.paramType,
-                    isRequired: pair.isRequired
+                templateParams: values.params.map((param) => ({
+                    paramName: param.key,
+                    paramDefaultValue: param.defaultValue,
+                    templateParamType: param.paramType,
+                    isRequired: param.isRequired,
                 })),
-                templateHtml: eventData.templateHtml
+                templateHtml: values.templateHtml,
             });
             if (response) {
                 toast({
                     title: "Event Created",
                     description: "The event template has been created successfully.",
-                    variant: "default"
+                    variant: "default",
                 });
                 onClose();
             }
@@ -138,10 +181,9 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
             toast({
                 title: "Error",
                 description: "Failed to create event template.",
-                variant: "destructive"
+                variant: "destructive",
             });
-        }
-        finally {
+        } finally {
             setLoading({ ...loading, saveTemplate: false });
         }
     };
@@ -171,7 +213,7 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
                     <DialogDescription>Welcome to the onboard event!</DialogDescription>
                 </DialogHeader>
 
-                <form className="space-y-5" onSubmit={onSubmit}>
+                <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
                     {/* Event name + type row */}
                     <div className="flex justify-between items-center gap-6 w-full">
                         <div className="flex-1 space-y-3">
@@ -179,28 +221,38 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
                             <Input
                                 id="event-name"
                                 placeholder="Enter event name"
-                                value={eventData.eventName}
-                                onChange={(e) => updateEventData("eventName", e.target.value)}
+                                {...register("eventName")}
                             />
+                            {errors.eventName && (
+                                <p className="text-sm text-destructive">{errors.eventName.message}</p>
+                            )}
                         </div>
                         <div className="flex-1 space-y-3">
                             <Label htmlFor="event-type">Event Type</Label>
-                            <Select
-                                value={eventData.eventType}
-                                onValueChange={(v) => updateEventData("eventType", v)}
-                            >
-                                <SelectTrigger className="w-full mb-0">
-                                    <SelectValue placeholder="Select event type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="EXTERNAL_MAIL_TEMPLATE">
-                                        External Mail Template
-                                    </SelectItem>
-                                    <SelectItem value="INTERNAL_NOTIFICATION_TEMPLATE">
-                                        Internal Notification Template
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Controller
+                                name="eventType"
+                                control={control}
+                                render={({ field }) => (
+                                    <Select
+                                        value={field.value}
+                                        onValueChange={field.onChange}>
+                                        <SelectTrigger className="w-full mb-0">
+                                            <SelectValue placeholder="Select event type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="EXTERNAL_MAIL_TEMPLATE">
+                                                External Mail Template
+                                            </SelectItem>
+                                            <SelectItem value="INTERNAL_NOTIFICATION_TEMPLATE">
+                                                Internal Notification Template
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            />
+                            {errors.eventType && (
+                                <p className="text-sm text-destructive">{errors.eventType.message}</p>
+                            )}
                         </div>
                     </div>
 
@@ -209,24 +261,26 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
                             <Label>Subject</Label>
                             <Input
                                 placeholder="Enter the subject of the email"
-                                value={eventData.subject ?? ""}
-                                onChange={(e) => updateEventData("subject", e.target.value)}
+                                {...register("subject")}
                             />
+                            {errors.subject && (
+                                <p className="text-sm text-destructive">{errors.subject.message}</p>
+                            )}
                         </div>
                     </div>
 
                     {/* Param pairs */}
                     <div className="flex-1 space-y-3">
                         <Label>Add template param pairs</Label>
-                        {pairs.map((pair, index) => (
+                        {fields.map((field, index) => (
                             <div
-                                key={index}
+                                key={field.id}
                                 className="group relative rounded-md border border-border p-3 transition-colors hover:border-muted-foreground/50"
                             >
                                 <button
                                     type="button"
                                     onClick={() => removePair(index)}
-                                    disabled={pairs.length === 1}
+                                    disabled={fields.length === 1}
                                     aria-label="Remove row"
                                     className="absolute -right-2.5 -top-2.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity hover:border-destructive hover:text-destructive group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0"
                                 >
@@ -236,41 +290,46 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
                                 <div className="flex flex-wrap gap-2">
                                     <Input
                                         placeholder="Param"
-                                        value={pair.key}
+                                        {...register(`params.${index}.key`)}
                                         className="min-w-30 flex-1"
-                                        onChange={(e) => updatePair(index, "key", e.target.value)}
                                     />
                                     <Input
                                         placeholder="Default Value"
-                                        value={pair.defaultValue}
+                                        {...register(`params.${index}.defaultValue`)}
                                         className="min-w-30 flex-1"
-                                        onChange={(e) =>
-                                            updatePair(index, "defaultValue", e.target.value)
-                                        }
                                     />
-                                    <Select
-                                        value={pair.paramType}
-                                        onValueChange={(v) => updatePair(index, "paramType", v)}
-                                    >
-                                        <SelectTrigger className="min-w-40 flex-1">
-                                            <SelectValue placeholder="Select parameter type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value={ParamType.BODY_PARAM}>
-                                                Body Parameter
-                                            </SelectItem>
-                                            <SelectItem value={ParamType.TITLE_PARAM}>
-                                                Title Parameter
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Controller
+                                        name={`params.${index}.paramType`}
+                                        control={control}
+                                        render={({ field: selectField }) => (
+                                            <Select
+                                                value={selectField.value}
+                                                onValueChange={selectField.onChange}>
+                                                <SelectTrigger className="min-w-40 flex-1">
+                                                    <SelectValue placeholder="Select parameter type" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={ParamType.BODY_PARAM}>
+                                                        Body Parameter
+                                                    </SelectItem>
+                                                    <SelectItem value={ParamType.TITLE_PARAM}>
+                                                        Title Parameter
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
                                     <div className="flex items-center space-x-2">
-                                        <Switch
-                                            id={`switch-${index}`}
-                                            checked={pair.isRequired}
-                                            onCheckedChange={(v) =>
-                                                updatePair(index, "isRequired", v)
-                                            }
+                                        <Controller
+                                            name={`params.${index}.isRequired`}
+                                            control={control}
+                                            render={({ field: switchField }) => (
+                                                <Switch
+                                                    id={`switch-${index}`}
+                                                    checked={switchField.value}
+                                                    onCheckedChange={switchField.onChange}
+                                                />
+                                            )}
                                         />
                                         <Label htmlFor={`switch-${index}`}>Required</Label>
                                     </div>
@@ -286,13 +345,25 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
                                 </button>
                             </div>
                         ))}
+                        {errors.params && (
+                            <p className="text-sm text-destructive">{errors.params.root?.message || errors.params.message}</p>
+                        )}
                     </div>
 
                     {/* HTML editor — controlled, pre-seeded with boilerplate */}
-                    <HtmlEditorPreview
-                        value={eventData.templateHtml}
-                        onChange={(html) => updateEventData("templateHtml", html)}
+                    <Controller
+                        name="templateHtml"
+                        control={control}
+                        render={({ field }) => (
+                            <HtmlEditorPreview
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                            />
+                        )}
                     />
+                    {errors.templateHtml && (
+                        <p className="text-sm text-destructive">{errors.templateHtml.message}</p>
+                    )}
 
                     <div className="flex justify-end space-x-2 pt-4">
                         <Button type="button" variant="outline" onClick={onClose}>

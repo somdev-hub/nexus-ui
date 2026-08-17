@@ -886,3 +886,56 @@ export async function* nexusBuddyStreamTestLogs(
     );
   }
 }
+
+// ============================================
+// Recruitment Mapping APIs (via IAM proxy)
+// ============================================
+
+export interface ApplicantStatusUpdateRequest {
+  status: ApplicationStatus;
+  interviewType?: string;
+  interviewDate?: string;
+  interviewTime?: string;
+  interviewDuration?: string;
+  interviewMode?: string;
+  interviewLocation?: string;
+  interviewUrl?: string;
+  interviewerName?: string;
+  interviewConfirmationLink?: string;
+  interviewConfirmationDeadline?: string;
+  interviewerRemarks?: string;
+  interviewerId?: number;
+}
+
+export async function getApplicantByRecruitmentMapping(
+  applicantId: number,
+  recruitmentId: number,
+): Promise<AxiosResponse<Applicant>> {
+  try {
+    return await apiClient.get<Applicant>(
+      `/iam/recruitment/applicant/recruitment-mapping?applicantId=${applicantId}&recruitmentId=${recruitmentId}`,
+    );
+  } catch (e) {
+    throw new Error(
+      "Failed to fetch applicant by recruitment mapping: " +
+        (e as Error).message,
+    );
+  }
+}
+
+export async function updateApplicantRecruitmentStatus(
+  applicantId: number,
+  recruitmentId: number,
+  request: ApplicantStatusUpdateRequest,
+): Promise<AxiosResponse<any>> {
+  try {
+    return await apiClient.put<any>(
+      `/iam/recruitment/applicant/recruitment-mapping/status?applicantId=${applicantId}&recruitmentId=${recruitmentId}`,
+      request,
+    );
+  } catch (e) {
+    throw new Error(
+      "Failed to update applicant recruitment status: " + (e as Error).message,
+    );
+  }
+}

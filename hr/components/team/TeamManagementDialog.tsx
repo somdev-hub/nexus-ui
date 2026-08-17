@@ -491,7 +491,7 @@ export function TeamManagementDialog({
 					<SelectTrigger id="teamLeadId" className="w-full">
 						<SelectValue placeholder={isLoadingLeads ? "Loading leads..." : teamForm.departmentId <= 0 ? "Select department first" : "Select team lead"} />
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent className="w-full">
 						{eligibleLeads.map((lead) => (
 							<SelectItem key={lead.id} value={lead.id.toString()}>
 								{lead.name} ({lead.email})
@@ -511,7 +511,7 @@ export function TeamManagementDialog({
 					<SelectTrigger id="parentTeamId" className="w-full">
 						<SelectValue placeholder={isLoadingParentTeams ? "Loading teams..." : teamForm.departmentId <= 0 ? "Select department first" : "No parent team (top-level)"} />
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent className="w-full">
 						<SelectItem value="none">No parent team (top-level)</SelectItem>
 						{parentTeams.map((team) => (
 							<SelectItem key={team.teamId} value={team.teamId.toString()}>
@@ -539,27 +539,26 @@ export function TeamManagementDialog({
 
 	// Render member form
 	const renderMemberForm = () => (
-		<form onSubmit={handleMemberSubmit} className="p-4 space-y-6">
+		<form onSubmit={handleMemberSubmit} className=" space-y-6">
 			{/* User Selection */}
-			<div>
-				<label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">
-					User <span className="text-red-500">*</span>
-				</label>
-				<select
-					id="userId"
-					name="userId"
-					value={memberForm.userId || ""}
-					onChange={handleMemberChange}
-					className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${memberErrors.userId ? "border-red-500" : "border-gray-300"}`}
+			<div className="space-y-2 w-full">
+				<Label htmlFor="userId">User <span className="text-red-500">*</span></Label>
+				<Select
+					value={memberForm.userId?.toString() || ""}
+					onValueChange={(value) => handleMemberChange({ target: { name: "userId", value } } as any)}
 					disabled={isLoading || isSubmitting || isEditingMember}
 				>
-					<option value="">Select user</option>
-					{filteredUsers.map((user) => (
-						<option key={user.id} value={user.id}>
-							{user.name} ({user.email})
-						</option>
-					))}
-				</select>
+					<SelectTrigger id="userId" className={memberErrors.userId ? "border-red-500 w-full" : "w-full"}>
+						<SelectValue placeholder="Select user" />
+					</SelectTrigger>
+					<SelectContent className="w-full">
+						{filteredUsers.map((user) => (
+							<SelectItem key={user.id} value={user.id.toString()}>
+								{user.name} ({user.email})
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 				{memberErrors.userId && <p className="mt-1 text-sm text-red-500">{memberErrors.userId}</p>}
 				{isEditingMember && <p className="mt-1 text-sm text-gray-500">User cannot be changed when editing</p>}
 				{filteredUsers.length === 0 && !isEditingMember && (
@@ -567,67 +566,66 @@ export function TeamManagementDialog({
 				)}
 			</div>
 
-			{/* Role */}
-			<div>
-				<label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-					Role <span className="text-red-500">*</span>
-				</label>
-				<select
-					id="role"
-					name="role"
-					value={memberForm.role}
-					onChange={handleMemberChange}
-					className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${memberErrors.role ? "border-red-500" : "border-gray-300"}`}
-					disabled={isLoading || isSubmitting}
-				>
-					<option value="EMPLOYEE">Employee</option>
-					<option value="MANAGER">Manager</option>
-					<option value="TEAM_LEAD">Team Lead</option>
-				</select>
-				{memberErrors.role && <p className="mt-1 text-sm text-red-500">{memberErrors.role}</p>}
+			<div className="flex justify-baseline w-full gap-4">
+				{/* Role */}
+				<div className="space-y-2 w-full">
+					<Label htmlFor="role">Role <span className="text-red-500">*</span></Label>
+					<Select
+						value={memberForm.role}
+						onValueChange={(value) => handleMemberChange({ target: { name: "role", value } } as any)}
+						disabled={isLoading || isSubmitting}
+					>
+						<SelectTrigger id="role" className={memberErrors.role ? "border-red-500 w-full" : "w-full"}>
+							<SelectValue placeholder="Select role" />
+						</SelectTrigger>
+						<SelectContent className="w-full">
+							<SelectItem value="EMPLOYEE">Employee</SelectItem>
+							<SelectItem value="MANAGER">Manager</SelectItem>
+							<SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
+						</SelectContent>
+					</Select>
+					{memberErrors.role && <p className="mt-1 text-sm text-red-500">{memberErrors.role}</p>}
+				</div>
+
+				{/* Manager (conditional) */}
+				{(memberForm.role !== "TEAM_LEAD" || isEditingMember) && (
+					<div className="space-y-2 w-full">
+						<Label htmlFor="managerId">Manager <span className="text-red-500">*</span></Label>
+						<Select
+							value={memberForm.managerId?.toString() || ""}
+							onValueChange={(value) => handleMemberChange({ target: { name: "managerId", value } } as any)}
+							disabled={isLoading || isSubmitting || memberForm.role === "TEAM_LEAD"}
+						>
+							<SelectTrigger id="managerId" className={memberErrors.managerId ? "border-red-500 w-full" : "w-full"}>
+								<SelectValue placeholder="Select manager" />
+							</SelectTrigger>
+							<SelectContent className="w-full">
+								{eligibleManagers.map((manager) => (
+									<SelectItem key={manager.id} value={manager.id.toString()}>
+										{manager.user.name} ({getRoleLabel(manager.role)})
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{memberErrors.managerId && <p className="mt-1 text-sm text-red-500">{memberErrors.managerId}</p>}
+						{memberForm.role === "TEAM_LEAD" && <p className="mt-1 text-sm text-gray-500">Team lead does not have a manager</p>}
+						{eligibleManagers.length === 0 && memberForm.role !== "TEAM_LEAD" && (
+							<p className="mt-1 text-sm text-amber-600">No eligible managers available. Add a team lead or manager first.</p>
+						)}
+					</div>
+				)}
+
 			</div>
 
-			{/* Manager (conditional) */}
-			{(memberForm.role !== "TEAM_LEAD" || isEditingMember) && (
-				<div>
-					<label htmlFor="managerId" className="block text-sm font-medium text-gray-700 mb-1">
-						Manager <span className="text-red-500">*</span>
-					</label>
-					<select
-						id="managerId"
-						name="managerId"
-						value={memberForm.managerId || ""}
-						onChange={handleMemberChange}
-						className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${memberErrors.managerId ? "border-red-500" : "border-gray-300"}`}
-						disabled={isLoading || isSubmitting || memberForm.role === "TEAM_LEAD"}
-					>
-						<option value="">Select manager</option>
-						{eligibleManagers.map((manager) => (
-							<option key={manager.id} value={manager.id}>
-								{manager.user.name} ({getRoleLabel(manager.role)})
-							</option>
-						))}
-					</select>
-					{memberErrors.managerId && <p className="mt-1 text-sm text-red-500">{memberErrors.managerId}</p>}
-					{memberForm.role === "TEAM_LEAD" && <p className="mt-1 text-sm text-gray-500">Team lead does not have a manager</p>}
-					{eligibleManagers.length === 0 && memberForm.role !== "TEAM_LEAD" && (
-						<p className="mt-1 text-sm text-amber-600">No eligible managers available. Add a team lead or manager first.</p>
-					)}
-				</div>
-			)}
-
 			{/* Team Position */}
-			<div>
-				<label htmlFor="teamPosition" className="block text-sm font-medium text-gray-700 mb-1">
-					Team Position <span className="text-red-500">*</span>
-				</label>
-				<input
-					type="text"
+			<div className="space-y-2">
+				<Label htmlFor="teamPosition">Team Position <span className="text-red-500">*</span></Label>
+				<Input
 					id="teamPosition"
 					name="teamPosition"
 					value={memberForm.teamPosition}
 					onChange={handleMemberChange}
-					className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${memberErrors.teamPosition ? "border-red-500" : "border-gray-300"}`}
+					className={memberErrors.teamPosition ? "border-red-500" : ""}
 					placeholder="e.g., Senior Developer, QA Lead, etc."
 					disabled={isLoading || isSubmitting}
 				/>

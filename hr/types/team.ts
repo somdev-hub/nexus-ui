@@ -92,6 +92,7 @@ export interface AddTeamMemberRequest {
 export interface UpdateTeamMemberRequest {
   teamPosition?: string;
   role?: TeamRole;
+  managerId?: number;
 }
 
 export interface ChangeManagerRequest {

@@ -1700,6 +1700,40 @@ interface ApplicantSkill {
   updatedAt: string;
 }
 
+export interface RecruitmentInterview {
+  recruitmentInterviewId: number;
+  interviewType: string;
+  interviewDate: string;
+  interviewTime: string;
+  interviewDuration: string;
+  interviewMode: string;
+  interviewLocation: string;
+  interviewUrl: string;
+  interviewerName: string;
+  interviewConfirmationLink: string;
+  interviewConfirmationDeadline: string;
+  interviewerRemarks: string;
+  interviewStatus: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApplicantRecruitmentMapping {
+  applicantRecruitmentMappingId: number;
+  status: string;
+  appliedOn: string;
+  updatedOn: string;
+  isActive: boolean;
+  interviews?: RecruitmentInterview[];
+  applicationDocuments?: ApplicantDocument[];
+  recruitment?: {
+    recruitmentId: number;
+    title: string;
+    roleName: string;
+  };
+}
+
 export interface ApplicantDetail {
   applicantAddress: string;
   applicantAge: number;
@@ -1718,10 +1752,9 @@ export interface ApplicantDetail {
   applicantPinCode: string;
   applicantSkills: ApplicantSkill[];
   applicantState: string;
-  applicationStatus: string;
-  appliedOn: string;
   isActive: boolean;
   updatedOn: string;
+  applicantRecruitmentMappings?: ApplicantRecruitmentMapping[];
 }
 
 export async function getRecruitmentApplicantDetail(
@@ -1729,12 +1762,62 @@ export async function getRecruitmentApplicantDetail(
 ): Promise<ApplicantDetail> {
   try {
     const response = await apiClient.get<ApplicantDetail>(
-      `/iam/recruitment/applicant/${applicantId}`,
+      `/iam/recruitment/applicant/applicantId/${applicantId}`,
     );
     return response.data;
   } catch (error: unknown) {
     throw new Error(
       `Fetch applicant details failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getApplicantByRecruitmentMapping(
+  applicantId: number,
+  recruitmentId: number,
+): Promise<ApplicantDetail> {
+  try {
+    const response = await apiClient.get<ApplicantDetail>(
+      `/iam/recruitment/applicant/recruitment-mapping?applicantId=${applicantId}&recruitmentId=${recruitmentId}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch applicant by recruitment mapping failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export interface ApplicantStatusUpdateRequest {
+  status: string;
+  interviewType?: string;
+  interviewDate?: string;
+  interviewTime?: string;
+  interviewDuration?: string;
+  interviewMode?: string;
+  interviewLocation?: string;
+  interviewUrl?: string;
+  interviewerName?: string;
+  interviewConfirmationLink?: string;
+  interviewConfirmationDeadline?: string;
+  interviewerRemarks?: string;
+  interviewerId?: number;
+}
+
+export async function updateApplicantRecruitmentStatus(
+  applicantId: number,
+  recruitmentId: number,
+  request: ApplicantStatusUpdateRequest,
+): Promise<any> {
+  try {
+    const response = await apiClient.put<any>(
+      `/iam/recruitment/applicant/recruitment-mapping/status?applicantId=${applicantId}&recruitmentId=${recruitmentId}`,
+      request,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Update applicant recruitment status failed: ${(error as Error).message}`,
     );
   }
 }
@@ -2215,5 +2298,28 @@ export async function getManagers(teamId: number): Promise<TeamMember[]> {
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Get managers failed: ${(error as Error).message}`);
+  }
+}
+export async function decrypt(payload: string): Promise<string> {
+  try {
+    const response = await apiClient.post<string>(
+      "/iam/encryption-decryption/decrypt",
+      { payload },
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Decryption failed: ${(error as Error).message}`);
+  }
+}
+
+export async function encrypt(payload: string): Promise<string> {
+  try {
+    const response = await apiClient.post<string>(
+      "/iam/encryption-decryption/encrypt",
+      { payload },
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Encryption failed: ${(error as Error).message}`);
   }
 }

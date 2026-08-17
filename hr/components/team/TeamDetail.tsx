@@ -13,6 +13,7 @@ import {
 	Users
 } from "lucide-react";
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TeamForm } from "./TeamForm";
 import { TeamMemberCard } from "./TeamMemberCard";
 import { TeamHierarchyCanvas } from "./TeamHierarchyCanvas";
@@ -30,7 +31,6 @@ interface TeamDetailProps {
 	onAddMember: (teamId: number, data: any) => Promise<void>;
 	onUpdateMember: (teamId: number, memberId: number, data: any) => Promise<void>;
 	onRemoveMember: (teamId: number, memberId: number) => Promise<void>;
-	onChangeManager: (teamId: number, memberId: number, data: any) => Promise<void>;
 	onRefresh: () => void;
 	isLoading?: boolean;
 }
@@ -47,7 +47,6 @@ export function TeamDetail({
 	onAddMember,
 	onUpdateMember,
 	onRemoveMember,
-	onChangeManager,
 	onRefresh,
 	isLoading = false,
 }: TeamDetailProps) {
@@ -67,6 +66,10 @@ export function TeamDetail({
 	const [showAddMemberForm, setShowAddMemberForm] = useState(false);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 	const [showEditTeamForm, setShowEditTeamForm] = useState(false);
+	const [isRemoveMemberDialogOpen, setIsRemoveMemberDialogOpen] = useState(false);
+	const [memberToRemove, setMemberToRemove] = useState<number | null>(null);
+	const [isDeleteTeamDialogOpen, setIsDeleteTeamDialogOpen] = useState(false);
+	const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
 
 	const handleAddMember = async (data: any) => {
 		if (!team) return;
@@ -84,15 +87,20 @@ export function TeamDetail({
 
 	const handleRemoveMember = async (memberId: number) => {
 		if (!team) return;
-		if (window.confirm("Are you sure you want to remove this member from the team?")) {
-			await onRemoveMember(team.teamId, memberId);
-			onRefresh();
-		}
+		setMemberToRemove(memberId);
+		setIsRemoveMemberDialogOpen(true);
 	};
 
-	const handleChangeManager = async (memberId: number, data: any) => {
-		if (!team) return;
-		await onChangeManager(team.teamId, memberId, data);
+	const handleViewSubordinates = (member: TeamMember) => {
+		setActiveTab("hierarchy");
+		setSelectedMemberId(member.id);
+	};
+
+	const confirmRemoveMember = async () => {
+		if (!team || memberToRemove === null) return;
+		await onRemoveMember(team.teamId, memberToRemove);
+		setIsRemoveMemberDialogOpen(false);
+		setMemberToRemove(null);
 		onRefresh();
 	};
 
@@ -104,11 +112,14 @@ export function TeamDetail({
 	};
 
 	const handleDeleteTeam = async () => {
+		setIsDeleteTeamDialogOpen(true);
+	};
+
+	const confirmDeleteTeam = async () => {
 		if (!team) return;
-		if (window.confirm("Are you sure you want to delete this team? This action cannot be undone.")) {
-			await onDeleteTeam(team.teamId);
-			onBack();
-		}
+		await onDeleteTeam(team.teamId);
+		setIsDeleteTeamDialogOpen(false);
+		onBack();
 	};
 
 	const handleMemberAction = (member: TeamMemberSummary, action: "edit" | "remove" | "change-manager") => {
@@ -279,6 +290,7 @@ export function TeamDetail({
 											root={hierarchy.root}
 											onMemberClick={(member) => console.log("Member clicked:", member)}
 											onMemberAction={handleMemberAction}
+											selectedMemberId={selectedMemberId ?? undefined}
 										/>
 									);
 								})()}
@@ -315,7 +327,7 @@ export function TeamDetail({
 										showActions={true}
 										onEdit={setEditingMember}
 										onRemove={handleRemoveMember}
-										onViewSubordinates={(m) => console.log("View subordinates:", m)}
+										onViewSubordinates={handleViewSubordinates}
 									/>
 								))}
 							</div>
@@ -335,7 +347,7 @@ export function TeamDetail({
 				)}
 
 				{activeTab === "details" && (
-					<div className="space-y-6 max-w-2xl">
+					<div className="space-y-6 max-w-full">
 						<div className="bg-gray-50 rounded-lg p-4">
 							<h3 className="text-lg font-medium text-gray-900 mb-4">Team Information</h3>
 							<dl className="space-y-4">
@@ -464,6 +476,32 @@ export function TeamDetail({
 					isLoading={isLoading}
 				/>
 			)}
+
+			<AlertDialog open={isRemoveMemberDialogOpen} onOpenChange={setIsRemoveMemberDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+						<AlertDialogDescription>Are you sure you want to remove this member from the team? This action cannot be undone.</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmRemoveMember} className="bg-red-600 hover:bg-red-700">Remove</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<AlertDialog open={isDeleteTeamDialogOpen} onOpenChange={setIsDeleteTeamDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Team</AlertDialogTitle>
+						<AlertDialogDescription>Are you sure you want to delete this team? This action cannot be undone. All team members will be removed.</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmDeleteTeam} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
