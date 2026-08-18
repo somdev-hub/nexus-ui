@@ -29,7 +29,8 @@ import {
 	SelectValue
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { updateApplicantRecruitmentStatus } from "@/lib/auth-service";
+import { updateApplicantRecruitmentStatus, updateHiringRequisition } from "@/lib/auth-service";
+import { CreateHiringDialog } from "@/components/create-hiring-dialog";
 import {
 	Popover,
 	PopoverContent,
@@ -883,13 +884,13 @@ function RecruitmentDetail() {
 					</Card>
 
 					{/* Action Buttons */}
-					<div className="space-y-2">
-						<Button className="w-full" size="lg" onClick={handleViewApplicants}>
+					<div className="flex gap-2 w-full">
+						<Button className="flex-1" size="lg" onClick={handleViewApplicants}>
 							View Applicants
 						</Button>
 						<Button
 							variant="outline"
-							className="w-full"
+							className="flex-1"
 							size="lg"
 							onClick={() => setShowEditDialog(true)}
 						>
@@ -1096,7 +1097,7 @@ function RecruitmentDetail() {
 					) : (
 						<div className="space-y-4">
 							<div className="overflow-hidden rounded-lg border">
-								<div className="overflow-x-auto">
+								<div className="overflow-x-auto w-full max-w-full">
 									<Table>
 										<TableHeader>
 											<TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -1674,6 +1675,17 @@ function RecruitmentDetail() {
 					</div>
 				</DialogContent>
 			</Dialog>
+
+			{/* Edit Requisition Dialog */}
+			<CreateHiringDialog
+				editData={recruitment}
+				open={showEditDialog}
+				onOpenChange={setShowEditDialog}
+				onSuccess={() => {
+					// Refresh recruitment details after successful update
+					getRecruitmentDetails(parseInt(recruitmentId)).then(setRecruitment);
+				}}
+			/>
 		</div>
 	);
 }

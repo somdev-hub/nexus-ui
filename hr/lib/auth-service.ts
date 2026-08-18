@@ -1855,6 +1855,152 @@ export async function getRecruitmentAnalytics(
   }
 }
 
+export interface ScheduledInterview {
+  recruitmentInterviewId: number;
+  applicantRecruitmentMappingId: number;
+  applicantId: number;
+  applicantName: string;
+  applicantEmail: string;
+  recruitmentId: number;
+  recruitmentTitle: string;
+  roleName: string;
+  departmentName: string;
+  interviewType: string;
+  interviewDate: string;
+  interviewTime: string;
+  interviewDuration: string;
+  interviewMode: string;
+  interviewLocation: string;
+  interviewUrl: string;
+  interviewerName: string;
+  interviewerEmail: string;
+  interviewStatus: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginatedInterviewsResponse {
+  content: ScheduledInterview[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;
+  numberOfElements: number;
+  pageable: {
+    offset: number;
+    pageNumber: number;
+    pageSize: number;
+    paged: boolean;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    unpaged: boolean;
+  };
+  size: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function getAllScheduledInterviews(
+  orgId: number,
+  options?: {
+    pageNo?: number;
+    pageOffset?: number;
+    interviewType?: string;
+    interviewMode?: string;
+    startDate?: string;
+    endDate?: string;
+  },
+): Promise<PaginatedInterviewsResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+    });
+
+    if (typeof options?.pageNo === "number") {
+      queryParams.append("pageNo", String(options.pageNo));
+    }
+    if (typeof options?.pageOffset === "number") {
+      queryParams.append("pageOffset", String(options.pageOffset));
+    }
+    if (options?.interviewType) {
+      queryParams.append("interviewType", options.interviewType);
+    }
+    if (options?.interviewMode) {
+      queryParams.append("interviewMode", options.interviewMode);
+    }
+    if (options?.startDate) {
+      queryParams.append("startDate", options.startDate);
+    }
+    if (options?.endDate) {
+      queryParams.append("endDate", options.endDate);
+    }
+
+    const response = await apiClient.get<PaginatedInterviewsResponse>(
+      `/iam/recruitment/interviews/scheduled?${queryParams.toString()}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch all scheduled interviews failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getMyInterviews(
+  orgId: number,
+  interviewerEmail: string,
+  options?: {
+    pageNo?: number;
+    pageOffset?: number;
+    interviewType?: string;
+    interviewMode?: string;
+    startDate?: string;
+    endDate?: string;
+  },
+): Promise<PaginatedInterviewsResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+      interviewerEmail: interviewerEmail,
+    });
+
+    if (typeof options?.pageNo === "number") {
+      queryParams.append("pageNo", String(options.pageNo));
+    }
+    if (typeof options?.pageOffset === "number") {
+      queryParams.append("pageOffset", String(options.pageOffset));
+    }
+    if (options?.interviewType) {
+      queryParams.append("interviewType", options.interviewType);
+    }
+    if (options?.interviewMode) {
+      queryParams.append("interviewMode", options.interviewMode);
+    }
+    if (options?.startDate) {
+      queryParams.append("startDate", options.startDate);
+    }
+    if (options?.endDate) {
+      queryParams.append("endDate", options.endDate);
+    }
+
+    const response = await apiClient.get<PaginatedInterviewsResponse>(
+      `/iam/recruitment/interviews/my-interviews?${queryParams.toString()}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(`Fetch my interviews failed: ${(error as Error).message}`);
+  }
+}
+
 export interface CreateEventTemplateRequest {
   eventTemplateId?: number;
   templateName: string;

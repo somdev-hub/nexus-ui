@@ -143,6 +143,25 @@ export type ApplicationStatus =
   | "OFFER_ACCEPTED"
   | "OFFER_REJECTED";
 
+export interface RecruitmentInterview {
+  recruitmentInterviewId: number;
+  interviewType: string;
+  interviewDate: string;
+  interviewTime: string;
+  interviewDuration: string;
+  interviewMode: string;
+  interviewLocation: string;
+  interviewUrl: string;
+  interviewerName: string;
+  interviewConfirmationLink: string;
+  interviewConfirmationDeadline: string;
+  interviewerRemarks: string;
+  interviewStatus: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApplicantApplicationSchema {
   applicantId: number;
   appliedOn: Date;
@@ -167,6 +186,7 @@ export interface ApplicationDetailsWithStatusHistory {
   resumeSubmitted: string;
   roleName: string;
   statusHistList: StatusHistList[];
+  interviews?: RecruitmentInterview[];
 }
 
 export interface StatusHistList {
