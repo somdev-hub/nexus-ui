@@ -8,6 +8,7 @@ const GlobalConfig = {
   wowoFeatures: {
     auth: ENABLE,
     useDummyData: !authEnabled, // Use dummy data when auth is disabled
+    nexusDirectUrl: process.env.NEXT_PUBLIC_NEXUS_DIRECT_URL || "http://localhost:3001",
   },
 };
 

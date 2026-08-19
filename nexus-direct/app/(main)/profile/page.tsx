@@ -12,15 +12,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText, Trash2, Filter, Search, FileSearch, Ban, ThumbsUp, ThumbsDown, CheckCheck } from 'lucide-react';
+import { Camera, FileUp, Plus, SquareArrowOutUpRight, UserRoundPen, CheckCircle2, Circle, Clock, XCircle, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Calendar, User, Building2, FileText, Trash2, Filter, Search, FileSearch, Ban, ThumbsUp, ThumbsDown, CheckCheck, Bookmark, BookmarkCheck } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import EducationDialog from '@/components/education-dialog';
 import ExperienceDialog from '@/components/experience-dialog';
 import SkillDialog from '@/components/skill-dialog';
 import { Applicant, ApplicationStatus, ApplicantApplicationSchema } from '@/types';
-import { addApplicantDocument, deleteApplicantDocument, getApplicant, getApplicantApplications } from '@/lib/auth-service';
+import { addApplicantDocument, deleteApplicantDocument, getApplicant, getApplicantApplications, getBookmarkedRecruitmentsAuth, unbookmarkRecruitmentAuth } from '@/lib/auth-service';
+import { BookmarkedRecruitment } from '@/lib/auth-service';
 import { useToast } from '@/hooks/use-toast';
 import EditProfileDialog from '@/components/edit-profile-dialog';
 import ApplicationDetailsDialog from '@/components/application-details-dialog';
@@ -35,7 +37,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-type PageKey = "Profile Info" | "Jobs Applied" | "Resume";
+type PageKey = "Profile Info" | "Jobs Applied" | "Bookmarks" | "Resume";
 
 const ProfileInfo = ({ userId, editProfileDialogOpen, setEditProfileDialogOpen }: { userId: string | undefined; editProfileDialogOpen: boolean; setEditProfileDialogOpen: (open: boolean) => void }) => {
     const [applicant, setApplicant] = useState<Applicant | null>(null);
@@ -630,9 +632,151 @@ const ApplicationsSection = ({ userId, onApplicationClick }: { userId: string | 
     );
 };
 
+const BookmarksSection = ({ userId }: { userId: string | undefined }) => {
+    const [bookmarks, setBookmarks] = useState<BookmarkedRecruitment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+    const router = useRouter();
+    const hasFetchedRef = useRef(false);
+
+    useEffect(() => {
+        if (!userId) return;
+        if (hasFetchedRef.current) return;
+        hasFetchedRef.current = true;
+
+        const fetchBookmarks = async () => {
+            setLoading(true);
+            try {
+                const response = await getBookmarkedRecruitmentsAuth(0, 100, Number(userId));
+                setBookmarks(response.data?.content ?? []);
+            } catch {
+                toast({
+                    title: "Error",
+                    description: "Failed to fetch bookmarked recruitments.",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchBookmarks();
+    }, [userId, toast]);
+
+    const handleUnbookmark = async (recruitmentId: number) => {
+        if (!userId) return;
+        try {
+            await unbookmarkRecruitmentAuth(recruitmentId, Number(userId));
+            setBookmarks(prev => prev.filter(b => b.recruitmentId !== recruitmentId));
+            toast({ title: "Removed from bookmarks", description: "Job removed from your bookmarks." });
+        } catch {
+            toast({ title: "Error", description: "Failed to remove bookmark.", variant: "destructive" });
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2 mb-4">
+                    <Skeleton className="h-6 w-40" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <Card key={i} className="p-4">
+                            <Skeleton className="h-4 w-32 mb-2" />
+                            <Skeleton className="h-3 w-24 mb-4" />
+                            <Skeleton className="h-3 w-full mb-2" />
+                            <Skeleton className="h-3 w-full mb-2" />
+                            <Skeleton className="h-3 w-20" />
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+                <h4 className="font-medium text-lg flex items-center gap-2">
+                    <BookmarkCheck className="h-4 w-4 text-muted-foreground" />
+                    Bookmarks
+                    <Badge variant="secondary" className="ml-1 text-xs">{bookmarks.length}</Badge>
+                </h4>
+            </div>
+
+            {bookmarks.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {bookmarks.map((bookmark) => (
+                        <Card
+                            key={bookmark.recruitmentId}
+                            className="p-4 hover:cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                            onClick={() => router.push(`/recruitment/${bookmark.recruitmentId}`)}
+                        >
+                            <CardContent className="p-0">
+                                <div className="flex justify-between items-start border-b pb-3 mb-3">
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium text-sm truncate">{bookmark.title}</h4>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                                            <Building2 className="h-3 w-3 shrink-0" />
+                                            {bookmark.orgName}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 shrink-0"
+                                        onClick={(e) => { e.stopPropagation(); handleUnbookmark(bookmark.recruitmentId); }}
+                                        aria-label={`Remove bookmark for ${bookmark.title}`}
+                                    >
+                                        <BookmarkCheck className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <ul className="flex flex-col gap-2 text-xs">
+                                    <li className="flex justify-between items-center">
+                                        <span className="text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> Location</span>
+                                        <span className="font-medium truncate max-w-30">{bookmark.location || "Remote"}</span>
+                                    </li>
+                                    <li className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Job Type</span>
+                                        <Badge variant="secondary" className="text-xs">{bookmark.hiringType}</Badge>
+                                    </li>
+                                    <li className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Status</span>
+                                        <Badge
+                                            variant={bookmark.hiringStatus === "OPEN" ? "default" : "secondary"}
+                                            className={`text-xs ${bookmark.hiringStatus === "OPEN" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : ""}`}
+                                        >
+                                            {bookmark.hiringStatus}
+                                        </Badge>
+                                    </li>
+                                    <li className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Compensation</span>
+                                        <span className="font-medium">{bookmark.totalCompensation}</span>
+                                    </li>
+                                    <li className="flex justify-between items-center">
+                                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Bookmarked</span>
+                                        <span className="font-medium">{new Date(bookmark.bookmarkedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    </li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Bookmark className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                    <p className="text-sm font-medium text-muted-foreground">No bookmarked jobs yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Bookmark jobs you're interested in to see them here.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const NAV_ITEMS: { key: PageKey; icon: React.ReactNode; label: string }[] = [
     { key: "Profile Info", icon: <User className="h-4 w-4" />, label: "Profile Info" },
     { key: "Jobs Applied", icon: <Briefcase className="h-4 w-4" />, label: "Applications" },
+    { key: "Bookmarks", icon: <Bookmark className="h-4 w-4" />, label: "Bookmarks" },
     { key: "Resume", icon: <FileText className="h-4 w-4" />, label: "Resume" },
 ];
 
@@ -661,6 +805,7 @@ const Profile = () => {
         switch (activePage) {
             case "Profile Info": return <ProfileInfo userId={userId} editProfileDialogOpen={editProfileDialogOpen} setEditProfileDialogOpen={setEditProfileDialogOpen} />;
             case "Jobs Applied": return <ApplicationsSection userId={userId} onApplicationClick={handleApplicationClick} />;
+            case "Bookmarks": return <BookmarksSection userId={userId} />;
             case "Resume": return <Resume applicant={applicant} onSuccess={() => getApplicant(Number(userId)).then(setApplicant).catch(console.error)} />;
             default: return null;
         }

@@ -3,7 +3,7 @@ import { getSession } from "@/lib/better-auth";
 import { COOKIE_NAMES } from "@/lib/better-auth";
 import GlobalConfig from "@/global.config";
 
-const publicPaths = ["/login", "/signup", "/"];
+const publicPaths = ["/login", "/signup", "/", "/public"];
 
 // Use module-specific cookie names
 const SESSION_COOKIE_NAME = COOKIE_NAMES.SESSION;

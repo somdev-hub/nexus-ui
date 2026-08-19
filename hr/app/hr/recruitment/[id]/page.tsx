@@ -73,6 +73,7 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/ui/time-picker";
+import GlobalConfig from "@/global.config";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
 
 // ============================================================================
@@ -476,7 +477,9 @@ function RecruitmentDetail() {
 
 	const getShareUrl = () => {
 		if (typeof window !== "undefined") {
-			return window.location.href;
+			// Generate public shareable URL pointing to nexus-direct public recruitment page
+			const nexusDirectBaseUrl = GlobalConfig.wowoFeatures?.nexusDirectUrl || "http://localhost:3001";
+			return `${nexusDirectBaseUrl}/public/recruitment/${recruitmentId}`;
 		}
 		return "";
 	};

@@ -6,12 +6,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
-import { getRecruitmentById, hasApplicantApplied, hasBookmarkedRecruitmentAuth, bookmarkRecruitmentAuth, unbookmarkRecruitmentAuth, getBookmarkCountAuth } from '@/lib/auth-service';
+import { getPublicRecruitmentById } from '@/lib/auth-service';
 import { Recruitment } from '@/types';
 import ApplyDialog from '@/components/apply-dialog';
 import {
     Bookmark,
-    BookmarkCheck,
     Plus,
     ArrowLeft,
     MapPin,
@@ -27,7 +26,9 @@ import {
     Twitter,
     Mail,
     Copy,
-    Heart
+    UserPlus,
+    LogIn,
+    Lock
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -41,6 +42,12 @@ import {
     DropdownMenuSeparator,
     DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger
+} from "@/components/ui/popover";
+import Link from 'next/link';
 
 const LoadingSkeleton = () => {
     return (
@@ -67,7 +74,7 @@ const LoadingSkeleton = () => {
                         <Skeleton className="h-6 w-1/4 mb-3" />
                         <Skeleton className="h-4 w-full mb-2" />
                         <Skeleton className="h-4 w-full mb-2" />
-                        <Skeleton className="/Z" />
+                        <Skeleton className="h-4 w-3/4 mb-2" />
                         <Separator className="my-6" />
                         <Skeleton className="h-6 w-1/4 mb-3" />
                         <Skeleton className="h-4 w-full mb-2" />
@@ -90,24 +97,22 @@ const LoadingSkeleton = () => {
     )
 }
 
-const RecruitmentPage = () => {
+const PublicRecruitmentPage = () => {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [recruitmentData, setRecruitmentData] = useState<Recruitment | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
-    const [bookmarkCount, setBookmarkCount] = useState<number>(0);
     const [applyDialogOpen, setApplyDialogOpen] = useState<boolean>(false);
-    const [hasAlreadyApplied, setHasAlreadyApplied] = useState<boolean>(false);
-    const [checkingApplication, setCheckingApplication] = useState<boolean>(false);
+    const [applyPopoverOpen, setApplyPopoverOpen] = useState<boolean>(false);
     const { toast } = useToast();
-    const { isAuthenticated, userId } = useUserMetadata();
+    const { isAuthenticated } = useUserMetadata();
 
     useEffect(() => {
         const fetchRecruitmentData = async () => {
             setIsLoading(true);
             try {
-                const response = await getRecruitmentById(Number(id));
+                const response = await getPublicRecruitmentById(Number(id));
                 setRecruitmentData(response.data);
             } catch (error) {
                 console.error("Error fetching recruitment data:", error);
@@ -123,82 +128,6 @@ const RecruitmentPage = () => {
 
         fetchRecruitmentData();
     }, [id, toast]);
-
-    // Check if the authenticated user has already applied
-    useEffect(() => {
-        if (!isAuthenticated || !userId || !id) return;
-        const checkApplication = async () => {
-            setCheckingApplication(true);
-            try {
-                const response = await hasApplicantApplied(Number(userId), Number(id));
-                setHasAlreadyApplied(response.data?.hasApplied ?? false);
-            } catch {
-                // Silently fail — assume not applied
-                setHasAlreadyApplied(false);
-            } finally {
-                setCheckingApplication(false);
-            }
-        };
-        checkApplication();
-    }, [isAuthenticated, userId, id]);
-
-    // Fetch bookmark status and count when recruitment data loads
-    useEffect(() => {
-        if (recruitmentData && isAuthenticated) {
-            const checkBookmark = async () => {
-                try {
-                    const [bookmarkRes, countRes] = await Promise.all([
-                        hasBookmarkedRecruitmentAuth(recruitmentData.recruitmentId, Number(userId)),
-                        getBookmarkCountAuth(recruitmentData.recruitmentId, Number(userId))
-                    ]);
-                    setIsBookmarked(bookmarkRes.data?.hasBookmarked ?? false);
-                    setBookmarkCount(countRes.data?.bookmarkCount ?? 0);
-                } catch (error) {
-                    console.error("Error fetching bookmark status:", error);
-                }
-            };
-            checkBookmark();
-        }
-    }, [recruitmentData, isAuthenticated, userId]);
-
-    const handleBookmark = async () => {
-        if (!isAuthenticated || !recruitmentData) {
-            toast({
-                title: "Authentication Required",
-                description: "Please log in to bookmark this job.",
-                variant: "destructive",
-            });
-            router.push('/login');
-            return;
-        }
-
-        try {
-            if (isBookmarked) {
-                await unbookmarkRecruitmentAuth(recruitmentData.recruitmentId, Number(userId));
-                setIsBookmarked(false);
-                setBookmarkCount(prev => Math.max(0, prev - 1));
-                toast({
-                    title: "Removed from bookmarks",
-                    description: "Job removed from your bookmarks.",
-                });
-            } else {
-                await bookmarkRecruitmentAuth(recruitmentData.recruitmentId, Number(userId));
-                setIsBookmarked(true);
-                setBookmarkCount(prev => prev + 1);
-                toast({
-                    title: "Added to bookmarks",
-                    description: "Job saved to your bookmarks.",
-                });
-            }
-        } catch (error) {
-            console.error("Error toggling bookmark:", error);
-            toast({
-                title: "Error",
-                description: "Failed to update bookmark.",
-                variant: "destructive"
-            });
-        }
-    };
 
     const handleCopyLink = async () => {
         try {
@@ -239,17 +168,22 @@ const RecruitmentPage = () => {
         }
     };
 
-    const handleApply = () => {
-        if (!isAuthenticated) {
-            toast({
-                title: "Authentication Required",
-                description: "Please log in to apply for this position.",
-                variant: "destructive",
-            });
-            router.push('/login');
-            return;
+    const handleApplyClick = () => {
+        if (isAuthenticated) {
+            setApplyDialogOpen(true);
+        } else {
+            setApplyPopoverOpen(true);
         }
-        setApplyDialogOpen(true);
+    };
+
+    const handleSignup = () => {
+        setApplyPopoverOpen(false);
+        router.push('/signup');
+    };
+
+    const handleLogin = () => {
+        setApplyPopoverOpen(false);
+        router.push('/login');
     };
 
     const getStatusColor = (status: string) => {
@@ -265,11 +199,21 @@ const RecruitmentPage = () => {
         return <LoadingSkeleton />;
     }
 
+    if (!recruitmentData) {
+        return (
+            <div className="my-8 max-w-7xl mx-auto text-center">
+                <h2 className="text-2xl font-bold mb-4">Job Not Found</h2>
+                <p className="text-muted-foreground mb-6">The job you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+                <Button onClick={() => router.push('/recruitment')}>Browse All Jobs</Button>
+            </div>
+        );
+    }
+
     return (
         <TooltipProvider>
             <div className="my-8 max-w-7xl mx-auto">
-                {/* Breadcrumb & Back */}
-                <div className="flex items-center gap-4 mb-6">
+                {/* Minimal Public Header */}
+                <div className="flex items-center justify-between mb-6 px-4">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -279,6 +223,14 @@ const RecruitmentPage = () => {
                         <ArrowLeft className="h-4 w-4" />
                         Back to Jobs
                     </Button>
+                    <div className="flex items-center gap-3">
+                        <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+                            Sign In
+                        </Link>
+                        <Link href="/signup" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
+                            Get Started
+                        </Link>
+                    </div>
                 </div>
 
                 <Card className="overflow-hidden shadow-lg border-0">
@@ -288,42 +240,27 @@ const RecruitmentPage = () => {
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
                                     <h1 className="text-2xl font-bold text-foreground">
-                                        {recruitmentData?.title}
+                                        {recruitmentData.title}
                                     </h1>
                                     <Badge
                                         variant="outline"
-                                        className={getStatusColor(recruitmentData?.hiringStatus || '')}
+                                        className={getStatusColor(recruitmentData.hiringStatus || '')}
                                     >
-                                        {recruitmentData?.hiringStatus || 'Open'}
+                                        {recruitmentData.hiringStatus || 'Open'}
                                     </Badge>
                                 </div>
                                 <div className="flex items-center gap-4 text-muted-foreground">
                                     <span className="flex items-center gap-1.5">
                                         <Building2 className="h-4 w-4" />
-                                        {recruitmentData?.orgName}
+                                        {recruitmentData.orgName}
                                     </span>
                                     <span className="flex items-center gap-1.5">
                                         <MapPin className="h-4 w-4" />
-                                        {recruitmentData?.location || 'Remote'}
+                                        {recruitmentData.location || 'Remote'}
                                     </span>
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant={isBookmarked ? "default" : "outline"}
-                                            size="icon"
-                                            onClick={handleBookmark}
-                                            className={isBookmarked ? 'text-red-600 border-red-300 bg-red-50' : ''}
-                                        >
-                                            {isBookmarked ? <BookmarkCheck className="h-4 w-4 fill-current text-red-600" /> : <Bookmark className="h-4 w-4" />}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{isBookmarked ? 'Remove bookmark' : 'Bookmark this job'}</p>
-                                    </TooltipContent>
-                                </Tooltip>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Button variant="outline" size="icon" onClick={handleCopyLink}>
@@ -379,7 +316,7 @@ const RecruitmentPage = () => {
                                         About this Role
                                     </h3>
                                     <p className="text-muted-foreground leading-relaxed">
-                                        {recruitmentData?.shortDescription}
+                                        {recruitmentData.shortDescription}
                                     </p>
                                 </div>
 
@@ -399,7 +336,7 @@ const RecruitmentPage = () => {
                                         [&_li]:mb-1.5 [&_li]:leading-relaxed
                                         [&_strong]:font-semibold [&_em]:italic
                                         [&_p]:mb-4"
-                                        dangerouslySetInnerHTML={{ __html: recruitmentData?.description || '' }}
+                                        dangerouslySetInnerHTML={{ __html: recruitmentData.description || '' }}
                                         suppressHydrationWarning
                                     />
                                 </div>
@@ -415,7 +352,7 @@ const RecruitmentPage = () => {
                                         <div>
                                             <p className="text-sm font-medium text-foreground">Salary</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {recruitmentData?.totalCompensation || '$80,000 - $120,000'}
+                                                {recruitmentData.totalCompensation || '$80,000 - $120,000'}
                                             </p>
                                         </div>
                                     </div>
@@ -425,7 +362,7 @@ const RecruitmentPage = () => {
                                         <div>
                                             <p className="text-sm font-medium text-foreground">Experience</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {recruitmentData?.minYearsOfExperience || '3+'} - {recruitmentData?.maxYearsOfExperience || '5+'} Years
+                                                {recruitmentData.minYearsOfExperience || '3+'} - {recruitmentData.maxYearsOfExperience || '5+'} Years
                                             </p>
                                         </div>
                                     </div>
@@ -435,7 +372,7 @@ const RecruitmentPage = () => {
                                         <div>
                                             <p className="text-sm font-medium text-foreground">Job Type</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {recruitmentData?.hiringType || 'Full-time'}
+                                                {recruitmentData.hiringType || 'Full-time'}
                                             </p>
                                         </div>
                                     </div>
@@ -445,7 +382,7 @@ const RecruitmentPage = () => {
                                         <div>
                                             <p className="text-sm font-medium text-foreground">Closing Date</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {new Date(recruitmentData?.openingTillDate || '2024-06-15').toLocaleDateString('en-US', {
+                                                {new Date(recruitmentData.openingTillDate || '2024-06-15').toLocaleDateString('en-US', {
                                                     year: 'numeric',
                                                     month: 'long',
                                                     day: 'numeric'
@@ -459,7 +396,7 @@ const RecruitmentPage = () => {
                                         <div>
                                             <p className="text-sm font-medium text-foreground">Department</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {recruitmentData?.departmentName || 'Engineering'}
+                                                {recruitmentData.departmentName || 'Engineering'}
                                             </p>
                                         </div>
                                     </div>
@@ -468,8 +405,8 @@ const RecruitmentPage = () => {
                                         <Activity className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                                         <div>
                                             <p className="text-sm font-medium text-foreground">Status</p>
-                                            <Badge variant="outline" className={getStatusColor(recruitmentData?.hiringStatus || '')}>
-                                                {recruitmentData?.hiringStatus || 'Open'}
+                                            <Badge variant="outline" className={getStatusColor(recruitmentData.hiringStatus || '')}>
+                                                {recruitmentData.hiringStatus || 'Open'}
                                             </Badge>
                                         </div>
                                     </div>
@@ -477,47 +414,65 @@ const RecruitmentPage = () => {
 
                                 <Separator className="my-6" />
 
-                                {/* Bookmark Count */}
-                                {bookmarkCount > 0 && (
-                                    <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/20 flex items-center gap-2">
-                                        <Heart className="h-4 w-4 text-red-500" />
-                                        <span className="text-sm text-muted-foreground">
-                                            {bookmarkCount} {bookmarkCount === 1 ? 'person has' : 'people have'} bookmarked this job
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Action Buttons */}
+                                {/* Action Buttons with Popover */}
                                 <div className="space-y-3">
-                                    {hasAlreadyApplied ? (
-                                        <Button
-                                            className="w-full gap-2"
-                                            size="lg"
-                                            variant="secondary"
-                                            disabled
-                                        >
-                                            <CheckCircle2 className="h-4 w-4" />
-                                            Already Applied
-                                        </Button>
-                                    ) : checkingApplication ? (
-                                        <Button
-                                            className="w-full gap-2"
-                                            size="lg"
-                                            disabled
-                                        >
-                                            <Skeleton className="h-4 w-4 rounded-full" />
-                                            Checking...
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            className="w-full gap-2"
-                                            size="lg"
-                                            onClick={handleApply}
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Apply Now
-                                        </Button>
-                                    )}
+                                    <Popover open={applyPopoverOpen} onOpenChange={setApplyPopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                className="w-full gap-2"
+                                                size="lg"
+                                                onClick={handleApplyClick}
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Apply Now
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-64" align="end" sideOffset={8}>
+                                            <div className="space-y-3 p-2">
+                                                <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                                                    <UserPlus className="h-5 w-5 text-primary" />
+                                                    <div>
+                                                        <p className="font-medium text-sm">New to Nexus?</p>
+                                                        <p className="text-xs text-muted-foreground">Create an account to apply</p>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    className="w-full gap-2 justify-start"
+                                                    variant="default"
+                                                    size="sm"
+                                                    onClick={handleSignup}
+                                                >
+                                                    <UserPlus className="h-4 w-4" />
+                                                    Sign Up
+                                                </Button>
+                                                <div className="relative my-3">
+                                                    <div className="absolute inset-0 flex items-center">
+                                                        <span className="w-full border-t" />
+                                                    </div>
+                                                    <div className="relative flex justify-center text-xs uppercase">
+                                                        <span className="bg-background px-2 text-muted-foreground">Or</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
+                                                    <LogIn className="h-5 w-5 text-muted-foreground" />
+                                                    <div>
+                                                        <p className="font-medium text-sm">Already have an account?</p>
+                                                        <p className="text-xs text-muted-foreground">Sign in to apply</p>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    className="w-full gap-2 justify-start"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleLogin}
+                                                >
+                                                    <Lock className="h-4 w-4" />
+                                                    Log In
+                                                </Button>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
@@ -584,7 +539,7 @@ const RecruitmentPage = () => {
                 </Card>
             </div>
 
-            {/* Apply Dialog */}
+            {/* Apply Dialog - only for authenticated users */}
             <ApplyDialog
                 open={applyDialogOpen}
                 onOpenChange={setApplyDialogOpen}
@@ -596,4 +551,4 @@ const RecruitmentPage = () => {
     )
 }
 
-export default RecruitmentPage
+export default PublicRecruitmentPage

@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api-client";
+import apiClientPublic from "@/lib/api-client-public";
 import {
   Applicant,
   ApplicantApplicationSchema,
@@ -1081,5 +1082,276 @@ export async function getMyInterviews(
     );
   } catch (e) {
     throw new Error("Failed to fetch my interviews: " + (e as Error).message);
+  }
+}
+
+// ============================================
+// PUBLIC RECRUITMENT API FUNCTIONS (no auth required)
+// Uses dedicated public endpoints: /iam/public/recruitment/**
+// ============================================
+
+export async function getPublicRecruitmentById(
+  recruitmentId: number,
+): Promise<AxiosResponse<Recruitment>> {
+  try {
+    return await apiClientPublic.get<Recruitment>(
+      `/iam/public/recruitment/applicant-view/${recruitmentId}`,
+    );
+  } catch (e) {
+    throw new Error(
+      "Failed to fetch public recruitment by ID: " + (e as Error).message,
+    );
+  }
+}
+
+export async function getPublicRecruitmentFilterOptions(): Promise<
+  AxiosResponse<RecruitmentFilter>
+> {
+  try {
+    return await apiClientPublic.get<RecruitmentFilter>(`/iam/public/recruitment/filter`);
+  } catch (e) {
+    throw new Error(
+      "Failed to fetch public recruitment filter options: " + (e as Error).message,
+    );
+  }
+}
+
+export async function getPublicOpeningsToday(
+  pageNo: number,
+  pageOffset: number,
+  status: string,
+  orgName: string,
+  location: string,
+  query: string,
+): Promise<
+  AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>
+> {
+  try {
+    return await apiClientPublic.get<
+      PaginatedResponse<RecruitmentApplicantTableResponse>
+    >(
+      `/iam/public/recruitment/openings-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}&query=${encodeURIComponent(query)}`,
+    );
+  } catch (error: unknown) {
+    console.error("Error fetching public openings:", error);
+    throw new Error("Failed to fetch public openings: " + (error as Error).message);
+  }
+}
+
+export async function getPublicOpeningsBeforeToday(
+  pageNo: number,
+  pageOffset: number,
+  status: string,
+  orgName: string,
+  location: string,
+  query: string,
+): Promise<
+  AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>
+> {
+  try {
+    return await apiClientPublic.get<
+      PaginatedResponse<RecruitmentApplicantTableResponse>
+    >(
+      `/iam/public/recruitment/openings-before-today?pageNo=${pageNo}&pageOffset=${pageOffset}&status=${status}&orgName=${orgName}&location=${location}&query=${encodeURIComponent(query)}`,
+    );
+  } catch (error: unknown) {
+    console.error("Error fetching public openings:", error);
+    throw new Error("Failed to fetch public openings: " + (error as Error).message);
+  }
+}
+
+export async function getPublicPositionPieGraph() {
+  try {
+    return await apiClientPublic.get(`/iam/public/recruitment/position-pie-graph`);
+  } catch (e) {
+    throw new Error(
+      "Failed to fetch public position pie graph: " + (e as Error).message,
+    );
+  }
+}
+
+export async function getPublicOpeningsExperienceWise(): Promise<
+  AxiosResponse<ExperienceWiseOpeningsMap>
+> {
+  try {
+    return await apiClientPublic.get<ExperienceWiseOpeningsMap>(
+      `/iam/public/recruitment/openings-experience-wise`,
+    );
+  } catch (e) {
+    throw new Error(
+      "Failed to fetch public openings experience-wise: " + (e as Error).message,
+    );
+  }
+}
+
+export async function getPublicCompanyWiseOpeningCount(
+  pageNo: number,
+  pageOffset: number,
+): Promise<AxiosResponse<PaginatedResponse<CompanyOpeningsCardDto>>> {
+  try {
+    return await apiClientPublic.get<PaginatedResponse<CompanyOpeningsCardDto>>(
+      `/iam/public/recruitment/company-wise-opening-count?pageNo=${pageNo}&pageOffset=${pageOffset}`,
+    );
+  } catch (e) {
+    throw new Error(
+      "Failed to fetch public company-wise opening count: " + (e as Error).message,
+    );
+  }
+}
+
+export async function getPublicRecruitmentSearch(
+  query: string,
+  pageNo: number,
+  pageOffset: number,
+): Promise<
+  AxiosResponse<PaginatedResponse<RecruitmentApplicantTableResponse>>
+> {
+  try {
+    return await apiClientPublic.get<
+      PaginatedResponse<RecruitmentApplicantTableResponse>
+    >(
+      `/iam/public/recruitment/search?name=${encodeURIComponent(query)}&pageNo=${pageNo}&pageOffset=${pageOffset}`,
+    );
+  } catch (e) {
+    throw new Error("Failed to search public recruitment: " + (e as Error).message);
+  }
+}
+
+// ============================================
+// BOOKMARK API FUNCTIONS (requires userId)
+// ============================================
+
+export interface BookmarkRecruitmentResponse {
+  message: string;
+  bookmarked: boolean;
+}
+
+export interface HasBookmarkedResponse {
+  hasBookmarked: boolean;
+}
+
+export interface BookmarkCountResponse {
+  bookmarkCount: number;
+}
+
+export interface BookmarkedRecruitment {
+  recruitmentId: number;
+  title: string;
+  shortDescription: string;
+  orgName: string;
+  location: string;
+  hiringType: string;
+  hiringStatus: string;
+  totalCompensation: string;
+  openingTillDate: string;
+  bookmarkedAt: string;
+}
+
+export interface PaginatedBookmarkedRecruitmentsResponse {
+  content: BookmarkedRecruitment[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;
+  numberOfElements: number;
+  pageable: {
+    offset: number;
+    pageNumber: number;
+    pageSize: number;
+    paged: boolean;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    unpaged: boolean;
+  };
+  size: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function getBookmarkCount(
+  recruitmentId: number,
+  userId: number,
+): Promise<AxiosResponse<BookmarkCountResponse>> {
+  try {
+    return await apiClientPublic.get<BookmarkCountResponse>(
+      `/iam/recruitment/bookmark/count?recruitmentId=${recruitmentId}&userId=${userId}`,
+    );
+  } catch (e) {
+    throw new Error("Failed to fetch bookmark count: " + (e as Error).message);
+  }
+}
+
+export async function bookmarkRecruitmentAuth(
+  recruitmentId: number,
+  userId: number,
+): Promise<AxiosResponse<BookmarkRecruitmentResponse>> {
+  try {
+    return await apiClient.post<BookmarkRecruitmentResponse>(
+      `/iam/recruitment/bookmark?recruitmentId=${recruitmentId}&userId=${userId}`,
+      {},
+    );
+  } catch (e) {
+    throw new Error("Failed to bookmark recruitment: " + (e as Error).message);
+  }
+}
+
+export async function unbookmarkRecruitmentAuth(
+  recruitmentId: number,
+  userId: number,
+): Promise<AxiosResponse<BookmarkRecruitmentResponse>> {
+  try {
+    return await apiClient.delete<BookmarkRecruitmentResponse>(
+      `/iam/recruitment/bookmark?recruitmentId=${recruitmentId}&userId=${userId}`,
+    );
+  } catch (e) {
+    throw new Error("Failed to unbookmark recruitment: " + (e as Error).message);
+  }
+}
+
+export async function hasBookmarkedRecruitmentAuth(
+  recruitmentId: number,
+  userId: number,
+): Promise<AxiosResponse<HasBookmarkedResponse>> {
+  try {
+    return await apiClient.get<HasBookmarkedResponse>(
+      `/iam/recruitment/bookmark/status?recruitmentId=${recruitmentId}&userId=${userId}`,
+    );
+  } catch (e) {
+    throw new Error("Failed to check bookmark status: " + (e as Error).message);
+  }
+}
+
+export async function getBookmarkCountAuth(
+  recruitmentId: number,
+  userId: number,
+): Promise<AxiosResponse<BookmarkCountResponse>> {
+  try {
+    return await apiClient.get<BookmarkCountResponse>(
+      `/iam/recruitment/bookmark/count?recruitmentId=${recruitmentId}&userId=${userId}`,
+    );
+  } catch (e) {
+    throw new Error("Failed to fetch bookmark count: " + (e as Error).message);
+  }
+}
+
+export async function getBookmarkedRecruitmentsAuth(
+  pageNo: number = 0,
+  pageOffset: number = 10,
+  userId: number,
+): Promise<AxiosResponse<PaginatedBookmarkedRecruitmentsResponse>> {
+  try {
+    return await apiClient.get<PaginatedBookmarkedRecruitmentsResponse>(
+      `/iam/recruitment/bookmarks?pageNo=${pageNo}&pageOffset=${pageOffset}&userId=${userId}`,
+    );
+  } catch (e) {
+    throw new Error("Failed to fetch bookmarked recruitments: " + (e as Error).message);
   }
 }

@@ -11,15 +11,23 @@ import Image from "next/image";
 import { House, LogOut, UserPlus, UserRound } from 'lucide-react';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { logout } from '@/lib/auth-service';
 import { Spinner } from './ui/spinner';
 import { useToast } from '@/hooks/use-toast';
 
+// Public paths that should not show the full navbar
+const publicPaths = ["/public/", "/login", "/signup"];
+
 const Navbar = () => {
-    const { personalEmail, name, avatar } = useUserMetadata();
+    const { personalEmail, name, avatar, isAuthenticated, isLoading } = useUserMetadata();
     const router = useRouter();
+    const pathname = usePathname();
     const [loading, setLoading] = React.useState(false);
     const { toast } = useToast();
+
+    // Check if current path is a public path
+    const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
 
     const handleLogout = async () => {
         try {
@@ -43,6 +51,43 @@ const Navbar = () => {
             setLoading(false);
         }
     };
+
+    // Show loading skeleton while auth is being checked
+    if (isLoading) {
+        return (
+            <div className="w-full border-b fixed top-0 z-50 bg-white">
+                <Card className="w-full rounded-none border-b">
+                    <CardContent className="flex items-center h-16">
+                        <div className="animate-pulse">
+                            <div className="h-6 w-24 bg-gray-200 rounded" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // For public paths, show minimal header
+    if (isPublicPath) {
+        return (
+            <div className="w-full border-b fixed top-0 z-50 bg-white">
+                <Card className="w-full rounded-none border-b">
+                    <CardContent className="flex items-center justify-between h-16 px-4">
+                        <h3 className="text-lg font-bold">Nexus Corp.</h3>
+                        <div className="flex items-center gap-3">
+                            <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+                                Sign In
+                            </Link>
+                            <Link href="/signup" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
+                                Get Started
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full border-b fixed top-0 z-50 bg-white">
             <Card className="w-full rounded-none border-b">
@@ -88,22 +133,32 @@ const Navbar = () => {
                                             />
                                         </div>
                                         <div className="ml-2">
-                                            <p className="font-semibold">{name || "Ariel"}</p>
+                                            <p className="font-semibold">{name || "Guest"}</p>
                                             <p className="text-sm text-gray-500">
-                                                {personalEmail || "ariel@example.com"}
+                                                {personalEmail || (isAuthenticated ? "ariel@example.com" : "Not signed in")}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className=" flex flex-col gap-2 w-full">
-                                    <Link href="/profile" className="flex">
-                                        <Button variant="outline" className="w-full">
-                                            <UserRound /> Profile
-                                        </Button>
-                                    </Link>
-                                    <Button variant="destructive" onClick={handleLogout} disabled={loading}>
-                                        {loading ? <Spinner /> : <LogOut />} Log out
-                                    </Button>
+                                    {isAuthenticated ? (
+                                        <>
+                                            <Link href="/profile" className="flex">
+                                                <Button variant="outline" className="w-full">
+                                                    <UserRound /> Profile
+                                                </Button>
+                                            </Link>
+                                            <Button variant="destructive" onClick={handleLogout} disabled={loading}>
+                                                {loading ? <Spinner /> : <LogOut />} Log out
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <Link href="/login" className="flex">
+                                            <Button variant="primary" className="w-full">
+                                                <LogOut /> Sign In
+                                            </Button>
+                                        </Link>
+                                    )}
                                 </div>
                             </PopoverContent>
                         </Popover>
