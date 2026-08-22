@@ -1,11 +1,34 @@
 "use client";
 
+import { EventStatusDonutChart } from "@/components/charts/event-status-donut-chart";
+import { EventTriggerAreaChart } from "@/components/charts/event-trigger-area-chart";
 import EventOnboardDialog from "@/components/EventOnboardDialog";
+import { HtmlEditorPreview } from "@/components/HtmlEditorPreview";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import {
 	Table,
 	TableBody,
@@ -14,49 +37,25 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { perticularEventData } from "./event-data";
-import { formatDate } from "@/lib/utils";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Minus, Plus } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { HtmlEditorPreview } from "@/components/HtmlEditorPreview";
+import { useToast } from "@/hooks/use-toast";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
 import {
 	CreateEventTemplateResponse,
+	decrypt,
+	getEventHitsMonthWise,
+	getEventHitsStatusWise,
 	getEventTemplateById,
 	getEventTemplateByName,
 	getEventTemplates,
 	ShortEventTemplateResponse,
 	triggerEventMail,
-	updateEventTemplate,
-	getEventHitsStatusWise,
-	getEventHitsMonthWise,
-	decrypt
+	updateEventTemplate
 } from "@/lib/auth-service";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import {
-	AlertDialog,
-	AlertDialogContent,
-	AlertDialogTitle,
-	AlertDialogHeader,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogAction,
-	AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import { Spinner } from "@/components/ui/spinner";
-import { EventTriggerAreaChart } from "@/components/charts/event-trigger-area-chart";
-import { EventStatusDonutChart } from "@/components/charts/event-status-donut-chart";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { formatDate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Minus, Plus, Search, Mail, Trash2, Save } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
 enum ParamType {
@@ -454,18 +453,6 @@ export default function Onboarding() {
 		fetchEventTemplates();
 	}, [fetchEventTemplates, orgId]);
 
-	const dummyUpdate = () => {
-		setLoading((prev) => ({ ...prev, update: true }));
-		setTimeout(() => {
-			setLoading((prev) => ({ ...prev, update: false }));
-			toast({
-				title: "Template updated",
-				description: "The event template has been successfully updated.",
-				variant: "destructive",
-			});
-		}, 1000);
-	};
-
 	return (
 		<div className="space-y-6 p-6">
 			<section className="space-y-3 flex justify-between items-center">
@@ -495,6 +482,7 @@ export default function Onboarding() {
 						</div>
 						<div className="w-[10%]">
 							<Button className="w-full" type="submit">
+								<Search className="mr-2 h-4 w-4" />
 								Search
 							</Button>
 						</div>
@@ -511,7 +499,31 @@ export default function Onboarding() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{shortEventTemplates &&
+							{loading.templates ? (
+								[...Array(4)].map((_, index) => (
+									<TableRow key={index}>
+										<TableCell>
+											<Skeleton className="h-4 w-16" />
+										</TableCell>
+										<TableCell>
+											<Skeleton className="h-4 w-32" />
+										</TableCell>
+										<TableCell>
+											<Skeleton className="h-4 w-24" />
+										</TableCell>
+										<TableCell>
+											<Skeleton className="h-4 w-24" />
+										</TableCell>
+										<TableCell>
+											<Skeleton className="h-4 w-28" />
+										</TableCell>
+										<TableCell>
+											<Skeleton className="h-4 w-16" />
+										</TableCell>
+									</TableRow>
+								))
+							) : (
+								shortEventTemplates &&
 								shortEventTemplates.length > 0 &&
 								shortEventTemplates?.map((data) => (
 									<TableRow
@@ -531,7 +543,7 @@ export default function Onboarding() {
 											{formatDate(data.updatedAt)}
 										</TableCell>
 										<TableCell>
-											{data.eventTemplateType === "EXTERNAL_MAIL_EVENT" ? (
+											{data.eventTemplateType === "EXTERNAL_MAIL_TEMPLATE" ? (
 												<Badge variant="outline">External Mail Event</Badge>
 											) : (
 												<Badge variant="outline">Internal Event</Badge>
@@ -541,7 +553,8 @@ export default function Onboarding() {
 											{data.numberOfParams}
 										</TableCell>
 									</TableRow>
-								))}
+								))
+							)}
 						</TableBody>
 					</Table>
 				</Card>
@@ -595,7 +608,7 @@ export default function Onboarding() {
 								}
 							/>
 							<Button onClick={handleTriggerEvent} disabled={loading.mailTrigger}>
-								{loading.mailTrigger ? <Spinner /> : "Send Test"}
+								{loading.mailTrigger ? <Spinner /> : <><Mail className="mr-2 h-4 w-4" />Send Test</>}
 							</Button>
 						</div>
 						{/* fill the params */}
@@ -779,12 +792,13 @@ export default function Onboarding() {
 						/>
 						<div className="flex gap-4 justify-end mt-2 items-center">
 							<Button variant="destructive" onClick={() => setDeletion(true)}>
+								<Trash2 className="mr-2 h-4 w-4" />
 								Delete template
 							</Button>
 							<Button
 								disabled={!isEdited || loading.update}
 								onClick={handleTemplateUpdate}>
-								{loading.update ? <Spinner /> : "Update template"}
+								{loading.update ? <Spinner /> : <><Save className="mr-2 h-4 w-4" />Update template</>}
 							</Button>
 						</div>
 					</Card>

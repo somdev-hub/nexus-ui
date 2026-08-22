@@ -193,7 +193,7 @@ const EventOnboardDialog = ({ smallButton }: { smallButton?: boolean }) => {
 			{smallButton ? (
 				<DialogTrigger asChild>
 					<Button variant="outline" size="sm" >
-						Onboard Event
+						<Plus /> Onboard Event
 					</Button>
 				</DialogTrigger>
 			) : (

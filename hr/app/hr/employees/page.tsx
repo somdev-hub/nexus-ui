@@ -32,21 +32,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { employees as dummyEmployees } from "./data";
 // import apiClient from "@/lib/api-client";
-
-interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  position: string;
-  status: "Active" | "On Leave" | "Inactive";
-  joinDate: string;
-  salary: number;
-  gender?: "Male" | "Female" | "Other";
-  noticePerioddDays?: number;
-}
 
 interface TableEmployee extends EmployeeDirectoryItem {
   id: string;
@@ -54,7 +40,7 @@ interface TableEmployee extends EmployeeDirectoryItem {
 
 export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredEmployees, setFilteredEmployees] = useState(dummyEmployees);
+  const [filteredEmployees, setFilteredEmployees] = useState<TableEmployee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const [insightsLoading, setInsightsLoading] = useState(true);
@@ -131,8 +117,8 @@ export default function EmployeesPage() {
     () =>
       filteredEmployees.filter(
         (emp) =>
-          emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          emp.email.toLowerCase().includes(searchTerm.toLowerCase())
+          emp.empName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          emp.empEmail.toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [searchTerm, filteredEmployees]
   );
@@ -144,26 +130,17 @@ export default function EmployeesPage() {
     // Department/Employee ratio
     const employeesPerDepartment = filteredEmployees.reduce(
       (acc, emp) => {
-        acc[emp.department] = (acc[emp.department] || 0) + 1;
+        acc[emp.deptName] = (acc[emp.deptName] || 0) + 1;
         return acc;
       },
       {} as Record<string, number>
     );
 
-    // Gender ratio
-    const genderRatio = filteredEmployees.reduce(
-      (acc, emp) => {
-        const gender = emp.gender || "Other";
-        acc[gender] = (acc[gender] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
+    // Gender ratio - not available in EmployeeDirectoryItem, use empty object
+    const genderRatio = {} as Record<string, number>;
 
-    // Employees on notice period
-    const onNoticePeriod = filteredEmployees.filter(
-      (emp) => emp.noticePerioddDays && emp.noticePerioddDays > 0
-    ).length;
+    // Employees on notice period - not available in EmployeeDirectoryItem, use 0
+    const onNoticePeriod = 0;
 
     return {
       totalEmployees,
@@ -269,8 +246,12 @@ export default function EmployeesPage() {
           className="max-w-xs"
         />
         <EmployeeFilter
-          employees={dummyEmployees}
-          onFilterChange={setFilteredEmployees}
+          employees={employees}
+          onFilterChange={(filtered) =>
+            setFilteredEmployees(
+              filtered.map((emp) => ({ ...emp, id: emp.empId.toString() }))
+            )
+          }
         />
       </div>
 

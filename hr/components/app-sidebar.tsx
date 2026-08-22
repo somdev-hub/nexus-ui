@@ -313,62 +313,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       roleAccess[user.role]?.includes(section.id)
     );
   }, [isAuthenticated, user]);
-  // isAuthenticated
-  //   ? data.sidebarSections.filter((section) => {
-  //       if (!user) return false;
-
-  //       // All roles have access to all sections
-  //       const roleAccess: Record<string, string[]> = {
-  //         ROLE_ADMIN: ["main", "Products", "materials", "partnerships", "hr"],
-  //         ROLE_DIRECTOR: [
-  //           "main",
-  //           "Products",
-  //           "materials",
-  //           "partnerships",
-  //           "hr"
-  //         ],
-  //         ROLE_PRODUCT_MANAGER: [
-  //           "main",
-  //           "Products",
-  //           "materials",
-  //           "partnerships",
-  //           "hr"
-  //         ],
-  //         ROLE_ACCOUNT_MANAGER: [
-  //           "main",
-  //           "Products",
-  //           "materials",
-  //           "partnerships",
-  //           "hr"
-  //         ],
-  //         ROLE_OPERATION_MANAGER: [
-  //           "main",
-  //           "Products",
-  //           "materials",
-  //           "partnerships",
-  //           "hr"
-  //         ],
-  //         ROLE_WAREHOUSE_MANAGER: [
-  //           "main",
-  //           "Products",
-  //           "materials",
-  //           "partnerships",
-  //           "hr"
-  //         ],
-  //         ROLE_FLEET_MANAGER: [
-  //           "main",
-  //           "Products",
-  //           "materials",
-  //           "partnerships",
-  //           "hr"
-  //         ],
-  //         CLERK: ["main", "Products", "materials", "partnerships", "hr"],
-  //         DRIVER: ["main", "Products", "materials", "partnerships", "hr"]
-  //       };
-
-  //       return roleAccess[user.role]?.includes(section.id) ?? false;
-  //     })
-  //   : []; // Empty array if not authenticated
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

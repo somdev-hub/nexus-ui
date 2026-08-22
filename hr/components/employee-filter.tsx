@@ -12,7 +12,7 @@ import {
 import { Filter, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
-import type { Employee } from "@/types";
+import type { EmployeeDirectoryItem } from "@/types";
 
 export interface FilterState {
 	departments: string[];
@@ -21,9 +21,15 @@ export interface FilterState {
 	joinDateRange: { start: string; end: string };
 }
 
+type FilterableEmployee = EmployeeDirectoryItem & {
+	department?: string;
+	joinDate?: string;
+	id?: string;
+};
+
 export interface EmployeeFilterProps {
-	employees: Employee[];
-	onFilterChange: (filteredEmployees: Employee[]) => void;
+	employees: FilterableEmployee[];
+	onFilterChange: (filteredEmployees: FilterableEmployee[]) => void;
 }
 
 export function EmployeeFilter({
@@ -44,22 +50,24 @@ export function EmployeeFilter({
 
 	// Get unique departments and positions
 	const uniqueDepartments = useMemo(
-		() => [...new Set(employees.map((emp) => emp.department))].sort(),
+		() => [...new Set(employees.map((emp) => emp.deptName || emp.department).filter((d): d is string => Boolean(d)))].sort(),
 		[employees]
 	);
 
 	const uniquePositions = useMemo(
-		() => [...new Set(employees.map((emp) => emp.position))].sort(),
+		() => [...new Set(employees.map((emp) => emp.position).filter((p): p is string => Boolean(p)))].sort(),
 		[employees]
 	);
 
 	// Apply filters and call onFilterChange
 	const applyFilters = (currentFilters: FilterState) => {
 		const filtered = employees.filter((emp) => {
+			const empDepartment = emp.deptName || emp.department;
 			// Department filter
 			if (
 				filters.departments.length > 0 &&
-				!filters.departments.includes(emp.department)
+				empDepartment &&
+				!filters.departments.includes(empDepartment)
 			) {
 				return false;
 			}
@@ -67,6 +75,7 @@ export function EmployeeFilter({
 			// Position filter
 			if (
 				filters.positions.length > 0 &&
+				emp.position &&
 				!filters.positions.includes(emp.position)
 			) {
 				return false;
@@ -82,7 +91,7 @@ export function EmployeeFilter({
 
 			// Join date filter
 			if (filters.joinDateRange.start) {
-				const empJoinDate = new Date(emp.joinDate);
+				const empJoinDate = new Date(emp.dateOfJoining);
 				const startFilterDate = new Date(filters.joinDateRange.start);
 				if (empJoinDate < startFilterDate) {
 					return false;
@@ -90,7 +99,7 @@ export function EmployeeFilter({
 			}
 
 			if (filters.joinDateRange.end) {
-				const empJoinDate = new Date(emp.joinDate);
+				const empJoinDate = new Date(emp.dateOfJoining);
 				const endFilterDate = new Date(filters.joinDateRange.end);
 				if (empJoinDate > endFilterDate) {
 					return false;
