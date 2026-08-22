@@ -913,3 +913,64 @@ export interface BreakStartEndData {
 export interface BreakStartEndResponse {
   [key: string]: BreakStartEndData;
 }
+
+// ============================================================================
+// WEEKLY ANALYTICS TYPES (Last 7 days)
+// ============================================================================
+
+export interface WeeklyEmployeeStrengthResponse {
+  Mon: number;
+  Tue: number;
+  Wed: number;
+  Thu: number;
+  Fri: number;
+  Sat: number;
+  Sun: number;
+}
+
+export interface WeeklyWorkingHoursResponse {
+  Mon: number;
+  Tue: number;
+  Wed: number;
+  Thu: number;
+  Fri: number;
+  Sat: number;
+  Sun: number;
+}
+
+export interface WeeklyCheckInCheckOutData {
+  checkIn: string;
+  checkout: string;
+}
+
+export interface WeeklyCheckInCheckOutResponse {
+  Mon: WeeklyCheckInCheckOutData;
+  Tue: WeeklyCheckInCheckOutData;
+  Wed: WeeklyCheckInCheckOutData;
+  Thu: WeeklyCheckInCheckOutData;
+  Fri: WeeklyCheckInCheckOutData;
+  Sat: WeeklyCheckInCheckOutData;
+  Sun: WeeklyCheckInCheckOutData;
+}
+
+// ============================================================================
+// RECRUITMENT ANALYTICS TYPES
+// ============================================================================
+
+export interface AnalyticsMetric {
+  value: number;
+  type: "DIFFERENCE_COMPARISON" | "VALUE_COMPARISON";
+  difference: number;
+  trend: "INCREMENT" | "DECREMENT" | "STABLE";
+  description: string;
+  comparisonWith: string;
+}
+
+export interface RecruitmentAnalytics {
+  currentApplications: AnalyticsMetric;
+  offerAcceptance: AnalyticsMetric;
+  offerSent: AnalyticsMetric;
+  openRoles: AnalyticsMetric;
+  recruitmentTAT: AnalyticsMetric;
+  underReview: AnalyticsMetric;
+}

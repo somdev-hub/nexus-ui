@@ -14,3 +14,6 @@ export { RoleSalaryIncrementChart } from "./role-salary-increment-chart";
 export { PayrollPredictionChart } from "./payroll-prediction-chart";
 export { OvertimeAnomalyChart } from "./overtime-anomaly-chart";
 export { FraudDetectionChart } from "./fraud-detection-chart";
+export { RecruitmentMetricsChart } from "./recruitment-metrics-chart";
+export { RecruitmentFunnelChart } from "./recruitment-funnel-chart";
+export { RecruitmentTrendChart } from "./recruitment-trend-chart";

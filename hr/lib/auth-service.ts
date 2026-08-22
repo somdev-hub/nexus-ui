@@ -1334,6 +1334,97 @@ export async function getRoleWiseSalaryIncrement(
 export const getEmployeeMonthlyStrength = getMonthlyStrength;
 
 // ============================================================================
+// WEEKLY ANALYTICS API FUNCTIONS (Last 7 days)
+// ============================================================================
+
+export interface WeeklyEmployeeStrengthResponse {
+  Mon: number;
+  Tue: number;
+  Wed: number;
+  Thu: number;
+  Fri: number;
+  Sat: number;
+  Sun: number;
+}
+
+export interface WeeklyWorkingHoursResponse {
+  Mon: number;
+  Tue: number;
+  Wed: number;
+  Thu: number;
+  Fri: number;
+  Sat: number;
+  Sun: number;
+}
+
+export interface WeeklyCheckInCheckOutResponse {
+  Mon: { checkIn: string; checkout: string };
+  Tue: { checkIn: string; checkout: string };
+  Wed: { checkIn: string; checkout: string };
+  Thu: { checkIn: string; checkout: string };
+  Fri: { checkIn: string; checkout: string };
+  Sat: { checkIn: string; checkout: string };
+  Sun: { checkIn: string; checkout: string };
+}
+
+export async function getWeeklyEmployeeStrength(
+  orgId: string,
+): Promise<WeeklyEmployeeStrengthResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+    });
+
+    const response = await apiClient.get<WeeklyEmployeeStrengthResponse>(
+      `/iam/analytics/employee/weekly-strength?${queryParams.toString()}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch weekly employee strength failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getWeeklyWorkingHours(
+  orgId: string,
+): Promise<WeeklyWorkingHoursResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+    });
+
+    const response = await apiClient.get<WeeklyWorkingHoursResponse>(
+      `/iam/analytics/employee/weekly-working-hours?${queryParams.toString()}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch weekly working hours failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function getWeeklyCheckInCheckOut(
+  orgId: string,
+): Promise<WeeklyCheckInCheckOutResponse> {
+  try {
+    const queryParams = new URLSearchParams({
+      orgId: String(orgId),
+    });
+
+    const response = await apiClient.get<WeeklyCheckInCheckOutResponse>(
+      `/iam/analytics/employee/weekly-check-in-check-out?${queryParams.toString()}`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Fetch weekly check-in check-out failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+// ============================================================================
 // RECRUITMENT API FUNCTIONS
 // ============================================================================
 

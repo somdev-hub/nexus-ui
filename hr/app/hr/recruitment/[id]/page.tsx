@@ -46,7 +46,6 @@ import {
 	X,
 	Filter,
 	Check,
-	AlertCircle,
 	Share,
 	Copy,
 	Facebook,
@@ -149,6 +148,10 @@ function RecruitmentDetail() {
 		interviewMode: "VIDEO"
 	});
 	const [scheduleInterviewLoading, setScheduleInterviewLoading] = useState(false);
+
+	// Quick actions status update state
+	const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+	const [statusAction, setStatusAction] = useState("");
 
 	// Share popover state
 	const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
@@ -388,6 +391,7 @@ function RecruitmentDetail() {
 			return;
 		}
 
+		setStatusUpdateLoading(true);
 		try {
 			await updateApplicantRecruitmentStatus(selectedApplicant.applicantId, parseInt(recruitmentId), { status });
 			toast({
@@ -405,6 +409,8 @@ function RecruitmentDetail() {
 					error instanceof Error ? error.message : "Please try again later.",
 				variant: "destructive"
 			});
+		} finally {
+			setStatusUpdateLoading(false);
 		}
 	};
 
@@ -1298,30 +1304,43 @@ function RecruitmentDetail() {
 
 							{/* Quick Actions */}
 							<div className="flex gap-2 border-b pb-4">
-								{getCurrentApplicationStatus() === 'INTERVIEW_SCHEDULED' ? (
-									<Button className="flex-1" size="sm" onClick={() => handleUpdateStatus('INTERVIEW_SCHEDULED')}>
-										<Check className="h-4 w-4 mr-2" />
-										Reschedule Interview
-									</Button>
-								) : (
-									<Button className="flex-1" size="sm" onClick={() => handleUpdateStatus('INTERVIEW_SCHEDULED')}>
-										<Check className="h-4 w-4 mr-2" />
-										Schedule Interview
-									</Button>
-								)}
-								<Button variant="outline" size="sm" className="flex-1" onClick={() => handleUpdateStatus('OFFER_ACCEPTED')}>
-									<AlertCircle className="h-4 w-4 mr-2" />
-									Send Offer
-								</Button>
-								<Button variant="destructive" size="sm" className="flex-1" onClick={() => handleUpdateStatus('REJECTED')}>
-									Reject
-								</Button>
-								<Button variant="secondary" size="sm" className="flex-1" onClick={() => handleUpdateStatus('SELECTED')}>
-									Select
-								</Button>
-								<Button variant="secondary" size="sm" className="flex-1" onClick={() => handleUpdateStatus('REVIEW')}>
-									Review
-								</Button>
+								<Select
+									value={statusAction}
+									onValueChange={(value) => {
+										setStatusAction(value);
+										if (value === "INTERVIEW_SCHEDULED") {
+											setShowScheduleInterviewDialog(true);
+											setStatusAction("");
+										} else {
+											handleUpdateStatus(value).finally(() => setStatusAction(""));
+										}
+									}}
+									disabled={statusUpdateLoading}
+								>
+									<SelectTrigger className="flex-1">
+										{statusUpdateLoading ? (
+											<span className="flex items-center gap-2">
+												<Loader2 className="h-4 w-4 animate-spin" />
+												Updating...
+											</span>
+										) : (
+											<SelectValue placeholder="Update Status..." />
+										)}
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="INTERVIEW_SCHEDULED">
+											{getCurrentApplicationStatus() === "INTERVIEW_SCHEDULED"
+												? "Reschedule Interview"
+												: "Schedule Interview"}
+										</SelectItem>
+										<SelectItem value="OFFER_ACCEPTED">
+											Send Offer
+										</SelectItem>
+										<SelectItem value="REJECTED">Reject</SelectItem>
+										<SelectItem value="SELECTED">Select</SelectItem>
+										<SelectItem value="REVIEW">Review</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 
 							{/* Personal Information */}

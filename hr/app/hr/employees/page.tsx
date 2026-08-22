@@ -1,39 +1,38 @@
 "use client";
 
-import { HRTable, type ColumnDef } from "@/components/hr-table";
 import { EmployeeFilter } from "@/components/employee-filter";
+import { HRTable, type ColumnDef } from "@/components/hr-table";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Toaster } from "@/components/ui/sonner";
+import { useOrgId } from "@/hooks/use-user-metadata";
+import { getEmployeeDirectory, getEmployeeInsights } from "@/lib/auth-service";
+import type {
+    EmployeeDirectoryItem,
+    EmployeeInsights
+} from "@/types";
 import {
-  Eye,
-  Edit,
-  Trash2,
-  Loader2,
-  TrendingUp,
-  Users,
-  Building2,
-  Users2,
-  AlertCircle
+    AlertCircle,
+    Building2,
+    Edit,
+    Eye,
+    Loader2,
+    Trash2,
+    TrendingUp,
+    Users,
+    Users2
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
-import { Toaster } from "@/components/ui/sonner";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { employees as dummyEmployees } from "./data";
-import { getEmployeeInsights, getEmployeeDirectory } from "@/lib/auth-service";
-import { useOrgId } from "@/hooks/use-user-metadata";
-import type {
-  EmployeeInsights,
-  EmployeeDirectoryItem,
-  EmployeeDirectoryResponse
-} from "@/types";
 // import apiClient from "@/lib/api-client";
 
 interface Employee {
@@ -127,65 +126,6 @@ export default function EmployeesPage() {
     fetchEmployees(currentPage);
   }, [orgId, currentPage]);
 
-  /*
-  // API FETCHING LOGIC - COMMENTED OUT FOR NOW
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [pageSize] = useState(10);
-
-  // Get orgId from localStorage
-  const getOrgId = (): string => {
-    if (typeof window === "undefined") return "";
-    const authUser = localStorage.getItem("auth_user");
-    if (authUser) {
-      try {
-        const user = JSON.parse(authUser);
-        return user.organizationId || "1"; // Fallback to "1" if not available
-      } catch {
-        return "1";
-      }
-    }
-    return "1";
-  };
-
-  // Fetch employees from API
-  const fetchEmployees = async (pageNo: number = 0) => {
-    try {
-      setIsLoading(true);
-      const orgId = getOrgId();
-      const response = await apiClient.get<EmployeesApiResponse>(
-        `/iam/users/employees?orgId=${orgId}&page=${pageNo}&pageOffset=${pageSize}`
-      );
-
-      const { content, totalPages: pages } = response.data;
-      setEmployees(content as Employee[]);
-      setTotalPages(pages);
-      setCurrentPage(pageNo);
-
-      if (content.length > 0) {
-        toast.success(`Loaded ${content.length} employees`);
-      } else {
-        toast.info("No employees found");
-      }
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to fetch employees";
-      toast.error(errorMessage);
-      setEmployees([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch employees on component mount
-  useEffect(() => {
-    fetchEmployees(0);
-  }, []);
-  */
-
   // Filter employees based on search term and filter state
   const searchFilteredEmployees = useMemo(
     () =>
@@ -261,7 +201,7 @@ export default function EmployeesPage() {
     {
       accessorKey: "salary",
       header: "Salary",
-      cell: (row: TableEmployee) => `$${row.salary.toLocaleString()}`
+      cell: (row: TableEmployee) => `₹${row.salary.toLocaleString()}`
     },
     {
       accessorKey: "dateOfJoining",

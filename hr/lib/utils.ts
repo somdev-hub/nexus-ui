@@ -21,14 +21,14 @@ export function getImageUrl(imageUrl: string | null): string | null {
 /**
  * Format currency value with proper locale
  * @param value - The numeric value to format
- * @param currency - Currency code (default: USD)
+ * @param currency - Currency code (default: INR)
  * @returns Formatted currency string
  */
 export function formatCurrency(
   value: number,
-  currency: string = "USD"
+  currency: string = "INR"
 ): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: currency,
     minimumFractionDigits: 2

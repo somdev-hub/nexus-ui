@@ -31,6 +31,7 @@ interface TeamDetailProps {
 	onAddMember: (teamId: number, data: any) => Promise<void>;
 	onUpdateMember: (teamId: number, memberId: number, data: any) => Promise<void>;
 	onRemoveMember: (teamId: number, memberId: number) => Promise<void>;
+	onChangeManager: (teamId: number, memberId: number, data: any) => Promise<void>;
 	onRefresh: () => void;
 	isLoading?: boolean;
 }
@@ -47,6 +48,7 @@ export function TeamDetail({
 	onAddMember,
 	onUpdateMember,
 	onRemoveMember,
+	onChangeManager,
 	onRefresh,
 	isLoading = false,
 }: TeamDetailProps) {

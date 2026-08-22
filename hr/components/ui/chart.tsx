@@ -104,6 +104,29 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+interface ChartTooltipContentProps {
+	active?: boolean;
+	payload?: Array<{
+		value: number | string | ReadonlyArray<number | string>;
+		name?: string | number;
+		color?: string;
+		dataKey?: string;
+		payload?: any;
+		[key: string]: any;
+	}>;
+	label?: React.ReactNode;
+	className?: string;
+	indicator?: "line" | "dot" | "dashed";
+	hideLabel?: boolean;
+	hideIndicator?: boolean;
+	labelFormatter?: (label: React.ReactNode, payload: any[]) => React.ReactNode;
+	labelClassName?: string;
+	formatter?: (value: any, name: any, item: any, index: number, payload: any[]) => React.ReactNode | [React.ReactNode, React.ReactNode];
+	color?: string;
+	nameKey?: string;
+	labelKey?: string;
+}
+
 const ChartTooltipContent = React.memo(function ChartTooltipContent({
 	active,
 	payload,
@@ -118,14 +141,7 @@ const ChartTooltipContent = React.memo(function ChartTooltipContent({
 	color,
 	nameKey,
 	labelKey
-}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-	React.ComponentProps<"div"> & {
-		hideLabel?: boolean;
-		hideIndicator?: boolean;
-		indicator?: "line" | "dot" | "dashed";
-		nameKey?: string;
-		labelKey?: string;
-	}) {
+}: ChartTooltipContentProps) {
 	const { config } = useChart();
 
 	const tooltipLabel = React.useMemo(() => {

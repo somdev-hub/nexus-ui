@@ -36,12 +36,15 @@ import { WeeklyEmployeeStrengthChart } from "@/components/weekly-employee-streng
 import { WeeklyWorkingHoursChart } from "@/components/weekly-working-hours";
 import { useToast } from "@/hooks/use-toast";
 import { useOrgId } from "@/hooks/use-user-metadata";
-import { getHeroAnalytics, getTodayHrRequests, getAllDepartments } from "@/lib/auth-service";
+import { getHeroAnalytics, getTodayHrRequests, getAllDepartments, getWeeklyEmployeeStrength, getWeeklyWorkingHours, getWeeklyCheckInCheckOut } from "@/lib/auth-service";
 import type {
 	HeroAnalyticsResponse,
 	RequestStatus,
 	TodayHrRequest,
-	User
+	User,
+	WeeklyEmployeeStrengthResponse,
+	WeeklyWorkingHoursResponse,
+	WeeklyCheckInCheckOutResponse
 } from "@/types";
 import {
 	AlertCircle,
@@ -58,6 +61,19 @@ import {
 	X
 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+// Default data for weekly analytics charts
+const defaultWeeklyEmployeeStrength = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+const defaultWeeklyWorkingHours = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+const defaultWeeklyCheckInCheckOut = {
+	Mon: { checkIn: "00:00", checkout: "00:00" },
+	Tue: { checkIn: "00:00", checkout: "00:00" },
+	Wed: { checkIn: "00:00", checkout: "00:00" },
+	Thu: { checkIn: "00:00", checkout: "00:00" },
+	Fri: { checkIn: "00:00", checkout: "00:00" },
+	Sat: { checkIn: "00:00", checkout: "00:00" },
+	Sun: { checkIn: "00:00", checkout: "00:00" }
+};
 
 const metricCards = [
 	{
@@ -158,8 +174,13 @@ export default function HRDashboard() {
 		useState<HeroAnalyticsResponse | null>(null);
 	const [isMetricsLoading, setIsMetricsLoading] = useState(true);
 	const [departments, setDepartments] = useState<{ deptId: number; deptName: string }[]>([]);
-	const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 	const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(true);
+
+	// Weekly analytics state
+	const [weeklyEmployeeStrength, setWeeklyEmployeeStrength] = useState<WeeklyEmployeeStrengthResponse | null>(null);
+	const [weeklyWorkingHours, setWeeklyWorkingHours] = useState<WeeklyWorkingHoursResponse | null>(null);
+	const [weeklyCheckInCheckOut, setWeeklyCheckInCheckOut] = useState<WeeklyCheckInCheckOutResponse | null>(null);
+	const [isWeeklyAnalyticsLoading, setIsWeeklyAnalyticsLoading] = useState(true);
 	const itemsPerPage = 10;
 	const orgId = useOrgId();
 	const { toast } = useToast();
@@ -259,6 +280,72 @@ export default function HRDashboard() {
 		};
 
 		loadHeroAnalytics();
+
+		return () => {
+			isActive = false;
+		};
+	}, [orgId, toast]);
+
+	// Fetch weekly analytics data
+	useEffect(() => {
+		let isActive = true;
+
+		const loadWeeklyAnalytics = async () => {
+			if (!orgId) {
+				if (isActive) {
+					setWeeklyEmployeeStrength(null);
+					setWeeklyWorkingHours(null);
+					setWeeklyCheckInCheckOut(null);
+					setIsWeeklyAnalyticsLoading(false);
+				}
+				return;
+			}
+
+			const parsedOrgId = Number(orgId);
+
+			if (Number.isNaN(parsedOrgId)) {
+				if (isActive) {
+					setWeeklyEmployeeStrength(null);
+					setWeeklyWorkingHours(null);
+					setWeeklyCheckInCheckOut(null);
+					setIsWeeklyAnalyticsLoading(false);
+				}
+				return;
+			}
+
+			setIsWeeklyAnalyticsLoading(true);
+
+			try {
+				const [strengthRes, hoursRes, checkInOutRes] = await Promise.all([
+					getWeeklyEmployeeStrength(orgId),
+					getWeeklyWorkingHours(orgId),
+					getWeeklyCheckInCheckOut(orgId)
+				]);
+
+				if (!isActive) {
+					return;
+				}
+
+				setWeeklyEmployeeStrength(strengthRes);
+				setWeeklyWorkingHours(hoursRes);
+				setWeeklyCheckInCheckOut(checkInOutRes);
+			} catch (error) {
+				if (!isActive) {
+					return;
+				}
+
+				setWeeklyEmployeeStrength(null);
+				setWeeklyWorkingHours(null);
+				setWeeklyCheckInCheckOut(null);
+				console.error("Failed to load weekly analytics:", error);
+			} finally {
+				if (isActive) {
+					setIsWeeklyAnalyticsLoading(false);
+				}
+			}
+		};
+
+		loadWeeklyAnalytics();
 
 		return () => {
 			isActive = false;
@@ -450,11 +537,25 @@ export default function HRDashboard() {
 			{/* Block 2: Attendance and Performance Graphs */}
 			<div className="flex w-full justify-between gap-4">
 				{/* Weekly Employee Strength */}
-				<WeeklyEmployeeStrengthChart />
+				{isWeeklyAnalyticsLoading ? (
+					<WeeklyEmployeeStrengthChart data={defaultWeeklyEmployeeStrength} />
+				) : (
+					<WeeklyEmployeeStrengthChart data={weeklyEmployeeStrength || defaultWeeklyEmployeeStrength} />
+				)}
 
 				{/* Weekly Working Hours */}
-				<WeeklyWorkingHoursChart />
-				<DailyCheckinCheckoutChart />
+				{isWeeklyAnalyticsLoading ? (
+					<WeeklyWorkingHoursChart data={defaultWeeklyWorkingHours} />
+				) : (
+					<WeeklyWorkingHoursChart data={weeklyWorkingHours || defaultWeeklyWorkingHours} />
+				)}
+
+				{/* Daily Check-in/Check-out */}
+				{isWeeklyAnalyticsLoading ? (
+					<DailyCheckinCheckoutChart data={defaultWeeklyCheckInCheckOut} />
+				) : (
+					<DailyCheckinCheckoutChart data={weeklyCheckInCheckOut || defaultWeeklyCheckInCheckOut} />
+				)}
 			</div>
 
 			{/* Block 3: HR Requests and Expense Breakdown */}
