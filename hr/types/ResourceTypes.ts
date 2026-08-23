@@ -1,0 +1,8 @@
+export enum ResourceType {
+  DOCUMENT = "DOCUMENT",
+  REPORT = "REPORT",
+  MODULE = "MODULE",
+  API_ENDPOINT = "API_ENDPOINT",
+  UI_COMPONENT = "UI_COMPONENT",
+  FEATURE = "FEATURE"
+}

@@ -1,0 +1,395 @@
+"use client";
+
+import { EmployeeFilter } from "@/components/employee-filter";
+import { HRTable, type ColumnDef } from "@/components/hr-table";
+import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Toaster } from "@/components/ui/sonner";
+import { useOrgId } from "@/hooks/use-user-metadata";
+import { getEmployeeDirectory, getEmployeeInsights } from "@/lib/auth-service";
+import type {
+    EmployeeDirectoryItem,
+    EmployeeInsights
+} from "@/types";
+import {
+    AlertCircle,
+    Building2,
+    Edit,
+    Eye,
+    Loader2,
+    Trash2,
+    TrendingUp,
+    Users,
+    Users2
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+// import apiClient from "@/lib/api-client";
+
+interface TableEmployee extends EmployeeDirectoryItem {
+  id: string;
+}
+
+export default function EmployeesPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredEmployees, setFilteredEmployees] = useState<TableEmployee[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+  const [insights, setInsights] = useState<EmployeeInsights | null>(null);
+  const [employees, setEmployees] = useState<TableEmployee[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [pageSize] = useState(10);
+
+  const orgId = useOrgId();
+
+  // Fetch employee directory from API
+  const fetchEmployees = async (pageNo: number = 0) => {
+    try {
+      setDirectoryLoading(true);
+      if (!orgId) {
+        setEmployees([]);
+        return;
+      }
+      const response = await getEmployeeDirectory(orgId, pageNo, pageSize);
+      const tableEmployees: TableEmployee[] = response.content.map((emp) => ({
+        ...emp,
+        id: emp.empId.toString()
+      }));
+      setEmployees(tableEmployees);
+      setTotalPages(response.totalPages);
+      setCurrentPage(pageNo);
+      setTotalElements(response.totalElements);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch employees";
+      toast.error(errorMessage);
+      setEmployees([]);
+    } finally {
+      setDirectoryLoading(false);
+    }
+  };
+
+  // Fetch employee insights on component mount
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        setInsightsLoading(true);
+        if (!orgId) {
+          setInsights(null);
+          return;
+        }
+        const data = await getEmployeeInsights(orgId);
+        setInsights(data);
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch employee insights";
+        toast.error(errorMessage);
+        setInsights(null);
+      } finally {
+        setInsightsLoading(false);
+      }
+    };
+    fetchInsights();
+  }, [orgId]);
+
+  // Fetch employee directory on component mount and when page changes
+  useEffect(() => {
+    fetchEmployees(currentPage);
+  }, [orgId, currentPage]);
+
+  // Filter employees based on search term and filter state
+  const searchFilteredEmployees = useMemo(
+    () =>
+      filteredEmployees.filter(
+        (emp) =>
+          emp.empName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          emp.empEmail.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [searchTerm, filteredEmployees]
+  );
+
+  // Calculate local metrics based on filtered employees (fallback)
+  const localMetrics = useMemo(() => {
+    const totalEmployees = filteredEmployees.length;
+
+    // Department/Employee ratio
+    const employeesPerDepartment = filteredEmployees.reduce(
+      (acc, emp) => {
+        acc[emp.deptName] = (acc[emp.deptName] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Gender ratio - not available in EmployeeDirectoryItem, use empty object
+    const genderRatio = {} as Record<string, number>;
+
+    // Employees on notice period - not available in EmployeeDirectoryItem, use 0
+    const onNoticePeriod = 0;
+
+    return {
+      totalEmployees,
+      totalDepartments: Object.keys(employeesPerDepartment).length,
+      employeesPerDepartment,
+      genderRatio,
+      onNoticePeriod
+    };
+  }, [filteredEmployees]);
+
+  // Use API insights data if available, otherwise fall back to local metrics
+  const metrics = insights || localMetrics;
+
+  const columns: ColumnDef<TableEmployee>[] = [
+    {
+      accessorKey: "empId",
+      header: "ID"
+    },
+    {
+      accessorKey: "empName",
+      header: "Name"
+    },
+    {
+      accessorKey: "empEmail",
+      header: "Email"
+    },
+    {
+      accessorKey: "deptName",
+      header: "Department"
+    },
+    {
+      accessorKey: "position",
+      header: "Position"
+    },
+    {
+      accessorKey: "salary",
+      header: "Salary",
+      cell: (row: TableEmployee) => `₹${row.salary.toLocaleString()}`
+    },
+    {
+      accessorKey: "dateOfJoining",
+      header: "Join Date"
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: (row: TableEmployee) => (
+        <div className="flex gap-2">
+          <Link href={`/hr/employees/${row.empId}`}>
+            <Button size="sm" variant="ghost">
+              <Eye className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Button size="sm" variant="ghost">
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-green-600"
+            onClick={() =>
+              toast.info("Please visit employee detail page to promote")
+            }
+          >
+            <TrendingUp className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-red-500"
+            onClick={() =>
+              toast.error("Delete functionality not yet implemented")
+            }
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="p-6 space-y-6">
+      <Toaster position="top-right" richColors />
+
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
+          <p className="text-gray-500 mt-2">
+            Manage employee information and profiles
+          </p>
+        </div>
+        <Link href="/hr/employees/add">
+          <Button>Add Employee</Button>
+        </Link>
+      </div>
+
+      <div className="flex gap-4">
+        <Input
+          placeholder="Search employees..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-xs"
+        />
+        <EmployeeFilter
+          employees={employees}
+          onFilterChange={(filtered) =>
+            setFilteredEmployees(
+              filtered.map((emp) => ({ ...emp, id: emp.empId.toString() }))
+            )
+          }
+        />
+      </div>
+
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Employees */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">
+              Total Employees
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-2xl font-bold">
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                metrics?.totalEmployees || 0
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Active workforce</p>
+          </CardContent>
+        </Card>
+
+        {/* Department/Employee Ratio */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">Departments</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-2xl font-bold">
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                metrics?.totalDepartments || 0
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {insightsLoading
+                ? "Loading..."
+                : metrics?.employeesPerDepartment
+                  ? Object.entries(metrics.employeesPerDepartment)
+                      .map(([dept, count]) => `${dept}: ${count}`)
+                      .join(", ")
+                  : "No departments"}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Gender Ratio */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">Gender Ratio</CardTitle>
+            <Users2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-sm font-bold">
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : metrics?.genderRatio ? (
+                Object.entries(metrics.genderRatio)
+                  .map(([gender, count]) => `${gender}: ${count}`)
+                  .join(" • ")
+              ) : (
+                "No data"
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Workforce composition
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Employees on Notice Period */}
+        <Card className="p-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+            <CardTitle className="text-sm font-medium">
+              On Notice Period
+            </CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="text-2xl font-bold">
+              {insightsLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                metrics?.onNoticePeriod || 0
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Upcoming departures</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="p-4 gap-2">
+        <CardHeader className="p-0">
+          <CardTitle>Employee Directory</CardTitle>
+          <CardDescription>Total Employees: {totalElements}</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {directoryLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <>
+              <HRTable columns={columns} data={employees} />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex gap-2 justify-center mt-6 items-center">
+                  <Button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 0 || directoryLoading}
+                    variant="outline"
+                  >
+                    Previous
+                  </Button>
+                  <span className="flex items-center px-4 text-sm text-gray-600">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={
+                      currentPage === totalPages - 1 || directoryLoading
+                    }
+                    variant="outline"
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
