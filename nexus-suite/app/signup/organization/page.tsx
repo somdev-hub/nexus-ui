@@ -80,7 +80,7 @@ export default function OrganizationPage() {
         profilePhoto: personalData.profilePhoto
       });
 
-      const userId = signupResponse.userId;
+      const userId = signupResponse.user.id;
 
       // Step 2: Create organization and capture orgId and role
       const orgResponse = await createOrganization(userId, orgName, orgType);

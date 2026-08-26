@@ -54,7 +54,6 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { rolesData } from "@/app/hr/roles/data";
 
 const data = {
   user: {

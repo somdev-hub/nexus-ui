@@ -1,89 +1,156 @@
 import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
-  AxiosResponse
+  AxiosResponse,
 } from "axios";
 
-// Install axios if not already installed: npm install axios
+// Use the Next.js API proxy which adds the accessToken from server-side session
+// ALL Spring Boot requests MUST go through this proxy
+const PROXY_BASE = "/api/proxy";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+/**
+ * REQUEST FLOW:
+ *
+ * Client Code: apiClient.get("/iam/users/profile")
+ *           ↓
+ * Request Interceptor: Converts to ?path=/iam/users/profile
+ *           ↓
+ * Proxy Route (/api/proxy): Gets accessToken from server-side session
+ *           ↓
+ * Spring Boot: GET http://localhost:8080/iam/users/profile
+ *            (with Authorization: Bearer {accessToken} header)
+ *
+ * This ensures:
+ * ✓ AccessToken NEVER exposed to browser
+ * ✓ AccessToken kept in HttpOnly cookies
+ * ✓ All requests include valid auth header
+ * ✓ Token refresh happens automatically on 401
+ */
 
-// Store access token in memory (not localStorage for security)
-let accessToken: string | null = null;
+// Create request interceptor - convert Spring Boot paths to proxy calls
+const requestInterceptor = (config: InternalAxiosRequestConfig) => {
+  const path = config.url || "";
+
+  if (!path.startsWith("?")) {
+    config.url = `?path=${encodeURIComponent(path)}`;
+  }
+
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
+
+  console.log(
+    "[API CLIENT] Request:",
+    config.method?.toUpperCase(),
+    config.url,
+  );
+
+  return config;
+};
+
+const requestErrorHandler = (error: AxiosError) => Promise.reject(error);
+
+const responseInterceptor = (response: AxiosResponse) => response;
+
+const responseErrorHandler = async (error: AxiosError) => {
+  const originalRequest = error.config as InternalAxiosRequestConfig & {
+    _retry?: boolean;
+  };
+
+  if (error.response?.status === 401 && !originalRequest._retry) {
+    originalRequest._retry = true;
+
+    try {
+      console.log("[API CLIENT] Token expired (401), attempting refresh...");
+      console.log(
+        "[API CLIENT] Original request method:",
+        originalRequest.method?.toUpperCase(),
+      );
+      console.log("[API CLIENT] Original request URL:", originalRequest.url);
+
+      const refreshResult = await axios.post(
+        `/api/auth/refresh`,
+        {},
+        { withCredentials: true },
+      );
+
+      console.log(
+        "[API CLIENT] Token refresh successful, status:",
+        refreshResult.status,
+      );
+      console.log(
+        "[API CLIENT] Retrying original request with refreshed token",
+      );
+
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      console.error("[API CLIENT] Token refresh failed:", refreshError);
+
+      if (axios.isAxiosError(refreshError)) {
+        console.error(
+          "[API CLIENT] Refresh error status:",
+          refreshError.response?.status,
+        );
+        console.error(
+          "[API CLIENT] Refresh error data:",
+          refreshError.response?.data,
+        );
+      }
+
+      if (typeof window !== "undefined") {
+        console.log(
+          "[API CLIENT] Dispatching auth:logout event and redirecting to login",
+        );
+        window.dispatchEvent(new Event("auth:logout"));
+        window.location.href = "/login";
+      }
+
+      return Promise.reject(refreshError);
+    }
+  }
+
+  return Promise.reject(error);
+};
 
 const apiClient = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true, // Include HTTP-only cookies (refresh token)
-  headers: {
-    "Content-Type": "application/json"
-  }
+  baseURL: PROXY_BASE,
+  withCredentials: true,
+  timeout: 30000,
 });
 
-// Request interceptor: Add access token to every request
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error: AxiosError) => Promise.reject(error)
+const apiClientMultipart = axios.create({
+  baseURL: PROXY_BASE,
+  withCredentials: true,
+  timeout: 30000,
+});
+
+apiClient.interceptors.request.use(requestInterceptor, requestErrorHandler);
+apiClient.interceptors.response.use(responseInterceptor, responseErrorHandler);
+
+apiClientMultipart.interceptors.request.use(
+  requestInterceptor,
+  requestErrorHandler,
+);
+apiClientMultipart.interceptors.response.use(
+  responseInterceptor,
+  responseErrorHandler,
 );
 
-// Response interceptor: Handle token refresh on 401
-apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-    };
-
-    // If 401 and haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        // Attempt to refresh token
-        const response = await axios.post(
-          `${API_BASE}/iam/auth/refresh`,
-          {},
-          {
-            withCredentials: true // Send refresh token cookie
-          }
-        );
-
-        const { accessToken: newToken } = response.data;
-        accessToken = newToken;
-
-        // Retry original request with new token
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed - logout user
-        accessToken = null;
-
-        // Trigger logout event (handled in auth context)
-        window.dispatchEvent(new Event("auth:logout"));
-
-        // Redirect to login
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
-
-        return Promise.reject(refreshError);
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-export function setAccessToken(token: string) {
-  accessToken = token;
+/**
+ * @deprecated Use the session-based approach instead
+ * Tokens are now managed server-side in encrypted cookies
+ */
+export function setAccessToken() {
+  // No-op
 }
 
+/**
+ * @deprecated Use the session-based approach instead
+ * Tokens are now managed server-side in encrypted cookies
+ */
 export function clearAccessToken() {
-  accessToken = null;
+  // No-op
 }
 
+export { apiClientMultipart };
 export default apiClient;

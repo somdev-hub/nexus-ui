@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, ReactNode } from "react";
+import GlobalConfig from "@/global.config";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,12 +12,16 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({
   children,
-  requiredRole
+  requiredRole,
 }: ProtectedRouteProps) {
   const { isAuthenticated, user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    if (GlobalConfig.wowoFeatures.auth === false) {
+      return;
+    }
+
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }

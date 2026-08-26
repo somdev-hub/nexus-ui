@@ -213,7 +213,7 @@ const Page = () => {
                     <div className="flex gap-2 items-center mt-2">
                       <Checkbox
                         checked={chargeTaxes}
-                        onCheckedChange={setChargeTaxes}
+                        onCheckedChange={(checked) => setChargeTaxes(checked === true)}
                       />
                       <span className="text-sm">
                         Charge taxes on this product
