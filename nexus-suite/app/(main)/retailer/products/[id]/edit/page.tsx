@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Form,
 	FormField,
@@ -27,28 +26,28 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Save, Send } from "lucide-react";
+import { ArrowLeft, Save, Send, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createProduct, getProductCategories, getProductBrands } from "@/lib/services/products-service";
-import type { ProductCreateRequest } from "@/types/products";
+import { getProductById, updateProduct, getProductCategories, getProductBrands } from "@/lib/services/products-service";
+import type { Product, ProductUpdateRequest } from "@/types/products";
 
-// Zod schema for product creation validation
-const productCreateSchema = z.object({
-	productCode: z.string().min(1, "Product code is required").max(50, "Product code must be 50 characters or less"),
-	productName: z.string().min(1, "Product name is required").max(100, "Product name must be 100 characters or less"),
-	description: z.string().min(1, "Description is required").max(1000, "Description must be 1000 characters or less"),
-	category: z.string().min(1, "Category is required"),
+// Zod schema for product update validation - all fields optional to match ProductUpdateRequest
+const productUpdateSchema = z.object({
+	productName: z.string().min(1, "Product name is required").max(100, "Product name must be 100 characters or less").optional(),
+	description: z.string().min(1, "Description is required").max(1000, "Description must be 1000 characters or less").optional(),
+	category: z.string().min(1, "Category is required").optional(),
 	subCategory: z.string().optional(),
 	brand: z.string().optional(),
-	unitOfMeasure: z.string().min(1, "Unit of measure is required"),
-	unitPrice: z.number().min(0, "Unit price must be positive"),
-	currency: z.string().min(1, "Currency is required"),
-	taxRate: z.number().min(0, "Tax rate must be positive").max(100, "Tax rate cannot exceed 100%"),
-	isActive: z.boolean(),
-	minOrderQuantity: z.number().min(1, "Minimum order quantity must be at least 1"),
+	unitOfMeasure: z.string().min(1, "Unit of measure is required").optional(),
+	unitPrice: z.number().min(0, "Unit price must be positive").optional(),
+	currency: z.string().optional(),
+	taxRate: z.number().min(0, "Tax rate must be positive").max(100, "Tax rate cannot exceed 100%").optional(),
+	isActive: z.boolean().optional(),
+	minOrderQuantity: z.number().min(1, "Minimum order quantity must be at least 1").optional(),
 	maxOrderQuantity: z.number().optional(),
-	leadTimeDays: z.number().min(0, "Lead time must be positive"),
+	leadTimeDays: z.number().min(0, "Lead time must be positive").optional(),
 	weight: z.number().optional(),
 	dimensions: z.string().optional(),
 	barcode: z.string().optional(),
@@ -56,18 +55,22 @@ const productCreateSchema = z.object({
 	tags: z.array(z.string()).optional(),
 });
 
-type ProductCreateFormData = z.infer<typeof productCreateSchema>;
+type ProductUpdateFormData = z.infer<typeof productUpdateSchema>;
 
-const Page = () => {
+const EditPage = () => {
+	const params = useParams();
+	const router = useRouter();
+	const productId = parseInt(params.id as string, 10);
+
 	const [categories, setCategories] = useState<string[]>([]);
 	const [brands, setBrands] = useState<string[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
+	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [product, setProduct] = useState<Product | null>(null);
 
-	const form = useForm<ProductCreateFormData>({
-		resolver: zodResolver(productCreateSchema),
+	const form = useForm<ProductUpdateFormData>({
+		resolver: zodResolver(productUpdateSchema),
 		defaultValues: {
-			productCode: "",
 			productName: "",
 			description: "",
 			category: "",
@@ -89,28 +92,56 @@ const Page = () => {
 		},
 	});
 
-	// Fetch categories and brands on mount
+	// Fetch product data, categories and brands on mount
 	useEffect(() => {
 		const fetchData = async () => {
+			setIsLoading(true);
 			try {
-				const [cats, brnds] = await Promise.all([
+				const [productData, cats, brnds] = await Promise.all([
+					getProductById(productId),
 					getProductCategories(),
 					getProductBrands(),
 				]);
+				setProduct(productData);
 				setCategories(cats);
 				setBrands(brnds);
+
+				// Populate form with product data
+				form.reset({
+					productName: productData.productName,
+					description: productData.description,
+					category: productData.category,
+					subCategory: productData.subCategory || "",
+					brand: productData.brand || "",
+					unitOfMeasure: productData.unitOfMeasure,
+					unitPrice: productData.unitPrice,
+					currency: productData.currency,
+					taxRate: productData.taxRate,
+					isActive: productData.isActive,
+					minOrderQuantity: productData.minOrderQuantity,
+					maxOrderQuantity: productData.maxOrderQuantity,
+					leadTimeDays: productData.leadTimeDays,
+					weight: productData.weight,
+					dimensions: productData.dimensions || "",
+					barcode: productData.barcode || "",
+					sku: productData.sku || "",
+					tags: productData.tags || [],
+				});
 			} catch (error) {
-				console.error("Failed to fetch categories/brands:", error);
+				console.error("Failed to fetch product data:", error);
+				toast.error("Failed to load product data");
+				router.back();
+			} finally {
+				setIsLoading(false);
 			}
 		};
 		fetchData();
-	}, []);
+	}, [productId, form, router]);
 
-	const onSubmit = async (data: ProductCreateFormData) => {
+	const onSubmit = async (data: ProductUpdateFormData) => {
 		setIsSubmitting(true);
 		try {
-			const createRequest: ProductCreateRequest = {
-				productCode: data.productCode,
+			const updateRequest: ProductUpdateRequest = {
 				productName: data.productName,
 				description: data.description,
 				category: data.category,
@@ -131,23 +162,42 @@ const Page = () => {
 				tags: data.tags,
 			};
 
-			await createProduct(createRequest);
-			toast.success("Product created successfully");
-			// Redirect to products list
-			window.location.href = "/retailer/products";
+			await updateProduct(productId, updateRequest);
+			toast.success("Product updated successfully");
+			router.push(`/retailer/products/${productId}`);
 		} catch (error) {
-			console.error("Failed to create product:", error);
-			toast.error("Failed to create product. Please try again.");
+			console.error("Failed to update product:", error);
+			toast.error("Failed to update product. Please try again.");
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
-	const onSaveDraft = async (data: ProductCreateFormData) => {
-		// For draft, we could save to localStorage or a draft endpoint
+	const onSaveDraft = async (data: ProductUpdateFormData) => {
 		toast.success("Draft saved locally");
 		console.log("Draft data:", data);
 	};
+
+	if (isLoading) {
+		return (
+			<div className="flex flex-1 flex-col items-center justify-center">
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+				<p className="mt-4 text-muted-foreground">Loading product...</p>
+			</div>
+		);
+	}
+
+	if (!product) {
+		return (
+			<div className="flex flex-1 flex-col items-center justify-center">
+				<p className="text-muted-foreground">Product not found</p>
+				<Button variant="outline" onClick={() => router.back()} className="mt-4">
+					<ArrowLeft className="h-4 w-4 mr-2" />
+					Back to Products
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<Form {...form}>
@@ -157,10 +207,13 @@ const Page = () => {
 						<div className="w-full">
 							<div className="flex justify-between w-full items-center mb-6">
 								<div className="flex items-center gap-4">
-									<Link href="/retailer/products" className="text-muted-foreground hover:text-foreground transition-colors">
+									<Link href={`/retailer/products/${productId}`} className="text-muted-foreground hover:text-foreground transition-colors">
 										<ArrowLeft className="h-5 w-5" />
 									</Link>
-									<h2 className="text-2xl font-bold">Add New Product</h2>
+									<div>
+										<h2 className="text-2xl font-bold">Edit Product</h2>
+										<p className="text-muted-foreground">{product.productCode} - {product.productName}</p>
+									</div>
 								</div>
 								<div className="flex gap-2">
 									<Button type="button" variant="outline" onClick={form.handleSubmit(onSaveDraft)} disabled={isSubmitting}>
@@ -169,7 +222,7 @@ const Page = () => {
 									</Button>
 									<Button type="submit" disabled={isSubmitting}>
 										<Send className="h-4 w-4 mr-2" />
-										{isSubmitting ? "Creating..." : "Publish Product"}
+										{isSubmitting ? "Saving..." : "Save Changes"}
 									</Button>
 								</div>
 							</div>
@@ -190,19 +243,6 @@ const Page = () => {
 														<FormLabel>Product Name *</FormLabel>
 														<FormControl>
 															<Input placeholder="Enter product name" {...field} />
-														</FormControl>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
-											<FormField
-												control={form.control}
-												name="productCode"
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Product Code *</FormLabel>
-														<FormControl>
-															<Input placeholder="Enter product code (e.g., PRD-001)" {...field} />
 														</FormControl>
 														<FormMessage />
 													</FormItem>
@@ -569,6 +609,12 @@ const Page = () => {
 											/>
 											<Separator />
 											<div className="space-y-2">
+												<FormLabel>Product Code (Read-only)</FormLabel>
+												<Input value={product.productCode} readOnly className="bg-muted" />
+												<p className="text-sm text-gray-500">Product code cannot be changed after creation</p>
+											</div>
+											<Separator />
+											<div className="space-y-2">
 												<FormLabel>Product Images</FormLabel>
 												<div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 transition">
 													<input
@@ -586,7 +632,7 @@ const Page = () => {
 														</Button>
 													</label>
 												</div>
-												<p className="text-sm text-gray-500">Images will be uploaded after product creation</p>
+												<p className="text-sm text-gray-500">Images will be uploaded after saving changes</p>
 											</div>
 										</CardContent>
 									</Card>
@@ -600,4 +646,4 @@ const Page = () => {
 	);
 };
 
-export default Page;
+export default EditPage;
