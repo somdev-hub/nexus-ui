@@ -24,9 +24,10 @@ export async function getMaterials(
     }
   });
 
-  const response = await apiClient.get<PaginatedResponse<Material>>(
-    `${BASE_PATH}?${params.toString()}`,
-  );
+  const query = params.toString();
+  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+
+  const response = await apiClient.get<PaginatedResponse<Material>>(url);
   return response.data;
 }
 

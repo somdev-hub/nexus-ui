@@ -1,10 +1,43 @@
+"use client";
+
 import { SupplierContractTable } from "@/components/supplier-contract-table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getSupplierContracts } from "@/lib/services/supplier-contracts-service";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import type { SupplierContract } from "@/types/supplier-contracts";
 
-export const dynamic = "force-dynamic";
+export default function Page() {
+	const [contracts, setContracts] = useState<SupplierContract[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 
-export default async function Page() {
-	const supplierContractsResponse = await getSupplierContracts({ pageNo: 0, pageOffset: 20 });
+	useEffect(() => {
+		let isActive = true;
+		const load = async () => {
+			setIsLoading(true);
+			try {
+				const res = await getSupplierContracts({ pageNo: 0, pageOffset: 20 });
+				if (!isActive) return;
+				setContracts(res.content);
+			} catch (err: unknown) {
+				if (!isActive) return;
+				toast.error(err instanceof Error ? err.message : "Failed to load supplier contracts");
+			} finally {
+				if (isActive) setIsLoading(false);
+			}
+		};
+		load();
+		return () => { isActive = false; };
+	}, []);
+
+	if (isLoading) {
+		return (
+			<div className="flex flex-1 flex-col p-4 md:p-6 gap-4">
+				<Skeleton className="h-20 w-full" />
+				<Skeleton className="h-[400px] w-full" />
+			</div>
+		);
+	}
 
 	return (
 		<>
@@ -17,7 +50,7 @@ export default async function Page() {
 								<p className="text-gray-600 mt-1">Manage and track all supplier contracts</p>
 							</div>
 						</div>
-						<SupplierContractTable supplierContracts={supplierContractsResponse.content} />
+						<SupplierContractTable supplierContracts={contracts} />
 					</div>
 				</div>
 			</div>

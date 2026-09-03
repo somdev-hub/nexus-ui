@@ -6,7 +6,28 @@ import axios, {
 
 // Use the Next.js API proxy which adds the accessToken from server-side session
 // ALL Spring Boot requests MUST go through this proxy
-const PROXY_BASE = "/api/proxy";
+// On server (SSR / Server Components), axios needs an absolute URL otherwise
+// it throws `ERR_INVALID_URL: Invalid URL input '/api/proxy/?path=...'`.
+// This helper returns an absolute URL on server and relative on client.
+function getAppBaseUrl(): string {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.BETTER_AUTH_URL ||
+    `http://localhost:${process.env.PORT || "3000"}`;
+  return appUrl.replace(/\/$/, "");
+}
+
+function getProxyBaseUrl(): string {
+  if (typeof window !== "undefined") return "/api/proxy";
+  return `${getAppBaseUrl()}/api/proxy`;
+}
+
+function getRefreshUrl(): string {
+  if (typeof window !== "undefined") return "/api/auth/refresh";
+  return `${getAppBaseUrl()}/api/auth/refresh`;
+}
+
+const PROXY_BASE = getProxyBaseUrl();
 
 /**
  * REQUEST FLOW:
@@ -35,6 +56,20 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
     config.url = `?path=${encodeURIComponent(path)}`;
   }
 
+  // On server, ensure baseURL is absolute so axios doesn't throw ERR_INVALID_URL
+  // withCredentials doesn't forward cookies server-side; primary fix is the
+  // dashboard now being a client component (like hr). This fallback ensures
+  // any future server usage doesn't crash with Invalid URL.
+  if (typeof window === "undefined") {
+    if (config.baseURL && config.baseURL.startsWith("/")) {
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.BETTER_AUTH_URL ||
+        `http://localhost:${process.env.PORT || "3000"}`;
+      config.baseURL = `${appUrl.replace(/\/$/, "")}${config.baseURL}`;
+    }
+  }
+
   if (config.data instanceof FormData) {
     delete config.headers["Content-Type"];
   }
@@ -42,7 +77,7 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
   console.log(
     "[API CLIENT] Request:",
     config.method?.toUpperCase(),
-    config.url,
+    config.baseURL ? `${config.baseURL}${config.url}` : config.url,
   );
 
   return config;
@@ -68,10 +103,30 @@ const responseErrorHandler = async (error: AxiosError) => {
       );
       console.log("[API CLIENT] Original request URL:", originalRequest.url);
 
+      // Use absolute URL on server to avoid ERR_INVALID_URL (axios needs absolute URL in Node)
+      const refreshUrl = getRefreshUrl();
+      // Forward cookies when on server (required for session refresh)
+      let refreshHeaders: Record<string, string> | undefined;
+      if (typeof window === "undefined") {
+        try {
+          // Next 15 cookies() is async, but try sync fallback
+          const mod = await import("next/headers").catch(() => null);
+          if (mod) {
+            const cookieStore = await (mod as any).cookies();
+            const cookieHeader = cookieStore?.toString?.() || "";
+            if (cookieHeader) refreshHeaders = { Cookie: cookieHeader };
+          }
+        } catch {
+          // ignore - not in request scope
+        }
+      }
       const refreshResult = await axios.post(
-        `/api/auth/refresh`,
+        refreshUrl,
         {},
-        { withCredentials: true },
+        {
+          withCredentials: true,
+          ...(refreshHeaders ? { headers: refreshHeaders } : {}),
+        },
       );
 
       console.log(

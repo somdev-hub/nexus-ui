@@ -28,9 +28,10 @@ export async function getSupplierContracts(
     }
   });
 
-  const response = await apiClient.get<PaginatedResponse<SupplierContract>>(
-    `${BASE_PATH}?${params.toString()}`,
-  );
+  const query = params.toString();
+  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+
+  const response = await apiClient.get<PaginatedResponse<SupplierContract>>(url);
   return response.data;
 }
 

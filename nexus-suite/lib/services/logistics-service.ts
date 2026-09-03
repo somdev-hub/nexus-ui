@@ -26,9 +26,10 @@ export async function getLogisticsPartners(
   // Filter by partnership type LOGISTICS
   params.append("partnershipType", "LOGISTICS");
 
-  const response = await apiClient.get<PaginatedResponse<LogisticsPartner>>(
-    `${BASE_PATH}?${params.toString()}`,
-  );
+  const query = params.toString();
+  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+
+  const response = await apiClient.get<PaginatedResponse<LogisticsPartner>>(url);
   return response.data;
 }
 

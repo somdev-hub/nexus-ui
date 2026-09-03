@@ -6,7 +6,16 @@ import axios, {
 
 // Use the Next.js public API proxy which does NOT require authentication
 // This is for public endpoints that don't need JWT tokens
-const PUBLIC_PROXY_BASE = "/api/public/proxy";
+function getPublicProxyBaseUrl(): string {
+  if (typeof window !== "undefined") return "/api/public/proxy";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.BETTER_AUTH_URL ||
+    `http://localhost:${process.env.PORT || "3000"}`;
+  return `${appUrl.replace(/\/$/, "")}/api/public/proxy`;
+}
+
+const PUBLIC_PROXY_BASE = getPublicProxyBaseUrl();
 
 /**
  * PUBLIC REQUEST FLOW:
@@ -30,6 +39,14 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
     config.url = `?path=${encodeURIComponent(path)}`;
   }
 
+  if (typeof window === "undefined" && config.baseURL?.startsWith("/")) {
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.BETTER_AUTH_URL ||
+      `http://localhost:${process.env.PORT || "3000"}`;
+    config.baseURL = `${appUrl.replace(/\/$/, "")}${config.baseURL}`;
+  }
+
   if (config.data instanceof FormData) {
     delete config.headers["Content-Type"];
   }
@@ -37,7 +54,7 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
   console.log(
     "[PUBLIC API CLIENT] Request:",
     config.method?.toUpperCase(),
-    config.url,
+    config.baseURL ? `${config.baseURL}${config.url}` : config.url,
   );
 
   return config;

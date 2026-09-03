@@ -1,10 +1,43 @@
+"use client";
+
 import { PurchaseOrderTable } from "@/components/purchase-order-table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getPurchaseOrders } from "@/lib/services/purchase-orders-service";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import type { PurchaseOrder } from "@/types/purchase-orders";
 
-export const dynamic = "force-dynamic";
+export default function Page() {
+	const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 
-export default async function Page() {
-	const purchaseOrdersResponse = await getPurchaseOrders({ pageNo: 0, pageOffset: 20 });
+	useEffect(() => {
+		let isActive = true;
+		const load = async () => {
+			setIsLoading(true);
+			try {
+				const res = await getPurchaseOrders({ pageNo: 0, pageOffset: 20 });
+				if (!isActive) return;
+				setPurchaseOrders(res.content);
+			} catch (err: unknown) {
+				if (!isActive) return;
+				toast.error(err instanceof Error ? err.message : "Failed to load purchase orders");
+			} finally {
+				if (isActive) setIsLoading(false);
+			}
+		};
+		load();
+		return () => { isActive = false; };
+	}, []);
+
+	if (isLoading) {
+		return (
+			<div className="flex flex-1 flex-col p-4 md:p-6 gap-4">
+				<Skeleton className="h-20 w-full" />
+				<Skeleton className="h-[400px] w-full" />
+			</div>
+		);
+	}
 
 	return (
 		<>
@@ -17,7 +50,7 @@ export default async function Page() {
 								<p className="text-gray-600 mt-1">Manage and track all purchase orders</p>
 							</div>
 						</div>
-						<PurchaseOrderTable purchaseOrders={purchaseOrdersResponse.content} />
+						<PurchaseOrderTable purchaseOrders={purchaseOrders} />
 					</div>
 				</div>
 			</div>

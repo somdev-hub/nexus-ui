@@ -27,9 +27,10 @@ export async function getPurchaseOrders(
     }
   });
 
-  const response = await apiClient.get<PaginatedResponse<PurchaseOrder>>(
-    `${BASE_PATH}?${params.toString()}`,
-  );
+  const query = params.toString();
+  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+
+  const response = await apiClient.get<PaginatedResponse<PurchaseOrder>>(url);
   return response.data;
 }
 

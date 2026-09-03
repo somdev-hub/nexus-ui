@@ -25,9 +25,10 @@ export async function getSuppliers(
     }
   });
 
-  const response = await apiClient.get<PaginatedResponse<Supplier>>(
-    `${BASE_PATH}/all?${params.toString()}`,
-  );
+  const query = params.toString();
+  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
+
+  const response = await apiClient.get<PaginatedResponse<Supplier>>(url);
   return response.data;
 }
 

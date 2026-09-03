@@ -24,9 +24,10 @@ export async function getProducts(
     }
   });
 
-  const response = await apiClient.get<PaginatedResponse<Product>>(
-    `${BASE_PATH}?${params.toString()}`,
-  );
+  const query = params.toString();
+  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+
+  const response = await apiClient.get<PaginatedResponse<Product>>(url);
   return response.data;
 }
 
