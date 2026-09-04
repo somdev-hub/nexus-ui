@@ -1,11 +1,10 @@
 import apiClient from "@/lib/api-client";
 import { PaginatedResponse } from "@/types/paginated-response";
 import type {
-  Product,
-  ProductCreateRequest,
-  ProductUpdateRequest,
-  ProductFilter,
-  ProductPaginatedResponse,
+    Product,
+    ProductCreateRequest,
+    ProductFilter,
+    ProductUpdateRequest
 } from "@/types/products";
 
 // ─────────────────────────────────────────────────────────────

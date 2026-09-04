@@ -14,6 +14,7 @@ export * from "./purchase-orders-service";
 export * from "./supplier-contracts-service";
 export * from "./suppliers-service";
 export * from "./logistics-service";
+export * from "./shipment-service";
 
 // API Client
 export { default as apiClient } from "@/lib/api-client";
