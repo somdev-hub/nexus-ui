@@ -10,6 +10,10 @@ import { Edit, Eye, Loader2, Package, Plane, Plus, Ship, Train, Trash2, Truck } 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 
 const STATUS_COLORS: Record<ShipmentStatus, string> = {
 	DRAFT: "bg-gray-100 text-gray-800",
@@ -33,6 +37,11 @@ const MODE_ICONS: Record<ShipmentMode, React.ReactNode> = {
 	MULTIMODAL: <Package className="w-4 h-4" />,
 };
 
+const searchSchema = z.object({
+	searchTerm: z.string().max(100, "Search term too long").optional()
+});
+type SearchFormData = z.infer<typeof searchSchema>;
+
 export default function ShipmentsPage() {
 	const [data, setData] = useState<ShipmentPaginatedResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +52,11 @@ export default function ShipmentsPage() {
 		sortBy: "createdAt",
 		sortDirection: "desc",
 	});
-	const [searchTerm, setSearchTerm] = useState("");
+
+	const searchForm = useForm<SearchFormData>({
+		resolver: zodResolver(searchSchema),
+		defaultValues: { searchTerm: "" }
+	});
 
 	const fetchShipments = useCallback(async () => {
 		setIsLoading(true);
@@ -72,8 +85,7 @@ export default function ShipmentsPage() {
 		setFilter((prev) => ({ ...prev, ...newFilter, pageNo: 0 }));
 	};
 
-	const handleSearch = (e: React.FormEvent) => {
-		e.preventDefault();
+	const onSearchSubmit = (data: SearchFormData) => {
 		handleFilterChange({ pageNo: 0 });
 	};
 
@@ -164,15 +176,21 @@ export default function ShipmentsPage() {
 				</Link>
 			</div>
 
-			<form onSubmit={handleSearch} className="flex flex-col gap-4 md:flex-row p-4 border rounded-lg bg-card">
-				<div className="flex-1">
-					<Input
-						placeholder="Search shipments..."
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-						className="w-full"
-					/>
-				</div>
+			<Form {...searchForm}>
+				<form onSubmit={searchForm.handleSubmit(onSearchSubmit)} className="flex flex-col gap-4 md:flex-row p-4 border rounded-lg bg-card">
+					<div className="flex-1">
+						<FormField
+							control={searchForm.control}
+							name="searchTerm"
+							render={({ field }) => (
+								<FormItem>
+									<FormControl>
+										<Input placeholder="Search shipments..." {...field} className="w-full" />
+									</FormControl>
+								</FormItem>
+							)}
+						/>
+					</div>
 				<div className="flex gap-2">
 					<Select value={filter.status || ""} onValueChange={(value) => handleFilterChange({ status: value || undefined })}>
 						<SelectTrigger className="w-[180px]"><SelectValue placeholder="All Statuses" /></SelectTrigger>
@@ -203,7 +221,8 @@ export default function ShipmentsPage() {
 						</SelectContent>
 					</Select>
 				</div>
-			</form>
+				</form>
+			</Form>
 
 			<DataTable data={tableData} />
 		</div>

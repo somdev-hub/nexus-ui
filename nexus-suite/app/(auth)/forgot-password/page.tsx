@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,37 +14,42 @@ import {
 	CardHeader,
 	CardTitle
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage
+} from "@/components/ui/form";
 import Link from "next/link";
+
+const forgotPasswordSchema = z.object({
+	email: z.string().email("Please enter a valid email address")
+});
+
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
 export default function ForgotPasswordPage() {
 	const router = useRouter();
-	const [email, setEmail] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [success, setSuccess] = useState(false);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const form = useForm<ForgotPasswordFormData>({
+		resolver: zodResolver(forgotPasswordSchema),
+		defaultValues: { email: "" }
+	});
+
+	const onSubmit = async (data: ForgotPasswordFormData) => {
 		setError("");
 		setSuccess(false);
-
-		if (!email) {
-			setError("Please enter your email address");
-			return;
-		}
-
 		setIsLoading(true);
-
 		try {
-			// TODO: Call forgot password API
-			// await forgotPassword(email);
-			await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+			await new Promise((resolve) => setTimeout(resolve, 1000));
 			setSuccess(true);
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "Request failed. Please try again."
-			);
+			setError(err instanceof Error ? err.message : "Request failed. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
@@ -65,36 +73,32 @@ export default function ForgotPasswordPage() {
 							</Button>
 						</div>
 					) : (
-						<form onSubmit={handleSubmit} className="space-y-4">
-							{error && (
-								<div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
-									{error}
-								</div>
-							)}
-
-							<div className="space-y-2">
-								<Label htmlFor="email">Email</Label>
-								<Input
-									id="email"
-									type="email"
-									placeholder="m@example.com"
-									value={email}
-									onChange={(e) => setEmail(e.target.value)}
-									disabled={isLoading}
-									required
+						<Form {...form}>
+							<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+								{error && (
+									<div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{error}</div>
+								)}
+								<FormField
+									control={form.control}
+									name="email"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Email</FormLabel>
+											<FormControl>
+												<Input type="email" placeholder="m@example.com" disabled={isLoading} {...field} />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
 								/>
-							</div>
-
-							<Button type="submit" disabled={isLoading} className="w-full">
-								{isLoading ? "Sending..." : "Send Reset Link"}
-							</Button>
-
-							<div className="text-center text-sm">
-								<Link href="/login" className="text-primary hover:underline">
-									Back to Login
-								</Link>
-							</div>
-						</form>
+								<Button type="submit" disabled={isLoading} className="w-full">
+									{isLoading ? "Sending..." : "Send Reset Link"}
+								</Button>
+								<div className="text-center text-sm">
+									<Link href="/login" className="text-primary hover:underline">Back to Login</Link>
+								</div>
+							</form>
+						</Form>
 					)}
 				</CardContent>
 			</Card>

@@ -15,7 +15,7 @@ import type {
 // Purchase Orders API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/core/purchase-orders";
+const BASE_PATH = "/iam/core/retailer/purchase-orders";
 
 export async function getPurchaseOrders(
   filter: PurchaseOrderFilter = {},
@@ -28,7 +28,7 @@ export async function getPurchaseOrders(
   });
 
   const query = params.toString();
-  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
   const response = await apiClient.get<PaginatedResponse<PurchaseOrder>>(url);
   return response.data;
@@ -46,7 +46,7 @@ export async function getPurchaseOrderById(
 export async function createPurchaseOrder(
   data: PurchaseOrderCreateRequest,
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.post<PurchaseOrder>(BASE_PATH, data);
+  const response = await apiClient.post<PurchaseOrder>(`${BASE_PATH}/create`, data);
   return response.data;
 }
 

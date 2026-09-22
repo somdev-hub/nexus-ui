@@ -12,7 +12,7 @@ import type {
 // Materials API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/core/materials";
+const BASE_PATH = "/iam/core/retailer/materials";
 
 export async function getMaterials(
   filter: MaterialFilter = {},
@@ -25,7 +25,7 @@ export async function getMaterials(
   });
 
   const query = params.toString();
-  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
   const response = await apiClient.get<PaginatedResponse<Material>>(url);
   return response.data;
@@ -39,7 +39,7 @@ export async function getMaterialById(materialId: number): Promise<Material> {
 export async function createMaterial(
   data: MaterialCreateRequest,
 ): Promise<Material> {
-  const response = await apiClient.post<Material>(BASE_PATH, data);
+  const response = await apiClient.post<Material>(`${BASE_PATH}/add`, data);
   return response.data;
 }
 

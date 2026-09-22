@@ -13,7 +13,7 @@ import type {
 // Suppliers API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/core/suppliers";
+const BASE_PATH = "/iam/core/retailer/suppliers";
 
 export async function getSuppliers(
   filter: SupplierFilter = {},

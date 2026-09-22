@@ -55,7 +55,7 @@ export type {
 // Shipment API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/iam/retailer/shipments";
+const BASE_PATH = "/iam/core/retailer/shipments";
 
 function buildQueryParams(filter: ShipmentFilter = {}): string {
   const params = new URLSearchParams();

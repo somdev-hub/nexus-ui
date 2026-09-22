@@ -74,6 +74,32 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
     delete config.headers["Content-Type"];
   }
 
+  // Attach organization context for IAM retailer/core endpoints that require X-Organization-ID
+  // Required by Core OrganizationContextFilter and IAM CoreRetailerController (400 if missing)
+  try {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("auth_user");
+      if (stored) {
+        const user = JSON.parse(stored) as { organizationId?: string; orgId?: string; org_id?: string };
+        const orgId = user.organizationId || user.orgId || (user as any).org_id;
+        if (orgId) {
+          (config.headers as any).set?.("X-Organization-ID", String(orgId));
+          // Fallback for plain object headers
+          (config.headers as Record<string, unknown>)["X-Organization-ID"] = String(orgId);
+        }
+      } else {
+        // Fallback: try sessionStorage personal data (signup flow)
+        const fallbackOrg = sessionStorage.getItem("organizationId") || sessionStorage.getItem("orgId");
+        if (fallbackOrg) {
+          (config.headers as any).set?.("X-Organization-ID", String(fallbackOrg));
+          (config.headers as Record<string, unknown>)["X-Organization-ID"] = String(fallbackOrg);
+        }
+      }
+    }
+  } catch {
+    // ignore parsing errors
+  }
+
   console.log(
     "[API CLIENT] Request:",
     config.method?.toUpperCase(),

@@ -69,7 +69,7 @@ const data = {
 				},
 				{
 					title: "Analytics",
-					url: "#",
+					url: "/retailer/analytics",
 					icon: IconChartBar
 				}
 			]
@@ -98,20 +98,122 @@ const data = {
 			]
 		},
 		{
-			id: "materials",
-			label: "Materials",
+			id: "procurement",
+			label: "Procurement",
 			showHeader: false,
 			showActions: true,
 			items: [
 				{
-					title: "Orders",
-					url: "/retailer/materials/orders",
+					title: "Purchase Orders",
+					url: "/retailer/purchase-orders",
 					icon: IconShoppingCart
 				},
 				{
-					title: "Inventory",
+					title: "Goods Receipts",
+					url: "/retailer/procurement/goods-receipts",
+					icon: IconPackage
+				},
+				{
+					title: "Invoices",
+					url: "/retailer/procurement/invoices",
+					icon: IconFileWord
+				},
+				{
+					title: "Three-Way Match",
+					url: "/retailer/procurement/three-way",
+					icon: IconEye
+				}
+			]
+		},
+		{
+			id: "inventory",
+			label: "Inventory",
+			showHeader: false,
+			showActions: true,
+			items: [
+				{
+					title: "Materials",
 					url: "/retailer/materials/inventory",
 					icon: IconDatabase
+				},
+				{
+					title: "Stock",
+					url: "/retailer/inventory/stock",
+					icon: IconDatabase
+				},
+				{
+					title: "ABC Analysis",
+					url: "/retailer/inventory/abc",
+					icon: IconChartBar
+				},
+				{
+					title: "Movements",
+					url: "/retailer/inventory/movements",
+					icon: IconTruck
+				}
+			]
+		},
+		{
+			id: "materials",
+			label: "Materials Orders",
+			showHeader: false,
+			showActions: true,
+			items: [
+				{
+					title: "Material Orders",
+					url: "/retailer/materials/orders",
+					icon: IconShoppingCart
+				}
+			]
+		},
+		{
+			id: "suppliers",
+			label: "Suppliers",
+			showHeader: false,
+			showActions: true,
+			items: [
+				{
+					title: "Market",
+					url: "/retailer/partnership/supplier-market",
+					icon: IconLink
+				},
+				{
+					title: "Performance",
+					url: "/retailer/suppliers/performance",
+					icon: IconChartBar
+				},
+				{
+					title: "Risk Monitoring",
+					url: "/retailer/suppliers/risk",
+					icon: IconEye
+				},
+				{
+					title: "Contracts",
+					url: "/retailer/supplier-contracts",
+					icon: IconFileWord
+				}
+			]
+		},
+		{
+			id: "logistics",
+			label: "Logistics",
+			showHeader: false,
+			showActions: true,
+			items: [
+				{
+					title: "Shipments",
+					url: "/retailer/shipments",
+					icon: IconTruck
+				},
+				{
+					title: "Freight Invoices",
+					url: "/retailer/logistics/freight-invoices",
+					icon: IconFileWord
+				},
+				{
+					title: "Delivery Appointments",
+					url: "/retailer/logistics/delivery-appointments",
+					icon: IconPackage
 				}
 			]
 		},
@@ -122,19 +224,14 @@ const data = {
 			showActions: true,
 			items: [
 				{
-					title: "Suppliers",
-					url: "/retailer/partnership/supplier-market",
-					icon: IconLink
-				},
-				{
-					title: "Logistics",
-					url: "/retailer/partnership/logistic-market",
-					icon: IconTruck
-				},
-				{
-					title: "Partnership management",
+					title: "Partnership Management",
 					url: "/retailer/partnership/management",
 					icon: IconFileWord
+				},
+				{
+					title: "Logistics Market",
+					url: "/retailer/partnership/logistic-market",
+					icon: IconTruck
 				},
 				{
 					title: "Chats",
@@ -208,10 +305,10 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
 						{showActions ? (
 							<>
 								<SidebarMenuButton asChild isActive={isActive(item.url)}>
-									<a href={item.url}>
+									<Link href={item.url} prefetch>
 										{item.icon && <item.icon />}
 										<span>{item.title}</span>
-									</a>
+									</Link>
 								</SidebarMenuButton>
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
@@ -278,47 +375,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		? data.sidebarSections.filter((section) => {
 			if (!user) return false;
 
-			// All roles have access to all sections
+			// All retailer roles have access to all retailer sections
+			const allRetailerSections = ["main", "Products", "procurement", "inventory", "materials", "suppliers", "logistics", "partnerships"];
 			const roleAccess: Record<string, string[]> = {
-				ROLE_ADMIN: ["main", "Products", "materials", "partnerships"],
-				ROLE_DIRECTOR: [
-					"main",
-					"Products",
-					"materials",
-					"partnerships"
-				],
-				ROLE_PRODUCT_MANAGER: [
-					"main",
-					"Products",
-					"materials",
-					"partnerships"
-				],
-				ROLE_ACCOUNT_MANAGER: [
-					"main",
-					"Products",
-					"materials",
-					"partnerships"
-				],
-				ROLE_OPERATION_MANAGER: [
-					"main",
-					"Products",
-					"materials",
-					"partnerships"
-				],
-				ROLE_WAREHOUSE_MANAGER: [
-					"main",
-					"Products",
-					"materials",
-					"partnerships"
-				],
-				ROLE_FLEET_MANAGER: [
-					"main",
-					"Products",
-					"materials",
-					"partnerships"
-				],
-				CLERK: ["main", "Products", "materials", "partnerships"],
-				DRIVER: ["main", "Products", "materials", "partnerships"]
+				ROLE_ADMIN: allRetailerSections,
+				ROLE_DIRECTOR: allRetailerSections,
+				ROLE_PRODUCT_MANAGER: allRetailerSections,
+				ROLE_ACCOUNT_MANAGER: allRetailerSections,
+				ROLE_OPERATION_MANAGER: allRetailerSections,
+				ROLE_WAREHOUSE_MANAGER: allRetailerSections,
+				ROLE_FLEET_MANAGER: allRetailerSections,
+				CLERK: allRetailerSections,
+				DRIVER: allRetailerSections
 			};
 
 			return roleAccess[user.role]?.includes(section.id) ?? false;

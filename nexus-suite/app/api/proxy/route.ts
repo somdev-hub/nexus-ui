@@ -317,16 +317,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Session expired" }, { status: 401 });
   }
 
+  const orgHeader = request.headers.get("X-Organization-ID") || request.headers.get("x-organization-id") || request.headers.get("X-ORGANIZATION-ID");
+  const sessionOrgId = (session as any).user?.orgId || (session as any).user?.organizationId;
+  const effectiveOrgId = orgHeader || (sessionOrgId ? String(sessionOrgId) : undefined);
+
   try {
     console.log(
       "[API PROXY GET] Making request with token:",
       !!session.accessToken,
     );
     const springBootClient = getSpringBootClient();
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${session.accessToken}`,
+    };
+    if (effectiveOrgId) headers["X-Organization-ID"] = effectiveOrgId;
     const response = await springBootClient.get(path, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
+      headers,
     });
 
     console.log("[API PROXY GET] Request successful");
@@ -348,10 +354,12 @@ export async function GET(request: NextRequest) {
           refreshToken,
           (accessToken: string) => {
             const springBootClient = getSpringBootClient();
+            const retryHeaders: Record<string, string> = {
+              Authorization: `Bearer ${accessToken}`,
+            };
+            if (effectiveOrgId) retryHeaders["X-Organization-ID"] = effectiveOrgId;
             return springBootClient.get(path, {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
+              headers: retryHeaders,
             });
           },
         );
@@ -423,12 +431,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Session expired" }, { status: 401 });
   }
 
+  const postOrgHeader = request.headers.get("X-Organization-ID") || request.headers.get("x-organization-id");
+  const postSessionOrgId = (session as any).user?.orgId || (session as any).user?.organizationId;
+  const postEffectiveOrgId = postOrgHeader || (postSessionOrgId ? String(postSessionOrgId) : undefined);
+
   try {
     const contentType = request.headers.get("content-type") || "";
     let body: any;
     const axiosConfig: any = {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
+        ...(postEffectiveOrgId ? { "X-Organization-ID": postEffectiveOrgId } : {}),
       },
     };
 
@@ -533,12 +546,17 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Session expired" }, { status: 401 });
   }
 
+  const putOrgHeader = request.headers.get("X-Organization-ID") || request.headers.get("x-organization-id");
+  const putSessionOrgId = (session as any).user?.orgId || (session as any).user?.organizationId;
+  const putEffectiveOrgId = putOrgHeader || (putSessionOrgId ? String(putSessionOrgId) : undefined);
+
   try {
     const contentType = request.headers.get("content-type") || "";
     let body: any;
     const axiosConfig: any = {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
+        ...(putEffectiveOrgId ? { "X-Organization-ID": putEffectiveOrgId } : {}),
       },
     };
 
@@ -617,12 +635,17 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Session expired" }, { status: 401 });
   }
 
+  const deleteOrgHeader = request.headers.get("X-Organization-ID") || request.headers.get("x-organization-id");
+  const deleteSessionOrgId = (session as any).user?.orgId || (session as any).user?.organizationId;
+  const deleteEffectiveOrgId = deleteOrgHeader || (deleteSessionOrgId ? String(deleteSessionOrgId) : undefined);
+
   try {
     const springBootClient = getSpringBootClient();
     const response = await springBootClient.delete(path, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         "Content-Type": "application/json",
+        ...(deleteEffectiveOrgId ? { "X-Organization-ID": deleteEffectiveOrgId } : {}),
       },
     });
 

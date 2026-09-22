@@ -16,7 +16,7 @@ import type {
 // Supplier Contracts API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/api/core/supplier-contracts";
+const BASE_PATH = "/iam/core/retailer/supplier-contracts";
 
 export async function getSupplierContracts(
   filter: SupplierContractFilter = {},

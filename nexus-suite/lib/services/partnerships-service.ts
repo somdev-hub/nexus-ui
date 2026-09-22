@@ -14,7 +14,7 @@ import type {
 // Partnerships API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/core/partnerships";
+const BASE_PATH = "/iam/core/retailer/partnerships";
 
 export async function getPartnerships(
   filter: PartnershipFilter = {},
@@ -27,7 +27,7 @@ export async function getPartnerships(
   });
 
   const query = params.toString();
-  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
   const response = await apiClient.get<PaginatedResponse<Partnership>>(url);
   return response.data;
@@ -45,7 +45,7 @@ export async function getPartnershipById(
 export async function createPartnership(
   data: PartnershipCreateRequest,
 ): Promise<Partnership> {
-  const response = await apiClient.post<Partnership>(BASE_PATH, data);
+  const response = await apiClient.post<Partnership>(`${BASE_PATH}/add`, data);
   return response.data;
 }
 

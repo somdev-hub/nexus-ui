@@ -14,7 +14,7 @@ import type {
 // Orders API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/core/orders";
+const BASE_PATH = "/iam/core/retailer/orders";
 
 export async function getOrders(
   filter: OrderFilter = {},
@@ -27,7 +27,7 @@ export async function getOrders(
   });
 
   const query = params.toString();
-  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
   const response = await apiClient.get<PaginatedResponse<Order>>(url);
   return response.data;
@@ -39,7 +39,7 @@ export async function getOrderById(orderId: number): Promise<Order> {
 }
 
 export async function createOrder(data: OrderCreateRequest): Promise<Order> {
-  const response = await apiClient.post<Order>(BASE_PATH, data);
+  const response = await apiClient.post<Order>(`${BASE_PATH}/add`, data);
   return response.data;
 }
 
