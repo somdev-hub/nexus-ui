@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import AttendenceTrigger from "@/components/attendence-trigger";
 
 export function SiteHeader({ name = "Retailer" }) {
   return (
@@ -13,6 +14,7 @@ export function SiteHeader({ name = "Retailer" }) {
         />
         <h1 className="text-base font-medium">{name}</h1>
         <div className="ml-auto flex items-center gap-2">
+          <AttendenceTrigger />
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
             <a
               href="https://github.com/shadcn-ui/ui/tree/main/apps/v4/app/(examples)/dashboard"

@@ -12,7 +12,7 @@ import type {
 // Logistics Partners API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/core/partnerships";
+const BASE_PATH = "/iam/core/retailer/partnerships";
 
 export async function getLogisticsPartners(
   filter: LogisticsPartnerFilter = {},
@@ -27,7 +27,7 @@ export async function getLogisticsPartners(
   params.append("partnershipType", "LOGISTICS");
 
   const query = params.toString();
-  const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
   const response = await apiClient.get<PaginatedResponse<LogisticsPartner>>(url);
   return response.data;
@@ -45,7 +45,7 @@ export async function getLogisticsPartnerById(
 export async function createLogisticsPartner(
   data: LogisticsPartnerCreateRequest,
 ): Promise<LogisticsPartner> {
-  const response = await apiClient.post<LogisticsPartner>(BASE_PATH, {
+  const response = await apiClient.post<LogisticsPartner>(`${BASE_PATH}/add`, {
     ...data,
     partnershipType: "LOGISTICS",
   });

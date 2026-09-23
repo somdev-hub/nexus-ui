@@ -38,10 +38,10 @@ export default function AbcPage() {
         <Select value={category} onValueChange={setCategory}><SelectTrigger className="w-40"><SelectValue placeholder="All Categories" /></SelectTrigger><SelectContent><SelectItem value="">All</SelectItem><SelectItem value="A">Category A</SelectItem><SelectItem value="B">Category B</SelectItem><SelectItem value="C">Category C</SelectItem></SelectContent></Select>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Value</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">${data.summary.totalInventoryValue.toLocaleString()}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">A (≤80%)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{data.summary.categoryACount} items</p><p className="text-xs text-muted-foreground">${data.summary.categoryAValue.toLocaleString()} · {data.summary.categoryAPercentage}%</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">B (≤95%)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{data.summary.categoryBCount} items</p><p className="text-xs text-muted-foreground">${data.summary.categoryBValue.toLocaleString()} · {data.summary.categoryBPercentage}%</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">C (Rest)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{data.summary.categoryCCount} items</p><p className="text-xs text-muted-foreground">${data.summary.categoryCValue.toLocaleString()} · {data.summary.categoryCPercentage}%</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Total Value</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">${(data.summary.totalInventoryValue ?? 0).toLocaleString()}</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">A (≤80%)</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{data.summary.categoryACount ?? 0} items</p><p className="text-xs text-muted-foreground">${(data.summary.categoryAValue ?? 0).toLocaleString()} · {data.summary.categoryAPercentage ?? 0}%</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">B (≤95%)</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{data.summary.categoryBCount ?? 0} items</p><p className="text-xs text-muted-foreground">${(data.summary.categoryBValue ?? 0).toLocaleString()} · {data.summary.categoryBPercentage ?? 0}%</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">C (Rest)</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{data.summary.categoryCCount ?? 0} items</p><p className="text-xs text-muted-foreground">${(data.summary.categoryCValue ?? 0).toLocaleString()} · {data.summary.categoryCPercentage ?? 0}%</p></CardContent></Card>
       </div>
       <div className="rounded-lg border overflow-hidden">
         <Table>
@@ -49,12 +49,12 @@ export default function AbcPage() {
           <TableBody>
             {data.items.map(it=>(
               <TableRow key={it.stockId}>
-                <TableCell><div className="font-medium">{it.materialName}</div><div className="text-xs text-muted-foreground">{it.materialCode} · WH {it.warehouseId}</div></TableCell>
-                <TableCell className="text-right">{it.quantityOnHand}</TableCell>
-                <TableCell className="text-right">${it.unitCost.toFixed(2)}</TableCell>
-                <TableCell className="text-right font-medium">${it.annualValue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{it.cumulativePercentage}%</TableCell>
-                <TableCell><Badge className={catColor[it.abcCategory]}>{it.abcCategory}</Badge></TableCell>
+                <TableCell><div className="font-medium">{it.materialName ?? "—"}</div><div className="text-xs text-muted-foreground">{it.materialCode ?? "—"} · WH {it.warehouseId ?? "—"}</div></TableCell>
+                <TableCell className="text-right">{(it.quantityOnHand ?? 0).toString()}</TableCell>
+                <TableCell className="text-right">${Number(it.unitCost ?? 0).toFixed(2)}</TableCell>
+                <TableCell className="text-right font-medium">${(it.annualValue ?? 0).toLocaleString()}</TableCell>
+                <TableCell className="text-right">{it.cumulativePercentage ?? 0}%</TableCell>
+                <TableCell><Badge className={catColor[it.abcCategory as string] ?? "bg-gray-100"}>{it.abcCategory ?? "—"}</Badge></TableCell>
               </TableRow>
             ))}
             {data.items.length===0 && <TableRow><TableCell colSpan={6} className="text-center py-8">No items</TableCell></TableRow>}

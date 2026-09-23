@@ -48,14 +48,14 @@ export default function AnalyticsPage(){
       {dashboard && (
         <>
           <div className="grid gap-4 md:grid-cols-4">
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Spend</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">${Number(dashboard.totalSpend).toLocaleString()}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Open POs</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{dashboard.openPoCount}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Inbound Shipments</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{dashboard.inboundShipmentCount}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">OTIF</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{dashboard.otifPercentage}%</p><p className="text-xs text-muted-foreground">Avg Perf {dashboard.avgSupplierPerformance}%</p></CardContent></Card>
+            <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Total Spend</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">${Number(dashboard.totalSpend).toLocaleString()}</p></CardContent></Card>
+            <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Open POs</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{dashboard.openPoCount}</p></CardContent></Card>
+            <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Inbound Shipments</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{dashboard.inboundShipmentCount}</p></CardContent></Card>
+            <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">OTIF</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{dashboard.otifPercentage}%</p><p className="text-xs text-muted-foreground">Avg Perf {dashboard.avgSupplierPerformance}%</p></CardContent></Card>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle>Inventory Value</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">${Number(dashboard.inventoryValue).toLocaleString()}</p><p className="text-xs text-muted-foreground">{dashboard.activePartnerships} active partnerships · {dashboard.totalSuppliers} suppliers</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Bottlenecks</CardTitle></CardHeader><CardContent>
+            <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle>Inventory Value</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">${Number(dashboard.inventoryValue).toLocaleString()}</p><p className="text-xs text-muted-foreground">{dashboard.activePartnerships} active partnerships · {dashboard.totalSuppliers} suppliers</p></CardContent></Card>
+            <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle>Bottlenecks</CardTitle></CardHeader><CardContent className="p-0">
               {dashboard.bottleneckAlerts.length===0 ? <p className="text-sm text-muted-foreground">No bottlenecks</p> : dashboard.bottleneckAlerts.map((b,i)=>(<div key={i} className="flex justify-between py-1 text-sm"><span>{b.type}</span><Badge variant={b.severity==="HIGH"?"destructive":"outline"}>{b.count} · {b.severity}</Badge></div>))}
             </CardContent></Card>
           </div>
@@ -64,9 +64,9 @@ export default function AnalyticsPage(){
       )}
 
       {spend && (
-        <Card>
-          <CardHeader><CardTitle>Spend Analytics</CardTitle></CardHeader>
-          <CardContent>
+        <Card className="p-4 gap-2">
+          <CardHeader className="p-0"><CardTitle>Spend Analytics</CardTitle></CardHeader>
+          <CardContent className="p-0">
             <div className="grid gap-4 md:grid-cols-3 text-sm">
               <div><p className="text-muted-foreground">By Supplier</p>{Object.entries(spend.spendBySupplier).slice(0,5).map(([k,v])=>(<div key={k} className="flex justify-between"><span>{k}</span><span>${Number(v).toLocaleString()}</span></div>))}</div>
               <div><p className="text-muted-foreground">By Category</p>{Object.entries(spend.spendByCategory).slice(0,5).map(([k,v])=>(<div key={k} className="flex justify-between"><span>{k}</span><span>${Number(v).toLocaleString()}</span></div>))}</div>
@@ -77,9 +77,9 @@ export default function AnalyticsPage(){
         </Card>
       )}
 
-      <Card>
-        <CardHeader><CardTitle>Supply Chain Visibility</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
+      <Card className="p-4 gap-2">
+        <CardHeader className="p-0"><CardTitle>Supply Chain Visibility</CardTitle></CardHeader>
+        <CardContent className="p-0 space-y-4">
           <div className="flex gap-4">
             <Input placeholder="Purchase Order ID" value={poId} onChange={e=>setPoId(e.target.value)} className="max-w-xs"/>
             <Button onClick={handleVisibility}>Trace</Button>

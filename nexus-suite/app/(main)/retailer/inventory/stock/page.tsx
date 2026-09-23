@@ -25,8 +25,9 @@ export default function StockPage() {
         getStocks({ pageNo: 0, pageOffset: 20, ...filter }),
         getInventoryValuation().catch(() => null),
       ]);
-      setStocks(stockRes.content);
-      if (valuation) setTotalValue(valuation.totalValue);
+      setStocks(stockRes.content ?? []);
+      if (valuation && valuation.totalValue != null) setTotalValue(Number(valuation.totalValue));
+      else if (valuation && (valuation as any).totalValue == null) setTotalValue(0);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load stock");
     } finally {
@@ -36,7 +37,7 @@ export default function StockPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = stocks.filter(s => !search || s.materialName.toLowerCase().includes(search.toLowerCase()) || s.materialCode.toLowerCase().includes(search.toLowerCase()));
+  const filtered = stocks.filter(s => !search || (s.materialName ?? "").toLowerCase().includes(search.toLowerCase()) || (s.materialCode ?? "").toLowerCase().includes(search.toLowerCase()));
 
   if (isLoading) return <div className="p-6 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-[400px] w-full" /></div>;
 
@@ -44,13 +45,13 @@ export default function StockPage() {
     <div className="flex flex-1 flex-col p-6 gap-6">
       <div className="flex justify-between items-center">
         <div><h1 className="text-2xl font-bold">Stock Inventory</h1><p className="text-muted-foreground">Multi-warehouse inventory · FR-RET-010/011/014</p></div>
-        <div className="flex gap-2"><Badge variant="outline">Total Value: ${totalValue.toLocaleString()}</Badge><Button variant="outline" onClick={load}>Refresh</Button></div>
+        <div className="flex gap-2"><Badge variant="outline">Total Value: ${(totalValue ?? 0).toLocaleString()}</Badge><Button variant="outline" onClick={load}>Refresh</Button></div>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total SKUs</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{stocks.length}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Below Reorder</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-orange-600">{stocks.filter(s=>s.belowReorderPoint).length}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Below Min</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-red-600">{stocks.filter(s=>s.atOrBelowMinLevel).length}</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Valuation</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">${totalValue.toLocaleString()}</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Total SKUs</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">{stocks.length}</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Below Reorder</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold text-orange-600">{stocks.filter(s=>s.belowReorderPoint).length}</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Below Min</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold text-red-600">{stocks.filter(s=>s.atOrBelowMinLevel).length}</p></CardContent></Card>
+        <Card className="p-4 gap-2"><CardHeader className="p-0"><CardTitle className="text-sm text-muted-foreground">Valuation</CardTitle></CardHeader><CardContent className="p-0"><p className="text-2xl font-bold">${(totalValue ?? 0).toLocaleString()}</p></CardContent></Card>
       </div>
       <div className="flex gap-4">
         <Input placeholder="Search material..." value={search} onChange={e=>setSearch(e.target.value)} className="max-w-sm" />
@@ -65,12 +66,12 @@ export default function StockPage() {
           <TableBody>
             {filtered.map(s=>(
               <TableRow key={s.stockId}>
-                <TableCell><div className="font-medium">{s.materialName}</div><div className="text-xs text-muted-foreground">{s.materialCode}</div></TableCell>
-                <TableCell>{s.warehouseCode}<div className="text-xs text-muted-foreground">{s.warehouseLocation}</div></TableCell>
-                <TableCell className="text-right">{s.quantityOnHand}</TableCell>
-                <TableCell className="text-right font-medium">{s.quantityAvailable}</TableCell>
-                <TableCell className="text-right">{s.quantityReserved}</TableCell>
-                <TableCell>${s.totalValue.toLocaleString()}<div className="text-xs">{s.valuationMethod}</div></TableCell>
+                <TableCell><div className="font-medium">{s.materialName ?? "—"}</div><div className="text-xs text-muted-foreground">{s.materialCode ?? "—"}</div></TableCell>
+                <TableCell>{s.warehouseCode ?? "—"}<div className="text-xs text-muted-foreground">{s.warehouseLocation ?? ""}</div></TableCell>
+                <TableCell className="text-right">{(s.quantityOnHand ?? 0).toString()}</TableCell>
+                <TableCell className="text-right font-medium">{(s.quantityAvailable ?? 0).toString()}</TableCell>
+                <TableCell className="text-right">{(s.quantityReserved ?? 0).toString()}</TableCell>
+                <TableCell>${(s.totalValue ?? 0).toLocaleString()}<div className="text-xs">{s.valuationMethod ?? "—"}</div></TableCell>
                 <TableCell>
                   {s.belowReorderPoint && <Badge className="bg-orange-100 text-orange-800 mr-1">Reorder</Badge>}
                   {s.atOrBelowMinLevel && <Badge className="bg-red-100 text-red-800">Low</Badge>}
