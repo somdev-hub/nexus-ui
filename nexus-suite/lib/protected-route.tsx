@@ -8,11 +8,13 @@ import GlobalConfig from "@/global.config";
 interface ProtectedRouteProps {
   children: ReactNode;
   requiredRole?: string;
+  requiredOrgType?: string;
 }
 
 export function ProtectedRoute({
   children,
   requiredRole,
+  requiredOrgType,
 }: ProtectedRouteProps) {
   const { isAuthenticated, user, isLoading } = useAuth();
   const router = useRouter();
@@ -28,7 +30,11 @@ export function ProtectedRoute({
     if (!isLoading && requiredRole && user?.role !== requiredRole) {
       router.push("/unauthorized");
     }
-  }, [isLoading, isAuthenticated, user, requiredRole, router]);
+    if (!isLoading && requiredOrgType && (user as any)?.orgType) {
+      const actual = String((user as any).orgType).toUpperCase();
+      if (actual !== requiredOrgType.toUpperCase()) router.push("/unauthorized");
+    }
+  }, [isLoading, isAuthenticated, user, requiredRole, requiredOrgType, router]);
 
   if (isLoading)
     return (
@@ -38,6 +44,7 @@ export function ProtectedRoute({
     );
   if (!isAuthenticated) return null;
   if (requiredRole && user?.role !== requiredRole) return null;
+  if (requiredOrgType && (user as any)?.orgType && String((user as any).orgType).toUpperCase() !== requiredOrgType.toUpperCase()) return null;
 
   return <>{children}</>;
 }

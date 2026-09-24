@@ -43,6 +43,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setIsLoading(val);
 	};
 
+	async function enrichUserWithOrgType(u: User | null): Promise<User | null> {
+		if (!u || !u.orgId || u.orgType) return u;
+		// try to fetch orgType if missing; don't block on failure
+		try {
+			const { getOrganizationById } = await import("@/lib/services/organization-service");
+			const org = await getOrganizationById(u.orgId);
+			if (org?.orgType) {
+				const enriched = { ...u, orgType: org.orgType as User["orgType"] };
+				localStorage.setItem("auth_user", JSON.stringify(enriched));
+				return enriched;
+			}
+		} catch {}
+		return u;
+	}
+
 	useEffect(() => {
 		if (!GlobalConfig.wowoFeatures.auth) {
 			const dummyUser: User = {
@@ -52,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				role: "ROLE_ADMIN",
 				phone: "1234567890",
 				orgId: "dev-org",
+				orgType: "RETAILER",
 				avatar: `/avatars/default.jpg`,
 			};
 			setUserDebug(dummyUser);
@@ -64,12 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			try {
 				const currentUser = getCurrentUser();
 				if (currentUser) {
-					setUserDebug(currentUser);
+					const enriched = await enrichUserWithOrgType(currentUser);
+					setUserDebug(enriched);
 				} else {
 					const sessionUser = await getCurrentUserFromSession();
 					if (sessionUser) {
-						setUserDebug(sessionUser);
-						localStorage.setItem("auth_user", JSON.stringify(sessionUser));
+						const enriched = await enrichUserWithOrgType(sessionUser as User);
+						setUserDebug(enriched);
+						localStorage.setItem("auth_user", JSON.stringify(enriched));
 					}
 				}
 			} catch (error) {
@@ -117,9 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			console.log("[AUTH CONTEXT] handleLogin called with:", email);
 			const response = await login({ email, password });
 			console.log("[AUTH CONTEXT] Login response:", response);
-			localStorage.setItem("auth_user", JSON.stringify(response.user));
-			setUserDebug(response.user || null);
-			console.log("[AUTH CONTEXT] User set in context:", response.user);
+			const enriched = await enrichUserWithOrgType(response.user as User);
+			localStorage.setItem("auth_user", JSON.stringify(enriched));
+			setUserDebug(enriched || null);
+			console.log("[AUTH CONTEXT] User set in context:", enriched);
 		} catch (error) {
 			console.error("[AUTH CONTEXT] Login error:", error);
 			throw error;

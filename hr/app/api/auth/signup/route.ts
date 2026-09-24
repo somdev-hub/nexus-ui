@@ -21,25 +21,15 @@ export async function POST(request: NextRequest) {
 
     console.log("[AUTH SIGNUP] Content-Type:", contentType);
     console.log("[AUTH SIGNUP] Calling Spring Boot API:", SPRING_BOOT_API);
-
-    // Create FormData for Spring Boot
-    const springBootFormData = new FormData();
-
-    // Copy all form fields from request to spring boot form
-    for (const [key, value] of formData.entries()) {
-      springBootFormData.append(key, value);
-    }
+    console.log("[AUTH SIGNUP] FormData keys:", Array.from(formData.keys()));
 
     // Call Spring Boot backend for registration using centralized client
+    // Forward original FormData directly — axios will set proper multipart boundary
     const springBootClient = getSpringBootClient();
     const response = await springBootClient.post(
       `/iam/auth/register`,
-      springBootFormData,
+      formData,
       {
-        headers: {
-          // Let axios set Content-Type with proper boundary for FormData
-          "Content-Type": "multipart/form-data",
-        },
         timeout: 90000, // 90 second timeout for file uploads and processing
       },
     );

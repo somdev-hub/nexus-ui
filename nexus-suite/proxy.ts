@@ -81,8 +81,50 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const orgType = (session.user as any)?.orgType as string | undefined;
+  const resolvedOrgType = orgType ? String(orgType).toUpperCase() : undefined;
+
+  function dashboardForOrgType(t?: string): string {
+    switch (t) {
+      case "SUPPLIER": return "/supplier/dashboard";
+      case "LOGISTICS": return "/logistics/dashboard";
+      case "RETAILER":
+      default: return "/retailer/dashboard";
+    }
+  }
+
+  function isAllowedForOrg(path: string, t?: string): boolean {
+    if (!t) return true;
+    if (path.startsWith("/retailer")) return t === "RETAILER";
+    if (path.startsWith("/supplier")) return t === "SUPPLIER";
+    if (path.startsWith("/logistics")) return t === "LOGISTICS";
+    if (path.startsWith("/profile") || path.startsWith("/unauthorized") || path === "/") return true;
+    return true;
+  }
+
   if (isPublicPath && pathname !== "/") {
-    return NextResponse.redirect(new URL("/retailer/dashboard", request.url));
+    // Only redirect if we know orgType; otherwise let client handle (prevents supplier→retailer mis-redirect on stale session)
+    if (resolvedOrgType) {
+      return NextResponse.redirect(new URL(dashboardForOrgType(resolvedOrgType), request.url));
+    }
+    // No orgType yet (stale session) – let request through, client will enrich and redirect
+    return NextResponse.next();
+  }
+
+  // Org-type based access control: prevent cross-org URL typing — only enforce when orgType known
+  if (resolvedOrgType && !isAllowedForOrg(pathname, resolvedOrgType)) {
+    console.log(`[PROXY] Blocked ${pathname} for orgType ${resolvedOrgType} -> redirect to ${dashboardForOrgType(resolvedOrgType)}`);
+    if (pathname.startsWith("/retailer") || pathname.startsWith("/supplier") || pathname.startsWith("/logistics")) {
+      return NextResponse.redirect(new URL("/unauthorized", request.url));
+    }
+  }
+
+  // Root "/" should redirect to org-appropriate dashboard only when orgType known; otherwise let client (app/page.tsx) decide after enrichment
+  if (pathname === "/") {
+    if (resolvedOrgType) {
+      return NextResponse.redirect(new URL(dashboardForOrgType(resolvedOrgType), request.url));
+    }
+    return NextResponse.next();
   }
 
   const requestHeaders = new Headers(request.headers);
@@ -90,6 +132,7 @@ export default async function proxy(request: NextRequest) {
   requestHeaders.set("x-user-email", session.user.email);
   requestHeaders.set("x-user-role", session.user.role);
   requestHeaders.set("x-org-id", session.user.orgId);
+  if (resolvedOrgType) requestHeaders.set("x-org-type", resolvedOrgType);
 
   return NextResponse.next({
     request: {

@@ -5,6 +5,8 @@ export interface LoginRequest {
   password: string;
 }
 
+export type OrgType = "RETAILER" | "SUPPLIER" | "LOGISTICS" | string;
+
 export type UserRole =
   | "ROLE_ADMIN"
   | "ROLE_DIRECTOR"
@@ -30,6 +32,7 @@ export interface User {
   name: string;
   role: UserRole | string;
   orgId: string;
+  orgType?: OrgType;
   phone?: string;
   avatar?: string;
 }

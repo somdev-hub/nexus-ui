@@ -9,8 +9,12 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import Link from "next/link";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
+import { getDashboardPathForOrgType } from "@/lib/services/organization-service";
 
 export default function UnauthorizedPage() {
+  const { orgType } = useUserMetadata();
+  const dashboard = getDashboardPathForOrgType(orgType);
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-md">
@@ -22,11 +26,11 @@ export default function UnauthorizedPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Your current role doesn't have access to this section. Please
+            Your current role or organization type ({orgType || "unknown"}) doesn't have access to this section. Please
             contact an administrator if you believe this is a mistake.
           </p>
           <Button asChild className="w-full">
-            <Link href="/retailer/dashboard">Return to Dashboard</Link>
+            <Link href={dashboard}>Return to Dashboard</Link>
           </Button>
         </CardContent>
       </Card>

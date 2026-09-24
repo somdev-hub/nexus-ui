@@ -9,6 +9,7 @@ export interface UserMetadata {
   name: string | undefined;
   phone: string | undefined;
   orgId: string | undefined;
+  orgType: string | undefined;
   role: string | undefined;
   avatar: string | undefined;
   isAuthenticated: boolean;
@@ -52,6 +53,7 @@ export function useUserMetadata(): UserMetadata {
       name: user?.name,
       phone: user?.phone,
       orgId: user?.orgId,
+      orgType: (user as any)?.orgType,
       role: user?.role,
       avatar: user?.avatar,
       isAuthenticated,
@@ -64,6 +66,7 @@ export function useUserMetadata(): UserMetadata {
       user?.name,
       user?.phone,
       user?.orgId,
+      (user as any)?.orgType,
       user?.role,
       user?.avatar,
       isAuthenticated,

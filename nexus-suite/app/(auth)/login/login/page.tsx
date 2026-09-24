@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { getDashboardPathForOrgType } from "@/lib/services/organization-service";
+import { getOrganizationById } from "@/lib/services/organization-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +48,22 @@ export default function LoginPage() {
 		setError("");
 		try {
 			await login(data.email, data.password);
+			try {
+				const stored = localStorage.getItem("auth_user");
+				if (stored) {
+					const u = JSON.parse(stored);
+					let orgType = u?.orgType ? String(u.orgType).toUpperCase() : undefined;
+					if (!orgType && u?.orgId) {
+						try {
+							const org = await getOrganizationById(u.orgId);
+							orgType = (org as any)?.orgType ? String((org as any).orgType).toUpperCase() : undefined;
+							if (orgType) { u.orgType = orgType; localStorage.setItem("auth_user", JSON.stringify(u)); }
+						} catch {}
+					}
+					router.push(getDashboardPathForOrgType(orgType));
+					return;
+				}
+			} catch {}
 			router.push("/retailer/dashboard");
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Login failed. Please try again.");

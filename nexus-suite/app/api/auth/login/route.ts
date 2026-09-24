@@ -50,12 +50,36 @@ export async function POST(request: NextRequest) {
       email: userEmail,
     } = response.data;
 
+    // Fetch orgType for proper dashboard routing (RETAILER/SUPPLIER/LOGISTICS)
+    let orgType: string | undefined = undefined;
+    const tryFetchOrgType = async (url: string): Promise<string | undefined> => {
+      try {
+        const r = await springBootClient.get(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+        const d = r.data as any;
+        // IAM returns either OrganizationDto directly, or wrapped {organization: {...}}, or array
+        return d?.orgType || d?.organization?.orgType || d?.data?.orgType || d?.org_type || (Array.isArray(d) ? d[0]?.orgType : undefined);
+      } catch { return undefined; }
+    };
+    orgType = await tryFetchOrgType(`/iam/organizations/${orgId}`);
+    if (!orgType) orgType = await tryFetchOrgType(`/iam/organizations/details/${orgId}`);
+    if (!orgType) {
+      // Fallback: try user-org details endpoint
+      try {
+        const r = await springBootClient.get(`/iam/organizations/user-org/details?userId=${userId}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+        const d = r.data as any;
+        orgType = d?.orgType || d?.organization?.orgType || d?.data?.orgType;
+      } catch {}
+    }
+    if (orgType) console.log("[AUTH LOGIN] Resolved orgType:", orgType);
+    else console.warn("[AUTH LOGIN] Could not fetch orgType for orgId", orgId, "- will be resolved client-side via enrichUserWithOrgType");
+
     const user = {
       id: userId.toString(),
       email: userEmail,
       name,
       role,
       orgId: orgId.toString(),
+      orgType: orgType ? String(orgType).toUpperCase() : undefined,
       avatar: `/avatars/${name}.jpg`,
     };
 
