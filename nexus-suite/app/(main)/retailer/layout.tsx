@@ -1,6 +1,12 @@
-"use client";
-import { ProtectedRoute } from "@/lib/protected-route";
+'use client';
+import { ProtectedRoute } from '@/lib/protected-route';
 
-export default function RetailerLayout({ children }: { children: React.ReactNode }) {
-  return <ProtectedRoute requiredOrgType="RETAILER">{children}</ProtectedRoute>;
+export default function RetailerLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <ProtectedRoute requiredOrgType="RETAILER">{children}</ProtectedRoute>
+    );
 }

@@ -1,111 +1,114 @@
-import apiClient from "@/lib/api-client";
-import { PaginatedResponse } from "@/types/paginated-response";
+import apiClient from '@/lib/api-client';
+import { PaginatedResponse } from '@/types/paginated-response';
 import type {
-  PurchaseOrder,
-  PurchaseOrderCreateRequest,
-  PurchaseOrderItemCreateRequest,
-  PurchaseOrderUpdateRequest,
-  PurchaseOrderStatusUpdateRequest,
-  PurchaseOrderApprovalRequest,
-  PurchaseOrderFilter,
-  PurchaseOrderPaginatedResponse,
-} from "@/types/purchase-orders";
+    PurchaseOrder,
+    PurchaseOrderCreateRequest,
+    PurchaseOrderItemCreateRequest,
+    PurchaseOrderUpdateRequest,
+    PurchaseOrderStatusUpdateRequest,
+    PurchaseOrderApprovalRequest,
+    PurchaseOrderFilter,
+    PurchaseOrderPaginatedResponse,
+} from '@/types/purchase-orders';
 
 // ─────────────────────────────────────────────────────────────
 // Purchase Orders API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/iam/core/retailer/purchase-orders";
+const BASE_PATH = '/iam/core/retailer/purchase-orders';
 
 export async function getPurchaseOrders(
-  filter: PurchaseOrderFilter = {},
+    filter: PurchaseOrderFilter = {}
 ): Promise<PaginatedResponse<PurchaseOrder>> {
-  const params = new URLSearchParams();
-  Object.entries(filter).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, String(value));
-    }
-  });
+    const params = new URLSearchParams();
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            params.append(key, String(value));
+        }
+    });
 
-  const query = params.toString();
-  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
+    const query = params.toString();
+    const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
-  const response = await apiClient.get<PaginatedResponse<PurchaseOrder>>(url);
-  return response.data;
+    const response = await apiClient.get<PaginatedResponse<PurchaseOrder>>(url);
+    return response.data;
 }
 
 export async function getPurchaseOrderById(
-  purchaseOrderId: number,
+    purchaseOrderId: number
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.get<PurchaseOrder>(
-    `${BASE_PATH}/${purchaseOrderId}`,
-  );
-  return response.data;
+    const response = await apiClient.get<PurchaseOrder>(
+        `${BASE_PATH}/${purchaseOrderId}`
+    );
+    return response.data;
 }
 
 export async function createPurchaseOrder(
-  data: PurchaseOrderCreateRequest,
+    data: PurchaseOrderCreateRequest
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.post<PurchaseOrder>(`${BASE_PATH}/create`, data);
-  return response.data;
+    const response = await apiClient.post<PurchaseOrder>(
+        `${BASE_PATH}/create`,
+        data
+    );
+    return response.data;
 }
 
 export async function updatePurchaseOrder(
-  purchaseOrderId: number,
-  data: PurchaseOrderUpdateRequest,
+    purchaseOrderId: number,
+    data: PurchaseOrderUpdateRequest
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.put<PurchaseOrder>(
-    `${BASE_PATH}/${purchaseOrderId}`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.put<PurchaseOrder>(
+        `${BASE_PATH}/${purchaseOrderId}`,
+        data
+    );
+    return response.data;
 }
 
 export async function updatePurchaseOrderStatus(
-  purchaseOrderId: number,
-  data: PurchaseOrderStatusUpdateRequest,
+    purchaseOrderId: number,
+    data: PurchaseOrderStatusUpdateRequest
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.put<PurchaseOrder>(
-    `${BASE_PATH}/${purchaseOrderId}/status`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.put<PurchaseOrder>(
+        `${BASE_PATH}/${purchaseOrderId}/status`,
+        data
+    );
+    return response.data;
 }
 
 export async function transitionPurchaseOrder(
-  purchaseOrderId: number,
-  targetStatus: string,
+    purchaseOrderId: number,
+    targetStatus: string
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.put<PurchaseOrder>(
-    `${BASE_PATH}/${purchaseOrderId}/transition?targetStatus=${targetStatus}`,
-  );
-  return response.data;
+    const response = await apiClient.put<PurchaseOrder>(
+        `${BASE_PATH}/${purchaseOrderId}/transition?targetStatus=${targetStatus}`
+    );
+    return response.data;
 }
 
 export async function approvePurchaseOrder(
-  purchaseOrderId: number,
-  data: PurchaseOrderApprovalRequest,
+    purchaseOrderId: number,
+    data: PurchaseOrderApprovalRequest
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.post<PurchaseOrder>(
-    `${BASE_PATH}/${purchaseOrderId}/approve`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.post<PurchaseOrder>(
+        `${BASE_PATH}/${purchaseOrderId}/approve`,
+        data
+    );
+    return response.data;
 }
 
 export async function rejectPurchaseOrder(
-  purchaseOrderId: number,
-  data: PurchaseOrderApprovalRequest,
+    purchaseOrderId: number,
+    data: PurchaseOrderApprovalRequest
 ): Promise<PurchaseOrder> {
-  const response = await apiClient.post<PurchaseOrder>(
-    `${BASE_PATH}/${purchaseOrderId}/reject`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.post<PurchaseOrder>(
+        `${BASE_PATH}/${purchaseOrderId}/reject`,
+        data
+    );
+    return response.data;
 }
 
 export async function cancelPurchaseOrder(
-  purchaseOrderId: number,
+    purchaseOrderId: number
 ): Promise<void> {
-  await apiClient.delete(`${BASE_PATH}/${purchaseOrderId}`);
+    await apiClient.delete(`${BASE_PATH}/${purchaseOrderId}`);
 }

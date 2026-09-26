@@ -1,67 +1,70 @@
-import apiClient from "@/lib/api-client";
-import { PaginatedResponse } from "@/types/paginated-response";
+import apiClient from '@/lib/api-client';
+import { PaginatedResponse } from '@/types/paginated-response';
 import type {
-  Order,
-  OrderCreateRequest,
-  OrderItemCreateRequest,
-  OrderUpdateRequest,
-  OrderStatusUpdateRequest,
-  OrderFilter,
-  OrderPaginatedResponse,
-} from "@/types/orders";
+    Order,
+    OrderCreateRequest,
+    OrderItemCreateRequest,
+    OrderUpdateRequest,
+    OrderStatusUpdateRequest,
+    OrderFilter,
+    OrderPaginatedResponse,
+} from '@/types/orders';
 
 // ─────────────────────────────────────────────────────────────
 // Orders API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/iam/core/retailer/orders";
+const BASE_PATH = '/iam/core/retailer/orders';
 
 export async function getOrders(
-  filter: OrderFilter = {},
+    filter: OrderFilter = {}
 ): Promise<PaginatedResponse<Order>> {
-  const params = new URLSearchParams();
-  Object.entries(filter).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, String(value));
-    }
-  });
+    const params = new URLSearchParams();
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            params.append(key, String(value));
+        }
+    });
 
-  const query = params.toString();
-  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
+    const query = params.toString();
+    const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
-  const response = await apiClient.get<PaginatedResponse<Order>>(url);
-  return response.data;
+    const response = await apiClient.get<PaginatedResponse<Order>>(url);
+    return response.data;
 }
 
 export async function getOrderById(orderId: number): Promise<Order> {
-  const response = await apiClient.get<Order>(`${BASE_PATH}/${orderId}`);
-  return response.data;
+    const response = await apiClient.get<Order>(`${BASE_PATH}/${orderId}`);
+    return response.data;
 }
 
 export async function createOrder(data: OrderCreateRequest): Promise<Order> {
-  const response = await apiClient.post<Order>(`${BASE_PATH}/add`, data);
-  return response.data;
+    const response = await apiClient.post<Order>(`${BASE_PATH}/add`, data);
+    return response.data;
 }
 
 export async function updateOrder(
-  orderId: number,
-  data: OrderUpdateRequest,
+    orderId: number,
+    data: OrderUpdateRequest
 ): Promise<Order> {
-  const response = await apiClient.put<Order>(`${BASE_PATH}/${orderId}`, data);
-  return response.data;
+    const response = await apiClient.put<Order>(
+        `${BASE_PATH}/${orderId}`,
+        data
+    );
+    return response.data;
 }
 
 export async function updateOrderStatus(
-  orderId: number,
-  data: OrderStatusUpdateRequest,
+    orderId: number,
+    data: OrderStatusUpdateRequest
 ): Promise<Order> {
-  const response = await apiClient.put<Order>(
-    `${BASE_PATH}/${orderId}/status`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.put<Order>(
+        `${BASE_PATH}/${orderId}/status`,
+        data
+    );
+    return response.data;
 }
 
 export async function cancelOrder(orderId: number): Promise<void> {
-  await apiClient.delete(`${BASE_PATH}/${orderId}`);
+    await apiClient.delete(`${BASE_PATH}/${orderId}`);
 }

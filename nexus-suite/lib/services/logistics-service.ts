@@ -1,82 +1,86 @@
-import apiClient from "@/lib/api-client";
-import { PaginatedResponse } from "@/types/paginated-response";
+import apiClient from '@/lib/api-client';
+import { PaginatedResponse } from '@/types/paginated-response';
 import type {
-  LogisticsPartner,
-  LogisticsPartnerCreateRequest,
-  LogisticsPartnerUpdateRequest,
-  LogisticsPartnerFilter,
-  LogisticsPartnerPaginatedResponse,
-} from "@/types/logistics";
+    LogisticsPartner,
+    LogisticsPartnerCreateRequest,
+    LogisticsPartnerUpdateRequest,
+    LogisticsPartnerFilter,
+    LogisticsPartnerPaginatedResponse,
+} from '@/types/logistics';
 
 // ─────────────────────────────────────────────────────────────
 // Logistics Partners API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/iam/core/retailer/partnerships";
+const BASE_PATH = '/iam/core/retailer/partnerships';
 
 export async function getLogisticsPartners(
-  filter: LogisticsPartnerFilter = {},
+    filter: LogisticsPartnerFilter = {}
 ): Promise<PaginatedResponse<LogisticsPartner>> {
-  const params = new URLSearchParams();
-  Object.entries(filter).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, String(value));
-    }
-  });
-  // Filter by partnership type LOGISTICS
-  params.append("partnershipType", "LOGISTICS");
+    const params = new URLSearchParams();
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            params.append(key, String(value));
+        }
+    });
+    // Filter by partnership type LOGISTICS
+    params.append('partnershipType', 'LOGISTICS');
 
-  const query = params.toString();
-  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
+    const query = params.toString();
+    const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
-  const response = await apiClient.get<PaginatedResponse<LogisticsPartner>>(url);
-  return response.data;
+    const response =
+        await apiClient.get<PaginatedResponse<LogisticsPartner>>(url);
+    return response.data;
 }
 
 export async function getLogisticsPartnerById(
-  partnershipId: number,
+    partnershipId: number
 ): Promise<LogisticsPartner> {
-  const response = await apiClient.get<LogisticsPartner>(
-    `${BASE_PATH}/${partnershipId}`,
-  );
-  return response.data;
+    const response = await apiClient.get<LogisticsPartner>(
+        `${BASE_PATH}/${partnershipId}`
+    );
+    return response.data;
 }
 
 export async function createLogisticsPartner(
-  data: LogisticsPartnerCreateRequest,
+    data: LogisticsPartnerCreateRequest
 ): Promise<LogisticsPartner> {
-  const response = await apiClient.post<LogisticsPartner>(`${BASE_PATH}/add`, {
-    ...data,
-    partnershipType: "LOGISTICS",
-  });
-  return response.data;
+    const response = await apiClient.post<LogisticsPartner>(
+        `${BASE_PATH}/add`,
+        {
+            ...data,
+            partnershipType: 'LOGISTICS',
+        }
+    );
+    return response.data;
 }
 
 export async function updateLogisticsPartner(
-  partnershipId: number,
-  data: LogisticsPartnerUpdateRequest,
+    partnershipId: number,
+    data: LogisticsPartnerUpdateRequest
 ): Promise<LogisticsPartner> {
-  const response = await apiClient.put<LogisticsPartner>(
-    `${BASE_PATH}/${partnershipId}`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.put<LogisticsPartner>(
+        `${BASE_PATH}/${partnershipId}`,
+        data
+    );
+    return response.data;
 }
 
 export async function getActiveLogisticsPartners(): Promise<
-  LogisticsPartner[]
+    LogisticsPartner[]
 > {
-  const response = await apiClient.get<LogisticsPartner[]>(
-    `${BASE_PATH}/active?partnershipType=LOGISTICS`,
-  );
-  return response.data;
+    const response = await apiClient.get<LogisticsPartner[]>(
+        `${BASE_PATH}/active?partnershipType=LOGISTICS`
+    );
+    return response.data;
 }
 
 export async function getLogisticsPartnersByStatus(
-  status: string,
+    status: string
 ): Promise<LogisticsPartner[]> {
-  const response = await apiClient.get<LogisticsPartner[]>(
-    `${BASE_PATH}/status/${status}?partnershipType=LOGISTICS`,
-  );
-  return response.data;
+    const response = await apiClient.get<LogisticsPartner[]>(
+        `${BASE_PATH}/status/${status}?partnershipType=LOGISTICS`
+    );
+    return response.data;
 }

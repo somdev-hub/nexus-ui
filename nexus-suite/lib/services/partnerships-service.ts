@@ -1,88 +1,91 @@
-import apiClient from "@/lib/api-client";
-import { PaginatedResponse } from "@/types/paginated-response";
+import apiClient from '@/lib/api-client';
+import { PaginatedResponse } from '@/types/paginated-response';
 import type {
-  Partnership,
-  PartnershipCreateRequest,
-  PartnershipUpdateRequest,
-  PartnershipStatusUpdateRequest,
-  PartnershipAgreementResponse,
-  PartnershipFilter,
-  PartnershipPaginatedResponse,
-} from "@/types/partnerships";
+    Partnership,
+    PartnershipCreateRequest,
+    PartnershipUpdateRequest,
+    PartnershipStatusUpdateRequest,
+    PartnershipAgreementResponse,
+    PartnershipFilter,
+    PartnershipPaginatedResponse,
+} from '@/types/partnerships';
 
 // ─────────────────────────────────────────────────────────────
 // Partnerships API Service
 // ─────────────────────────────────────────────────────────────
 
-const BASE_PATH = "/iam/core/retailer/partnerships";
+const BASE_PATH = '/iam/core/retailer/partnerships';
 
 export async function getPartnerships(
-  filter: PartnershipFilter = {},
+    filter: PartnershipFilter = {}
 ): Promise<PaginatedResponse<Partnership>> {
-  const params = new URLSearchParams();
-  Object.entries(filter).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, String(value));
-    }
-  });
+    const params = new URLSearchParams();
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            params.append(key, String(value));
+        }
+    });
 
-  const query = params.toString();
-  const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
+    const query = params.toString();
+    const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
-  const response = await apiClient.get<PaginatedResponse<Partnership>>(url);
-  return response.data;
+    const response = await apiClient.get<PaginatedResponse<Partnership>>(url);
+    return response.data;
 }
 
 export async function getPartnershipById(
-  partnershipId: number,
+    partnershipId: number
 ): Promise<Partnership> {
-  const response = await apiClient.get<Partnership>(
-    `${BASE_PATH}/${partnershipId}`,
-  );
-  return response.data;
+    const response = await apiClient.get<Partnership>(
+        `${BASE_PATH}/${partnershipId}`
+    );
+    return response.data;
 }
 
 export async function createPartnership(
-  data: PartnershipCreateRequest,
+    data: PartnershipCreateRequest
 ): Promise<Partnership> {
-  const response = await apiClient.post<Partnership>(`${BASE_PATH}/add`, data);
-  return response.data;
+    const response = await apiClient.post<Partnership>(
+        `${BASE_PATH}/add`,
+        data
+    );
+    return response.data;
 }
 
 export async function updatePartnership(
-  partnershipId: number,
-  data: PartnershipUpdateRequest,
+    partnershipId: number,
+    data: PartnershipUpdateRequest
 ): Promise<Partnership> {
-  const response = await apiClient.put<Partnership>(
-    `${BASE_PATH}/${partnershipId}`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.put<Partnership>(
+        `${BASE_PATH}/${partnershipId}`,
+        data
+    );
+    return response.data;
 }
 
 export async function updatePartnershipStatus(
-  partnershipId: number,
-  data: PartnershipStatusUpdateRequest,
+    partnershipId: number,
+    data: PartnershipStatusUpdateRequest
 ): Promise<Partnership> {
-  const response = await apiClient.post<Partnership>(
-    `${BASE_PATH}/${partnershipId}/status`,
-    data,
-  );
-  return response.data;
+    const response = await apiClient.post<Partnership>(
+        `${BASE_PATH}/${partnershipId}/status`,
+        data
+    );
+    return response.data;
 }
 
 export async function getActivePartnerships(): Promise<Partnership[]> {
-  const response = await apiClient.get<Partnership[]>(`${BASE_PATH}/active`);
-  return response.data;
+    const response = await apiClient.get<Partnership[]>(`${BASE_PATH}/active`);
+    return response.data;
 }
 
 export async function getPartnershipsByStatus(
-  status: string,
+    status: string
 ): Promise<Partnership[]> {
-  const response = await apiClient.get<Partnership[]>(
-    `${BASE_PATH}/status/${status}`,
-  );
-  return response.data;
+    const response = await apiClient.get<Partnership[]>(
+        `${BASE_PATH}/status/${status}`
+    );
+    return response.data;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -90,35 +93,35 @@ export async function getPartnershipsByStatus(
 // ─────────────────────────────────────────────────────────────
 
 export async function uploadPartnershipAgreement(
-  partnershipId: number,
-  file: File,
+    partnershipId: number,
+    file: File
 ): Promise<PartnershipAgreementResponse> {
-  const formData = new FormData();
-  formData.append("file", file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-  const response = await apiClient.post<PartnershipAgreementResponse>(
-    `${BASE_PATH}/${partnershipId}/agreement`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    },
-  );
-  return response.data;
+    const response = await apiClient.post<PartnershipAgreementResponse>(
+        `${BASE_PATH}/${partnershipId}/agreement`,
+        formData,
+        {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        }
+    );
+    return response.data;
 }
 
 export async function getPartnershipAgreement(
-  partnershipId: number,
+    partnershipId: number
 ): Promise<PartnershipAgreementResponse> {
-  const response = await apiClient.get<PartnershipAgreementResponse>(
-    `${BASE_PATH}/${partnershipId}/agreement`,
-  );
-  return response.data;
+    const response = await apiClient.get<PartnershipAgreementResponse>(
+        `${BASE_PATH}/${partnershipId}/agreement`
+    );
+    return response.data;
 }
 
 export async function deletePartnershipAgreement(
-  partnershipId: number,
+    partnershipId: number
 ): Promise<void> {
-  await apiClient.delete(`${BASE_PATH}/${partnershipId}/agreement`);
+    await apiClient.delete(`${BASE_PATH}/${partnershipId}/agreement`);
 }
