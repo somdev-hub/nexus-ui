@@ -362,6 +362,72 @@ const data = {
     sidebarSections: retailerSections,
 };
 
+const logisticsSections = [
+    {
+        id: 'logistics-main',
+        label: null,
+        showHeader: true,
+        showActions: false,
+        items: [
+            {
+                title: 'Dashboard',
+                url: '/logistics/dashboard',
+                icon: IconDashboard,
+            },
+            {
+                title: 'Analytics',
+                url: '/logistics/analytics',
+                icon: IconChartBar,
+            },
+        ],
+    },
+    {
+        id: 'logistics-operations',
+        label: 'Operations',
+        showHeader: false,
+        showActions: true,
+        items: [
+            {
+                title: 'Load Board',
+                url: '/logistics/load-board',
+                icon: IconShoppingCart,
+            },
+            {
+                title: 'Shipments',
+                url: '/logistics/shipments',
+                icon: IconTruck,
+            },
+            {
+                title: 'Routing',
+                url: '/logistics/routing',
+                icon: IconLink,
+            },
+        ],
+    },
+    {
+        id: 'logistics-fleet',
+        label: 'Fleet',
+        showHeader: false,
+        showActions: true,
+        items: [
+            { title: 'Fleet', url: '/logistics/fleet', icon: IconDatabase },
+        ],
+    },
+    {
+        id: 'logistics-financials',
+        label: 'Financials',
+        showHeader: false,
+        showActions: true,
+        items: [
+            {
+                title: 'Financials',
+                url: '/logistics/financials',
+                icon: IconFileWord,
+            },
+        ],
+    },
+];
+
 // Generic sidebar navigation section component
 interface SidebarNavItem {
     title: string;
@@ -531,7 +597,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         orgType === 'SUPPLIER'
             ? supplierSections
             : orgType === 'LOGISTICS'
-              ? []
+              ? logisticsSections
               : retailerSections;
 
     // Filter sidebar sections based on user role + orgType
@@ -540,6 +606,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               if (!user) return false;
               // Supplier sees all supplier sections regardless of role (simplified)
               if (orgType === 'SUPPLIER') return true;
+              // Logistics sees all logistics sections regardless of role (simplified)
+              if (orgType === 'LOGISTICS') return true;
               // Retailer filtering as before
               const allRetailerSections = retailerSections.map((s) => s.id);
               const roleAccess: Record<string, string[]> = {
