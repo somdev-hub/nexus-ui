@@ -16,6 +16,10 @@ import type {
     ProofOfDelivery,
     ShipmentEta,
     ShipmentPosition,
+    AssetShipment,
+    AssetShipmentFilter,
+    AssetDriverHistory,
+    AssetCurrentShipment,
     ConsolidationGroup,
     ConsolidationFilter,
     CapacityForecast,
@@ -82,6 +86,31 @@ export async function deleteFleetAsset(id: number): Promise<void> {
 export async function getFleetAssetSummary(): Promise<Record<string, number>> {
     const res = await apiClient.get<Record<string, number>>(
         `${BASE}/fleet/assets/summary`
+    );
+    return res.data;
+}
+export async function getFleetAssetById(id: number): Promise<FleetAsset> {
+    const res = await apiClient.get<FleetAsset>(`${BASE}/fleet/assets/${id}`);
+    return res.data;
+}
+export async function getAssetShipments(
+    assetId: number,
+    filter: AssetShipmentFilter = {}
+): Promise<PaginatedResponse<AssetShipment>> {
+    const res = await apiClient.get<PaginatedResponse<AssetShipment>>(
+        `${BASE}/fleet/assets/${assetId}/shipments${toQuery(filter)}`
+    );
+    return res.data;
+}
+export async function getAssetDrivers(assetId: number): Promise<AssetDriverHistory[]> {
+    const res = await apiClient.get<AssetDriverHistory[]>(
+        `${BASE}/fleet/assets/${assetId}/drivers`
+    );
+    return res.data;
+}
+export async function getAssetCurrentShipment(assetId: number): Promise<AssetCurrentShipment> {
+    const res = await apiClient.get<AssetCurrentShipment>(
+        `${BASE}/fleet/assets/${assetId}/current-shipment`
     );
     return res.data;
 }
@@ -153,6 +182,16 @@ export async function transitionMaintenanceStatus(
     const res = await apiClient.put<MaintenanceRecord>(
         `${BASE}/fleet/maintenance/${id}/status?newStatus=${newStatus}`,
         params || {}
+    );
+    return res.data;
+}
+export async function updateMaintenanceRecord(
+    id: number,
+    data: Partial<MaintenanceRecord>
+): Promise<MaintenanceRecord> {
+    const res = await apiClient.put<MaintenanceRecord>(
+        `${BASE}/fleet/maintenance/${id}/update`,
+        data
     );
     return res.data;
 }
@@ -426,6 +465,68 @@ export async function transitionPayableStatus(
 export async function getLogisticsDashboard(): Promise<LogisticsDashboard> {
     const res = await apiClient.get<LogisticsDashboard>(
         `${BASE}/operations/analytics/dashboard`
+    );
+    return res.data;
+}
+
+// Updates (edit dialogs)
+export async function updateQuote(
+    id: number,
+    data: Partial<ShipmentQuote>
+): Promise<ShipmentQuote> {
+    const res = await apiClient.put<ShipmentQuote>(
+        `${BASE}/quoting/quotes/${id}/update`,
+        data
+    );
+    return res.data;
+}
+export async function updatePod(
+    id: number,
+    data: Partial<ProofOfDelivery>
+): Promise<ProofOfDelivery> {
+    const res = await apiClient.put<ProofOfDelivery>(
+        `${BASE}/execution/pod/${id}/update`,
+        data
+    );
+    return res.data;
+}
+export async function updateIncident(
+    id: number,
+    data: Partial<ShipmentIncident>
+): Promise<ShipmentIncident> {
+    const res = await apiClient.put<ShipmentIncident>(
+        `${BASE}/execution/incidents/${id}/update`,
+        data
+    );
+    return res.data;
+}
+export async function updateGroup(
+    id: number,
+    data: Partial<ConsolidationGroup>
+): Promise<ConsolidationGroup> {
+    const res = await apiClient.put<ConsolidationGroup>(
+        `${BASE}/operations/consolidation/${id}/update`,
+        data
+    );
+    return res.data;
+}
+export async function updateCapacity(
+    id: number,
+    data: Partial<CapacityForecast>
+): Promise<CapacityForecast> {
+    const res = await apiClient.put<CapacityForecast>(
+        `${BASE}/operations/capacity/${id}/update`,
+        data
+    );
+    return res.data;
+}
+export async function updatePayable(
+    id: number,
+    data: Partial<CarrierPayable>
+): Promise<CarrierPayable> {
+    const res = await apiClient.put<CarrierPayable>(
+        `${BASE}/operations/payables/${id}/update`,
+        data
     );
     return res.data;
 }

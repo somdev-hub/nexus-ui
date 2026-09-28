@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import type {
     CapacityForecast,
     ConsolidationGroup,
@@ -21,6 +21,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -29,16 +30,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    getConsolidationGroups,
-    createConsolidationGroup,
-    transitionGroupStatus,
-    addShipmentsToGroup,
-    deleteConsolidationGroup,
-    getCapacityForecasts,
-    createCapacityForecast,
-    deleteCapacityForecast,
-} from '@/lib/services/logistics-ops-service';
+        getConsolidationGroups,
+        createConsolidationGroup,
+        updateGroup,
+        transitionGroupStatus,
+        addShipmentsToGroup,
+        deleteConsolidationGroup,
+        getCapacityForecasts,
+        createCapacityForecast,
+        updateCapacity,
+        deleteCapacityForecast,
+    } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 
 export default function RoutingPage() {
     const { toast } = useToast();
@@ -60,6 +65,30 @@ export default function RoutingPage() {
         periodEnd: '',
         availableCapacity: '',
     });
+    const [busy, setBusy] = useState<string | null>(null);
+    const [groupEdit, setGroupEdit] = useState<{ id: number; notes: string } | null>(null);
+    const [capEdit, setCapEdit] = useState<{
+        id: number;
+        originLane: string;
+        destinationLane: string;
+        equipmentType: string;
+        periodStart: string;
+        periodEnd: string;
+        availableCapacity: string;
+        bookedCapacity: string;
+        notes: string;
+    } | null>(null);
+    const withBusy = async (key: string, fn: () => Promise<unknown>) => {
+        if (busy) return;
+        setBusy(key);
+        try {
+            await fn();
+        } catch (e: unknown) {
+            toast({ title: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+        } finally {
+            setBusy(null);
+        }
+    };
 
     const load = async () => {
         setLoading(true);
@@ -152,6 +181,47 @@ export default function RoutingPage() {
         }
     };
 
+    const handleGroupUpdate = async () => {
+        if (!groupEdit) return;
+        try {
+            await updateGroup(groupEdit.id, { notes: groupEdit.notes || undefined });
+            toast({ title: 'Group updated', variant: 'success' });
+            setGroupEdit(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleCapUpdate = async () => {
+        if (!capEdit) return;
+        try {
+            await updateCapacity(capEdit.id, {
+                originLane: capEdit.originLane || undefined,
+                destinationLane: capEdit.destinationLane || undefined,
+                equipmentType: capEdit.equipmentType as CapacityForecast['equipmentType'],
+                periodStart: capEdit.periodStart || undefined,
+                periodEnd: capEdit.periodEnd || undefined,
+                availableCapacity: capEdit.availableCapacity
+                    ? Number(capEdit.availableCapacity)
+                    : undefined,
+                bookedCapacity: capEdit.bookedCapacity ? Number(capEdit.bookedCapacity) : undefined,
+                notes: capEdit.notes || undefined,
+            });
+            toast({ title: 'Capacity updated', variant: 'success' });
+            setCapEdit(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -170,8 +240,8 @@ export default function RoutingPage() {
                                     New Consolidation Group
                                 </DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
-                                <div className="grid gap-1.5">
+                            <div className="grid gap-6">
+                                <div className="grid gap-2">
                                     <Label>Notes</Label>
                                     <Textarea
                                         value={groupNotes}
@@ -181,9 +251,9 @@ export default function RoutingPage() {
                                         placeholder="Lane, trailer, ..."
                                     />
                                 </div>
-                                <Button onClick={handleGroupCreate}>
+                                <LoadingButton loading={busy === 'group-create'} onClick={() => withBusy('group-create', handleGroupCreate)}>
                                     Create
-                                </Button>
+                                </LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -198,11 +268,11 @@ export default function RoutingPage() {
                             <DialogHeader>
                                 <DialogTitle>New Capacity Entry</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
+                            <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Origin Lane</Label>
-                                        <Input
+                                        <Input placeholder="e.g. Mumbai"
                                             value={capForm.originLane}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -212,9 +282,9 @@ export default function RoutingPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Destination Lane</Label>
-                                        <Input
+                                        <Input placeholder="e.g. Pune"
                                             value={capForm.destinationLane}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -227,9 +297,9 @@ export default function RoutingPage() {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Equipment</Label>
-                                        <Input
+                                        <Input placeholder="e.g. TRUCK"
                                             value={capForm.equipmentType}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -240,9 +310,9 @@ export default function RoutingPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>From (YYYY-MM-DD)</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 2026-10-01"
                                             value={capForm.periodStart}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -252,9 +322,9 @@ export default function RoutingPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>To (YYYY-MM-DD)</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 2026-12-31"
                                             value={capForm.periodEnd}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -265,9 +335,9 @@ export default function RoutingPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Available Capacity</Label>
-                                    <Input
+                                    <Input placeholder="e.g. 40"
                                         type="number"
                                         value={capForm.availableCapacity}
                                         onChange={(e) =>
@@ -279,9 +349,9 @@ export default function RoutingPage() {
                                         }
                                     />
                                 </div>
-                                <Button onClick={handleCapCreate}>
+                                <LoadingButton loading={busy === 'cap-create'} onClick={() => withBusy('cap-create', handleCapCreate)}>
                                     Create
-                                </Button>
+                                </LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -326,20 +396,19 @@ export default function RoutingPage() {
                                     }
                                     className="max-w-56"
                                 />
-                                <Button
+                                <LoadingButton
+                                    loading={busy === 'group-add'}
                                     variant="outline"
-                                    onClick={handleAddShipments}
+                                    onClick={() => withBusy('group-add', handleAddShipments)}
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add
-                                </Button>
+                                </LoadingButton>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -384,51 +453,69 @@ export default function RoutingPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
-                                                        {g.status ===
-                                                            'OPEN' && (
+                                                        {g.status === 'OPEN' && (
                                                             <Button
                                                                 size="sm"
+                                                                variant="ghost"
+                                                                title="Edit group"
+                                                                onClick={() =>
+                                                                    setGroupEdit({
+                                                                        id: g.groupId,
+                                                                        notes: g.notes ?? '',
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {g.status ===
+                                                            'OPEN' && (
+                                                            <LoadingButton
+                                                                loading={busy === `group-${g.groupId}`}
+                                                                size="sm"
                                                                 variant="outline"
-                                                                onClick={async () => {
+                                                                onClick={() => withBusy(`group-${g.groupId}`, async () => {
                                                                     await transitionGroupStatus(
                                                                         g.groupId,
                                                                         'LOCKED'
                                                                     );
                                                                     load();
-                                                                }}
+                                                                })}
                                                             >
                                                                 <Check className="mr-2 h-4 w-4" />
                                                                 Lock
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
                                                         {g.status ===
                                                             'LOCKED' && (
-                                                            <Button
+                                                            <LoadingButton
+                                                                loading={busy === `group-${g.groupId}`}
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={async () => {
+                                                                onClick={() => withBusy(`group-${g.groupId}`, async () => {
                                                                     await transitionGroupStatus(
                                                                         g.groupId,
                                                                         'IN_TRANSIT'
                                                                     );
                                                                     load();
-                                                                }}
+                                                                })}
                                                             >
                                                                 Dispatch
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
-                                                        <Button
+                                                        <LoadingButton
+                                                            loading={busy === `group-del-${g.groupId}`}
                                                             size="sm"
                                                             variant="ghost"
-                                                            onClick={async () => {
+                                                            onClick={() => withBusy(`group-del-${g.groupId}`, async () => {
                                                                 await deleteConsolidationGroup(
                                                                     g.groupId
                                                                 );
                                                                 load();
-                                                            }}
+                                                            })}
                                                         >
                                                             <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        </LoadingButton>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -458,9 +545,7 @@ export default function RoutingPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -495,18 +580,47 @@ export default function RoutingPage() {
                                                     {c.bookedCapacity ?? 0}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={async () => {
-                                                            await deleteCapacityForecast(
-                                                                c.forecastId
-                                                            );
-                                                            load();
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            title="Edit capacity"
+                                                            onClick={() =>
+                                                                setCapEdit({
+                                                                    id: c.forecastId,
+                                                                    originLane: c.originLane ?? '',
+                                                                    destinationLane: c.destinationLane ?? '',
+                                                                    equipmentType: c.equipmentType ?? 'TRUCK',
+                                                                    periodStart: c.periodStart ?? '',
+                                                                    periodEnd: c.periodEnd ?? '',
+                                                                    availableCapacity:
+                                                                        c.availableCapacity != null
+                                                                            ? String(c.availableCapacity)
+                                                                            : '',
+                                                                    bookedCapacity:
+                                                                        c.bookedCapacity != null
+                                                                            ? String(c.bookedCapacity)
+                                                                            : '',
+                                                                    notes: c.notes ?? '',
+                                                                })
+                                                            }
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <LoadingButton
+                                                            loading={busy === `cap-del-${c.forecastId}`}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => withBusy(`cap-del-${c.forecastId}`, async () => {
+                                                                await deleteCapacityForecast(
+                                                                    c.forecastId
+                                                                );
+                                                                load();
+                                                            })}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </LoadingButton>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -527,6 +641,74 @@ export default function RoutingPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+            <Dialog open={groupEdit != null} onOpenChange={(v) => { if (!v) setGroupEdit(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Consolidation Group</DialogTitle>
+                        <DialogDescription>Only open groups can be edited</DialogDescription>
+                    </DialogHeader>
+                    {groupEdit && (
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
+                                <Label>Notes</Label>
+                                <Textarea value={groupEdit.notes} onChange={(e) => setGroupEdit({ ...groupEdit, notes: e.target.value })} placeholder="Lane, trailer, ..." />
+                            </div>
+                            <LoadingButton loading={busy === 'group-update'} onClick={() => withBusy('group-update', handleGroupUpdate)}>Save</LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={capEdit != null} onOpenChange={(v) => { if (!v) setCapEdit(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Capacity Entry</DialogTitle>
+                        <DialogDescription>Update lane capacity</DialogDescription>
+                    </DialogHeader>
+                    {capEdit && (
+                        <div className="grid gap-6">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Origin Lane</Label>
+                                    <Input value={capEdit.originLane} onChange={(e) => setCapEdit({ ...capEdit, originLane: e.target.value })} placeholder="e.g. Mumbai" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Destination Lane</Label>
+                                    <Input value={capEdit.destinationLane} onChange={(e) => setCapEdit({ ...capEdit, destinationLane: e.target.value })} placeholder="e.g. Pune" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Equipment</Label>
+                                    <Input value={capEdit.equipmentType} onChange={(e) => setCapEdit({ ...capEdit, equipmentType: e.target.value })} placeholder="e.g. TRUCK" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>From (YYYY-MM-DD)</Label>
+                                    <Input value={capEdit.periodStart} onChange={(e) => setCapEdit({ ...capEdit, periodStart: e.target.value })} placeholder="e.g. 2026-10-01" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>To (YYYY-MM-DD)</Label>
+                                    <Input value={capEdit.periodEnd} onChange={(e) => setCapEdit({ ...capEdit, periodEnd: e.target.value })} placeholder="e.g. 2026-12-31" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Available Capacity</Label>
+                                    <Input type="number" value={capEdit.availableCapacity} onChange={(e) => setCapEdit({ ...capEdit, availableCapacity: e.target.value })} placeholder="e.g. 40" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Booked Capacity</Label>
+                                    <Input type="number" value={capEdit.bookedCapacity} onChange={(e) => setCapEdit({ ...capEdit, bookedCapacity: e.target.value })} placeholder="e.g. 10" />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Notes</Label>
+                                <Textarea value={capEdit.notes} onChange={(e) => setCapEdit({ ...capEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                            </div>
+                            <LoadingButton loading={busy === 'cap-update'} onClick={() => withBusy('cap-update', handleCapUpdate)}>Save</LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

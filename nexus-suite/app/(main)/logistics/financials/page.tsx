@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { CarrierPayable, FreightRate } from '@/types/logistics-ops';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -33,14 +34,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    getFreightRates,
-    createFreightRate,
-    deleteFreightRate,
-    getCarrierPayables,
-    createCarrierPayable,
-    transitionPayableStatus,
-} from '@/lib/services/logistics-ops-service';
+        getFreightRates,
+        createFreightRate,
+        updateFreightRate,
+        deleteFreightRate,
+        getCarrierPayables,
+        createCarrierPayable,
+        updatePayable,
+        transitionPayableStatus,
+    } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 
 export default function FinancialsPage() {
     const { toast } = useToast();
@@ -71,6 +76,36 @@ export default function FinancialsPage() {
         dueDate: '',
         notes: '',
     });
+    const [rateEdit, setRateEdit] = useState<{
+        id: number;
+        originLane: string;
+        destinationLane: string;
+        baseRate: string;
+        fuelSurchargePct: string;
+        fuelSurchargeFormula: string;
+        accessorialTable: string;
+        notes: string;
+    } | null>(null);
+    const [payableEdit, setPayableEdit] = useState<{
+        id: number;
+        carrierName: string;
+        payableAmount: string;
+        dueDate: string;
+        pmsReferenceId: string;
+        notes: string;
+    } | null>(null);
+    const [busy, setBusy] = useState<string | null>(null);
+    const withBusy = async (key: string, fn: () => Promise<unknown>) => {
+        if (busy) return;
+        setBusy(key);
+        try {
+            await fn();
+        } catch (e: unknown) {
+            toast({ title: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+        } finally {
+            setBusy(null);
+        }
+    };
 
     const load = async () => {
         setLoading(true);
@@ -160,6 +195,50 @@ export default function FinancialsPage() {
         }
     };
 
+    const handleRateUpdate = async () => {
+        if (!rateEdit) return;
+        try {
+            await updateFreightRate(rateEdit.id, {
+                originLane: rateEdit.originLane || undefined,
+                destinationLane: rateEdit.destinationLane || undefined,
+                baseRate: rateEdit.baseRate ? Number(rateEdit.baseRate) : undefined,
+                fuelSurchargePct: rateEdit.fuelSurchargePct ? Number(rateEdit.fuelSurchargePct) : undefined,
+                fuelSurchargeFormula: rateEdit.fuelSurchargeFormula || undefined,
+                accessorialTable: rateEdit.accessorialTable || undefined,
+                notes: rateEdit.notes || undefined,
+            });
+            toast({ title: 'Rate updated', variant: 'success' });
+            setRateEdit(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handlePayableUpdate = async () => {
+        if (!payableEdit) return;
+        try {
+            await updatePayable(payableEdit.id, {
+                carrierName: payableEdit.carrierName || undefined,
+                payableAmount: payableEdit.payableAmount ? Number(payableEdit.payableAmount) : undefined,
+                dueDate: payableEdit.dueDate || undefined,
+                pmsReferenceId: payableEdit.pmsReferenceId || undefined,
+                notes: payableEdit.notes || undefined,
+            });
+            toast({ title: 'Payable updated', variant: 'success' });
+            setPayableEdit(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -176,11 +255,11 @@ export default function FinancialsPage() {
                             <DialogHeader>
                                 <DialogTitle>New Freight Rate</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
+                            <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Rate Code</Label>
-                                        <Input
+                                        <Input placeholder="e.g. MUM-PUN-STD"
                                             value={rateForm.rateCode}
                                             onChange={(e) =>
                                                 setRateForm({
@@ -190,7 +269,7 @@ export default function FinancialsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Type</Label>
                                         <Select
                                             value={rateForm.rateType}
@@ -216,9 +295,9 @@ export default function FinancialsPage() {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Origin Lane</Label>
-                                        <Input
+                                        <Input placeholder="e.g. Mumbai"
                                             value={rateForm.originLane}
                                             onChange={(e) =>
                                                 setRateForm({
@@ -228,9 +307,9 @@ export default function FinancialsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Destination Lane</Label>
-                                        <Input
+                                        <Input placeholder="e.g. Pune"
                                             value={rateForm.destinationLane}
                                             onChange={(e) =>
                                                 setRateForm({
@@ -243,9 +322,9 @@ export default function FinancialsPage() {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Base Rate</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 12000"
                                             type="number"
                                             value={rateForm.baseRate}
                                             onChange={(e) =>
@@ -256,9 +335,9 @@ export default function FinancialsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Fuel %</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 12"
                                             type="number"
                                             value={rateForm.fuelSurchargePct}
                                             onChange={(e) =>
@@ -271,7 +350,7 @@ export default function FinancialsPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Accessorial Table</Label>
                                     <Textarea
                                         value={rateForm.accessorialTable}
@@ -285,9 +364,9 @@ export default function FinancialsPage() {
                                         placeholder="Liftgate: 50, Detention/hr: 75, ..."
                                     />
                                 </div>
-                                <Button onClick={handleRateCreate}>
+                                <LoadingButton loading={busy === 'rate-create'} onClick={() => withBusy('rate-create', handleRateCreate)}>
                                     Create
-                                </Button>
+                                </LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -302,11 +381,11 @@ export default function FinancialsPage() {
                             <DialogHeader>
                                 <DialogTitle>New Carrier Payable</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
+                            <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Shipment ID</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 12"
                                             type="number"
                                             value={payableForm.shipmentId}
                                             onChange={(e) =>
@@ -317,9 +396,9 @@ export default function FinancialsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Carrier</Label>
-                                        <Input
+                                        <Input placeholder="e.g. Swift Transport"
                                             value={payableForm.carrierName}
                                             onChange={(e) =>
                                                 setPayableForm({
@@ -331,9 +410,9 @@ export default function FinancialsPage() {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Amount</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 9500"
                                             type="number"
                                             value={payableForm.payableAmount}
                                             onChange={(e) =>
@@ -345,9 +424,9 @@ export default function FinancialsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Due (YYYY-MM-DD)</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 2026-11-30"
                                             value={payableForm.dueDate}
                                             onChange={(e) =>
                                                 setPayableForm({
@@ -358,9 +437,9 @@ export default function FinancialsPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Notes</Label>
-                                    <Textarea
+                                    <Textarea placeholder="e.g. Handle with care"
                                         value={payableForm.notes}
                                         onChange={(e) =>
                                             setPayableForm({
@@ -370,9 +449,9 @@ export default function FinancialsPage() {
                                         }
                                     />
                                 </div>
-                                <Button onClick={handlePayableCreate}>
+                                <LoadingButton loading={busy === 'payable-create'} onClick={() => withBusy('payable-create', handlePayableCreate)}>
                                     Create
-                                </Button>
+                                </LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -416,9 +495,7 @@ export default function FinancialsPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -450,18 +527,47 @@ export default function FinancialsPage() {
                                                     {r.fuelSurchargePct ?? 0}%
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Button
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            title="Edit rate"
+                                                            onClick={() =>
+                                                                setRateEdit({
+                                                                    id: r.rateId,
+                                                                    originLane: r.originLane ?? '',
+                                                                    destinationLane: r.destinationLane ?? '',
+                                                                    baseRate:
+                                                                        r.baseRate != null
+                                                                            ? String(r.baseRate)
+                                                                            : '',
+                                                                    fuelSurchargePct:
+                                                                        r.fuelSurchargePct != null
+                                                                            ? String(r.fuelSurchargePct)
+                                                                            : '',
+                                                                    fuelSurchargeFormula:
+                                                                        r.fuelSurchargeFormula ?? '',
+                                                                    accessorialTable: r.accessorialTable ?? '',
+                                                                    notes: r.notes ?? '',
+                                                                })
+                                                            }
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                    <LoadingButton
+                                                        loading={busy === `rate-del-${r.rateId}`}
                                                         size="sm"
                                                         variant="ghost"
-                                                        onClick={async () => {
+                                                        onClick={() => withBusy(`rate-del-${r.rateId}`, async () => {
                                                             await deleteFreightRate(
                                                                 r.rateId
                                                             );
                                                             load();
-                                                        }}
+                                                        })}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    </LoadingButton>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -514,9 +620,7 @@ export default function FinancialsPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -558,38 +662,62 @@ export default function FinancialsPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
-                                                        {p.status ===
-                                                            'PENDING' && (
+                                                        {(p.status === 'PENDING' || p.status === 'DISPUTED') && (
                                                             <Button
                                                                 size="sm"
+                                                                variant="ghost"
+                                                                title="Edit payable"
+                                                                onClick={() =>
+                                                                    setPayableEdit({
+                                                                        id: p.payableId,
+                                                                        carrierName: p.carrierName ?? '',
+                                                                        payableAmount:
+                                                                            p.payableAmount != null
+                                                                                ? String(p.payableAmount)
+                                                                                : '',
+                                                                        dueDate: p.dueDate ?? '',
+                                                                        pmsReferenceId: p.pmsReferenceId ?? '',
+                                                                        notes: p.notes ?? '',
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {p.status ===
+                                                            'PENDING' && (
+                                                            <LoadingButton
+                                                                loading={busy === `payable-${p.payableId}`}
+                                                                size="sm"
                                                                 variant="outline"
-                                                                onClick={async () => {
+                                                                onClick={() => withBusy(`payable-${p.payableId}`, async () => {
                                                                     await transitionPayableStatus(
                                                                         p.payableId,
                                                                         'APPROVED'
                                                                     );
                                                                     load();
-                                                                }}
+                                                                })}
                                                             >
                                                                 <Check className="mr-2 h-4 w-4" />
                                                                 Approve
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
                                                         {p.status ===
                                                             'APPROVED' && (
-                                                            <Button
+                                                            <LoadingButton
+                                                                loading={busy === `payable-${p.payableId}`}
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={async () => {
+                                                                onClick={() => withBusy(`payable-${p.payableId}`, async () => {
                                                                     await transitionPayableStatus(
                                                                         p.payableId,
                                                                         'PAID'
                                                                     );
                                                                     load();
-                                                                }}
+                                                                })}
                                                             >
                                                                 Mark Paid
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -612,6 +740,88 @@ export default function FinancialsPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+            <Dialog open={rateEdit != null} onOpenChange={(v) => { if (!v) setRateEdit(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Freight Rate</DialogTitle>
+                        <DialogDescription>Update rate card details</DialogDescription>
+                    </DialogHeader>
+                    {rateEdit && (
+                        <div className="grid gap-6">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Origin Lane</Label>
+                                    <Input value={rateEdit.originLane} onChange={(e) => setRateEdit({ ...rateEdit, originLane: e.target.value })} placeholder="e.g. Mumbai" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Destination Lane</Label>
+                                    <Input value={rateEdit.destinationLane} onChange={(e) => setRateEdit({ ...rateEdit, destinationLane: e.target.value })} placeholder="e.g. Pune" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Base Rate</Label>
+                                    <Input type="number" value={rateEdit.baseRate} onChange={(e) => setRateEdit({ ...rateEdit, baseRate: e.target.value })} placeholder="e.g. 12000" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Fuel %</Label>
+                                    <Input type="number" value={rateEdit.fuelSurchargePct} onChange={(e) => setRateEdit({ ...rateEdit, fuelSurchargePct: e.target.value })} placeholder="e.g. 12" />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Fuel Surcharge Formula</Label>
+                                <Input value={rateEdit.fuelSurchargeFormula} onChange={(e) => setRateEdit({ ...rateEdit, fuelSurchargeFormula: e.target.value })} placeholder="e.g. base * 0.12" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Accessorial Table</Label>
+                                <Textarea value={rateEdit.accessorialTable} onChange={(e) => setRateEdit({ ...rateEdit, accessorialTable: e.target.value })} placeholder="e.g. Liftgate: 50, Detention/hr: 75" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Notes</Label>
+                                <Textarea value={rateEdit.notes} onChange={(e) => setRateEdit({ ...rateEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                            </div>
+                            <LoadingButton loading={busy === 'rate-update'} onClick={() => withBusy('rate-update', handleRateUpdate)}>Save</LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={payableEdit != null} onOpenChange={(v) => { if (!v) setPayableEdit(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Carrier Payable</DialogTitle>
+                        <DialogDescription>Only pending or disputed payables can be edited</DialogDescription>
+                    </DialogHeader>
+                    {payableEdit && (
+                        <div className="grid gap-6">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Carrier</Label>
+                                    <Input value={payableEdit.carrierName} onChange={(e) => setPayableEdit({ ...payableEdit, carrierName: e.target.value })} placeholder="e.g. Swift Transport" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Amount</Label>
+                                    <Input type="number" value={payableEdit.payableAmount} onChange={(e) => setPayableEdit({ ...payableEdit, payableAmount: e.target.value })} placeholder="e.g. 9500" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Due (YYYY-MM-DD)</Label>
+                                    <Input value={payableEdit.dueDate} onChange={(e) => setPayableEdit({ ...payableEdit, dueDate: e.target.value })} placeholder="e.g. 2026-11-30" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>PMS Reference</Label>
+                                    <Input value={payableEdit.pmsReferenceId} onChange={(e) => setPayableEdit({ ...payableEdit, pmsReferenceId: e.target.value })} placeholder="e.g. PMS-2041" />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Notes</Label>
+                                <Textarea value={payableEdit.notes} onChange={(e) => setPayableEdit({ ...payableEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                            </div>
+                            <LoadingButton loading={busy === 'payable-update'} onClick={() => withBusy('payable-update', handlePayableUpdate)}>Save</LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

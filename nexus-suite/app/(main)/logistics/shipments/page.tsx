@@ -6,6 +6,7 @@ import {
     Map as MapIcon,
     MapPin,
     PackageCheck,
+    Pencil,
     Truck,
 } from 'lucide-react';
 import type {
@@ -36,6 +37,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -44,17 +46,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    getLoadBoard,
-    assignBooking,
-    getShipmentEta,
-    transitionShipmentStatus,
-    capturePod,
-    reportIncident,
-    getShipmentIncidents,
-    transitionIncidentStatus,
-} from '@/lib/services/logistics-ops-service';
+        getLoadBoard,
+        assignBooking,
+        getShipmentEta,
+        transitionShipmentStatus,
+        capturePod,
+        getPodByShipment,
+        updatePod,
+        reportIncident,
+        updateIncident,
+        getShipmentIncidents,
+        transitionIncidentStatus,
+    } from '@/lib/services/logistics-ops-service';
 import ShipmentMap from '@/components/shipment-map';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 
 const LIFECYCLE = [
     'ASSIGNED',
@@ -76,6 +83,16 @@ export default function LogisticsShipmentsPage() {
     const [etaOpen, setEtaOpen] = useState(false);
     const [mapOpen, setMapOpen] = useState(false);
     const [mapShipmentId, setMapShipmentId] = useState<number | null>(null);
+    const [busy, setBusy] = useState<string | null>(null);
+    const withBusy = async (key: string, fn: () => Promise<unknown>) => {
+        if (busy) return;
+        setBusy(key);
+        try {
+            await fn();
+        } finally {
+            setBusy(null);
+        }
+    };
     const [assignForm, setAssignForm] = useState({
         shipmentId: '',
         driverId: '',
@@ -92,6 +109,21 @@ export default function LogisticsShipmentsPage() {
         conditionNotes: '',
     });
     const [podOpen, setPodOpen] = useState(false);
+    const [incidentEdit, setIncidentEdit] = useState<{
+        id: number;
+        description: string;
+        claimAmount: string;
+        notes: string;
+    } | null>(null);
+    const [podManageOpen, setPodManageOpen] = useState(false);
+    const [podLookupId, setPodLookupId] = useState('');
+    const [podEdit, setPodEdit] = useState<{
+        id: number;
+        receivedBy: string;
+        signature: string;
+        conditionNotes: string;
+        notes: string;
+    } | null>(null);
     const [incidentForm, setIncidentForm] = useState({
         shipmentId: '',
         incidentType: 'DELAY',
@@ -240,11 +272,75 @@ export default function LogisticsShipmentsPage() {
         }
     };
 
+    const handleIncidentUpdate = async () => {
+        if (!incidentEdit) return;
+        try {
+            await updateIncident(incidentEdit.id, {
+                description: incidentEdit.description || undefined,
+                claimAmount: incidentEdit.claimAmount ? Number(incidentEdit.claimAmount) : undefined,
+                notes: incidentEdit.notes || undefined,
+            });
+            toast({ title: 'Incident updated', variant: 'success' });
+            setIncidentEdit(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handlePodLookup = async () => {
+        if (!podLookupId) return;
+        try {
+            const pod = await getPodByShipment(Number(podLookupId));
+            setPodEdit({
+                id: pod.podId,
+                receivedBy: pod.receivedBy ?? '',
+                signature: pod.signature ?? '',
+                conditionNotes: pod.conditionNotes ?? '',
+                notes: pod.notes ?? '',
+            });
+        } catch (e: unknown) {
+            setPodEdit(null);
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handlePodUpdate = async () => {
+        if (!podEdit) return;
+        try {
+            await updatePod(podEdit.id, {
+                receivedBy: podEdit.receivedBy || undefined,
+                signature: podEdit.signature || undefined,
+                conditionNotes: podEdit.conditionNotes || undefined,
+                notes: podEdit.notes || undefined,
+            });
+            toast({ title: 'POD updated', variant: 'success' });
+            setPodEdit(null);
+            setPodManageOpen(false);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-semibold">Shipments</h1>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setPodLookupId(''); setPodEdit(null); setPodManageOpen(true); }}>
+                        <PackageCheck className="mr-2 h-4 w-4" />
+                        Manage POD
+                    </Button>
                     <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">
@@ -258,11 +354,11 @@ export default function LogisticsShipmentsPage() {
                                     Confirm Booking & Assign
                                 </DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
+                            <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Shipment ID</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 12"
                                             value={assignForm.shipmentId}
                                             onChange={(e) =>
                                                 setAssignForm({
@@ -272,9 +368,9 @@ export default function LogisticsShipmentsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>BOL Doc ID (DMS)</Label>
-                                        <Input
+                                        <Input placeholder="e.g. BOL-4521"
                                             value={assignForm.bolDocumentId}
                                             onChange={(e) =>
                                                 setAssignForm({
@@ -287,9 +383,9 @@ export default function LogisticsShipmentsPage() {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Driver ID</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 3"
                                             value={assignForm.driverId}
                                             onChange={(e) =>
                                                 setAssignForm({
@@ -299,9 +395,9 @@ export default function LogisticsShipmentsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Asset ID</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 7"
                                             value={assignForm.assetId}
                                             onChange={(e) =>
                                                 setAssignForm({
@@ -312,7 +408,7 @@ export default function LogisticsShipmentsPage() {
                                         />
                                     </div>
                                 </div>
-                                <Button onClick={handleAssign}>Assign</Button>
+                                <LoadingButton loading={busy === 'assign'} onClick={() => withBusy('assign', handleAssign)}>Assign</LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -327,11 +423,11 @@ export default function LogisticsShipmentsPage() {
                             <DialogHeader>
                                 <DialogTitle>Proof of Delivery</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
+                            <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Shipment ID</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 12"
                                             value={podForm.shipmentId}
                                             onChange={(e) =>
                                                 setPodForm({
@@ -341,9 +437,9 @@ export default function LogisticsShipmentsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Received By</Label>
-                                        <Input
+                                        <Input placeholder="e.g. John Carter"
                                             value={podForm.receivedBy}
                                             onChange={(e) =>
                                                 setPodForm({
@@ -354,7 +450,7 @@ export default function LogisticsShipmentsPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Signature</Label>
                                     <Input
                                         value={podForm.signature}
@@ -368,9 +464,9 @@ export default function LogisticsShipmentsPage() {
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Latitude</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 19.0760"
                                             value={podForm.latitude}
                                             onChange={(e) =>
                                                 setPodForm({
@@ -380,9 +476,9 @@ export default function LogisticsShipmentsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Longitude</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 72.8777"
                                             value={podForm.longitude}
                                             onChange={(e) =>
                                                 setPodForm({
@@ -393,9 +489,9 @@ export default function LogisticsShipmentsPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Condition Notes</Label>
-                                    <Textarea
+                                    <Textarea placeholder="e.g. Cartons intact, no damage"
                                         value={podForm.conditionNotes}
                                         onChange={(e) =>
                                             setPodForm({
@@ -405,7 +501,7 @@ export default function LogisticsShipmentsPage() {
                                         }
                                     />
                                 </div>
-                                <Button onClick={handlePod}>Capture</Button>
+                                <LoadingButton loading={busy === 'pod'} onClick={() => withBusy('pod', handlePod)}>Capture</LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -422,11 +518,11 @@ export default function LogisticsShipmentsPage() {
                                     Report Exception / Claim
                                 </DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-3">
+                            <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Shipment ID</Label>
-                                        <Input
+                                        <Input placeholder="e.g. 12"
                                             value={incidentForm.shipmentId}
                                             onChange={(e) =>
                                                 setIncidentForm({
@@ -436,7 +532,7 @@ export default function LogisticsShipmentsPage() {
                                             }
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
+                                    <div className="grid gap-2">
                                         <Label>Type</Label>
                                         <Select
                                             value={incidentForm.incidentType}
@@ -470,9 +566,9 @@ export default function LogisticsShipmentsPage() {
                                         </Select>
                                     </div>
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Description</Label>
-                                    <Textarea
+                                    <Textarea placeholder="e.g. Delayed due to traffic at depot"
                                         value={incidentForm.description}
                                         onChange={(e) =>
                                             setIncidentForm({
@@ -482,9 +578,9 @@ export default function LogisticsShipmentsPage() {
                                         }
                                     />
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Claim Amount</Label>
-                                    <Input
+                                    <Input placeholder="e.g. 250"
                                         type="number"
                                         value={incidentForm.claimAmount}
                                         onChange={(e) =>
@@ -495,7 +591,7 @@ export default function LogisticsShipmentsPage() {
                                         }
                                     />
                                 </div>
-                                <Button onClick={handleIncident}>Report</Button>
+                                <LoadingButton loading={busy === 'incident'} onClick={() => withBusy('incident', handleIncident)}>Report</LoadingButton>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -520,9 +616,7 @@ export default function LogisticsShipmentsPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -574,37 +668,43 @@ export default function LogisticsShipmentsPage() {
                                                         )
                                                             .slice(0, 2)
                                                             .map((st) => (
-                                                                <Button
+                                                                <LoadingButton
+                                                                    loading={busy === `ship-${s.shipmentId}-${st}`}
                                                                     key={st}
                                                                     size="sm"
                                                                     variant="outline"
                                                                     onClick={() =>
-                                                                        handleTransition(
-                                                                            s.shipmentId,
-                                                                            st
+                                                                        withBusy(`ship-${s.shipmentId}-${st}`, () =>
+                                                                            handleTransition(
+                                                                                s.shipmentId,
+                                                                                st
+                                                                            )
                                                                         )
                                                                     }
                                                                 >
                                                                     <Check className="mr-1 h-3 w-3" />
                                                                     {st}
-                                                                </Button>
+                                                                </LoadingButton>
                                                             ))}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-1">
-                                                        <Button
+                                                        <LoadingButton
+                                                            loading={busy === `eta-${s.shipmentId}`}
                                                             size="sm"
                                                             variant="ghost"
                                                             onClick={() =>
-                                                                handleEta(
-                                                                    s.shipmentId
+                                                                withBusy(`eta-${s.shipmentId}`, () =>
+                                                                    handleEta(
+                                                                        s.shipmentId
+                                                                    )
                                                                 )
                                                             }
                                                         >
                                                             <MapPin className="mr-1 h-3 w-3" />
                                                             ETA
-                                                        </Button>
+                                                        </LoadingButton>
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
@@ -649,9 +749,7 @@ export default function LogisticsShipmentsPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -691,22 +789,48 @@ export default function LogisticsShipmentsPage() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {(i.status === 'OPEN' ||
+                                                    <div className="flex gap-2">
+                                                        {(i.status === 'OPEN' ||
+                                                            i.status === 'IN_PROGRESS') && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                title="Edit incident"
+                                                                onClick={() =>
+                                                                    setIncidentEdit({
+                                                                        id: i.incidentId,
+                                                                        description: i.description ?? '',
+                                                                        claimAmount:
+                                                                            i.claimAmount != null
+                                                                                ? String(i.claimAmount)
+                                                                                : '',
+                                                                        notes: i.notes ?? '',
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {(i.status === 'OPEN' ||
                                                         i.status ===
                                                             'IN_PROGRESS') && (
-                                                        <Button
+                                                        <LoadingButton
+                                                            loading={busy === `incident-${i.incidentId}`}
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() =>
-                                                                resolveIncident(
-                                                                    i.incidentId
+                                                                withBusy(`incident-${i.incidentId}`, () =>
+                                                                    resolveIncident(
+                                                                        i.incidentId
+                                                                    )
                                                                 )
                                                             }
                                                         >
                                                             <Check className="mr-2 h-4 w-4" />
                                                             Resolve
-                                                        </Button>
+                                                        </LoadingButton>
                                                     )}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -792,6 +916,71 @@ export default function LogisticsShipmentsPage() {
                             shipmentId={mapShipmentId}
                         />
                     )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={incidentEdit != null} onOpenChange={(v) => { if (!v) setIncidentEdit(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Incident</DialogTitle>
+                        <DialogDescription>Only open or in-progress incidents can be edited</DialogDescription>
+                    </DialogHeader>
+                    {incidentEdit && (
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
+                                <Label>Description</Label>
+                                <Textarea value={incidentEdit.description} onChange={(e) => setIncidentEdit({ ...incidentEdit, description: e.target.value })} placeholder="e.g. Delayed due to traffic at depot" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Claim Amount</Label>
+                                <Input type="number" value={incidentEdit.claimAmount} onChange={(e) => setIncidentEdit({ ...incidentEdit, claimAmount: e.target.value })} placeholder="e.g. 250" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Notes</Label>
+                                <Textarea value={incidentEdit.notes} onChange={(e) => setIncidentEdit({ ...incidentEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                            </div>
+                            <LoadingButton loading={busy === 'incident-update'} onClick={() => withBusy('incident-update', handleIncidentUpdate)}>Save</LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={podManageOpen} onOpenChange={setPodManageOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Manage Proof of Delivery</DialogTitle>
+                        <DialogDescription>Load a shipment&apos;s POD by ID, then correct it</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6">
+                        <div className="flex items-end gap-2">
+                            <div className="grid flex-1 gap-2">
+                                <Label>Shipment ID</Label>
+                                <Input type="number" value={podLookupId} onChange={(e) => setPodLookupId(e.target.value)} placeholder="e.g. 12" />
+                            </div>
+                            <LoadingButton loading={busy === 'pod-load'} variant="outline" onClick={() => withBusy('pod-load', handlePodLookup)}>Load</LoadingButton>
+                        </div>
+                        {podEdit && (
+                            <>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Received By</Label>
+                                        <Input value={podEdit.receivedBy} onChange={(e) => setPodEdit({ ...podEdit, receivedBy: e.target.value })} placeholder="e.g. John Carter" />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Signature</Label>
+                                        <Input value={podEdit.signature} onChange={(e) => setPodEdit({ ...podEdit, signature: e.target.value })} placeholder="Signature reference" />
+                                    </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Condition Notes</Label>
+                                    <Textarea value={podEdit.conditionNotes} onChange={(e) => setPodEdit({ ...podEdit, conditionNotes: e.target.value })} placeholder="e.g. Cartons intact, no damage" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Notes</Label>
+                                    <Textarea value={podEdit.notes} onChange={(e) => setPodEdit({ ...podEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                                </div>
+                                <LoadingButton loading={busy === 'pod-update'} onClick={() => withBusy('pod-update', handlePodUpdate)}>Save</LoadingButton>
+                            </>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

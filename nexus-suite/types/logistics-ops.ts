@@ -24,6 +24,8 @@ export interface FleetAsset {
     permitExpiry?: string;
     dmsDocumentId?: string;
     notes?: string;
+    currentLatitude?: number;
+    currentLongitude?: number;
 }
 
 export interface FleetAssetFilter {
@@ -287,6 +289,40 @@ export interface ShipmentPosition {
     progressPct: number;
     arrived: boolean;
     simulated: boolean;
+}
+
+export interface AssetShipment {
+    shipmentId: number;
+    shipmentNumber: string;
+    status: string;
+    pickupDate?: string;
+    deliveryDate?: string;
+    actualDeparture?: string;
+    actualArrival?: string;
+    driverId?: number | null;
+    driverName?: string | null;
+    freightCost?: number | null;
+}
+
+export interface AssetShipmentFilter {
+    page?: number;
+    size?: number;
+    sort?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+}
+
+export interface AssetDriverHistory {
+    driverId: number;
+    driverName: string;
+    trips: number;
+    firstTripAt?: string;
+    lastTripAt?: string;
+}
+
+export interface AssetCurrentShipment {
+    shipmentId: number | null;
 }
 
 export interface LoadBoardShipment {

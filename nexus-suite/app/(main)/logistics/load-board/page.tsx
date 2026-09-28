@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { LoadBoardShipment, ShipmentQuote } from '@/types/logistics-ops';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -36,10 +37,13 @@ import {
     getLoadBoard,
     getShipmentQuotes,
     createShipmentQuote,
+    updateQuote,
     transitionQuoteStatus,
     deleteShipmentQuote,
 } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 
 export default function LoadBoardPage() {
     const { toast } = useToast();
@@ -52,6 +56,16 @@ export default function LoadBoardPage() {
     const [mode, setMode] = useState('all');
     const [quoteStatus, setQuoteStatus] = useState('all');
     const [open, setOpen] = useState(false);
+    const [busy, setBusy] = useState<string | null>(null);
+    const withBusy = async (key: string, fn: () => Promise<unknown>) => {
+        if (busy) return;
+        setBusy(key);
+        try {
+            await fn();
+        } finally {
+            setBusy(null);
+        }
+    };
     const [form, setForm] = useState({
         shipmentId: '',
         baseRate: '',
@@ -61,6 +75,15 @@ export default function LoadBoardPage() {
         validUntil: '',
         notes: '',
     });
+    const [quoteEdit, setQuoteEdit] = useState<{
+        id: number;
+        baseRate: string;
+        fuelSurcharge: string;
+        accessorialCharges: string;
+        accessorialDetails: string;
+        validUntil: string;
+        notes: string;
+    } | null>(null);
 
     const load = async () => {
         setLoading(true);
@@ -151,6 +174,30 @@ export default function LoadBoardPage() {
         }
     };
 
+    const handleQuoteUpdate = async () => {
+        if (!quoteEdit) return;
+        try {
+            await updateQuote(quoteEdit.id, {
+                baseRate: quoteEdit.baseRate ? Number(quoteEdit.baseRate) : undefined,
+                fuelSurcharge: quoteEdit.fuelSurcharge ? Number(quoteEdit.fuelSurcharge) : undefined,
+                accessorialCharges: quoteEdit.accessorialCharges
+                    ? Number(quoteEdit.accessorialCharges)
+                    : undefined,
+                accessorialDetails: quoteEdit.accessorialDetails || undefined,
+                validUntil: quoteEdit.validUntil || undefined,
+                notes: quoteEdit.notes || undefined,
+            });
+            toast({ title: 'Quote updated', variant: 'success' });
+            setQuoteEdit(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
     const remove = async (id: number) => {
         try {
             await deleteShipmentQuote(id);
@@ -179,8 +226,8 @@ export default function LoadBoardPage() {
                         <DialogHeader>
                             <DialogTitle>New Shipment Quote</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div className="grid gap-1.5">
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>Shipment ID</Label>
                                 <Input
                                     type="number"
@@ -195,9 +242,9 @@ export default function LoadBoardPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-3 gap-3">
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Base Rate</Label>
-                                    <Input
+                                    <Input placeholder="e.g. 12000"
                                         type="number"
                                         value={form.baseRate}
                                         onChange={(e) =>
@@ -208,9 +255,9 @@ export default function LoadBoardPage() {
                                         }
                                     />
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Fuel Surcharge</Label>
-                                    <Input
+                                    <Input placeholder="e.g. 1500"
                                         type="number"
                                         value={form.fuelSurcharge}
                                         onChange={(e) =>
@@ -221,9 +268,9 @@ export default function LoadBoardPage() {
                                         }
                                     />
                                 </div>
-                                <div className="grid gap-1.5">
+                                <div className="grid gap-2">
                                     <Label>Accessorials</Label>
-                                    <Input
+                                    <Input placeholder="e.g. 800"
                                         type="number"
                                         value={form.accessorialCharges}
                                         onChange={(e) =>
@@ -236,7 +283,7 @@ export default function LoadBoardPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="grid gap-1.5">
+                            <div className="grid gap-2">
                                 <Label>Accessorial Details</Label>
                                 <Textarea
                                     value={form.accessorialDetails}
@@ -249,7 +296,7 @@ export default function LoadBoardPage() {
                                     placeholder="Liftgate, detention, ..."
                                 />
                             </div>
-                            <div className="grid gap-1.5">
+                            <div className="grid gap-2">
                                 <Label>Valid Until (YYYY-MM-DD)</Label>
                                 <Input
                                     value={form.validUntil}
@@ -262,9 +309,9 @@ export default function LoadBoardPage() {
                                     placeholder="2026-12-31"
                                 />
                             </div>
-                            <div className="grid gap-1.5">
+                            <div className="grid gap-2">
                                 <Label>Notes</Label>
-                                <Textarea
+                                <Textarea placeholder="e.g. Handle with care"
                                     value={form.notes}
                                     onChange={(e) =>
                                         setForm({
@@ -274,7 +321,7 @@ export default function LoadBoardPage() {
                                     }
                                 />
                             </div>
-                            <Button onClick={handleCreate}>Create</Button>
+                            <LoadingButton loading={busy === 'quote-create'} onClick={() => withBusy('quote-create', handleCreate)}>Create</LoadingButton>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -316,9 +363,7 @@ export default function LoadBoardPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -428,9 +473,7 @@ export default function LoadBoardPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="text-sm text-muted-foreground">
-                                    Loading...
-                                </div>
+                                <TableSkeleton rows={6} />
                             ) : (
                                 <Table>
                                     <TableHeader>
@@ -480,53 +523,94 @@ export default function LoadBoardPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
+                                                        {(q.status === 'DRAFT' ||
+                                                            q.status === 'REJECTED' ||
+                                                            q.status === 'EXPIRED') && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                title="Edit quote"
+                                                                onClick={() =>
+                                                                    setQuoteEdit({
+                                                                        id: q.quoteId,
+                                                                        baseRate:
+                                                                            q.baseRate != null
+                                                                                ? String(q.baseRate)
+                                                                                : '',
+                                                                        fuelSurcharge:
+                                                                            q.fuelSurcharge != null
+                                                                                ? String(q.fuelSurcharge)
+                                                                                : '',
+                                                                        accessorialCharges:
+                                                                            q.accessorialCharges != null
+                                                                                ? String(q.accessorialCharges)
+                                                                                : '',
+                                                                        accessorialDetails:
+                                                                            q.accessorialDetails ?? '',
+                                                                        validUntil: q.validUntil ?? '',
+                                                                        notes: q.notes ?? '',
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                         {q.status ===
                                                             'DRAFT' && (
-                                                            <Button
+                                                            <LoadingButton
+                                                                loading={busy === `quote-${q.quoteId}`}
                                                                 size="sm"
                                                                 variant="outline"
                                                                 onClick={() =>
-                                                                    transition(
-                                                                        q.quoteId,
-                                                                        'SUBMITTED'
+                                                                    withBusy(`quote-${q.quoteId}`, () =>
+                                                                        transition(
+                                                                            q.quoteId,
+                                                                            'SUBMITTED'
+                                                                        )
                                                                     )
                                                                 }
                                                             >
                                                                 <Check className="mr-2 h-4 w-4" />
                                                                 Submit
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
                                                         {q.status ===
                                                             'ACCEPTED' && (
-                                                            <Button
+                                                            <LoadingButton
+                                                                loading={busy === `quote-${q.quoteId}`}
                                                                 size="sm"
                                                                 variant="outline"
                                                                 onClick={() =>
-                                                                    transition(
-                                                                        q.quoteId,
-                                                                        'BOOKED'
+                                                                    withBusy(`quote-${q.quoteId}`, () =>
+                                                                        transition(
+                                                                            q.quoteId,
+                                                                            'BOOKED'
+                                                                        )
                                                                     )
                                                                 }
                                                             >
                                                                 <Check className="mr-2 h-4 w-4" />
                                                                 Book
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
                                                         {(q.status ===
                                                             'DRAFT' ||
                                                             q.status ===
                                                                 'REJECTED') && (
-                                                            <Button
+                                                            <LoadingButton
+                                                                loading={busy === `quote-${q.quoteId}`}
                                                                 size="sm"
                                                                 variant="ghost"
                                                                 onClick={() =>
-                                                                    remove(
-                                                                        q.quoteId
+                                                                    withBusy(`quote-${q.quoteId}`, () =>
+                                                                        remove(
+                                                                            q.quoteId
+                                                                        )
                                                                     )
                                                                 }
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
-                                                            </Button>
+                                                            </LoadingButton>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -549,6 +633,45 @@ export default function LoadBoardPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+            <Dialog open={quoteEdit != null} onOpenChange={(v) => { if (!v) setQuoteEdit(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Shipment Quote</DialogTitle>
+                        <DialogDescription>Only DRAFT, rejected or expired quotes can be edited</DialogDescription>
+                    </DialogHeader>
+                    {quoteEdit && (
+                        <div className="grid gap-6">
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Base Rate</Label>
+                                    <Input type="number" value={quoteEdit.baseRate} onChange={(e) => setQuoteEdit({ ...quoteEdit, baseRate: e.target.value })} placeholder="e.g. 12000" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Fuel Surcharge</Label>
+                                    <Input type="number" value={quoteEdit.fuelSurcharge} onChange={(e) => setQuoteEdit({ ...quoteEdit, fuelSurcharge: e.target.value })} placeholder="e.g. 1500" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Accessorials</Label>
+                                    <Input type="number" value={quoteEdit.accessorialCharges} onChange={(e) => setQuoteEdit({ ...quoteEdit, accessorialCharges: e.target.value })} placeholder="e.g. 800" />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Accessorial Details</Label>
+                                <Textarea value={quoteEdit.accessorialDetails} onChange={(e) => setQuoteEdit({ ...quoteEdit, accessorialDetails: e.target.value })} placeholder="e.g. Liftgate, detention" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Valid Until (YYYY-MM-DD)</Label>
+                                <Input value={quoteEdit.validUntil} onChange={(e) => setQuoteEdit({ ...quoteEdit, validUntil: e.target.value })} placeholder="e.g. 2026-12-31" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Notes</Label>
+                                <Textarea value={quoteEdit.notes} onChange={(e) => setQuoteEdit({ ...quoteEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                            </div>
+                            <LoadingButton loading={busy === 'quote-update'} onClick={() => withBusy('quote-update', handleQuoteUpdate)}>Save</LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
