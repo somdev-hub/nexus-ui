@@ -28,6 +28,7 @@ import {
     createCapacity,
 } from '@/lib/services/supplier-capacity-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function CapacityPage() {
     const { toast } = useToast();
@@ -35,6 +36,7 @@ export default function CapacityPage() {
         useState<PaginatedResponse<ProductionCapacity> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:capacity', () => setOpen(true));
     const [form, setForm] = useState({
         productLine: '',
         periodStart: '',

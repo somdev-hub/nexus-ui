@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Loader2 } from 'lucide-react';
 import {
     IconChartBar,
+    IconCalendar,
     IconDashboard,
     IconDatabase,
     IconFileWord,
@@ -26,6 +27,8 @@ import {
 } from '@tabler/icons-react';
 
 import { NavUser } from '@/components/nav-user';
+import QuickCreateDialog from '@/components/quick-create-dialog';
+import { requestQuickCreateMenu } from '@/lib/quick-create';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -66,6 +69,11 @@ const retailerSections = [
                 title: 'Analytics',
                 url: '/retailer/analytics',
                 icon: IconChartBar,
+            },
+            {
+                title: 'Calendar',
+                url: '/retailer/calendar',
+                icon: IconCalendar,
             },
         ],
     },
@@ -246,6 +254,11 @@ const supplierSections = [
                 url: '/supplier/analytics',
                 icon: IconChartBar,
             },
+            {
+                title: 'Calendar',
+                url: '/supplier/calendar',
+                icon: IconCalendar,
+            },
         ],
     },
     {
@@ -402,6 +415,11 @@ const logisticsSections = [
                 url: '/logistics/routing',
                 icon: IconLink,
             },
+            {
+                title: 'Calendar',
+                url: '/logistics/calendar',
+                icon: IconCalendar,
+            },
         ],
     },
     {
@@ -483,6 +501,7 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
                         <SidebarMenuItem className="flex items-center gap-2">
                             <SidebarMenuButton
                                 tooltip="Quick Create"
+                                onClick={requestQuickCreateMenu}
                                 className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
                             >
                                 <IconCirclePlusFilled />
@@ -626,7 +645,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         : []; // Empty array if not authenticated
 
     return (
-        <Sidebar collapsible="offcanvas" {...props}>
+        <>
+            <Sidebar collapsible="offcanvas" {...props}>
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -675,5 +695,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 />
             </SidebarFooter>
         </Sidebar>
+            <QuickCreateDialog />
+        </>
     );
 }

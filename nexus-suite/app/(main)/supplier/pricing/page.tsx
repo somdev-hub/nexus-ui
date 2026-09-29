@@ -28,6 +28,7 @@ import {
     createPriceTier,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function SupplierPricingPage() {
     const { toast } = useToast();
@@ -35,6 +36,7 @@ export default function SupplierPricingPage() {
         useState<PaginatedResponse<SupplierPriceTier> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:pricing', () => setOpen(true));
     const [form, setForm] = useState({
         catalogId: '',
         minQuantity: '',

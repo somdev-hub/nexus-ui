@@ -1,0 +1,210 @@
+/* shadcn/ui theme bridge for FullCalendar (SuiteCalendar).
+   Maps FullCalendar's CSS variables onto the Tailwind v4 oklch
+   tokens from app/globals.css so the big calendar matches the
+   suite's light/dark theme without custom palettes. Shared by the
+   logistics, supplier and retailer calendar pages. */
+
+.suite-calendar {
+    --fc-border-color: var(--border);
+    --fc-page-bg-color: var(--card);
+    --fc-neutral-bg-color: var(--muted);
+    --fc-neutral-text-color: var(--muted-foreground);
+    --fc-today-bg-color: color-mix(in oklch, var(--primary) 6%, transparent);
+    --fc-event-bg-color: var(--primary);
+    --fc-event-border-color: var(--primary);
+    --fc-event-text-color: var(--primary-foreground);
+    --fc-button-bg-color: var(--secondary);
+    --fc-button-border-color: var(--border);
+    --fc-button-text-color: var(--secondary-foreground);
+    --fc-button-hover-bg-color: var(--accent);
+    --fc-button-hover-border-color: var(--border);
+    --fc-button-active-bg-color: var(--primary);
+    --fc-button-active-border-color: var(--primary);
+    --fc-button-active-text-color: var(--primary-foreground);
+    --fc-list-event-hover-bg-color: var(--accent);
+    font-size: 0.8125rem;
+}
+
+.suite-calendar .fc {
+    font-family: inherit;
+}
+
+.suite-calendar .fc-toolbar-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* NOTE: selectors are scoped as `.suite-calendar .fc ...` (0-3-0)
+   so they always beat FullCalendar's own `.fc ...` rules (0-2-0),
+   regardless of stylesheet order — FC injects its CSS at runtime. */
+.suite-calendar .fc .fc-button-primary {
+    background-color: var(--secondary);
+    border-color: var(--border);
+    color: var(--secondary-foreground);
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    box-shadow: none;
+    text-transform: capitalize;
+}
+
+.suite-calendar .fc .fc-button-primary:hover {
+    background-color: var(--accent);
+    border-color: var(--border);
+    color: var(--accent-foreground);
+}
+
+.suite-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.suite-calendar .fc .fc-button-primary:not(:disabled):active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.suite-calendar .fc .fc-button-primary:disabled {
+    opacity: 0.5;
+}
+
+.suite-calendar .fc .fc-button-primary:focus,
+.suite-calendar .fc .fc-button-primary.fc-button-active:focus {
+    box-shadow: 0 0 0 2px var(--ring);
+}
+
+.suite-calendar .fc .fc-button-group {
+    gap: 2px;
+}
+
+.suite-calendar .fc-daygrid-day-number,
+.suite-calendar .fc-col-header-cell-cushion {
+    color: var(--muted-foreground);
+    text-decoration: none;
+}
+
+.suite-calendar .fc-day-today .fc-daygrid-day-number {
+    color: var(--foreground);
+    font-weight: 700;
+}
+
+.suite-calendar .fc-event {
+    border-radius: var(--radius-sm);
+    border-left-width: 3px;
+    font-size: 0.75rem;
+    padding-inline: 4px;
+    cursor: pointer;
+}
+
+.suite-calendar .fc-event:hover {
+    filter: brightness(0.96);
+}
+
+/* Per-activity-kind accent colors (border + soft fill).
+   NOTE: event text must be set via --fc-event-text-color (not just
+   `color`), because FC's inner elements (.fc-event-main,
+   .fc-event-time, list-view cells) read the variable directly and
+   do not inherit the element's `color`. */
+.suite-calendar .fc-event[data-kind] {
+    --fc-event-text-color: var(--foreground);
+    color: var(--foreground);
+}
+/* Logistics kinds */
+.suite-calendar .fc-event[data-kind='pickup'] {
+    background-color: color-mix(in oklch, #2563eb 14%, var(--card));
+    border-color: #2563eb;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='delivery'] {
+    background-color: color-mix(in oklch, #16a34a 16%, var(--card));
+    border-color: #16a34a;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='eta'] {
+    background-color: color-mix(in oklch, #0d9488 14%, var(--card));
+    border-color: #0d9488;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='stop'] {
+    background-color: color-mix(in oklch, #9333ea 14%, var(--card));
+    border-color: #9333ea;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='appointment'] {
+    background-color: color-mix(in oklch, #ea580c 16%, var(--card));
+    border-color: #ea580c;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='maintenance'] {
+    background-color: color-mix(in oklch, #ca8a04 18%, var(--card));
+    border-color: #ca8a04;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='incident'] {
+    background-color: color-mix(in oklch, var(--destructive) 14%, var(--card));
+    border-color: var(--destructive);
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='capacity'] {
+    background-color: color-mix(in oklch, #64748b 16%, var(--card));
+    border-color: #64748b;
+    color: var(--foreground);
+}
+/* Supplier kinds */
+.suite-calendar .fc-event[data-kind='order'] {
+    background-color: color-mix(in oklch, #2563eb 14%, var(--card));
+    border-color: #2563eb;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='quotation'] {
+    background-color: color-mix(in oklch, #d97706 18%, var(--card));
+    border-color: #d97706;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='forecast'] {
+    background-color: color-mix(in oklch, #9333ea 14%, var(--card));
+    border-color: #9333ea;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='cert'] {
+    background-color: color-mix(in oklch, #dc2626 14%, var(--card));
+    border-color: #dc2626;
+    color: var(--foreground);
+}
+/* Retailer kinds */
+.suite-calendar .fc-event[data-kind='purchase'] {
+    background-color: color-mix(in oklch, #2563eb 14%, var(--card));
+    border-color: #2563eb;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='invoice'] {
+    background-color: color-mix(in oklch, #ca8a04 18%, var(--card));
+    border-color: #ca8a04;
+    color: var(--foreground);
+}
+.suite-calendar .fc-event[data-kind='receipt'] {
+    background-color: color-mix(in oklch, #059669 16%, var(--card));
+    border-color: #059669;
+    color: var(--foreground);
+}
+
+.dark .suite-calendar .fc-event {
+    color: var(--foreground);
+}
+
+.suite-calendar .fc-list-event-dot {
+    border-width: 4px;
+}
+
+.suite-calendar .fc-popover {
+    background-color: var(--popover);
+    border-color: var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--popover-foreground);
+}
+
+@media (max-width: 640px) {
+    .suite-calendar .fc-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}

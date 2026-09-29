@@ -31,6 +31,7 @@ import {
     convertQuotation,
 } from '@/lib/services/supplier-commercial-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function QuotationsPage() {
     const { toast } = useToast();
@@ -38,6 +39,7 @@ export default function QuotationsPage() {
         useState<PaginatedResponse<SupplierQuotation> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:quotation', () => setOpen(true));
     const [form, setForm] = useState({
         buyerOrgId: '',
         validFrom: '',

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
 	Boxes,
@@ -52,10 +52,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    getFleetAssets,
-    createFleetAsset,
-    updateFleetAsset,
-    transitionAssetStatus,
+	getFleetAssets,
+	createFleetAsset,
+	updateFleetAsset,
+	transitionAssetStatus,
 	deleteFleetAsset,
 	getDrivers,
 	createDriver,
@@ -68,6 +68,7 @@ import {
 	transitionMaintenanceStatus,
 } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
@@ -121,6 +122,9 @@ export default function FleetPage() {
 	const [assetStep, setAssetStep] = useState(1);
 	const [driverOpen, setDriverOpen] = useState(false);
 	const [maintOpen, setMaintOpen] = useState(false);
+	useQuickCreateIntent('logistics:asset', () => setAssetOpen(true));
+	useQuickCreateIntent('logistics:driver', () => setDriverOpen(true));
+	useQuickCreateIntent('logistics:maintenance', () => setMaintOpen(true));
 	const [busy, setBusy] = useState<string | null>(null);
 	const withBusy = async (key: string, fn: () => Promise<unknown>) => {
 		if (busy) return;
@@ -183,7 +187,7 @@ export default function FleetPage() {
 		notes: string;
 	} | null>(null);
 
-	const load = async () => {
+	const load = useCallback(async () => {
 		setLoading(true);
 		try {
 			const [a, d, m] = await Promise.all([
@@ -207,14 +211,14 @@ export default function FleetPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [assetStatus, search, toast]);
 	useEffect(() => {
 		load();
-	}, [assetStatus]);
+	}, [assetStatus, load]);
 	useEffect(() => {
 		const t = setTimeout(load, 400);
 		return () => clearTimeout(t);
-	}, [search]);
+	}, [load, search]);
 
 	const handleAssetCreate = async () => {
 		try {
@@ -796,13 +800,13 @@ export default function FleetPage() {
 																</span>
 															);
 														})()}
-                                                        <div>
-                                                            <Link
-                                                                href={`/logistics/fleet/asset/${a.assetId}`}
-                                                                className="font-medium hover:underline"
-                                                            >
-                                                                {a.assetNumber}
-                                                            </Link>
+														<div>
+															<Link
+																href={`/logistics/fleet/asset/${a.assetId}`}
+																className="font-medium hover:underline"
+															>
+																{a.assetNumber}
+															</Link>
 															<div className="text-xs text-muted-foreground">
 																{a.assetType} •{' '}
 																{a.licensePlate ??
@@ -879,52 +883,52 @@ export default function FleetPage() {
 														</LoadingButton>
 													</div>
 												</TableCell>
-											<TableCell>
-												<div className="flex gap-1">
-													<Button
-														asChild
-														size="sm"
-														variant="ghost"
-														title="Asset details"
-													>
-														<Link
-															href={`/logistics/fleet/asset/${a.assetId}`}
+												<TableCell>
+													<div className="flex gap-1">
+														<Button
+															asChild
+															size="sm"
+															variant="ghost"
+															title="Asset details"
 														>
-															<Info className="h-4 w-4" />
-														</Link>
-													</Button>
-													<Button
-														size="sm"
-														variant="ghost"
-														title="Edit asset"
-														onClick={() =>
-															setAssetEdit({
-																id: a.assetId,
-																assetNumber: a.assetNumber,
-																make: a.make ?? '',
-																model: a.model ?? '',
-																licensePlate: a.licensePlate ?? '',
-																capacityWeight:
-																	a.capacityWeight != null
-																		? String(a.capacityWeight)
-																		: '',
-															})
-														}
-													>
-														<Pencil className="h-4 w-4" />
-													</Button>
-												</div>
-											</TableCell>
+															<Link
+																href={`/logistics/fleet/asset/${a.assetId}`}
+															>
+																<Info className="h-4 w-4" />
+															</Link>
+														</Button>
+														<Button
+															size="sm"
+															variant="ghost"
+															title="Edit asset"
+															onClick={() =>
+																setAssetEdit({
+																	id: a.assetId,
+																	assetNumber: a.assetNumber,
+																	make: a.make ?? '',
+																	model: a.model ?? '',
+																	licensePlate: a.licensePlate ?? '',
+																	capacityWeight:
+																		a.capacityWeight != null
+																			? String(a.capacityWeight)
+																			: '',
+																})
+															}
+														>
+															<Pencil className="h-4 w-4" />
+														</Button>
+													</div>
+												</TableCell>
 											</TableRow>
 										))}
 										{!assets?.content?.length && (
 											<TableRow>
-											<TableCell
-												colSpan={5}
-												className="text-center text-sm text-muted-foreground"
-											>
-												No assets
-											</TableCell>
+												<TableCell
+													colSpan={5}
+													className="text-center text-sm text-muted-foreground"
+												>
+													No assets
+												</TableCell>
 											</TableRow>
 										)}
 									</TableBody>

@@ -37,6 +37,7 @@ import {
     transitionCatalogStatus,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function SupplierCatalogPage() {
     const { toast } = useToast();
@@ -47,6 +48,7 @@ export default function SupplierCatalogPage() {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:catalog', () => setOpen(true));
     const [form, setForm] = useState({
         name: '',
         code: '',

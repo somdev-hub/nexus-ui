@@ -60,6 +60,7 @@ import {
     } from '@/lib/services/logistics-ops-service';
 import ShipmentMap from '@/components/shipment-map';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
@@ -131,6 +132,8 @@ export default function LogisticsShipmentsPage() {
         claimAmount: '',
     });
     const [incidentOpen, setIncidentOpen] = useState(false);
+    useQuickCreateIntent('logistics:incident', () => setIncidentOpen(true));
+    useQuickCreateIntent('logistics:pod', () => setPodOpen(true));
 
     const load = async () => {
         setLoading(true);

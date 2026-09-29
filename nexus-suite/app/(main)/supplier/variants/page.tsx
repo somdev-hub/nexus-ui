@@ -35,6 +35,7 @@ import {
     createVariant,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function VariantsPage() {
     const { toast } = useToast();
@@ -43,6 +44,7 @@ export default function VariantsPage() {
     );
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:variant', () => setOpen(true));
     const [form, setForm] = useState({
         catalogId: '',
         variantType: 'SIZE',

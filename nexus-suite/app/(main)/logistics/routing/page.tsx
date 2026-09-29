@@ -42,6 +42,7 @@ import {
         deleteCapacityForecast,
     } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
@@ -55,6 +56,8 @@ export default function RoutingPage() {
     const [search, setSearch] = useState('');
     const [groupOpen, setGroupOpen] = useState(false);
     const [capOpen, setCapOpen] = useState(false);
+    useQuickCreateIntent('logistics:group', () => setGroupOpen(true));
+    useQuickCreateIntent('logistics:capacity', () => setCapOpen(true));
     const [groupNotes, setGroupNotes] = useState('');
     const [addForm, setAddForm] = useState({ groupId: '', shipmentIds: '' });
     const [capForm, setCapForm] = useState({

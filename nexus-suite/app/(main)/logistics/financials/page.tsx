@@ -44,6 +44,7 @@ import {
         transitionPayableStatus,
     } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
@@ -60,6 +61,8 @@ export default function FinancialsPage() {
     const [payableStatus, setPayableStatus] = useState('all');
     const [rateOpen, setRateOpen] = useState(false);
     const [payableOpen, setPayableOpen] = useState(false);
+    useQuickCreateIntent('logistics:rate', () => setRateOpen(true));
+    useQuickCreateIntent('logistics:payable', () => setPayableOpen(true));
     const [rateForm, setRateForm] = useState({
         rateCode: '',
         rateType: 'CONTRACT',

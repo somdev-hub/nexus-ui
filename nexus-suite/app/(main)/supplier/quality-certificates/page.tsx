@@ -35,6 +35,7 @@ import {
     createQualityCert,
 } from '@/lib/services/supplier-orders-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function QualityCertsPage() {
     const { toast } = useToast();
@@ -42,6 +43,7 @@ export default function QualityCertsPage() {
         useState<PaginatedResponse<SupplierQualityCertificate> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:cert', () => setOpen(true));
     const [form, setForm] = useState({
         purchaseOrderId: '',
         catalogId: '',

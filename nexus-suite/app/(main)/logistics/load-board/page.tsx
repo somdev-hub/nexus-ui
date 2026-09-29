@@ -42,6 +42,7 @@ import {
     deleteShipmentQuote,
 } from '@/lib/services/logistics-ops-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
@@ -56,6 +57,7 @@ export default function LoadBoardPage() {
     const [mode, setMode] = useState('all');
     const [quoteStatus, setQuoteStatus] = useState('all');
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('logistics:quote', () => setOpen(true));
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;

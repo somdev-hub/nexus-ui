@@ -29,6 +29,7 @@ import {
     transitionForecast,
 } from '@/lib/services/supplier-commercial-service';
 import { useToast } from '@/hooks/use-toast';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function ForecastsPage() {
     const { toast } = useToast();
@@ -36,6 +37,7 @@ export default function ForecastsPage() {
         useState<PaginatedResponse<CollaborativeForecast> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:forecast', () => setOpen(true));
     const [form, setForm] = useState({
         retailerOrgId: '',
         catalogId: '',
