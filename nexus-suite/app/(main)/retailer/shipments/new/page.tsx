@@ -22,6 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
     createShipment,
+    transitionShipmentStatus,
     type ShipmentCreateRequest,
 } from '@/lib/services/shipment-service';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -197,7 +198,21 @@ export default function NewShipmentPage() {
                 notes: data.notes,
             };
             const shipment = await createShipment(createRequest);
-            toast.success('Shipment created successfully');
+            if (data.logisticsOrgId) {
+                try {
+                    await transitionShipmentStatus(
+                        shipment.shipmentId,
+                        'BOOKED'
+                    );
+                    toast.success(
+                        'Shipment created and booked directly with logistics partner'
+                    );
+                } catch {
+                    toast.success('Shipment created successfully');
+                }
+            } else {
+                toast.success('Shipment created successfully');
+            }
             router.push(`/retailer/shipments/${shipment.shipmentId}`);
         } catch (err: unknown) {
             const message =
@@ -264,15 +279,20 @@ export default function NewShipmentPage() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Logistics Organization ID
+                                            Logistics Partner (Org ID)
                                         </FormLabel>
                                         <FormControl>
                                             <Input
                                                 type="number"
-                                                placeholder="Optional"
+                                                placeholder="Optional — when set, books directly with them"
                                                 {...field}
                                             />
                                         </FormControl>
+                                        <p className="text-xs text-muted-foreground">
+                                            When set, the shipment is booked
+                                            directly with this logistics partner
+                                            (BOOKED).
+                                        </p>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -305,7 +325,7 @@ export default function NewShipmentPage() {
                                             defaultValue={field.value}
                                         >
                                             <FormControl>
-                                                <SelectTrigger>
+                                                <SelectTrigger className="w-full">
                                                     <SelectValue placeholder="Select mode" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -400,7 +420,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Contact Name</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. John Carter"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -413,7 +436,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Contact Phone</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. +91 98200 12345"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -426,7 +452,11 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Contact Email</FormLabel>
                                         <FormControl>
-                                            <Input type="email" {...field} />
+                                            <Input
+                                                type="email"
+                                                placeholder="e.g. john@company.com"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -528,7 +558,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Contact Name</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. John Carter"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -541,7 +574,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Contact Phone</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. +91 98200 12345"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -554,7 +590,11 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Contact Email</FormLabel>
                                         <FormControl>
-                                            <Input type="email" {...field} />
+                                            <Input
+                                                type="email"
+                                                placeholder="e.g. john@company.com"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -626,6 +666,7 @@ export default function NewShipmentPage() {
                                             <Input
                                                 type="number"
                                                 step="0.01"
+                                                placeholder="e.g. 1500"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -643,6 +684,7 @@ export default function NewShipmentPage() {
                                             <Input
                                                 type="number"
                                                 step="0.01"
+                                                placeholder="e.g. 12.5"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -657,7 +699,11 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Total Packages</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} />
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g. 50"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -688,7 +734,11 @@ export default function NewShipmentPage() {
                                             Special Instructions
                                         </FormLabel>
                                         <FormControl>
-                                            <Textarea rows={2} {...field} />
+                                            <Textarea
+                                                rows={2}
+                                                placeholder="e.g. Handle with care, keep dry"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -742,6 +792,7 @@ export default function NewShipmentPage() {
                                             <Input
                                                 type="number"
                                                 step="0.1"
+                                                placeholder="e.g. 2"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -761,6 +812,7 @@ export default function NewShipmentPage() {
                                             <Input
                                                 type="number"
                                                 step="0.1"
+                                                placeholder="e.g. 8"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -788,6 +840,7 @@ export default function NewShipmentPage() {
                                             <Input
                                                 type="number"
                                                 step="0.01"
+                                                placeholder="e.g. 9500"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -802,7 +855,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Currency</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. USD"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -819,7 +875,7 @@ export default function NewShipmentPage() {
                                             defaultValue={field.value}
                                         >
                                             <FormControl>
-                                                <SelectTrigger>
+                                                <SelectTrigger className="w-full">
                                                     <SelectValue placeholder="Select terms" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -846,7 +902,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Carrier Name</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. Swift Transport"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -859,7 +918,10 @@ export default function NewShipmentPage() {
                                     <FormItem>
                                         <FormLabel>Carrier Reference</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                placeholder="e.g. REF-4521"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -906,7 +968,11 @@ export default function NewShipmentPage() {
                                     <FormItem className="md:col-span-2">
                                         <FormLabel>Notes</FormLabel>
                                         <FormControl>
-                                            <Textarea rows={3} {...field} />
+                                            <Textarea
+                                                rows={3}
+                                                placeholder="e.g. Handle with care"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

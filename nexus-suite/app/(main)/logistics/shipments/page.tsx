@@ -546,7 +546,7 @@ export default function LogisticsShipmentsPage() {
                                                 })
                                             }
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger className="w-full">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>

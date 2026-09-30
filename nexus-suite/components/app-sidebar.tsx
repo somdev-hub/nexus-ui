@@ -21,7 +21,6 @@ import {
     IconPackage,
     IconTruck,
     IconLink,
-    IconMessageCircle,
     IconEye,
     type Icon,
 } from '@tabler/icons-react';
@@ -228,11 +227,6 @@ const retailerSections = [
                 url: '/retailer/partnership/logistic-market',
                 icon: IconTruck,
             },
-            {
-                title: 'Chats',
-                url: '/retailer/partnership/chats',
-                icon: IconMessageCircle,
-            },
         ],
     },
 ];
@@ -358,9 +352,9 @@ const supplierSections = [
         showActions: true,
         items: [
             {
-                title: 'Chats',
-                url: '/supplier/partnership/chats',
-                icon: IconMessageCircle,
+                title: 'Partnership Inbox',
+                url: '/supplier/partnership/inbox',
+                icon: IconMail,
             },
         ],
     },
@@ -404,6 +398,11 @@ const logisticsSections = [
                 title: 'Load Board',
                 url: '/logistics/load-board',
                 icon: IconShoppingCart,
+            },
+            {
+                title: 'Partnership Inbox',
+                url: '/logistics/partnership/inbox',
+                icon: IconMail,
             },
             {
                 title: 'Shipments',
@@ -647,54 +646,58 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return (
         <>
             <Sidebar collapsible="offcanvas" {...props}>
-            <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            asChild
-                            className="data-[slot=sidebar-menu-button]:p-1.5!"
-                        >
-                            <Link href="/">
-                                <IconInnerShadowTop className="size-5!" />
-                                <span className="text-base font-semibold">
-                                    Nexus Inc.
-                                </span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarHeader>
-            <SidebarContent>
-                {filteredSections.length > 0 ? (
-                    filteredSections.map((section) => (
-                        <SidebarNavSection key={section.id} section={section} />
-                    ))
-                ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                        {!isAuthenticated
-                            ? 'Please log in to view menu items'
-                            : 'No menu items available'}
-                    </div>
-                )}
-            </SidebarContent>
-            <SidebarFooter>
-                <NavUser
-                    user={
-                        user
-                            ? {
-                                  name: user.name,
-                                  email: user.role
-                                      ? user.role
-                                            .replace('ROLE_', '')
-                                            .replaceAll('_', ' ')
-                                      : 'No Role',
-                                  avatar: user.avatar || '/avatars/default.jpg',
-                              }
-                            : data.user
-                    }
-                />
-            </SidebarFooter>
-        </Sidebar>
+                <SidebarHeader>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                asChild
+                                className="data-[slot=sidebar-menu-button]:p-1.5!"
+                            >
+                                <Link href="/">
+                                    <IconInnerShadowTop className="size-5!" />
+                                    <span className="text-base font-semibold">
+                                        Nexus Inc.
+                                    </span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarHeader>
+                <SidebarContent>
+                    {filteredSections.length > 0 ? (
+                        filteredSections.map((section) => (
+                            <SidebarNavSection
+                                key={section.id}
+                                section={section}
+                            />
+                        ))
+                    ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                            {!isAuthenticated
+                                ? 'Please log in to view menu items'
+                                : 'No menu items available'}
+                        </div>
+                    )}
+                </SidebarContent>
+                <SidebarFooter>
+                    <NavUser
+                        user={
+                            user
+                                ? {
+                                      name: user.name,
+                                      email: user.role
+                                          ? user.role
+                                                .replace('ROLE_', '')
+                                                .replaceAll('_', ' ')
+                                          : 'No Role',
+                                      avatar:
+                                          user.avatar || '/avatars/default.jpg',
+                                  }
+                                : data.user
+                        }
+                    />
+                </SidebarFooter>
+            </Sidebar>
             <QuickCreateDialog />
         </>
     );

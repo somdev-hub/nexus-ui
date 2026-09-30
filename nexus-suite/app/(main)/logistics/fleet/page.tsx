@@ -649,7 +649,7 @@ export default function FleetPage() {
 												})
 											}
 										>
-											<SelectTrigger>
+											<SelectTrigger className="w-full">
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -738,7 +738,7 @@ export default function FleetPage() {
 									value={assetStatus}
 									onValueChange={setAssetStatus}
 								>
-									<SelectTrigger className="w-44">
+									<SelectTrigger className="w-full">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -1215,26 +1215,26 @@ export default function FleetPage() {
 							<div className="grid grid-cols-2 gap-3">
 								<div className="grid gap-2">
 									<Label>Asset Number</Label>
-									<Input value={assetEdit.assetNumber} onChange={(e) => setAssetEdit({ ...assetEdit, assetNumber: e.target.value })} />
+									<Input value={assetEdit.assetNumber} onChange={(e) => setAssetEdit({ ...assetEdit, assetNumber: e.target.value })} placeholder="e.g. TRK-001" />
 								</div>
 								<div className="grid gap-2">
 									<Label>License Plate</Label>
-									<Input value={assetEdit.licensePlate} onChange={(e) => setAssetEdit({ ...assetEdit, licensePlate: e.target.value })} />
+									<Input value={assetEdit.licensePlate} onChange={(e) => setAssetEdit({ ...assetEdit, licensePlate: e.target.value })} placeholder="e.g. MH-12-AB-1234" />
 								</div>
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								<div className="grid gap-2">
 									<Label>Make</Label>
-									<Input value={assetEdit.make} onChange={(e) => setAssetEdit({ ...assetEdit, make: e.target.value })} />
+									<Input value={assetEdit.make} onChange={(e) => setAssetEdit({ ...assetEdit, make: e.target.value })} placeholder="e.g. Tata" />
 								</div>
 								<div className="grid gap-2">
 									<Label>Model</Label>
-									<Input value={assetEdit.model} onChange={(e) => setAssetEdit({ ...assetEdit, model: e.target.value })} />
+									<Input value={assetEdit.model} onChange={(e) => setAssetEdit({ ...assetEdit, model: e.target.value })} placeholder="e.g. Prima 5530" />
 								</div>
 							</div>
 							<div className="grid gap-2">
 								<Label>Capacity (kg)</Label>
-								<Input type="number" value={assetEdit.capacityWeight} onChange={(e) => setAssetEdit({ ...assetEdit, capacityWeight: e.target.value })} />
+								<Input type="number" value={assetEdit.capacityWeight} onChange={(e) => setAssetEdit({ ...assetEdit, capacityWeight: e.target.value })} placeholder="e.g. 15000" />
 							</div>
 							<LoadingButton loading={busy === 'asset-update'} onClick={() => withBusy('asset-update', handleAssetUpdate)}>Save</LoadingButton>
 						</div>
@@ -1252,30 +1252,30 @@ export default function FleetPage() {
 							<div className="grid grid-cols-2 gap-3">
 								<div className="grid gap-2">
 									<Label>Full Name</Label>
-									<Input value={driverEdit.fullName} onChange={(e) => setDriverEdit({ ...driverEdit, fullName: e.target.value })} />
+									<Input value={driverEdit.fullName} onChange={(e) => setDriverEdit({ ...driverEdit, fullName: e.target.value })} placeholder="e.g. Rajesh Kumar" />
 								</div>
 								<div className="grid gap-2">
 									<Label>Phone</Label>
-									<Input value={driverEdit.phone} onChange={(e) => setDriverEdit({ ...driverEdit, phone: e.target.value })} />
+									<Input value={driverEdit.phone} onChange={(e) => setDriverEdit({ ...driverEdit, phone: e.target.value })} placeholder="e.g. +91 98200 12345" />
 								</div>
 							</div>
 							<div className="grid grid-cols-3 gap-3">
 								<div className="grid gap-2">
 									<Label>Email</Label>
-									<Input value={driverEdit.email} onChange={(e) => setDriverEdit({ ...driverEdit, email: e.target.value })} />
+									<Input value={driverEdit.email} onChange={(e) => setDriverEdit({ ...driverEdit, email: e.target.value })} placeholder="e.g. rajesh@example.com" />
 								</div>
 								<div className="grid gap-2">
 									<Label>License No</Label>
-									<Input value={driverEdit.licenseNumber} onChange={(e) => setDriverEdit({ ...driverEdit, licenseNumber: e.target.value })} />
+									<Input value={driverEdit.licenseNumber} onChange={(e) => setDriverEdit({ ...driverEdit, licenseNumber: e.target.value })} placeholder="e.g. MH12 20210012345" />
 								</div>
 								<div className="grid gap-2">
 									<Label>Class</Label>
-									<Input value={driverEdit.licenseClass} onChange={(e) => setDriverEdit({ ...driverEdit, licenseClass: e.target.value })} />
+									<Input value={driverEdit.licenseClass} onChange={(e) => setDriverEdit({ ...driverEdit, licenseClass: e.target.value })} placeholder="e.g. HMV" />
 								</div>
 							</div>
 							<div className="grid gap-2">
 								<Label>Notes</Label>
-								<Textarea value={driverEdit.notes} onChange={(e) => setDriverEdit({ ...driverEdit, notes: e.target.value })} />
+								<Textarea value={driverEdit.notes} onChange={(e) => setDriverEdit({ ...driverEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
 							</div>
 							<LoadingButton loading={busy === 'driver-update'} onClick={() => withBusy('driver-update', handleDriverUpdate)}>Save</LoadingButton>
 						</div>
@@ -1294,7 +1294,7 @@ export default function FleetPage() {
 								<div className="grid gap-2">
 									<Label>Type</Label>
 									<Select value={maintEdit.maintenanceType} onValueChange={(v) => setMaintEdit({ ...maintEdit, maintenanceType: v })}>
-										<SelectTrigger>
+										<SelectTrigger className="w-full">
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
@@ -1312,25 +1312,25 @@ export default function FleetPage() {
 							</div>
 							<div className="grid gap-2">
 								<Label>Description</Label>
-								<Input value={maintEdit.description} onChange={(e) => setMaintEdit({ ...maintEdit, description: e.target.value })} />
+								<Input value={maintEdit.description} onChange={(e) => setMaintEdit({ ...maintEdit, description: e.target.value })} placeholder="e.g. Engine oil and brake check" />
 							</div>
 							<div className="grid grid-cols-3 gap-3">
 								<div className="grid gap-2">
 									<Label>Odometer</Label>
-									<Input type="number" value={maintEdit.odometerReading} onChange={(e) => setMaintEdit({ ...maintEdit, odometerReading: e.target.value })} />
+									<Input type="number" value={maintEdit.odometerReading} onChange={(e) => setMaintEdit({ ...maintEdit, odometerReading: e.target.value })} placeholder="e.g. 125000" />
 								</div>
 								<div className="grid gap-2">
 									<Label>Cost</Label>
-									<Input type="number" value={maintEdit.cost} onChange={(e) => setMaintEdit({ ...maintEdit, cost: e.target.value })} />
+									<Input type="number" value={maintEdit.cost} onChange={(e) => setMaintEdit({ ...maintEdit, cost: e.target.value })} placeholder="e.g. 5000" />
 								</div>
 								<div className="grid gap-2">
 									<Label>Provider</Label>
-									<Input value={maintEdit.serviceProvider} onChange={(e) => setMaintEdit({ ...maintEdit, serviceProvider: e.target.value })} />
+									<Input value={maintEdit.serviceProvider} onChange={(e) => setMaintEdit({ ...maintEdit, serviceProvider: e.target.value })} placeholder="e.g. Swift Service Center" />
 								</div>
 							</div>
 							<div className="grid gap-2">
 								<Label>Notes</Label>
-								<Textarea value={maintEdit.notes} onChange={(e) => setMaintEdit({ ...maintEdit, notes: e.target.value })} />
+								<Textarea value={maintEdit.notes} onChange={(e) => setMaintEdit({ ...maintEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
 							</div>
 							<LoadingButton loading={busy === 'maint-update'} onClick={() => withBusy('maint-update', handleMaintUpdate)}>Save</LoadingButton>
 						</div>

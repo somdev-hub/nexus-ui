@@ -18,10 +18,6 @@ import {
 } from '@tanstack/react-table';
 import {
     IconChevronDown,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconEdit,
@@ -70,8 +66,13 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
+import { TablePagination } from './ui/table-pagination';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import {
+    cancelPurchaseOrder,
+    transitionPurchaseOrder,
+} from '@/lib/services/purchase-orders-service';
 
 interface PurchaseOrder {
     purchaseOrderId: number;
@@ -163,7 +164,10 @@ const statusConfig: Record<
     },
 };
 
-const columns: ColumnDef<PurchaseOrder>[] = [
+const buildColumns = (
+    onSubmit: (po: PurchaseOrder) => void,
+    onDelete: (po: PurchaseOrder) => void
+): ColumnDef<PurchaseOrder>[] => [
     {
         id: 'select',
         header: ({ table }) => (
@@ -297,16 +301,17 @@ const columns: ColumnDef<PurchaseOrder>[] = [
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {row.original.status === 'DRAFT' && (
-                        <DropdownMenuItem asChild>
-                            <Link
-                                href={`/retailer/purchase-orders/${row.original.purchaseOrderId}/submit`}
-                            >
-                                <IconTrendingUp className="mr-2 h-4 w-4" />
-                                Submit for Approval
-                            </Link>
+                        <DropdownMenuItem
+                            onClick={() => onSubmit(row.original)}
+                        >
+                            <IconTrendingUp className="mr-2 h-4 w-4" />
+                            Submit for Approval
                         </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem variant="destructive">
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(row.original)}
+                    >
                         <IconTrash className="mr-2 h-4 w-4" />
                         Delete
                     </DropdownMenuItem>
@@ -332,6 +337,56 @@ export function PurchaseOrderTable({
         pageIndex: 0,
         pageSize: 10,
     });
+
+    const handleSubmit = React.useCallback(async (po: PurchaseOrder) => {
+        if (
+            typeof window !== 'undefined' &&
+            !window.confirm(
+                `Submit purchase order ${po.purchaseOrderNumber} for approval?`
+            )
+        )
+            return;
+        try {
+            const updated = await transitionPurchaseOrder(
+                po.purchaseOrderId,
+                'PENDING_APPROVAL'
+            );
+            setData((prev) =>
+                prev.map((p) =>
+                    p.purchaseOrderId === po.purchaseOrderId ? updated : p
+                )
+            );
+            toast.success('Purchase order submitted for approval');
+        } catch (error) {
+            console.error('Failed to submit purchase order:', error);
+            toast.error('Failed to submit purchase order');
+        }
+    }, []);
+
+    const handleDelete = React.useCallback(async (po: PurchaseOrder) => {
+        if (
+            typeof window !== 'undefined' &&
+            !window.confirm(
+                `Delete purchase order ${po.purchaseOrderNumber}? This cannot be undone.`
+            )
+        )
+            return;
+        try {
+            await cancelPurchaseOrder(po.purchaseOrderId);
+            setData((prev) =>
+                prev.filter((p) => p.purchaseOrderId !== po.purchaseOrderId)
+            );
+            toast.success('Purchase order deleted');
+        } catch (error) {
+            console.error('Failed to delete purchase order:', error);
+            toast.error('Failed to delete purchase order');
+        }
+    }, []);
+
+    const columns = React.useMemo(
+        () => buildColumns(handleSubmit, handleDelete),
+        [handleSubmit, handleDelete]
+    );
 
     const table = useReactTable({
         data,
@@ -369,7 +424,7 @@ export function PurchaseOrderTable({
                 </Label>
                 <Select defaultValue="outline">
                     <SelectTrigger
-                        className="flex w-fit @4xl/main:hidden"
+                        className="flex w-full @4xl/main:hidden"
                         size="sm"
                         id="view-selector"
                     >
@@ -501,17 +556,36 @@ export function PurchaseOrderTable({
                         </TableBody>
                     </Table>
                 </div>
-                <div className="flex items-center justify-between px-4">
+                <div className="flex items-center justify-between gap-4 px-4">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                         {table.getFilteredSelectedRowModel().rows.length} of{' '}
                         {table.getFilteredRowModel().rows.length} row(s)
                         selected.
                     </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit">
+                    <div className="flex flex-1 items-center justify-center">
+                        <TablePagination
+                            pageIndex={table.getState().pagination.pageIndex}
+                            pageCount={table.getPageCount()}
+                            canPreviousPage={table.getCanPreviousPage()}
+                            canNextPage={table.getCanNextPage()}
+                            onPageChange={(index) => table.setPageIndex(index)}
+                            onPreviousPage={() => table.previousPage()}
+                            onNextPage={() => table.nextPage()}
+                            onFirstPage={() => table.setPageIndex(0)}
+                            onLastPage={() =>
+                                table.setPageIndex(table.getPageCount() - 1)
+                            }
+                        />
+                    </div>
+                    <div className="flex flex-1 items-center justify-end gap-4">
+                        <div className="flex w-fit items-center justify-center text-sm font-medium">
+                            Page {table.getState().pagination.pageIndex + 1} of{' '}
+                            {table.getPageCount()}
+                        </div>
                         <div className="hidden items-center gap-2 lg:flex">
                             <Label
                                 htmlFor="rows-per-page"
-                                className="text-sm font-medium"
+                                className="shrink-0 text-sm font-medium whitespace-nowrap"
                             >
                                 Rows per page
                             </Label>
@@ -523,7 +597,7 @@ export function PurchaseOrderTable({
                             >
                                 <SelectTrigger
                                     size="sm"
-                                    className="w-20"
+                                    className="w-full"
                                     id="rows-per-page"
                                 >
                                     <SelectValue
@@ -543,57 +617,6 @@ export function PurchaseOrderTable({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => table.setPageIndex(0)}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to first page
-                                </span>
-                                <IconChevronsLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to previous page
-                                </span>
-                                <IconChevronLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <IconChevronRight />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden size-8 lg:flex"
-                                size="icon"
-                                onClick={() =>
-                                    table.setPageIndex(table.getPageCount() - 1)
-                                }
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <IconChevronsRight />
-                            </Button>
                         </div>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/carousel';
 import Link from 'next/link';
 import { LogisticsTable } from '@/components/logistics-table';
+import { PartnershipInvitationDialog } from '@/components/partnership-invitation-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLogisticsPartners } from '@/lib/services/logistics-service';
 import { useEffect, useState } from 'react';
@@ -26,6 +27,7 @@ const LogisticMarketPage = () => {
         LogisticsPartner[]
     >([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [inviteOpen, setInviteOpen] = useState(false);
 
     useEffect(() => {
         let isActive = true;
@@ -88,7 +90,7 @@ const LogisticMarketPage = () => {
                                 <Button variant="outline">
                                     <Search className="h-4 w-4" />
                                 </Button>
-                                <Button>
+                                <Button onClick={() => setInviteOpen(true)}>
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add Partner
                                 </Button>
@@ -158,6 +160,11 @@ const LogisticMarketPage = () => {
                     </div>
                 </div>
             </div>
+            <PartnershipInvitationDialog
+                open={inviteOpen}
+                onOpenChange={setInviteOpen}
+                fixedContext="RETAILER_LOGISTICS"
+            />
         </>
     );
 };

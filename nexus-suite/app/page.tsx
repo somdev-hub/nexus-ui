@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     getDashboardPathForOrgType,
     getOrganizationById,
@@ -69,8 +70,13 @@ export default function Home() {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background">
-            <div className="animate-pulse text-muted-foreground">
-                Loading...
+            <div className="flex flex-1 flex-col gap-4 p-4">
+                <div className="grid gap-4 md:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-32" />
+                    ))}
+                </div>
+                <Skeleton className="h-64" />
             </div>
         </div>
     );

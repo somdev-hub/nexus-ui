@@ -66,12 +66,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TablePagination } from './ui/table-pagination';
 import {
     IconChevronDown,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconLayoutColumns,
@@ -189,7 +186,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
                     </Label>
                     <Select>
                         <SelectTrigger
-                            className="w-38 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
+                            className="w-full **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
                             size="sm"
                             id={`${row.original.id}-reviewer`}
                         >
@@ -289,7 +286,7 @@ export function DataTable({
                 </Label>
                 <Select defaultValue="outline">
                     <SelectTrigger
-                        className="flex w-fit @4xl/main:hidden"
+                        className="flex w-full @4xl/main:hidden"
                         size="sm"
                         id="view-selector"
                     >
@@ -422,17 +419,36 @@ export function DataTable({
                         </TableBody>
                     </Table>
                 </div>
-                <div className="flex items-center justify-between px-4">
+                <div className="flex items-center justify-between gap-4 px-4">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                         {table.getFilteredSelectedRowModel().rows.length} of{' '}
                         {table.getFilteredRowModel().rows.length} row(s)
                         selected.
                     </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit">
+                    <div className="flex flex-1 items-center justify-center">
+                        <TablePagination
+                            pageIndex={table.getState().pagination.pageIndex}
+                            pageCount={table.getPageCount()}
+                            canPreviousPage={table.getCanPreviousPage()}
+                            canNextPage={table.getCanNextPage()}
+                            onPageChange={(index) => table.setPageIndex(index)}
+                            onPreviousPage={() => table.previousPage()}
+                            onNextPage={() => table.nextPage()}
+                            onFirstPage={() => table.setPageIndex(0)}
+                            onLastPage={() =>
+                                table.setPageIndex(table.getPageCount() - 1)
+                            }
+                        />
+                    </div>
+                    <div className="flex flex-1 items-center justify-end gap-4">
+                        <div className="flex w-fit items-center justify-center text-sm font-medium">
+                            Page {table.getState().pagination.pageIndex + 1} of{' '}
+                            {table.getPageCount()}
+                        </div>
                         <div className="hidden items-center gap-2 lg:flex">
                             <Label
                                 htmlFor="rows-per-page"
-                                className="text-sm font-medium"
+                                className="shrink-0 text-sm font-medium whitespace-nowrap"
                             >
                                 Rows per page
                             </Label>
@@ -444,7 +460,7 @@ export function DataTable({
                             >
                                 <SelectTrigger
                                     size="sm"
-                                    className="w-20"
+                                    className="w-full"
                                     id="rows-per-page"
                                 >
                                     <SelectValue
@@ -464,57 +480,6 @@ export function DataTable({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => table.setPageIndex(0)}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to first page
-                                </span>
-                                <IconChevronsLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to previous page
-                                </span>
-                                <IconChevronLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <IconChevronRight />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden size-8 lg:flex"
-                                size="icon"
-                                onClick={() =>
-                                    table.setPageIndex(table.getPageCount() - 1)
-                                }
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <IconChevronsRight />
-                            </Button>
                         </div>
                     </div>
                 </div>

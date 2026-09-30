@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     getConsignments,
     createConsignment,
@@ -94,10 +95,11 @@ export default function ConsignmentPage() {
                         <DialogHeader>
                             <DialogTitle>New Consignment</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>Retailer Org ID</Label>
                                 <Input
+                                    placeholder="e.g. 12"
                                     value={form.retailerOrgId}
                                     onChange={(e) =>
                                         setForm({
@@ -108,9 +110,10 @@ export default function ConsignmentPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Warehouse ID</Label>
                                     <Input
+                                        placeholder="e.g. 7"
                                         value={form.warehouseId}
                                         onChange={(e) =>
                                             setForm({
@@ -120,9 +123,10 @@ export default function ConsignmentPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Material ID</Label>
                                     <Input
+                                        placeholder="e.g. 45"
                                         value={form.materialId}
                                         onChange={(e) =>
                                             setForm({
@@ -133,10 +137,11 @@ export default function ConsignmentPage() {
                                     />
                                 </div>
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Qty On Hand</Label>
                                 <Input
                                     type="number"
+                                    placeholder="e.g. 500"
                                     value={form.quantityOnHand}
                                     onChange={(e) =>
                                         setForm({
@@ -157,8 +162,11 @@ export default function ConsignmentPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

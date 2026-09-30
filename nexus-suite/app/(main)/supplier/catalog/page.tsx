@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -147,10 +148,11 @@ export default function SupplierCatalogPage() {
                         <DialogHeader>
                             <DialogTitle>New Catalog Product</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>Name</Label>
                                 <Input
+                                    placeholder="e.g. Hydraulic Pump X200"
                                     value={form.name}
                                     onChange={(e) =>
                                         setForm({
@@ -161,9 +163,10 @@ export default function SupplierCatalogPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Code</Label>
                                     <Input
+                                        placeholder="e.g. HYD-PMP-200"
                                         value={form.code}
                                         onChange={(e) =>
                                             setForm({
@@ -173,9 +176,10 @@ export default function SupplierCatalogPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>SKU</Label>
                                     <Input
+                                        placeholder="e.g. SKU-88231"
                                         value={form.sku}
                                         onChange={(e) =>
                                             setForm({
@@ -187,7 +191,7 @@ export default function SupplierCatalogPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Category</Label>
                                     <Input
                                         value={form.category}
@@ -200,7 +204,7 @@ export default function SupplierCatalogPage() {
                                         placeholder="Electronics"
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Family</Label>
                                     <Input
                                         value={form.family}
@@ -214,10 +218,11 @@ export default function SupplierCatalogPage() {
                                     />
                                 </div>
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Base Price</Label>
                                 <Input
                                     type="number"
+                                    placeholder="e.g. 1499.00"
                                     value={form.basePrice}
                                     onChange={(e) =>
                                         setForm({
@@ -227,9 +232,10 @@ export default function SupplierCatalogPage() {
                                     }
                                 />
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Description</Label>
                                 <Textarea
+                                    placeholder="e.g. Heavy-duty hydraulic pump for industrial use"
                                     value={form.description}
                                     onChange={(e) =>
                                         setForm({
@@ -254,7 +260,7 @@ export default function SupplierCatalogPage() {
                             className="max-w-sm"
                         />
                         <Select value={status} onValueChange={setStatus}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -272,8 +278,11 @@ export default function SupplierCatalogPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

@@ -6,6 +6,7 @@ import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -116,7 +117,7 @@ export default function SupplierOrdersPage() {
                         className="w-40"
                     />
                     <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="w-full">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -141,8 +142,11 @@ export default function SupplierOrdersPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>
@@ -219,12 +223,13 @@ export default function SupplierOrdersPage() {
                                                                 for {o.poNumber}
                                                             </DialogTitle>
                                                         </DialogHeader>
-                                                        <div className="space-y-3">
-                                                            <div>
+                                                        <div className="grid gap-6">
+                                                            <div className="grid gap-2">
                                                                 <Label>
                                                                     Shipped Qty
                                                                 </Label>
                                                                 <Input
+                                                                    placeholder="e.g. 50"
                                                                     value={
                                                                         shippedQty
                                                                     }

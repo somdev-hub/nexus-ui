@@ -53,7 +53,7 @@ const Page = () => {
                                             here. Click save when you're done.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid gap-4 py-4">
+                                    <div className="grid gap-6 py-4">
                                         <div className="grid gap-2">
                                             <Label htmlFor="name">
                                                 Full Name
@@ -61,6 +61,7 @@ const Page = () => {
                                             <Input
                                                 id="name"
                                                 defaultValue="Laya Singh"
+                                                placeholder="e.g. Jane Doe"
                                             />
                                         </div>
                                         <div className="grid gap-2">
@@ -68,6 +69,7 @@ const Page = () => {
                                             <Input
                                                 id="role"
                                                 defaultValue="DIRECTOR"
+                                                placeholder="e.g. MANAGER"
                                             />
                                         </div>
                                         <div className="grid gap-2">
@@ -76,6 +78,7 @@ const Page = () => {
                                                 id="email"
                                                 type="email"
                                                 defaultValue="laya@nats.com"
+                                                placeholder="e.g. jane@company.com"
                                             />
                                         </div>
                                         <div className="grid gap-2">
@@ -83,6 +86,7 @@ const Page = () => {
                                             <Input
                                                 id="phone"
                                                 defaultValue="+91 9876543210"
+                                                placeholder="e.g. +91 98765 43210"
                                             />
                                         </div>
                                         <div className="grid gap-2">
@@ -92,6 +96,7 @@ const Page = () => {
                                             <Input
                                                 id="location"
                                                 defaultValue="Bangalore, India"
+                                                placeholder="e.g. Mumbai, India"
                                             />
                                         </div>
                                         <div className="grid gap-2">
@@ -100,6 +105,7 @@ const Page = () => {
                                                 id="age"
                                                 type="number"
                                                 defaultValue="22"
+                                                placeholder="e.g. 30"
                                             />
                                         </div>
                                     </div>
@@ -152,7 +158,7 @@ const Page = () => {
                                             an image that represents you well.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid gap-4 py-4">
+                                    <div className="grid gap-6 py-4">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative">
                                                 <Image

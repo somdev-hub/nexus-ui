@@ -14,6 +14,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Dialog,
     DialogContent,
@@ -140,10 +141,11 @@ export default function QuotationsPage() {
                         <DialogHeader>
                             <DialogTitle>New Quotation</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>Buyer Org ID</Label>
                                 <Input
+                                    placeholder="e.g. 5"
                                     value={form.buyerOrgId}
                                     onChange={(e) =>
                                         setForm({
@@ -154,7 +156,7 @@ export default function QuotationsPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Valid From</Label>
                                     <Input
                                         type="date"
@@ -167,7 +169,7 @@ export default function QuotationsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Valid To</Label>
                                     <Input
                                         type="date"
@@ -181,9 +183,10 @@ export default function QuotationsPage() {
                                     />
                                 </div>
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Terms</Label>
                                 <Textarea
+                                    placeholder="e.g. Net 30, FOB destination"
                                     value={form.terms}
                                     onChange={(e) =>
                                         setForm({
@@ -194,9 +197,10 @@ export default function QuotationsPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-3 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Catalog ID</Label>
                                     <Input
+                                        placeholder="e.g. 101"
                                         value={form.catalogId}
                                         onChange={(e) =>
                                             setForm({
@@ -206,9 +210,10 @@ export default function QuotationsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Qty</Label>
                                     <Input
+                                        placeholder="e.g. 100"
                                         value={form.quantity}
                                         onChange={(e) =>
                                             setForm({
@@ -218,9 +223,10 @@ export default function QuotationsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Unit Price</Label>
                                     <Input
+                                        placeholder="e.g. 99.50"
                                         value={form.unitPrice}
                                         onChange={(e) =>
                                             setForm({
@@ -242,8 +248,11 @@ export default function QuotationsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

@@ -3,10 +3,6 @@
 import * as React from 'react';
 import {
     IconChevronDown,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconLayoutColumns,
@@ -65,6 +61,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { TablePagination } from './ui/table-pagination';
 import { Order } from '@/types/orders';
 
 interface OrderTableProps {
@@ -344,10 +341,27 @@ export function OrderTable({ orders }: OrderTableProps) {
                     </TableBody>
                 </Table>
                 <div className="border-t p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-1 items-center gap-2">
                         <span className="text-sm text-muted-foreground">
                             Page {table.getState().pagination.pageIndex + 1} of{' '}
                             {table.getPageCount()}
+                        </span>
+                    </div>
+                    <div className="flex flex-1 items-center justify-center">
+                        <TablePagination
+                            pageIndex={table.getState().pagination.pageIndex}
+                            pageCount={table.getPageCount()}
+                            canPreviousPage={table.getCanPreviousPage()}
+                            canNextPage={table.getCanNextPage()}
+                            onPageChange={(index) => table.setPageIndex(index)}
+                            onPreviousPage={() => table.previousPage()}
+                            onNextPage={() => table.nextPage()}
+                            showFirstLast={false}
+                        />
+                    </div>
+                    <div className="flex flex-1 items-center justify-end gap-2">
+                        <span className="hidden shrink-0 text-sm whitespace-nowrap text-muted-foreground sm:inline">
+                            Rows per page
                         </span>
                         <Select
                             value={table
@@ -357,7 +371,7 @@ export function OrderTable({ orders }: OrderTableProps) {
                                 table.setPageSize(Number(value))
                             }
                         >
-                            <SelectTrigger className="w-[70px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -368,24 +382,6 @@ export function OrderTable({ orders }: OrderTableProps) {
                                 <SelectItem value="50">50</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
-                        >
-                            <IconChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
-                        >
-                            <IconChevronRight className="h-4 w-4" />
-                        </Button>
                     </div>
                 </div>
             </div>

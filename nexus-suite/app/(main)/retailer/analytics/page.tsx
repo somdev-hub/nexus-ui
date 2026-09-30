@@ -65,9 +65,14 @@ export default function AnalyticsPage() {
 
     if (isLoading)
         return (
-            <div className="p-6 space-y-4">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-[300px] w-full" />
+            <div className="flex flex-1 flex-col gap-4 p-4">
+                <div className="grid gap-4 md:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-32" />
+                    ))}
+                </div>
+                <Skeleton className="h-64" />
+                <Skeleton className="h-64" />
             </div>
         );
 

@@ -31,6 +31,11 @@ import { ArrowLeft, Save, Send } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
+    parseOptionalFloat,
+    parseOptionalInt,
+    parseRequiredNumber,
+} from '@/lib/utils';
+import {
     createProduct,
     getProductCategories,
     getProductBrands,
@@ -76,11 +81,15 @@ const productCreateSchema = z.object({
 
 type ProductCreateFormData = z.infer<typeof productCreateSchema>;
 
+// localStorage key for the in-progress "new product" draft.
+const NEW_PRODUCT_DRAFT_KEY = 'nexus:product:draft:new';
+
 const Page = () => {
     const [categories, setCategories] = useState<string[]>([]);
     const [brands, setBrands] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [draftLoaded, setDraftLoaded] = useState(false);
 
     const form = useForm<ProductCreateFormData>({
         resolver: zodResolver(productCreateSchema),
@@ -107,7 +116,7 @@ const Page = () => {
         },
     });
 
-    // Fetch categories and brands on mount
+    // Fetch categories and brands on mount, then restore any saved draft
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -120,8 +129,19 @@ const Page = () => {
             } catch (error) {
                 console.error('Failed to fetch categories/brands:', error);
             }
+            try {
+                const draft = localStorage.getItem(NEW_PRODUCT_DRAFT_KEY);
+                if (draft) {
+                    form.reset({ ...form.getValues(), ...JSON.parse(draft) });
+                    setDraftLoaded(true);
+                    toast.info('Draft restored');
+                }
+            } catch {
+                // corrupt draft — ignore and start blank
+            }
         };
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onSubmit = async (data: ProductCreateFormData) => {
@@ -151,6 +171,12 @@ const Page = () => {
 
             await createProduct(createRequest);
             toast.success('Product created successfully');
+            try {
+                localStorage.removeItem(NEW_PRODUCT_DRAFT_KEY);
+            } catch {
+                // ignore
+            }
+            setDraftLoaded(false);
             // Redirect to products list
             window.location.href = '/retailer/products';
         } catch (error) {
@@ -162,9 +188,13 @@ const Page = () => {
     };
 
     const onSaveDraft = async (data: ProductCreateFormData) => {
-        // For draft, we could save to localStorage or a draft endpoint
-        toast.success('Draft saved locally');
-        console.log('Draft data:', data);
+        try {
+            localStorage.setItem(NEW_PRODUCT_DRAFT_KEY, JSON.stringify(data));
+            setDraftLoaded(true);
+            toast.success('Draft saved — it will be restored on revisit');
+        } catch {
+            toast.error('Could not save draft in this browser');
+        }
     };
 
     return (
@@ -193,7 +223,9 @@ const Page = () => {
                                         disabled={isSubmitting}
                                     >
                                         <Save className="h-4 w-4 mr-2" />
-                                        Save Draft
+                                        {draftLoaded
+                                            ? 'Update Draft'
+                                            : 'Save Draft'}
                                     </Button>
                                     <Button
                                         type="submit"
@@ -290,7 +322,7 @@ const Page = () => {
                                                                         field.value
                                                                     }
                                                                 >
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger className="w-full">
                                                                         <SelectValue placeholder="Select category" />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -349,18 +381,26 @@ const Page = () => {
                                                             </FormLabel>
                                                             <FormControl>
                                                                 <Select
-                                                                    onValueChange={
-                                                                        field.onChange
+                                                                    onValueChange={(
+                                                                        v
+                                                                    ) =>
+                                                                        field.onChange(
+                                                                            v ===
+                                                                                '__none'
+                                                                                ? ''
+                                                                                : v
+                                                                        )
                                                                     }
-                                                                    defaultValue={
-                                                                        field.value
+                                                                    value={
+                                                                        field.value ||
+                                                                        '__none'
                                                                     }
                                                                 >
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger className="w-full">
                                                                         <SelectValue placeholder="Select brand (optional)" />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        <SelectItem value="">
+                                                                        <SelectItem value="__none">
                                                                             None
                                                                         </SelectItem>
                                                                         {brands.map(
@@ -406,7 +446,7 @@ const Page = () => {
                                                                         field.value
                                                                     }
                                                                 >
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger className="w-full">
                                                                         <SelectValue placeholder="Select UOM" />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -479,15 +519,13 @@ const Page = () => {
                                                                         e
                                                                     ) =>
                                                                         field.onChange(
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                                ? parseFloat(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value
-                                                                                  )
-                                                                                : 0
+                                                                            parseRequiredNumber(
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                                parseFloat,
+                                                                                0
+                                                                            )
                                                                         )
                                                                     }
                                                                 />
@@ -513,7 +551,7 @@ const Page = () => {
                                                                         field.value
                                                                     }
                                                                 >
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger className="w-full">
                                                                         <SelectValue placeholder="Select currency" />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -569,15 +607,13 @@ const Page = () => {
                                                                         e
                                                                     ) =>
                                                                         field.onChange(
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                                ? parseFloat(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value
-                                                                                  )
-                                                                                : 0
+                                                                            parseRequiredNumber(
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                                parseFloat,
+                                                                                0
+                                                                            )
                                                                         )
                                                                     }
                                                                 />
@@ -616,16 +652,19 @@ const Page = () => {
                                                                         e
                                                                     ) =>
                                                                         field.onChange(
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                                ? parseInt(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value,
-                                                                                      10
-                                                                                  )
-                                                                                : 1
+                                                                            parseRequiredNumber(
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                                (
+                                                                                    v
+                                                                                ) =>
+                                                                                    parseInt(
+                                                                                        v,
+                                                                                        10
+                                                                                    ),
+                                                                                1
+                                                                            )
                                                                         )
                                                                     }
                                                                 />
@@ -656,16 +695,11 @@ const Page = () => {
                                                                         e
                                                                     ) =>
                                                                         field.onChange(
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                                ? parseInt(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value,
-                                                                                      10
-                                                                                  )
-                                                                                : undefined
+                                                                            parseOptionalInt(
+                                                                                e
+                                                                                    .target
+                                                                                    .value
+                                                                            )
                                                                         )
                                                                     }
                                                                 />
@@ -700,16 +734,19 @@ const Page = () => {
                                                                         e
                                                                     ) =>
                                                                         field.onChange(
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                                ? parseInt(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value,
-                                                                                      10
-                                                                                  )
-                                                                                : 0
+                                                                            parseRequiredNumber(
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                                (
+                                                                                    v
+                                                                                ) =>
+                                                                                    parseInt(
+                                                                                        v,
+                                                                                        10
+                                                                                    ),
+                                                                                0
+                                                                            )
                                                                         )
                                                                     }
                                                                 />
@@ -753,15 +790,11 @@ const Page = () => {
                                                                         e
                                                                     ) =>
                                                                         field.onChange(
-                                                                            e
-                                                                                .target
-                                                                                .value
-                                                                                ? parseFloat(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value
-                                                                                  )
-                                                                                : undefined
+                                                                            parseOptionalFloat(
+                                                                                e
+                                                                                    .target
+                                                                                    .value
+                                                                            )
                                                                         )
                                                                     }
                                                                 />

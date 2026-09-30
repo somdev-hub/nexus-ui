@@ -34,25 +34,35 @@ export interface PurchaseOrder {
     updatedBy: string;
 }
 
+// Backend contract: Core PurchaseOrderDto / PurchaseOrderLineItemDto
+// (nexus/core/.../payload). Field names must match the backend — the IAM
+// gateway forwards this payload to Core as-is.
 export interface PurchaseOrderCreateRequest {
-    retailerOrgId: number;
-    supplierOrgId: number;
-    orderDate: string;
-    expectedDeliveryDate: string;
+    poNumber: string;
+    buyerOrgId: number;
+    supplierId: number;
+    partnershipId?: number;
     paymentTerms: string;
-    shippingAddress: string;
-    billingAddress: string;
+    currency?: string;
+    incoterms?: string;
+    /** yyyy-mm-dd */
+    requestedDeliveryDate: string;
+    /** yyyy-mm-dd */
+    expectedDeliveryDate?: string;
     notes?: string;
-    items: PurchaseOrderItemCreateRequest[];
+    lineItems: PurchaseOrderItemCreateRequest[];
 }
 
 export interface PurchaseOrderItemCreateRequest {
+    lineNumber: number;
+    description: string;
+    quantityOrdered: number;
+    unitPrice: number;
     productId?: number;
     materialId?: number;
-    quantity: number;
-    unitPrice: number;
-    discountPercent?: number;
-    taxRate?: number;
+    unitOfMeasure?: string;
+    incoterms?: string;
+    deliveryLocation?: string;
 }
 
 export interface PurchaseOrderUpdateRequest {

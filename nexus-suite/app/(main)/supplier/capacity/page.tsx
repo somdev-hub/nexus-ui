@@ -23,6 +23,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     getCapacities,
     createCapacity,
@@ -101,10 +102,11 @@ export default function CapacityPage() {
                         <DialogHeader>
                             <DialogTitle>New Capacity</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>Product Line</Label>
                                 <Input
+                                    placeholder="e.g. Bearings"
                                     value={form.productLine}
                                     onChange={(e) =>
                                         setForm({
@@ -115,7 +117,7 @@ export default function CapacityPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Period Start</Label>
                                     <Input
                                         type="date"
@@ -128,7 +130,7 @@ export default function CapacityPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Period End</Label>
                                     <Input
                                         type="date"
@@ -143,7 +145,7 @@ export default function CapacityPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Shift</Label>
                                     <Input
                                         value={form.shift}
@@ -156,10 +158,11 @@ export default function CapacityPage() {
                                         placeholder="MORNING"
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Available</Label>
                                     <Input
                                         type="number"
+                                        placeholder="e.g. 1000"
                                         value={form.availableCapacity}
                                         onChange={(e) =>
                                             setForm({
@@ -182,8 +185,11 @@ export default function CapacityPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

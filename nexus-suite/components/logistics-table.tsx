@@ -19,10 +19,6 @@ import {
 import {
     IconChevronDown,
     IconChevronUp,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconLayoutColumns,
@@ -73,8 +69,10 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
+import { TablePagination } from './ui/table-pagination';
 
 import type { LogisticsPartner } from '@/types/logistics';
+import { updatePartnershipStatus } from '@/lib/services/partnerships-service';
 
 const getStatusColor = (status: string) => {
     switch (status) {
@@ -93,7 +91,9 @@ const getStatusColor = (status: string) => {
     }
 };
 
-const columns: ColumnDef<LogisticsPartner>[] = [
+const buildColumns = (
+    onTerminate: (partner: LogisticsPartner) => void
+): ColumnDef<LogisticsPartner>[] => [
     {
         id: 'select',
         header: ({ table }) => (
@@ -213,7 +213,7 @@ const columns: ColumnDef<LogisticsPartner>[] = [
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <a
-                            href={`/retailer/partnership/logistic-market/${row.original.partnershipId}/edit`}
+                            href={`/retailer/partnership/logistic-market/${row.original.partnershipId}`}
                         >
                             <IconEdit className="mr-2 h-4 w-4" />
                             Edit Partnership
@@ -222,17 +222,7 @@ const columns: ColumnDef<LogisticsPartner>[] = [
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         className="text-red-600 focus:text-red-600"
-                        onClick={() => {
-                            if (
-                                confirm(
-                                    `Are you sure you want to terminate partnership with ${row.original.logisticsOrgName}?`
-                                )
-                            ) {
-                                toast.info(
-                                    'Terminate partnership functionality to be implemented'
-                                );
-                            }
-                        }}
+                        onClick={() => onTerminate(row.original)}
                     >
                         <IconTrash className="mr-2 h-4 w-4" />
                         Terminate Partnership
@@ -263,9 +253,43 @@ export function LogisticsTable({
         React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
     const [globalFilter, setGlobalFilter] = React.useState('');
+    const [removedIds, setRemovedIds] = React.useState<number[]>([]);
+
+    const visibleData = React.useMemo(
+        () => data.filter((p) => !removedIds.includes(p.partnershipId)),
+        [data, removedIds]
+    );
+
+    const handleTerminate = React.useCallback(
+        async (partner: LogisticsPartner) => {
+            if (
+                typeof window !== 'undefined' &&
+                !window.confirm(
+                    `Are you sure you want to terminate partnership with ${partner.logisticsOrgName}?`
+                )
+            )
+                return;
+            try {
+                await updatePartnershipStatus(partner.partnershipId, {
+                    status: 'TERMINATED',
+                });
+                setRemovedIds((prev) => [...prev, partner.partnershipId]);
+                toast.success('Partnership terminated');
+            } catch (error) {
+                console.error('Failed to terminate partnership:', error);
+                toast.error('Failed to terminate partnership');
+            }
+        },
+        []
+    );
+
+    const columns = React.useMemo(
+        () => buildColumns(handleTerminate),
+        [handleTerminate]
+    );
 
     const table = useReactTable({
-        data,
+        data: visibleData,
         columns,
         state: {
             sorting,
@@ -414,10 +438,27 @@ export function LogisticsTable({
 
             {/* Pagination */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-1 items-center gap-2">
                     <span>
                         Page {table.getState().pagination.pageIndex + 1} of{' '}
                         {table.getPageCount()}
+                    </span>
+                </div>
+                <div className="flex flex-1 items-center justify-center">
+                    <TablePagination
+                        pageIndex={table.getState().pagination.pageIndex}
+                        pageCount={table.getPageCount()}
+                        canPreviousPage={table.getCanPreviousPage()}
+                        canNextPage={table.getCanNextPage()}
+                        onPageChange={(index) => table.setPageIndex(index)}
+                        onPreviousPage={() => table.previousPage()}
+                        onNextPage={() => table.nextPage()}
+                        showFirstLast={false}
+                    />
+                </div>
+                <div className="flex flex-1 items-center justify-end gap-2">
+                    <span className="hidden shrink-0 text-sm whitespace-nowrap text-muted-foreground sm:inline">
+                        Rows per page
                     </span>
                     <Select
                         value={String(table.getState().pagination.pageSize)}
@@ -425,7 +466,7 @@ export function LogisticsTable({
                             table.setPageSize(Number(value))
                         }
                     >
-                        <SelectTrigger className="w-[70px]">
+                        <SelectTrigger className="w-full">
                             <SelectValue placeholder="Page size" />
                         </SelectTrigger>
                         <SelectContent>
@@ -436,24 +477,6 @@ export function LogisticsTable({
                             <SelectItem value="50">50</SelectItem>
                         </SelectContent>
                     </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        <IconChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        <IconChevronRight className="h-4 w-4" />
-                    </Button>
                 </div>
             </div>
         </div>

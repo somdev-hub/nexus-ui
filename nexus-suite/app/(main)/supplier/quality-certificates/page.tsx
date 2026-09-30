@@ -14,6 +14,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Dialog,
     DialogContent,
@@ -105,10 +106,11 @@ export default function QualityCertsPage() {
                         <DialogHeader>
                             <DialogTitle>New Quality Certificate</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>PO ID</Label>
                                 <Input
+                                    placeholder="e.g. 501"
                                     value={form.purchaseOrderId}
                                     onChange={(e) =>
                                         setForm({
@@ -118,9 +120,10 @@ export default function QualityCertsPage() {
                                     }
                                 />
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Catalog ID</Label>
                                 <Input
+                                    placeholder="e.g. 101"
                                     value={form.catalogId}
                                     onChange={(e) =>
                                         setForm({
@@ -130,7 +133,7 @@ export default function QualityCertsPage() {
                                     }
                                 />
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Type</Label>
                                 <Select
                                     value={form.certificateType}
@@ -138,7 +141,7 @@ export default function QualityCertsPage() {
                                         setForm({ ...form, certificateType: v })
                                     }
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -150,9 +153,10 @@ export default function QualityCertsPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Certificate #</Label>
                                 <Input
+                                    placeholder="e.g. COA-2024-001"
                                     value={form.certificateNumber}
                                     onChange={(e) =>
                                         setForm({
@@ -175,8 +179,11 @@ export default function QualityCertsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

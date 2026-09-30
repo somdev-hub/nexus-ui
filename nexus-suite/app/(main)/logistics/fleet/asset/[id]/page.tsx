@@ -371,7 +371,7 @@ export default function AssetDetailPage() {
                                 <div className="grid gap-2">
                                     <Label>Status</Label>
                                     <Select value={status} onValueChange={setStatus}>
-                                        <SelectTrigger className="w-44">
+                                        <SelectTrigger className="w-full">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>

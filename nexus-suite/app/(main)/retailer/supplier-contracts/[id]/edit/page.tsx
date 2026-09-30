@@ -1,0 +1,441 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+    getSupplierContractById,
+    updateSupplierContract,
+} from '@/lib/services/supplier-contracts-service';
+import { parseOptionalFloat, parseOptionalInt } from '@/lib/utils';
+
+const contractUpdateSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    autoRenewal: z.boolean().optional(),
+    renewalPeriodDays: z.number().min(0).optional(),
+    paymentTerms: z.string().optional(),
+    currency: z.string().optional(),
+    totalValue: z.number().min(0).optional(),
+});
+
+type ContractUpdateFormData = z.infer<typeof contractUpdateSchema>;
+
+const Page = () => {
+    const params = useParams();
+    const router = useRouter();
+    const id = params.id as string;
+    const numericId = Number(id);
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [contractNumber, setContractNumber] = useState('');
+
+    const form = useForm<ContractUpdateFormData>({
+        resolver: zodResolver(contractUpdateSchema),
+        defaultValues: {
+            title: '',
+            description: '',
+            startDate: '',
+            endDate: '',
+            autoRenewal: false,
+            renewalPeriodDays: 0,
+            paymentTerms: '',
+            currency: '',
+            totalValue: 0,
+        },
+    });
+
+    useEffect(() => {
+        let active = true;
+        const load = async () => {
+            setIsLoading(true);
+            if (!Number.isFinite(numericId)) {
+                toast.error('Invalid contract id in URL');
+                setIsLoading(false);
+                return;
+            }
+            try {
+                const data = await getSupplierContractById(numericId);
+                if (!active) return;
+                setContractNumber(data.contractNumber);
+                form.reset({
+                    title: data.title ?? '',
+                    description: data.description ?? '',
+                    startDate: data.startDate ?? '',
+                    endDate: data.endDate ?? '',
+                    autoRenewal: data.autoRenewal ?? false,
+                    renewalPeriodDays: data.renewalPeriodDays ?? 0,
+                    paymentTerms: data.paymentTerms ?? '',
+                    currency: data.currency ?? '',
+                    totalValue: data.totalValue ?? 0,
+                });
+            } catch (error) {
+                if (!active) return;
+                console.error('Failed to fetch supplier contract:', error);
+                toast.error('Failed to load supplier contract');
+            } finally {
+                if (active) setIsLoading(false);
+            }
+        };
+        load();
+        return () => {
+            active = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, numericId]);
+
+    const onSubmit = async (data: ContractUpdateFormData) => {
+        setIsSaving(true);
+        try {
+            await updateSupplierContract(numericId, {
+                title: data.title || undefined,
+                description: data.description || undefined,
+                startDate: data.startDate || undefined,
+                endDate: data.endDate || undefined,
+                autoRenewal: data.autoRenewal,
+                renewalPeriodDays: data.renewalPeriodDays,
+                paymentTerms: data.paymentTerms || undefined,
+                currency: data.currency || undefined,
+                totalValue: data.totalValue,
+            });
+            toast.success('Supplier contract updated successfully');
+            router.push(`/retailer/supplier-contracts/${numericId}`);
+        } catch (error) {
+            console.error('Failed to update supplier contract:', error);
+            toast.error(
+                'Failed to update supplier contract. Please try again.'
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-[400px] w-full" />
+            </div>
+        );
+    }
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="flex flex-1 flex-col">
+                    <div className="@container/main flex flex-1 justify-between gap-2 p-4 md:gap-6 md:p-6 lg:flex-row">
+                        <div className="w-full">
+                            <div className="mb-6 flex w-full items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <Link
+                                        href={`/retailer/supplier-contracts/${numericId}`}
+                                        className="text-muted-foreground transition-colors hover:text-foreground"
+                                    >
+                                        <ArrowLeft className="h-5 w-5" />
+                                    </Link>
+                                    <h2 className="text-2xl font-bold">
+                                        Edit Contract
+                                        {contractNumber
+                                            ? ` ${contractNumber}`
+                                            : ''}
+                                    </h2>
+                                </div>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </div>
+
+                            <Card className="gap-2 p-4">
+                                <CardHeader>
+                                    <CardTitle>Contract Details</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-0">
+                                    <FormField
+                                        control={form.control}
+                                        name="title"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Title</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder="Contract title"
+                                                        {...field}
+                                                        value={
+                                                            field.value ?? ''
+                                                        }
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="description"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Description
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Textarea
+                                                        rows={3}
+                                                        placeholder="Contract scope and terms"
+                                                        {...field}
+                                                        value={
+                                                            field.value ?? ''
+                                                        }
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="startDate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Start Date
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="date"
+                                                            {...field}
+                                                            value={
+                                                                field.value ??
+                                                                ''
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="endDate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        End Date
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="date"
+                                                            {...field}
+                                                            value={
+                                                                field.value ??
+                                                                ''
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                        <FormField
+                                            control={form.control}
+                                            name="paymentTerms"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Payment Terms
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder="e.g. Net 30"
+                                                            {...field}
+                                                            value={
+                                                                field.value ??
+                                                                ''
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="currency"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Currency
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Select
+                                                            onValueChange={
+                                                                field.onChange
+                                                            }
+                                                            value={
+                                                                field.value ??
+                                                                ''
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="w-full">
+                                                                <SelectValue placeholder="Select currency" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="USD">
+                                                                    USD - US
+                                                                    Dollar
+                                                                </SelectItem>
+                                                                <SelectItem value="EUR">
+                                                                    EUR - Euro
+                                                                </SelectItem>
+                                                                <SelectItem value="GBP">
+                                                                    GBP -
+                                                                    British
+                                                                    Pound
+                                                                </SelectItem>
+                                                                <SelectItem value="INR">
+                                                                    INR - Indian
+                                                                    Rupee
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="totalValue"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Total Value
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            placeholder="0.00"
+                                                            value={
+                                                                field.value?.toString() ??
+                                                                ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                field.onChange(
+                                                                    parseOptionalFloat(
+                                                                        e.target
+                                                                            .value
+                                                                    ) ?? 0
+                                                                )
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="autoRenewal"
+                                            render={({ field }) => (
+                                                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                                                    <FormLabel>
+                                                        Auto Renewal
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={
+                                                                field.value ??
+                                                                false
+                                                            }
+                                                            onCheckedChange={
+                                                                field.onChange
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="renewalPeriodDays"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Renewal Period (days)
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="1"
+                                                            placeholder="0"
+                                                            value={
+                                                                field.value?.toString() ??
+                                                                ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                field.onChange(
+                                                                    parseOptionalInt(
+                                                                        e.target
+                                                                            .value
+                                                                    ) ?? 0
+                                                                )
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </Form>
+    );
+};
+
+export default Page;

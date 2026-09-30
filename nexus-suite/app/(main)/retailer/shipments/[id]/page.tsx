@@ -28,6 +28,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import {
     addShipmentStop,
@@ -64,7 +65,6 @@ import {
     Download,
     Edit,
     ExternalLink,
-    Loader2,
     Package,
     Plane,
     Plus,
@@ -662,11 +662,12 @@ export default function ShipmentDetailPage() {
     if (isLoading) {
         return (
             <div className="flex flex-col gap-4 p-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Loading...</h1>
-                    <Button disabled>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    </Button>
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-1/3" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
                 </div>
             </div>
         );
@@ -854,7 +855,7 @@ export default function ShipmentDetailPage() {
                                                 defaultValue={field.value}
                                             >
                                                 <FormControl>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Select mode" />
                                                     </SelectTrigger>
                                                 </FormControl>
@@ -905,7 +906,11 @@ export default function ShipmentDetailPage() {
                                                 Pickup Address
                                             </FormLabel>
                                             <FormControl>
-                                                <Textarea rows={2} {...field} />
+                                                <Textarea
+                                                    rows={2}
+                                                    placeholder="e.g. 123 Warehouse St, Mumbai"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -920,7 +925,11 @@ export default function ShipmentDetailPage() {
                                                 Delivery Address
                                             </FormLabel>
                                             <FormControl>
-                                                <Textarea rows={2} {...field} />
+                                                <Textarea
+                                                    rows={2}
+                                                    placeholder="e.g. 456 Store Ave, Pune"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -968,6 +977,7 @@ export default function ShipmentDetailPage() {
                                                 <Input
                                                     type="number"
                                                     step="0.01"
+                                                    placeholder="e.g. 1500"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -985,6 +995,7 @@ export default function ShipmentDetailPage() {
                                                 <Input
                                                     type="number"
                                                     step="0.01"
+                                                    placeholder="e.g. 12.5"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -1003,6 +1014,7 @@ export default function ShipmentDetailPage() {
                                             <FormControl>
                                                 <Input
                                                     type="number"
+                                                    placeholder="e.g. 50"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -1020,6 +1032,7 @@ export default function ShipmentDetailPage() {
                                                 <Input
                                                     type="number"
                                                     step="0.01"
+                                                    placeholder="e.g. 9500"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -1034,7 +1047,10 @@ export default function ShipmentDetailPage() {
                                         <FormItem>
                                             <FormLabel>Currency</FormLabel>
                                             <FormControl>
-                                                <Input {...field} />
+                                                <Input
+                                                    placeholder="e.g. USD"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1047,7 +1063,10 @@ export default function ShipmentDetailPage() {
                                         <FormItem className="md:col-span-2">
                                             <FormLabel>Carrier Name</FormLabel>
                                             <FormControl>
-                                                <Input {...field} />
+                                                <Input
+                                                    placeholder="e.g. Swift Transport"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1062,7 +1081,10 @@ export default function ShipmentDetailPage() {
                                                 Carrier Reference
                                             </FormLabel>
                                             <FormControl>
-                                                <Input {...field} />
+                                                <Input
+                                                    placeholder="e.g. REF-4521"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1075,7 +1097,11 @@ export default function ShipmentDetailPage() {
                                         <FormItem className="md:col-span-3">
                                             <FormLabel>Notes</FormLabel>
                                             <FormControl>
-                                                <Textarea rows={3} {...field} />
+                                                <Textarea
+                                                    rows={3}
+                                                    placeholder="e.g. Handle with care"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1572,7 +1598,7 @@ export default function ShipmentDetailPage() {
                                                         }
                                                     >
                                                         <FormControl>
-                                                            <SelectTrigger>
+                                                            <SelectTrigger className="w-full">
                                                                 <SelectValue placeholder="Select type" />
                                                             </SelectTrigger>
                                                         </FormControl>
@@ -1895,7 +1921,7 @@ export default function ShipmentDetailPage() {
                                                         }
                                                     >
                                                         <FormControl>
-                                                            <SelectTrigger>
+                                                            <SelectTrigger className="w-full">
                                                                 <SelectValue placeholder="Select event type" />
                                                             </SelectTrigger>
                                                         </FormControl>
@@ -2241,7 +2267,7 @@ export default function ShipmentDetailPage() {
                                                         }
                                                     >
                                                         <FormControl>
-                                                            <SelectTrigger>
+                                                            <SelectTrigger className="w-full">
                                                                 <SelectValue placeholder="Select type" />
                                                             </SelectTrigger>
                                                         </FormControl>

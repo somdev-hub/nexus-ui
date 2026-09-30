@@ -61,20 +61,22 @@ export default function AtpPage() {
                     <CardHeader className="p-0">
                         <CardTitle>ATP by Catalog</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 p-0">
-                        <div>
+                    <CardContent className="grid gap-6 p-0">
+                        <div className="grid gap-2">
                             <Label>Catalog ID</Label>
                             <Input
                                 value={catalogId}
                                 onChange={(e) => setCatalogId(e.target.value)}
+                                placeholder="e.g. 12"
                             />
                         </div>
-                        <div>
+                        <div className="grid gap-2">
                             <Label>Requested Qty</Label>
                             <Input
                                 value={qty}
                                 onChange={(e) => setQty(e.target.value)}
                                 type="number"
+                                placeholder="e.g. 100"
                             />
                         </div>
                         <Button onClick={fetchAtp}>Check ATP</Button>
@@ -121,8 +123,8 @@ export default function AtpPage() {
                     <CardHeader className="p-0">
                         <CardTitle>ATP by Product Line</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 p-0">
-                        <div>
+                    <CardContent className="grid gap-6 p-0">
+                        <div className="grid gap-2">
                             <Label>Product Line</Label>
                             <Input
                                 value={productLine}

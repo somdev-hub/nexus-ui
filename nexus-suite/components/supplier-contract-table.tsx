@@ -18,17 +18,12 @@ import {
 } from '@tanstack/react-table';
 import {
     IconChevronDown,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconEdit,
     IconLayoutColumns,
     IconLoader,
     IconPlus,
-    IconTrash,
     IconTrendingUp,
     IconFileText,
     IconClock,
@@ -71,8 +66,10 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
+import { TablePagination } from './ui/table-pagination';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { updateSupplierContractStatus } from '@/lib/services/supplier-contracts-service';
 
 interface SupplierContract {
     contractId: number;
@@ -136,7 +133,9 @@ const statusConfig: Record<
     },
 };
 
-const columns: ColumnDef<SupplierContract>[] = [
+const buildColumns = (
+    onSubmit: (contract: SupplierContract) => void
+): ColumnDef<SupplierContract>[] => [
     {
         id: 'select',
         header: ({ table }) => (
@@ -305,19 +304,13 @@ const columns: ColumnDef<SupplierContract>[] = [
                         </DropdownMenuItem>
                     )}
                     {row.original.status === 'DRAFT' && (
-                        <DropdownMenuItem asChild>
-                            <Link
-                                href={`/retailer/supplier-contracts/${row.original.contractId}/submit`}
-                            >
-                                <IconTrendingUp className="mr-2 h-4 w-4" />
-                                Submit for Approval
-                            </Link>
+                        <DropdownMenuItem
+                            onClick={() => onSubmit(row.original)}
+                        >
+                            <IconTrendingUp className="mr-2 h-4 w-4" />
+                            Submit for Approval
                         </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem variant="destructive">
-                        <IconTrash className="mr-2 h-4 w-4" />
-                        Delete
-                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         ),
@@ -340,6 +333,39 @@ export function SupplierContractTable({
         pageIndex: 0,
         pageSize: 10,
     });
+
+    const handleSubmit = React.useCallback(
+        async (contract: SupplierContract) => {
+            if (
+                typeof window !== 'undefined' &&
+                !window.confirm(
+                    `Submit contract ${contract.contractNumber} for approval?`
+                )
+            )
+                return;
+            try {
+                const updated = await updateSupplierContractStatus(
+                    contract.contractId,
+                    { status: 'PENDING_APPROVAL' }
+                );
+                setData((prev) =>
+                    prev.map((c) =>
+                        c.contractId === contract.contractId ? updated : c
+                    )
+                );
+                toast.success('Contract submitted for approval');
+            } catch (error) {
+                console.error('Failed to submit contract:', error);
+                toast.error('Failed to submit contract');
+            }
+        },
+        []
+    );
+
+    const columns = React.useMemo(
+        () => buildColumns(handleSubmit),
+        [handleSubmit]
+    );
 
     const table = useReactTable({
         data,
@@ -377,7 +403,7 @@ export function SupplierContractTable({
                 </Label>
                 <Select defaultValue="outline">
                     <SelectTrigger
-                        className="flex w-fit @4xl/main:hidden"
+                        className="flex w-full @4xl/main:hidden"
                         size="sm"
                         id="view-selector"
                     >
@@ -511,17 +537,36 @@ export function SupplierContractTable({
                         </TableBody>
                     </Table>
                 </div>
-                <div className="flex items-center justify-between px-4">
+                <div className="flex items-center justify-between gap-4 px-4">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                         {table.getFilteredSelectedRowModel().rows.length} of{' '}
                         {table.getFilteredRowModel().rows.length} row(s)
                         selected.
                     </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit">
+                    <div className="flex flex-1 items-center justify-center">
+                        <TablePagination
+                            pageIndex={table.getState().pagination.pageIndex}
+                            pageCount={table.getPageCount()}
+                            canPreviousPage={table.getCanPreviousPage()}
+                            canNextPage={table.getCanNextPage()}
+                            onPageChange={(index) => table.setPageIndex(index)}
+                            onPreviousPage={() => table.previousPage()}
+                            onNextPage={() => table.nextPage()}
+                            onFirstPage={() => table.setPageIndex(0)}
+                            onLastPage={() =>
+                                table.setPageIndex(table.getPageCount() - 1)
+                            }
+                        />
+                    </div>
+                    <div className="flex flex-1 items-center justify-end gap-4">
+                        <div className="flex w-fit items-center justify-center text-sm font-medium">
+                            Page {table.getState().pagination.pageIndex + 1} of{' '}
+                            {table.getPageCount()}
+                        </div>
                         <div className="hidden items-center gap-2 lg:flex">
                             <Label
                                 htmlFor="rows-per-page"
-                                className="text-sm font-medium"
+                                className="shrink-0 text-sm font-medium whitespace-nowrap"
                             >
                                 Rows per page
                             </Label>
@@ -533,7 +578,7 @@ export function SupplierContractTable({
                             >
                                 <SelectTrigger
                                     size="sm"
-                                    className="w-20"
+                                    className="w-full"
                                     id="rows-per-page"
                                 >
                                     <SelectValue
@@ -553,57 +598,6 @@ export function SupplierContractTable({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => table.setPageIndex(0)}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to first page
-                                </span>
-                                <IconChevronsLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to previous page
-                                </span>
-                                <IconChevronLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <IconChevronRight />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden size-8 lg:flex"
-                                size="icon"
-                                onClick={() =>
-                                    table.setPageIndex(table.getPageCount() - 1)
-                                }
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <IconChevronsRight />
-                            </Button>
                         </div>
                     </div>
                 </div>

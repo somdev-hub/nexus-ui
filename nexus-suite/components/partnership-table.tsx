@@ -19,10 +19,6 @@ import {
 import {
     IconChevronDown,
     IconChevronUp,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconEdit,
@@ -72,8 +68,15 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
+import { TablePagination } from './ui/table-pagination';
 
 import type { Partnership } from '@/types/partnerships';
+import { updatePartnershipStatus } from '@/lib/services/partnerships-service';
+
+const getPartnershipDetailHref = (partnership: Partnership) =>
+    partnership.partnershipType === 'LOGISTICS'
+        ? `/retailer/partnership/logistic-market/${partnership.partnershipId}`
+        : `/retailer/partnership/supplier-market/${partnership.partnershipId}`;
 
 const getStatusColor = (status: string) => {
     switch (status) {
@@ -107,7 +110,9 @@ const getPartnershipTypeColor = (type: string) => {
     }
 };
 
-const columns: ColumnDef<Partnership>[] = [
+const buildColumns = (
+    onTerminate: (partnership: Partnership) => void
+): ColumnDef<Partnership>[] => [
     {
         id: 'select',
         header: ({ table }) => (
@@ -210,17 +215,13 @@ const columns: ColumnDef<Partnership>[] = [
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem asChild>
-                        <a
-                            href={`/retailer/partnership/${row.original.partnershipId}`}
-                        >
+                        <a href={getPartnershipDetailHref(row.original)}>
                             <IconEye className="mr-2 h-4 w-4" />
                             View Details
                         </a>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <a
-                            href={`/retailer/partnership/${row.original.partnershipId}/edit`}
-                        >
+                        <a href={getPartnershipDetailHref(row.original)}>
                             <IconEdit className="mr-2 h-4 w-4" />
                             Edit
                         </a>
@@ -238,7 +239,10 @@ const columns: ColumnDef<Partnership>[] = [
                             </a>
                         </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem variant="destructive">
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onTerminate(row.original)}
+                    >
                         <IconTrash className="mr-2 h-4 w-4" />
                         Terminate
                     </DropdownMenuItem>
@@ -264,6 +268,41 @@ export function PartnershipTable({
         pageIndex: 0,
         pageSize: 10,
     });
+
+    const handleTerminate = React.useCallback(
+        async (partnership: Partnership) => {
+            if (
+                typeof window !== 'undefined' &&
+                !window.confirm(
+                    `Are you sure you want to terminate partnership ${partnership.partnershipNumber}?`
+                )
+            )
+                return;
+            try {
+                const updated = await updatePartnershipStatus(
+                    partnership.partnershipId,
+                    { status: 'TERMINATED' }
+                );
+                setData((prev) =>
+                    prev.map((p) =>
+                        p.partnershipId === partnership.partnershipId
+                            ? updated
+                            : p
+                    )
+                );
+                toast.success('Partnership terminated');
+            } catch (error) {
+                console.error('Failed to terminate partnership:', error);
+                toast.error('Failed to terminate partnership');
+            }
+        },
+        []
+    );
+
+    const columns = React.useMemo(
+        () => buildColumns(handleTerminate),
+        [handleTerminate]
+    );
 
     const table = useReactTable({
         data,
@@ -376,16 +415,39 @@ export function PartnershipTable({
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="flex-1" />
-                <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-between gap-4 py-4">
+                <div className="flex flex-1 items-center text-sm text-muted-foreground">
+                    <span>
+                        Page{' '}
+                        <strong>
+                            {table.getState().pagination.pageIndex + 1}
+                        </strong>{' '}
+                        of <strong>{table.getPageCount()}</strong>
+                    </span>
+                </div>
+                <div className="flex flex-1 items-center justify-center">
+                    <TablePagination
+                        pageIndex={table.getState().pagination.pageIndex}
+                        pageCount={table.getPageCount()}
+                        canPreviousPage={table.getCanPreviousPage()}
+                        canNextPage={table.getCanNextPage()}
+                        onPageChange={(index) => table.setPageIndex(index)}
+                        onPreviousPage={() => table.previousPage()}
+                        onNextPage={() => table.nextPage()}
+                        showFirstLast={false}
+                    />
+                </div>
+                <div className="flex flex-1 items-center justify-end gap-2">
+                    <span className="hidden shrink-0 text-sm whitespace-nowrap text-muted-foreground sm:inline">
+                        Rows per page
+                    </span>
                     <Select
                         onValueChange={(value) =>
                             table.setPageSize(Number(value))
                         }
                         value={table.getState().pagination.pageSize.toString()}
                     >
-                        <SelectTrigger className="w-[70px]">
+                        <SelectTrigger className="w-full">
                             <SelectValue placeholder="Page size" />
                         </SelectTrigger>
                         <SelectContent>
@@ -396,33 +458,6 @@ export function PartnershipTable({
                             <SelectItem value="50">50</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                        aria-label="Previous page"
-                    >
-                        <IconChevronLeft className="size-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                        aria-label="Next page"
-                    >
-                        <IconChevronRight className="size-4" />
-                    </Button>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <span>
-                        Page{' '}
-                        <strong>
-                            {table.getState().pagination.pageIndex + 1}
-                        </strong>{' '}
-                        of <strong>{table.getPageCount()}</strong>
-                    </span>
                 </div>
             </div>
         </div>

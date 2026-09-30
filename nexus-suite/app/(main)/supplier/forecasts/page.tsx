@@ -14,6 +14,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Dialog,
     DialogContent,
@@ -116,11 +117,12 @@ export default function ForecastsPage() {
                         <DialogHeader>
                             <DialogTitle>New Forecast</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
+                        <div className="grid gap-6">
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Retailer Org ID</Label>
                                     <Input
+                                        placeholder="e.g. 12"
                                         value={form.retailerOrgId}
                                         onChange={(e) =>
                                             setForm({
@@ -130,9 +132,10 @@ export default function ForecastsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Catalog ID</Label>
                                     <Input
+                                        placeholder="e.g. 101"
                                         value={form.catalogId}
                                         onChange={(e) =>
                                             setForm({
@@ -144,7 +147,7 @@ export default function ForecastsPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Period Start</Label>
                                     <Input
                                         type="date"
@@ -157,7 +160,7 @@ export default function ForecastsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Period End</Label>
                                     <Input
                                         type="date"
@@ -172,10 +175,11 @@ export default function ForecastsPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Qty</Label>
                                     <Input
                                         type="number"
+                                        placeholder="e.g. 1000"
                                         value={form.forecastQuantity}
                                         onChange={(e) =>
                                             setForm({
@@ -186,10 +190,11 @@ export default function ForecastsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Confidence %</Label>
                                     <Input
                                         type="number"
+                                        placeholder="e.g. 85"
                                         value={form.confidencePct}
                                         onChange={(e) =>
                                             setForm({
@@ -211,8 +216,11 @@ export default function ForecastsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

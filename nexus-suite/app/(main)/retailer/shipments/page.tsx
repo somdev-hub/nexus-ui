@@ -22,7 +22,6 @@ import {
 import {
     Edit,
     Eye,
-    Loader2,
     Package,
     Plane,
     Plus,
@@ -38,6 +37,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const STATUS_COLORS: Record<ShipmentStatus, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -119,22 +119,13 @@ export default function ShipmentsPage() {
             <div className="flex flex-col gap-4 p-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Shipments</h1>
-                    <Button disabled>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading...
-                    </Button>
+                    <Skeleton className="h-9 w-28" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                        <div
-                            key={i}
-                            className="animate-pulse space-y-3 p-4 border rounded-lg bg-card"
-                        >
-                            <div className="h-4 w-3/4 bg-muted rounded" />
-                            <div className="h-3 w-1/2 bg-muted rounded" />
-                            <div className="h-3 w-1/3 bg-muted rounded" />
-                        </div>
-                    ))}
+                <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
                 </div>
             </div>
         );
@@ -296,7 +287,7 @@ export default function ShipmentsPage() {
                                 })
                             }
                         >
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
@@ -336,7 +327,7 @@ export default function ShipmentsPage() {
                                 handleFilterChange({ mode: value || undefined })
                             }
                         >
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="All Modes" />
                             </SelectTrigger>
                             <SelectContent>

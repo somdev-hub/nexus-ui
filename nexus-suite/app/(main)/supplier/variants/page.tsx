@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -107,10 +108,11 @@ export default function VariantsPage() {
                         <DialogHeader>
                             <DialogTitle>New Variant</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-3">
-                            <div>
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
                                 <Label>Catalog ID</Label>
                                 <Input
+                                    placeholder="e.g. 101"
                                     value={form.catalogId}
                                     onChange={(e) =>
                                         setForm({
@@ -120,7 +122,7 @@ export default function VariantsPage() {
                                     }
                                 />
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Type</Label>
                                 <Select
                                     value={form.variantType}
@@ -128,7 +130,7 @@ export default function VariantsPage() {
                                         setForm({ ...form, variantType: v })
                                     }
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -144,7 +146,7 @@ export default function VariantsPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div>
+                            <div className="grid gap-2">
                                 <Label>Value</Label>
                                 <Input
                                     value={form.variantValue}
@@ -158,9 +160,10 @@ export default function VariantsPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>SKU Suffix</Label>
                                     <Input
+                                        placeholder="e.g. -RED-XL"
                                         value={form.skuSuffix}
                                         onChange={(e) =>
                                             setForm({
@@ -170,9 +173,10 @@ export default function VariantsPage() {
                                         }
                                     />
                                 </div>
-                                <div>
+                                <div className="grid gap-2">
                                     <Label>Price Adj.</Label>
                                     <Input
+                                        placeholder="e.g. 10.00"
                                         value={form.priceAdjustment}
                                         onChange={(e) =>
                                             setForm({
@@ -194,8 +198,11 @@ export default function VariantsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="text-sm text-muted-foreground">
-                            Loading...
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
                         <Table>

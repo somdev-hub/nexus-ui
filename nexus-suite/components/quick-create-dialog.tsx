@@ -300,7 +300,7 @@ export default function QuickCreateDialog() {
 						What do you want to create?
 					</DialogDescription>
 				</DialogHeader>
-				<div className="grid gap-4">
+				<div className="grid gap-6">
 					<Input
 						placeholder="Search actions…"
 						value={query}

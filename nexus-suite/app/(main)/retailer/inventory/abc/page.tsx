@@ -70,7 +70,7 @@ export default function AbcPage() {
                     </p>
                 </div>
                 <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-full">
                         <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>

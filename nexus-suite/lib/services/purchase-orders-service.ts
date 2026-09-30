@@ -79,8 +79,9 @@ export async function transitionPurchaseOrder(
     purchaseOrderId: number,
     targetStatus: string
 ): Promise<PurchaseOrder> {
+    // IAM/Core contract uses `newStatus` (CoreRetailerController).
     const response = await apiClient.put<PurchaseOrder>(
-        `${BASE_PATH}/${purchaseOrderId}/transition?targetStatus=${targetStatus}`
+        `${BASE_PATH}/${purchaseOrderId}/transition?newStatus=${targetStatus}`
     );
     return response.data;
 }

@@ -2,6 +2,7 @@
 
 import { getSuppliers } from '@/lib/services/suppliers-service';
 import { SupplierTable } from '@/components/supplier-table';
+import { PartnershipInvitationDialog } from '@/components/partnership-invitation-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlusIcon } from 'lucide-react';
@@ -12,6 +13,7 @@ import type { Supplier } from '@/types/suppliers';
 const Page = () => {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [inviteOpen, setInviteOpen] = useState(false);
 
     useEffect(() => {
         let isActive = true;
@@ -55,7 +57,7 @@ const Page = () => {
                         <div className="flex justify-between w-full">
                             <h2 className="text-lg font-semibold">Suppliers</h2>
                             <div className="flex gap-2">
-                                <Button>
+                                <Button onClick={() => setInviteOpen(true)}>
                                     <PlusIcon className="size-4" />
                                     Add Supplier
                                 </Button>
@@ -65,6 +67,12 @@ const Page = () => {
                     </div>
                 </div>
             </div>
+            <PartnershipInvitationDialog
+                open={inviteOpen}
+                onOpenChange={setInviteOpen}
+                fixedContext="RETAILER_SUPPLIER"
+                showRetailerSupplierRef
+            />
         </>
     );
 };

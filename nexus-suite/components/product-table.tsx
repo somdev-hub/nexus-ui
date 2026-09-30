@@ -18,13 +18,10 @@ import {
 } from '@tanstack/react-table';
 import {
     IconChevronDown,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconEdit,
+    IconEye,
     IconLayoutColumns,
     IconLoader,
     IconPlus,
@@ -32,6 +29,7 @@ import {
     IconTrendingUp,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
+import { deleteProduct } from '@/lib/services/products-service';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +62,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
+import { TablePagination } from './ui/table-pagination';
 
 interface Product {
     productId: number;
@@ -92,7 +91,9 @@ interface Product {
     updatedBy: string;
 }
 
-const columns: ColumnDef<Product>[] = [
+const createColumns = (
+    onDelete: (productId: number, productCode: string) => void
+): ColumnDef<Product>[] => [
     {
         id: 'select',
         header: ({ table }) => (
@@ -201,17 +202,47 @@ const columns: ColumnDef<Product>[] = [
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem asChild>
-                        <a
-                            href={`/retailer/products/${row.original.productId}`}
-                        >
-                            <IconEdit className="mr-2 h-4 w-4" />
-                            Edit
-                        </a>
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            const id = row.original.productId;
+                            if (!id) {
+                                toast.error(
+                                    'Product ID missing — please refresh the list'
+                                );
+                                return;
+                            }
+                            window.location.href = `/retailer/products/${id}`;
+                        }}
+                    >
+                        <IconEye className="mr-2 h-4 w-4" />
+                        View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            const id = row.original.productId;
+                            if (!id) {
+                                toast.error(
+                                    'Product ID missing — please refresh the list'
+                                );
+                                return;
+                            }
+                            window.location.href = `/retailer/products/${id}/edit`;
+                        }}
+                    >
+                        <IconEdit className="mr-2 h-4 w-4" />
+                        Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem>Duplicate</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive">
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() =>
+                            onDelete(
+                                row.original.productId,
+                                row.original.productCode
+                            )
+                        }
+                    >
                         <IconTrash className="mr-2 h-4 w-4" />
                         Delete
                     </DropdownMenuItem>
@@ -237,6 +268,33 @@ export function ProductTable({
         pageIndex: 0,
         pageSize: 10,
     });
+
+    const handleDelete = React.useCallback(
+        async (productId: number, productCode: string) => {
+            if (
+                typeof window !== 'undefined' &&
+                !window.confirm(
+                    `Delete product ${productCode || productId}? This cannot be undone.`
+                )
+            )
+                return;
+            try {
+                await deleteProduct(productId);
+                setData((prev) =>
+                    prev.filter((p) => p.productId !== productId)
+                );
+                toast.success('Product deleted');
+            } catch {
+                toast.error('Failed to delete product. Please try again.');
+            }
+        },
+        []
+    );
+
+    const columns = React.useMemo(
+        () => createColumns(handleDelete),
+        [handleDelete]
+    );
 
     const table = useReactTable({
         data,
@@ -274,7 +332,7 @@ export function ProductTable({
                 </Label>
                 <Select defaultValue="outline">
                     <SelectTrigger
-                        className="flex w-fit @4xl/main:hidden"
+                        className="flex w-full @4xl/main:hidden"
                         size="sm"
                         id="view-selector"
                     >
@@ -408,17 +466,36 @@ export function ProductTable({
                         </TableBody>
                     </Table>
                 </div>
-                <div className="flex items-center justify-between px-4">
+                <div className="flex items-center justify-between gap-4 px-4">
                     <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                         {table.getFilteredSelectedRowModel().rows.length} of{' '}
                         {table.getFilteredRowModel().rows.length} row(s)
                         selected.
                     </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit">
+                    <div className="flex flex-1 items-center justify-center">
+                        <TablePagination
+                            pageIndex={table.getState().pagination.pageIndex}
+                            pageCount={table.getPageCount()}
+                            canPreviousPage={table.getCanPreviousPage()}
+                            canNextPage={table.getCanNextPage()}
+                            onPageChange={(index) => table.setPageIndex(index)}
+                            onPreviousPage={() => table.previousPage()}
+                            onNextPage={() => table.nextPage()}
+                            onFirstPage={() => table.setPageIndex(0)}
+                            onLastPage={() =>
+                                table.setPageIndex(table.getPageCount() - 1)
+                            }
+                        />
+                    </div>
+                    <div className="flex flex-1 items-center justify-end gap-4">
+                        <div className="flex w-fit items-center justify-center text-sm font-medium">
+                            Page {table.getState().pagination.pageIndex + 1} of{' '}
+                            {table.getPageCount()}
+                        </div>
                         <div className="hidden items-center gap-2 lg:flex">
                             <Label
                                 htmlFor="rows-per-page"
-                                className="text-sm font-medium"
+                                className="shrink-0 text-sm font-medium whitespace-nowrap"
                             >
                                 Rows per page
                             </Label>
@@ -430,7 +507,7 @@ export function ProductTable({
                             >
                                 <SelectTrigger
                                     size="sm"
-                                    className="w-20"
+                                    className="w-full"
                                     id="rows-per-page"
                                 >
                                     <SelectValue
@@ -450,57 +527,6 @@ export function ProductTable({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => table.setPageIndex(0)}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to first page
-                                </span>
-                                <IconChevronsLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}
-                            >
-                                <span className="sr-only">
-                                    Go to previous page
-                                </span>
-                                <IconChevronLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <IconChevronRight />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden size-8 lg:flex"
-                                size="icon"
-                                onClick={() =>
-                                    table.setPageIndex(table.getPageCount() - 1)
-                                }
-                                disabled={!table.getCanNextPage()}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <IconChevronsRight />
-                            </Button>
                         </div>
                     </div>
                 </div>

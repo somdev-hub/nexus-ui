@@ -161,7 +161,7 @@ export default function StockPage() {
                         }))
                     }
                 >
-                    <SelectTrigger className="w-48">
+                    <SelectTrigger className="w-full">
                         <SelectValue placeholder="Filter" />
                     </SelectTrigger>
                     <SelectContent>

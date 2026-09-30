@@ -13,6 +13,108 @@ import type {
 
 const BASE_PATH = '/iam/core/retailer/products';
 
+// ─────────────────────────────────────────────────────────────
+// Backend (Core ProductDto) uses: name, code, description, price,
+// sellingPrice, productCategory, productStatus, taxPercentage.
+// UI uses: productName, productCode, category, unitPrice, isActive, taxRate.
+// Translate at the boundary so the UI stays unchanged.
+// ─────────────────────────────────────────────────────────────
+
+function toBackendCreatePayload(
+    data: ProductCreateRequest
+): Record<string, unknown> {
+    return {
+        name: data.productName,
+        code: data.productCode,
+        description: data.description,
+        price: data.unitPrice,
+        sellingPrice: data.unitPrice,
+        cost: data.unitPrice,
+        productCategory: data.category,
+        productStatus: data.isActive ? 'ACTIVE' : 'INACTIVE',
+        taxPercentage: data.taxRate,
+        taxCharged: data.taxRate > 0,
+        subCategory: data.subCategory,
+        brand: data.brand,
+        unitOfMeasure: data.unitOfMeasure,
+        currency: data.currency,
+        minOrderQuantity: data.minOrderQuantity,
+        maxOrderQuantity: data.maxOrderQuantity,
+        leadTimeDays: data.leadTimeDays,
+        weight: data.weight,
+        dimensions: data.dimensions,
+        barcode: data.barcode,
+        sku: data.sku,
+        tags: data.tags,
+    };
+}
+
+function toBackendUpdatePayload(
+    data: ProductUpdateRequest
+): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    if (data.productName !== undefined) out.name = data.productName;
+    if (data.description !== undefined) out.description = data.description;
+    if (data.category !== undefined) out.productCategory = data.category;
+    if (data.unitPrice !== undefined) {
+        out.price = data.unitPrice;
+        out.sellingPrice = data.unitPrice;
+    }
+    if (data.taxRate !== undefined) {
+        out.taxPercentage = data.taxRate;
+        out.taxCharged = data.taxRate > 0;
+    }
+    if (data.isActive !== undefined)
+        out.productStatus = data.isActive ? 'ACTIVE' : 'INACTIVE';
+    if (data.subCategory !== undefined) out.subCategory = data.subCategory;
+    if (data.brand !== undefined) out.brand = data.brand;
+    if (data.unitOfMeasure !== undefined)
+        out.unitOfMeasure = data.unitOfMeasure;
+    if (data.currency !== undefined) out.currency = data.currency;
+    if (data.minOrderQuantity !== undefined)
+        out.minOrderQuantity = data.minOrderQuantity;
+    if (data.maxOrderQuantity !== undefined)
+        out.maxOrderQuantity = data.maxOrderQuantity;
+    if (data.leadTimeDays !== undefined) out.leadTimeDays = data.leadTimeDays;
+    if (data.weight !== undefined) out.weight = data.weight;
+    if (data.dimensions !== undefined) out.dimensions = data.dimensions;
+    if (data.barcode !== undefined) out.barcode = data.barcode;
+    if (data.sku !== undefined) out.sku = data.sku;
+    if (data.tags !== undefined) out.tags = data.tags;
+    return out;
+}
+
+function toFrontendProduct(raw: any): Product {
+    return {
+        productId: raw.productId ?? raw.id ?? 0,
+        productCode: raw.productCode ?? raw.code ?? '',
+        productName: raw.productName ?? raw.name ?? '',
+        description: raw.description ?? '',
+        category: raw.category ?? raw.productCategory ?? '',
+        subCategory: raw.subCategory ?? '',
+        brand: raw.brand ?? '',
+        unitOfMeasure: raw.unitOfMeasure ?? 'PCS',
+        unitPrice: raw.unitPrice ?? raw.price ?? raw.sellingPrice ?? 0,
+        currency: raw.currency ?? 'USD',
+        taxRate: raw.taxRate ?? raw.taxPercentage ?? 0,
+        isActive:
+            raw.isActive ??
+            (raw.productStatus ? raw.productStatus === 'ACTIVE' : true),
+        minOrderQuantity: raw.minOrderQuantity ?? 1,
+        maxOrderQuantity: raw.maxOrderQuantity,
+        leadTimeDays: raw.leadTimeDays ?? 0,
+        weight: raw.weight,
+        dimensions: raw.dimensions ?? '',
+        barcode: raw.barcode ?? '',
+        sku: raw.sku ?? '',
+        tags: raw.tags ?? [],
+        createdAt: raw.createdAt ?? '',
+        updatedAt: raw.updatedAt ?? '',
+        createdBy: raw.createdBy ?? '',
+        updatedBy: raw.updatedBy ?? '',
+    };
+}
+
 export async function getProducts(
     filter: ProductFilter = {}
 ): Promise<PaginatedResponse<Product>> {
@@ -26,35 +128,57 @@ export async function getProducts(
     const query = params.toString();
     const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
-    const response = await apiClient.get<PaginatedResponse<Product>>(url);
-    return response.data;
+    const response = await apiClient.get<any>(url);
+    const page = response.data;
+    const content = (page.content ?? []).map(toFrontendProduct);
+    if (
+        typeof window !== 'undefined' &&
+        content.length > 0 &&
+        content.every(
+            (p: Product) => !p.productId || (p as any).productId === 0
+        )
+    ) {
+        // Backend is not returning IDs (stale Core build?) — table actions
+        // need real IDs, so surface it loudly instead of routing to /0/edit.
+        console.warn(
+            '[products-service] list response contains no productId. ' +
+                'Ensure Core was recompiled/restarted after ProductDto gained productId.'
+        );
+    }
+    return {
+        ...page,
+        content,
+    } as PaginatedResponse<Product>;
 }
 
 export async function getProductById(productId: number): Promise<Product> {
-    const response = await apiClient.get<Product>(`${BASE_PATH}/${productId}`);
-    return response.data;
+    const response = await apiClient.get<any>(`${BASE_PATH}/${productId}`);
+    return toFrontendProduct(response.data);
 }
 
 export async function createProduct(
     data: ProductCreateRequest
 ): Promise<Product> {
-    const response = await apiClient.post<Product>(`${BASE_PATH}/add`, data);
-    return response.data;
+    const response = await apiClient.post<any>(
+        `${BASE_PATH}/add`,
+        toBackendCreatePayload(data)
+    );
+    return toFrontendProduct(response.data);
 }
 
 export async function updateProduct(
     productId: number,
     data: ProductUpdateRequest
 ): Promise<Product> {
-    const response = await apiClient.put<Product>(
-        `${BASE_PATH}/${productId}`,
-        data
+    const response = await apiClient.put<any>(
+        `${BASE_PATH}/${productId}/update`,
+        toBackendUpdatePayload(data)
     );
-    return response.data;
+    return toFrontendProduct(response.data);
 }
 
 export async function deleteProduct(productId: number): Promise<void> {
-    await apiClient.delete(`${BASE_PATH}/${productId}`);
+    await apiClient.delete(`${BASE_PATH}/${productId}/delete`);
 }
 
 // Categories/brands are now client-side constants derived from ProductCategory enum — no backend call required.

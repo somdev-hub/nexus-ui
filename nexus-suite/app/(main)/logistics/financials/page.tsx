@@ -283,7 +283,7 @@ export default function FinancialsPage() {
                                                 })
                                             }
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger className="w-full">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -479,7 +479,7 @@ export default function FinancialsPage() {
                                     value={rateType}
                                     onValueChange={setRateType}
                                 >
-                                    <SelectTrigger className="w-40">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -598,7 +598,7 @@ export default function FinancialsPage() {
                                     value={payableStatus}
                                     onValueChange={setPayableStatus}
                                 >
-                                    <SelectTrigger className="w-40">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

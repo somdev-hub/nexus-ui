@@ -88,7 +88,7 @@ const LogisticPartnerDetailsPage = ({ params }: { params: { id: string } }) => {
                 {/* Header */}
                 <div className="border-b bg-linear-to-r from-blue-50 to-cyan-50 p-4 md:p-6">
                     <div className="flex items-start justify-between">
-                        <Link href="/retailer/logistic-market">
+                        <Link href="/retailer/partnership/logistic-market">
                             <Button variant="ghost" size="sm" className="mb-4">
                                 <ChevronLeft className="h-4 w-4 mr-2" />
                                 Back

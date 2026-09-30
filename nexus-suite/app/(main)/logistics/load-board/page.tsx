@@ -344,7 +344,7 @@ export default function LoadBoardPage() {
                                     className="max-w-sm"
                                 />
                                 <Select value={mode} onValueChange={setMode}>
-                                    <SelectTrigger className="w-40">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -447,7 +447,7 @@ export default function LoadBoardPage() {
                                     value={quoteStatus}
                                     onValueChange={setQuoteStatus}
                                 >
-                                    <SelectTrigger className="w-40">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

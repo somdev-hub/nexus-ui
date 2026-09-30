@@ -19,10 +19,6 @@ import {
 import {
     IconChevronDown,
     IconChevronUp,
-    IconChevronLeft,
-    IconChevronRight,
-    IconChevronsLeft,
-    IconChevronsRight,
     IconCircleCheckFilled,
     IconDotsVertical,
     IconLayoutColumns,
@@ -71,6 +67,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
+import { TablePagination } from './ui/table-pagination';
 
 import type { Supplier } from '@/types/suppliers';
 
@@ -210,7 +207,7 @@ const columns: ColumnDef<Supplier>[] = [
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <a
-                            href={`/retailer/partnership/supplier-market/${row.original.supplierId}/edit`}
+                            href={`/retailer/partnership/supplier-market/${row.original.supplierId}`}
                         >
                             <IconEdit className="mr-2 h-4 w-4" />
                             Edit
@@ -355,16 +352,39 @@ export function SupplierTable({
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="flex-1" />
-                <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-between gap-4 py-4">
+                <div className="flex flex-1 items-center text-sm text-muted-foreground">
+                    <span>
+                        Page{' '}
+                        <strong>
+                            {table.getState().pagination.pageIndex + 1}
+                        </strong>{' '}
+                        of <strong>{table.getPageCount()}</strong>
+                    </span>
+                </div>
+                <div className="flex flex-1 items-center justify-center">
+                    <TablePagination
+                        pageIndex={table.getState().pagination.pageIndex}
+                        pageCount={table.getPageCount()}
+                        canPreviousPage={table.getCanPreviousPage()}
+                        canNextPage={table.getCanNextPage()}
+                        onPageChange={(index) => table.setPageIndex(index)}
+                        onPreviousPage={() => table.previousPage()}
+                        onNextPage={() => table.nextPage()}
+                        showFirstLast={false}
+                    />
+                </div>
+                <div className="flex flex-1 items-center justify-end gap-2">
+                    <span className="hidden shrink-0 text-sm whitespace-nowrap text-muted-foreground sm:inline">
+                        Rows per page
+                    </span>
                     <Select
                         onValueChange={(value) =>
                             table.setPageSize(Number(value))
                         }
                         value={table.getState().pagination.pageSize.toString()}
                     >
-                        <SelectTrigger className="w-[70px]">
+                        <SelectTrigger className="w-full">
                             <SelectValue placeholder="Page size" />
                         </SelectTrigger>
                         <SelectContent>
@@ -375,33 +395,6 @@ export function SupplierTable({
                             <SelectItem value="50">50</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                        aria-label="Previous page"
-                    >
-                        <IconChevronLeft className="size-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                        aria-label="Next page"
-                    >
-                        <IconChevronRight className="size-4" />
-                    </Button>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <span>
-                        Page{' '}
-                        <strong>
-                            {table.getState().pagination.pageIndex + 1}
-                        </strong>{' '}
-                        of <strong>{table.getPageCount()}</strong>
-                    </span>
                 </div>
             </div>
         </div>

@@ -53,7 +53,12 @@ export default function SupplierAnalyticsPage() {
     }, []);
     if (loading)
         return (
-            <div className="p-6">
+            <div className="flex flex-1 flex-col gap-4 p-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className="h-32" />
+                    ))}
+                </div>
                 <Skeleton className="h-64" />
             </div>
         );

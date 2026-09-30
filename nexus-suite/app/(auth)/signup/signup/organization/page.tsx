@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Card,
     CardContent,
@@ -129,9 +130,11 @@ export default function OrganizationPage() {
             <div className="flex items-center justify-center min-h-screen bg-background p-4">
                 <Card className="w-full max-w-md p-4 gap-2">
                     <CardContent className="p-0">
-                        <p className="text-center text-sm text-muted-foreground">
-                            Loading...
-                        </p>
+                        <div className="grid gap-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
                     </CardContent>
                 </Card>
             </div>
