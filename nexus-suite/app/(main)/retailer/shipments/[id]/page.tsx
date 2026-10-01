@@ -28,6 +28,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PodSection from '@/components/pod-section';
+import { getRetailerPod } from '@/lib/services/counterparty-docs-service';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -1118,7 +1120,7 @@ export default function ShipmentDetailPage() {
                 onValueChange={setActiveTab}
                 className="w-full"
             >
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="stops">
                         Stops ({stops.length})
@@ -1130,6 +1132,7 @@ export default function ShipmentDetailPage() {
                         Documents ({documents.length})
                     </TabsTrigger>
                     <TabsTrigger value="freight">Freight Cost</TabsTrigger>
+                    <TabsTrigger value="pod">POD</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="mt-4 space-y-6">
@@ -2658,6 +2661,9 @@ export default function ShipmentDetailPage() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+                <TabsContent value="pod" className="mt-4 space-y-4">
+                    <PodSection fetchPod={() => getRetailerPod(shipmentId)} />
                 </TabsContent>
             </Tabs>
         </div>

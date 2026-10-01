@@ -34,7 +34,10 @@ import {
 import {
     getVariants,
     createVariant,
+    deleteVariant,
 } from '@/lib/services/supplier-catalog-service';
+import { getMaterials } from '@/lib/services/materials-service';
+import type { Material } from '@/types/materials';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 
@@ -52,12 +55,18 @@ export default function VariantsPage() {
         variantValue: '',
         skuSuffix: '',
         priceAdjustment: '',
+        bomMaterialId: '',
     });
+    const [materials, setMaterials] = useState<Material[]>([]);
     const load = async () => {
         setLoading(true);
         try {
-            const res = await getVariants({ page: 0, size: 20 });
-            setData(res);
+            const [v, m] = await Promise.all([
+                getVariants({ page: 0, size: 20 }),
+                getMaterials({ pageNo: 0, pageOffset: 100 }).catch(() => null),
+            ]);
+            setData(v);
+            if (m?.content) setMaterials(m.content);
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
@@ -80,9 +89,24 @@ export default function VariantsPage() {
                 priceAdjustment: form.priceAdjustment
                     ? Number(form.priceAdjustment)
                     : 0,
+                bomMaterialId: form.bomMaterialId
+                    ? Number(form.bomMaterialId)
+                    : undefined,
             });
             toast({ title: 'Variant created', variant: 'success' });
             setOpen(false);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteVariant(id);
+            toast({ title: 'Variant deleted', variant: 'success' });
             load();
         } catch (e: unknown) {
             toast({
@@ -187,6 +211,50 @@ export default function VariantsPage() {
                                     />
                                 </div>
                             </div>
+                            <div className="grid gap-2">
+                                <Label>BOM Material</Label>
+                                {materials.length ? (
+                                    <Select
+                                        value={form.bomMaterialId || 'none'}
+                                        onValueChange={(v) =>
+                                            setForm({
+                                                ...form,
+                                                bomMaterialId:
+                                                    v === 'none' ? '' : v,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select material (optional)" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">
+                                                None
+                                            </SelectItem>
+                                            {materials.map((m) => (
+                                                <SelectItem
+                                                    key={m.materialId}
+                                                    value={String(m.materialId)}
+                                                >
+                                                    {m.materialName} (
+                                                    {m.materialCode})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Input
+                                        placeholder="e.g. 45 (material ID)"
+                                        value={form.bomMaterialId}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                bomMaterialId: e.target.value,
+                                            })
+                                        }
+                                    />
+                                )}
+                            </div>
                             <Button onClick={handleCreate}>Create</Button>
                         </div>
                     </DialogContent>
@@ -214,6 +282,7 @@ export default function VariantsPage() {
                                     <TableHead>SKU Suffix</TableHead>
                                     <TableHead>Price Adj.</TableHead>
                                     <TableHead>BOM</TableHead>
+                                    <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -233,14 +302,27 @@ export default function VariantsPage() {
                                             {v.priceAdjustment}
                                         </TableCell>
                                         <TableCell className="text-xs">
-                                            {v.bomMaterialName || '-'}
+                                            {v.bomMaterialName ||
+                                                v.bomMaterialId ||
+                                                '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    handleDelete(v.variantId)
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {!data?.content?.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={7}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No variants

@@ -1,427 +1,365 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
+import { Building2, ChevronLeft, MapPin, Send, Star } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, Mail, Phone, MapPin, Star, Package } from 'lucide-react';
-import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { PartnershipInvitationDialog } from '@/components/partnership-invitation-dialog';
+import {
+    browseSupplierCatalog,
+    getSupplierDirectory,
+    type SupplierBrowseItem,
+    type SupplierDirectoryEntry,
+} from '@/lib/services/supplier-market-service';
+import { getRetailerSentInvitations } from '@/lib/services/partnership-invitations-service';
 
-const SupplierDetailsPage = ({ params }: { params: { id: string } }) => {
-    // Sample supplier data - in a real app, this would come from an API
-    const supplier = {
-        id: params.id,
-        name: 'ElectroTech Suppliers',
-        category: 'Electronics',
-        rating: 4.8,
-        reviews: 324,
-        description:
-            'Premium electronics supplier with 15+ years of industry experience. Specializing in high-quality components and wholesale pricing.',
-        email: 'contact@electrotech.com',
-        phone: '+1 (555) 123-4567',
-        address: '123 Tech Avenue, Silicon Valley, CA 94025',
-        website: 'www.electrotech.com',
-        foundedYear: 2009,
-        employees: '50-100',
-        responseTime: '2-4 hours',
-        productCategories: [
-            'Microcontrollers',
-            'Semiconductors',
-            'Circuit Boards',
-            'Connectors',
-            'Power Supplies',
-        ],
-        certifications: ['ISO 9001', 'RoHS Certified', 'ISO 14001'],
-        metrics: {
-            onTimeDelivery: 98,
-            productQuality: 4.9,
-            communicationQuality: 4.7,
-            competitivePrice: 4.6,
-        },
-        recentProducts: [
-            {
-                id: 1,
-                name: 'Arduino Uno Microcontroller',
-                quantity: 500,
-                price: '$8.50',
-            },
-            {
-                id: 2,
-                name: 'Raspberry Pi 4 Model B',
-                quantity: 200,
-                price: '$45.00',
-            },
-            {
-                id: 3,
-                name: 'USB Type-C Connectors (Pack)',
-                quantity: 1000,
-                price: '$0.25',
-            },
-        ],
+function formatDate(value?: string): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString();
+}
+
+function formatPrice(item: SupplierBrowseItem): string {
+    if (item.basePrice === null || item.basePrice === undefined) return '—';
+    const currency = item.currency ?? '';
+    return `${item.basePrice}${currency ? ` ${currency}` : ''}`;
+}
+
+const SupplierDetailsPage = () => {
+    const params = useParams<{ id: string }>();
+    const supplierId = params?.id ?? '';
+    const orgId = Number(supplierId);
+
+    const [entry, setEntry] = useState<SupplierDirectoryEntry | null>(null);
+    const [items, setItems] = useState<SupplierBrowseItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
+    const [inviteOpen, setInviteOpen] = useState(false);
+    const [invitePending, setInvitePending] = useState(false);
+
+    const loadInviteState = async () => {
+        try {
+            const res = await getRetailerSentInvitations({
+                pageNo: 0,
+                pageOffset: 100,
+            });
+            setInvitePending(
+                (res.content ?? []).some(
+                    (inv) =>
+                        String(inv.status ?? '').toUpperCase() === 'PENDING' &&
+                        Number(inv.invitedOrg ?? inv.invitedOrgId) === orgId
+                )
+            );
+        } catch {
+            // Non-fatal: the dialog enforces the same rule server-side.
+        }
     };
+
+    useEffect(() => {
+        if (!supplierId || Number.isNaN(orgId)) {
+            setIsLoading(false);
+            setNotFound(true);
+            return;
+        }
+        let isActive = true;
+        const load = async () => {
+            setIsLoading(true);
+            setNotFound(false);
+            // Parallel fetch: full directory (find this org) + this
+            // supplier's public catalog items.
+            const [dirResult, browseResult] = await Promise.allSettled([
+                getSupplierDirectory(''),
+                browseSupplierCatalog({
+                    supplierOrgId: orgId,
+                    pageNo: 0,
+                    pageOffset: 100,
+                }),
+            ]);
+            if (!isActive) return;
+            if (dirResult.status === 'fulfilled') {
+                const found = (dirResult.value ?? []).find(
+                    (o) => o.id === orgId
+                );
+                if (found) {
+                    setEntry(found);
+                } else {
+                    setNotFound(true);
+                }
+            } else {
+                toast.error(
+                    dirResult.reason instanceof Error
+                        ? dirResult.reason.message
+                        : 'Failed to load supplier info'
+                );
+                setNotFound(true);
+            }
+            if (browseResult.status === 'fulfilled') {
+                setItems(browseResult.value?.content ?? []);
+            } else {
+                toast.error(
+                    browseResult.reason instanceof Error
+                        ? browseResult.reason.message
+                        : 'Failed to load supplier products'
+                );
+                setItems([]);
+            }
+            void loadInviteState();
+            setIsLoading(false);
+        };
+        load();
+        return () => {
+            isActive = false;
+        };
+    }, [supplierId, orgId]);
+
+    const categories = useMemo(() => {
+        const set = new Set<string>();
+        for (const item of items) {
+            if (item.category) set.add(item.category);
+        }
+        return Array.from(set).sort();
+    }, [items]);
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-[300px] w-full" />
+            </div>
+        );
+    }
+
+    if (notFound || !entry) {
+        return (
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:p-6">
+                <p className="text-muted-foreground">
+                    Supplier not found in the directory.
+                </p>
+                <Button variant="outline" asChild>
+                    <Link href="/retailer/partnership/supplier-market">
+                        <ChevronLeft className="mr-1 h-4 w-4" />
+                        Back to discovery
+                    </Link>
+                </Button>
+            </div>
+        );
+    }
+
+    const location =
+        [entry.city, entry.country].filter(Boolean).join(', ') || '—';
 
     return (
         <>
             <div className="flex flex-1 flex-col">
-                {/* Header */}
-                <div className="border-b bg-linear-to-r from-blue-50 to-indigo-50 p-4 md:p-6">
-                    <div className="flex items-start justify-between">
-                        <Link href="/retailer/partnership/supplier-market">
-                            <Button variant="ghost" size="sm" className="mb-4">
-                                <ChevronLeft className="h-4 w-4 mr-2" />
-                                Back
-                            </Button>
-                        </Link>
-                    </div>
-                    <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                        <div className="h-24 w-24 bg-linear-to-br from-blue-400 to-indigo-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold">
-                            {supplier.name.charAt(0)}
+                <div className="border-b bg-muted/40 p-4 md:p-6">
+                    <Link href="/retailer/partnership/supplier-market">
+                        <Button variant="ghost" size="sm" className="mb-4">
+                            <ChevronLeft className="mr-1 h-4 w-4" />
+                            Back
+                        </Button>
+                    </Link>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Building2 className="h-7 w-7" />
                         </div>
                         <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-3xl font-bold">
-                                    {supplier.name}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h1 className="text-2xl font-bold">
+                                    {entry.orgName ?? 'Unnamed supplier'}
                                 </h1>
-                                <Badge variant="outline">
-                                    {supplier.category}
-                                </Badge>
+                                {entry.orgType ? (
+                                    <Badge variant="outline">
+                                        {entry.orgType}
+                                    </Badge>
+                                ) : null}
+                                {entry.trustScore !== undefined &&
+                                entry.trustScore !== null ? (
+                                    <Badge
+                                        variant="outline"
+                                        className="flex items-center gap-1"
+                                    >
+                                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                        {entry.trustScore}
+                                    </Badge>
+                                ) : null}
                             </div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="flex items-center">
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star
-                                            key={i}
-                                            className={`h-4 w-4 ${
-                                                i < Math.floor(supplier.rating)
-                                                    ? 'fill-yellow-400 text-yellow-400'
-                                                    : 'text-gray-300'
-                                            }`}
-                                        />
-                                    ))}
-                                </div>
-                                <span className="font-semibold">
-                                    {supplier.rating}
-                                </span>
-                                <span className="text-sm text-gray-600">
-                                    ({supplier.reviews} reviews)
-                                </span>
+                            <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {location}
                             </div>
-                            <p className="text-gray-700 max-w-2xl">
-                                {supplier.description}
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Organization ID: {entry.id}
                             </p>
                         </div>
-                        <div className="flex gap-2">
-                            <Button>
-                                <Mail className="h-4 w-4 mr-2" />
-                                Contact
-                            </Button>
-                            <Button variant="outline">Request Quote</Button>
-                        </div>
+                        <Button
+                            onClick={() => setInviteOpen(true)}
+                            disabled={invitePending}
+                            title={
+                                invitePending
+                                    ? 'An invitation to this organization is already pending'
+                                    : undefined
+                            }
+                        >
+                            <Send className="mr-1 h-4 w-4" />
+                            {invitePending
+                                ? 'Invitation Pending'
+                                : 'Invite Supplier'}
+                        </Button>
                     </div>
                 </div>
 
-                {/* Main Content */}
-                <div className="flex-1 p-4 md:p-6">
-                    <div className="grid gap-6 lg:grid-cols-3">
-                        {/* Left Column - Contact & Info */}
-                        <div className="lg:col-span-1 space-y-6">
-                            {/* Contact Information */}
-                            <Card className="p-4 gap-2">
-                                <CardHeader className="p-0">
-                                    <CardTitle className="text-lg">
-                                        Contact Information
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4 p-0">
-                                    <div className="flex gap-3">
-                                        <Mail className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm text-gray-600">
-                                                Email
-                                            </p>
-                                            <p className="font-medium">
-                                                {supplier.email}
-                                            </p>
-                                        </div>
+                <div className="flex-1 space-y-6 p-4 md:p-6">
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <Card className="p-4">
+                            <CardHeader className="p-0 pb-2">
+                                <CardTitle className="text-base">
+                                    Public products
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <p className="text-2xl font-bold">
+                                    {items.length}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card className="p-4">
+                            <CardHeader className="p-0 pb-2">
+                                <CardTitle className="text-base">
+                                    Categories
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {categories.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {categories.map((c) => (
+                                            <Badge key={c} variant="outline">
+                                                {c}
+                                            </Badge>
+                                        ))}
                                     </div>
-                                    <div className="flex gap-3">
-                                        <Phone className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm text-gray-600">
-                                                Phone
-                                            </p>
-                                            <p className="font-medium">
-                                                {supplier.phone}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <MapPin className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm text-gray-600">
-                                                Address
-                                            </p>
-                                            <p className="font-medium text-sm">
-                                                {supplier.address}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Company Info */}
-                            <Card className="p-4 gap-2">
-                                <CardHeader className="p-0">
-                                    <CardTitle className="text-lg">
-                                        Company Info
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3 p-0">
-                                    <div>
-                                        <p className="text-sm text-gray-600">
-                                            Founded
-                                        </p>
-                                        <p className="font-medium">
-                                            {supplier.foundedYear}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-600">
-                                            Employees
-                                        </p>
-                                        <p className="font-medium">
-                                            {supplier.employees}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-600">
-                                            Response Time
-                                        </p>
-                                        <p className="font-medium">
-                                            {supplier.responseTime}
-                                        </p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Certifications */}
-                            <Card className="p-4 gap-2">
-                                <CardHeader className="p-0">
-                                    <CardTitle className="text-lg">
-                                        Certifications
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex flex-wrap gap-2 p-0">
-                                    {supplier.certifications.map((cert) => (
-                                        <Badge key={cert} variant="secondary">
-                                            {cert}
-                                        </Badge>
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Right Column - Details */}
-                        <div className="lg:col-span-2 space-y-6">
-                            {/* Performance Metrics */}
-                            <Card className="gap-2 p-4">
-                                <CardHeader className="p-0">
-                                    <CardTitle className="text-lg">
-                                        Performance Metrics
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-600">
-                                                    On-Time Delivery
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {
-                                                        supplier.metrics
-                                                            .onTimeDelivery
-                                                    }
-                                                    %
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                    className="bg-green-500 h-2 rounded-full"
-                                                    style={{
-                                                        width: `${supplier.metrics.onTimeDelivery}%`,
-                                                    }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-600">
-                                                    Product Quality
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {
-                                                        supplier.metrics
-                                                            .productQuality
-                                                    }
-                                                    /5
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                    className="bg-blue-500 h-2 rounded-full"
-                                                    style={{
-                                                        width: `${
-                                                            (supplier.metrics
-                                                                .productQuality /
-                                                                5) *
-                                                            100
-                                                        }%`,
-                                                    }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-600">
-                                                    Communication
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {
-                                                        supplier.metrics
-                                                            .communicationQuality
-                                                    }
-                                                    /5
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                    className="bg-purple-500 h-2 rounded-full"
-                                                    style={{
-                                                        width: `${
-                                                            (supplier.metrics
-                                                                .communicationQuality /
-                                                                5) *
-                                                            100
-                                                        }%`,
-                                                    }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-600">
-                                                    Competitive Price
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {
-                                                        supplier.metrics
-                                                            .competitivePrice
-                                                    }
-                                                    /5
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                    className="bg-orange-500 h-2 rounded-full"
-                                                    style={{
-                                                        width: `${
-                                                            (supplier.metrics
-                                                                .competitivePrice /
-                                                                5) *
-                                                            100
-                                                        }%`,
-                                                    }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Tabs - Products & Categories */}
-                            <Card className="gap-2 p-4">
-                                <CardHeader className="p-0">
-                                    <CardTitle className="text-lg">
-                                        Offerings
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <Tabs
-                                        defaultValue="categories"
-                                        className="w-full"
-                                    >
-                                        <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="categories">
-                                                Product Categories
-                                            </TabsTrigger>
-                                            <TabsTrigger value="products">
-                                                Recent Products
-                                            </TabsTrigger>
-                                        </TabsList>
-                                        <TabsContent
-                                            value="categories"
-                                            className="mt-4"
-                                        >
-                                            <div className="flex flex-wrap gap-2">
-                                                {supplier.productCategories.map(
-                                                    (category) => (
-                                                        <Badge
-                                                            key={category}
-                                                            variant="outline"
-                                                            className="text-sm py-2 px-3"
-                                                        >
-                                                            <Package className="h-3 w-3 mr-1" />
-                                                            {category}
-                                                        </Badge>
-                                                    )
-                                                )}
-                                            </div>
-                                        </TabsContent>
-                                        <TabsContent
-                                            value="products"
-                                            className="mt-4"
-                                        >
-                                            <div className="space-y-3">
-                                                {supplier.recentProducts.map(
-                                                    (product) => (
-                                                        <div
-                                                            key={product.id}
-                                                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition"
-                                                        >
-                                                            <div className="flex-1">
-                                                                <p className="font-medium">
-                                                                    {
-                                                                        product.name
-                                                                    }
-                                                                </p>
-                                                                <p className="text-sm text-gray-600">
-                                                                    Available:{' '}
-                                                                    {
-                                                                        product.quantity
-                                                                    }{' '}
-                                                                    units
-                                                                </p>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="font-semibold text-blue-600">
-                                                                    {
-                                                                        product.price
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                )}
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        —
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card className="p-4">
+                            <CardHeader className="p-0 pb-2">
+                                <CardTitle className="text-base">
+                                    Location
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <p className="text-sm font-medium">
+                                    {location}
+                                </p>
+                            </CardContent>
+                        </Card>
                     </div>
+
+                    <Card className="p-4">
+                        <CardHeader className="p-0 pb-3">
+                            <CardTitle className="text-lg">
+                                Public products
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {items.length === 0 ? (
+                                <p className="py-6 text-center text-sm text-muted-foreground">
+                                    No public products yet.
+                                </p>
+                            ) : (
+                                <div className="overflow-auto rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>SKU</TableHead>
+                                                <TableHead>
+                                                    Category → Family
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Price
+                                                </TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Updated</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {items.map((item, idx) => (
+                                                <TableRow
+                                                    key={
+                                                        item.catalogId ??
+                                                        item.id ??
+                                                        `${entry.id}-${idx}`
+                                                    }
+                                                >
+                                                    <TableCell className="font-medium">
+                                                        {item.name ?? '—'}
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-xs">
+                                                        {item.sku ??
+                                                            item.code ??
+                                                            '—'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {item.category ?? '—'}
+                                                        {item.family
+                                                            ? ` → ${item.family}`
+                                                            : ''}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono text-xs">
+                                                        {formatPrice(item)}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {item.status ? (
+                                                            <Badge variant="outline">
+                                                                {item.status}
+                                                            </Badge>
+                                                        ) : (
+                                                            '—'
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="whitespace-nowrap">
+                                                        {formatDate(
+                                                            item.updatedAt
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
+            <PartnershipInvitationDialog
+                open={inviteOpen}
+                onOpenChange={setInviteOpen}
+                fixedContext="RETAILER_SUPPLIER"
+                invitedOrgId={Number.isFinite(orgId) ? orgId : undefined}
+                invitedOrgName={entry?.orgName ?? undefined}
+                onCreated={() => {
+                    void loadInviteState();
+                }}
+            />
         </>
     );
 };

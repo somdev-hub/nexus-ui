@@ -35,10 +35,32 @@ async function getInvitationList(
     box: 'received' | 'pending' | 'sent',
     filter: PartnershipInvitationFilter = {}
 ): Promise<PaginatedResponse<PartnershipInvitation>> {
-    const response = await apiClient.get<
+    const response = await apiClient.get<unknown>(
+        `${basePath(role)}/${box}${buildQuery(filter)}`
+    );
+    // Tolerate both Spring Page ({content}) and bare-array payloads.
+    const data = response.data as Partial<
         PaginatedResponse<PartnershipInvitation>
-    >(`${basePath(role)}/${box}${buildQuery(filter)}`);
-    return response.data;
+    >;
+    const content = Array.isArray(data)
+        ? (data as PartnershipInvitation[])
+        : (data.content ?? []);
+    if (Array.isArray(data)) {
+        return {
+            content,
+            pageNo: 0,
+            pageOffset: content.length,
+            totalElements: content.length,
+            totalPages: 1,
+            last: true,
+            first: true,
+            empty: content.length === 0,
+            numberOfElements: content.length,
+            size: content.length,
+            sort: { sorted: false, unsorted: true, empty: true },
+        };
+    }
+    return response.data as PaginatedResponse<PartnershipInvitation>;
 }
 
 async function createInvitation(

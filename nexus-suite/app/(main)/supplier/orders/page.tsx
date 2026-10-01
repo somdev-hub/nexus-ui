@@ -28,6 +28,8 @@ import {
     acknowledgeOrder,
     createPartialShipment,
 } from '@/lib/services/supplier-orders-service';
+import { getSupplierPod } from '@/lib/services/counterparty-docs-service';
+import PodSection from '@/components/pod-section';
 import { useToast } from '@/hooks/use-toast';
 import {
     Dialog,
@@ -48,6 +50,12 @@ export default function SupplierOrdersPage() {
     const [search, setSearch] = useState('');
     const [partialOpen, setPartialOpen] = useState<number | null>(null);
     const [shippedQty, setShippedQty] = useState('');
+    const [podOpen, setPodOpen] = useState<number | null>(null);
+    // Shipment refs created this session (createPartialShipment returns
+    // PartialShipmentResponse: { shipmentId, shipmentNumber, ... }).
+    const [shipmentByPo, setShipmentByPo] = useState<
+        Record<number, { shipmentId: number; shipmentNumber: string }>
+    >({});
     const load = async () => {
         setLoading(true);
         try {
@@ -88,11 +96,21 @@ export default function SupplierOrdersPage() {
     };
     const createPartial = async (id: number) => {
         try {
-            await createPartialShipment(id, {
+            const res = await createPartialShipment(id, {
                 shippedQuantity: Number(shippedQty),
                 trackingNumber: 'TRK-' + Date.now(),
             });
-            toast({ title: 'Partial shipment created', variant: 'success' });
+            setShipmentByPo((m) => ({
+                ...m,
+                [id]: {
+                    shipmentId: res.shipmentId,
+                    shipmentNumber: res.shipmentNumber,
+                },
+            }));
+            toast({
+                title: `Partial shipment ${res.shipmentNumber} created`,
+                variant: 'success',
+            });
             setPartialOpen(null);
             setShippedQty('');
             load();
@@ -156,117 +174,184 @@ export default function SupplierOrdersPage() {
                                     <TableHead>Buyer</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Total</TableHead>
+                                    <TableHead>ASN / Shipment</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data?.content?.map((o: SupplierOrder) => (
-                                    <TableRow key={o.purchaseOrderId}>
-                                        <TableCell className="font-medium">
-                                            {o.poNumber}
-                                        </TableCell>
-                                        <TableCell>
-                                            {o.buyerOrg?.name ||
-                                                o.buyerOrgId ||
-                                                '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge>{o.status}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {o.totalAmount
-                                                ? `$${o.totalAmount}`
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell className="flex gap-2">
-                                            {o.status ===
-                                                'SENT_TO_SUPPLIER' && (
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        ack(o.purchaseOrderId)
-                                                    }
-                                                >
-                                                    <Check className="mr-2 h-4 w-4" />
-                                                    Acknowledge
-                                                </Button>
-                                            )}
-                                            {(o.status === 'ACKNOWLEDGED' ||
-                                                o.status ===
-                                                    'PARTIALLY_RECEIVED') && (
-                                                <Dialog
-                                                    open={
-                                                        partialOpen ===
-                                                        o.purchaseOrderId
-                                                    }
-                                                    onOpenChange={(v) =>
-                                                        setPartialOpen(
-                                                            v
-                                                                ? o.purchaseOrderId
-                                                                : null
-                                                        )
-                                                    }
-                                                >
-                                                    <DialogTrigger asChild>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                        >
-                                                            <Truck className="mr-2 h-4 w-4" />
-                                                            Partial Ship
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>
-                                                                Partial Shipment
-                                                                for {o.poNumber}
-                                                            </DialogTitle>
-                                                        </DialogHeader>
-                                                        <div className="grid gap-6">
-                                                            <div className="grid gap-2">
-                                                                <Label>
-                                                                    Shipped Qty
-                                                                </Label>
-                                                                <Input
-                                                                    placeholder="e.g. 50"
-                                                                    value={
-                                                                        shippedQty
-                                                                    }
-                                                                    onChange={(
-                                                                        e
-                                                                    ) =>
-                                                                        setShippedQty(
+                                {data?.content?.map((o: SupplierOrder) => {
+                                    const runtime = o as SupplierOrder & {
+                                        asnNumber?: string;
+                                        shipmentId?: number;
+                                        shipmentNumber?: string;
+                                    };
+                                    const sessionShip =
+                                        shipmentByPo[o.purchaseOrderId];
+                                    const asnNumber =
+                                        runtime.asnNumber ??
+                                        sessionShip?.shipmentNumber ??
+                                        runtime.shipmentNumber ??
+                                        '—';
+                                    const podShipmentId =
+                                        sessionShip?.shipmentId ??
+                                        runtime.shipmentId ??
+                                        null;
+                                    return (
+                                        <TableRow key={o.purchaseOrderId}>
+                                            <TableCell className="font-medium">
+                                                {o.poNumber}
+                                            </TableCell>
+                                            <TableCell>
+                                                {o.buyerOrg?.name ||
+                                                    o.buyerOrgId ||
+                                                    '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge>{o.status}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {o.totalAmount
+                                                    ? `$${o.totalAmount}`
+                                                    : '-'}
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">
+                                                {asnNumber}
+                                            </TableCell>
+                                            <TableCell className="flex gap-2">
+                                                {o.status ===
+                                                    'SENT_TO_SUPPLIER' && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            ack(
+                                                                o.purchaseOrderId
+                                                            )
+                                                        }
+                                                    >
+                                                        <Check className="mr-2 h-4 w-4" />
+                                                        Acknowledge
+                                                    </Button>
+                                                )}
+                                                {(o.status === 'ACKNOWLEDGED' ||
+                                                    o.status ===
+                                                        'PARTIALLY_RECEIVED') && (
+                                                    <Dialog
+                                                        open={
+                                                            partialOpen ===
+                                                            o.purchaseOrderId
+                                                        }
+                                                        onOpenChange={(v) =>
+                                                            setPartialOpen(
+                                                                v
+                                                                    ? o.purchaseOrderId
+                                                                    : null
+                                                            )
+                                                        }
+                                                    >
+                                                        <DialogTrigger asChild>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                            >
+                                                                <Truck className="mr-2 h-4 w-4" />
+                                                                Partial Ship
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>
+                                                                    Partial
+                                                                    Shipment for{' '}
+                                                                    {o.poNumber}
+                                                                </DialogTitle>
+                                                            </DialogHeader>
+                                                            <div className="grid gap-6">
+                                                                <div className="grid gap-2">
+                                                                    <Label>
+                                                                        Shipped
+                                                                        Qty
+                                                                    </Label>
+                                                                    <Input
+                                                                        placeholder="e.g. 50"
+                                                                        value={
+                                                                            shippedQty
+                                                                        }
+                                                                        onChange={(
                                                                             e
-                                                                                .target
-                                                                                .value
+                                                                        ) =>
+                                                                            setShippedQty(
+                                                                                e
+                                                                                    .target
+                                                                                    .value
+                                                                            )
+                                                                        }
+                                                                        type="number"
+                                                                    />
+                                                                </div>
+                                                                <Button
+                                                                    onClick={() =>
+                                                                        createPartial(
+                                                                            o.purchaseOrderId
                                                                         )
                                                                     }
-                                                                    type="number"
-                                                                />
+                                                                >
+                                                                    Create
+                                                                    Shipment &
+                                                                    Track
+                                                                    Backorder
+                                                                </Button>
                                                             </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                )}
+                                                {podShipmentId !== null && (
+                                                    <Dialog
+                                                        open={
+                                                            podOpen ===
+                                                            o.purchaseOrderId
+                                                        }
+                                                        onOpenChange={(v) =>
+                                                            setPodOpen(
+                                                                v
+                                                                    ? o.purchaseOrderId
+                                                                    : null
+                                                            )
+                                                        }
+                                                    >
+                                                        <DialogTrigger asChild>
                                                             <Button
-                                                                onClick={() =>
-                                                                    createPartial(
-                                                                        o.purchaseOrderId
+                                                                size="sm"
+                                                                variant="outline"
+                                                            >
+                                                                POD
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>
+                                                                    Proof of
+                                                                    Delivery ·{' '}
+                                                                    {asnNumber}
+                                                                </DialogTitle>
+                                                            </DialogHeader>
+                                                            <PodSection
+                                                                fetchPod={() =>
+                                                                    getSupplierPod(
+                                                                        podShipmentId
                                                                     )
                                                                 }
-                                                            >
-                                                                Create Shipment
-                                                                & Track
-                                                                Backorder
-                                                            </Button>
-                                                        </div>
-                                                    </DialogContent>
-                                                </Dialog>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                                            />
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                                 {!data?.content?.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No orders

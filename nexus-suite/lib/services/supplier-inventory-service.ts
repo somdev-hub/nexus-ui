@@ -42,6 +42,19 @@ export async function createConsignment(
 export async function deleteConsignment(id: number): Promise<void> {
     await apiClient.delete(`${CONS_BASE}/${id}`);
 }
+export async function adjustConsignment(
+    id: number,
+    quantity: number,
+    reason?: string
+): Promise<ConsignmentStock> {
+    const p = new URLSearchParams({ quantity: String(quantity) });
+    if (reason) p.append('reason', reason);
+    const res = await apiClient.post<ConsignmentStock>(
+        `${CONS_BASE}/${id}/adjust?${p.toString()}`,
+        {}
+    );
+    return res.data;
+}
 export async function getConsignmentSummary(): Promise<ConsignmentSummary> {
     const res = await apiClient.get<ConsignmentSummary>(`${CONS_BASE}/summary`);
     return res.data;
@@ -69,6 +82,16 @@ export async function createVmi(data: Partial<VmiConfig>): Promise<VmiConfig> {
 }
 export async function deleteVmi(id: number): Promise<void> {
     await apiClient.delete(`${VMI_BASE}/${id}`);
+}
+export async function updateVmi(
+    id: number,
+    data: Partial<VmiConfig>
+): Promise<VmiConfig> {
+    const res = await apiClient.put<VmiConfig>(
+        `${VMI_BASE}/${id}/update`,
+        data
+    );
+    return res.data;
 }
 export async function getVmiSuggestions(): Promise<VmiSuggestion[]> {
     const res = await apiClient.get<VmiSuggestion[]>(

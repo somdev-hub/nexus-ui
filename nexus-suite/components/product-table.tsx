@@ -29,7 +29,7 @@ import {
     IconTrendingUp,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import { deleteProduct } from '@/lib/services/products-service';
+import { createProduct, deleteProduct } from '@/lib/services/products-service';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +92,8 @@ interface Product {
 }
 
 const createColumns = (
-    onDelete: (productId: number, productCode: string) => void
+    onDelete: (productId: number, productCode: string) => void,
+    onDuplicate: (product: Product) => void
 ): ColumnDef<Product>[] => [
     {
         id: 'select',
@@ -232,7 +233,12 @@ const createColumns = (
                         <IconEdit className="mr-2 h-4 w-4" />
                         Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={() => onDuplicate(row.original)}
+                    >
+                        <IconPlus className="mr-2 h-4 w-4" />
+                        Duplicate
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         variant="destructive"
@@ -291,9 +297,40 @@ export function ProductTable({
         []
     );
 
+    const handleDuplicate = React.useCallback(async (product: Product) => {
+        const copyCode = `${product.productCode || 'PRD'}-COPY-${Date.now().toString().slice(-6)}`;
+        try {
+            const created = await createProduct({
+                productCode: copyCode,
+                productName: `${product.productName} (Copy)`,
+                description: product.description,
+                category: product.category,
+                subCategory: product.subCategory,
+                brand: product.brand,
+                unitOfMeasure: product.unitOfMeasure,
+                unitPrice: product.unitPrice,
+                currency: product.currency,
+                taxRate: product.taxRate,
+                isActive: product.isActive,
+                minOrderQuantity: product.minOrderQuantity,
+                maxOrderQuantity: product.maxOrderQuantity,
+                leadTimeDays: product.leadTimeDays,
+                weight: product.weight,
+                dimensions: product.dimensions,
+                barcode: undefined,
+                sku: undefined,
+                tags: product.tags,
+            });
+            setData((prev) => [created, ...prev]);
+            toast.success(`Duplicated as ${created.productCode}`);
+        } catch {
+            toast.error('Failed to duplicate product. Please try again.');
+        }
+    }, []);
+
     const columns = React.useMemo(
-        () => createColumns(handleDelete),
-        [handleDelete]
+        () => createColumns(handleDelete, handleDuplicate),
+        [handleDelete, handleDuplicate]
     );
 
     const table = useReactTable({

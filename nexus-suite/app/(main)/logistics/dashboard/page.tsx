@@ -256,6 +256,11 @@ export default function LogisticsDashboardPage() {
                             <Link href="/logistics/financials">Financials</Link>
                         </Button>
                         <Button asChild variant="outline" size="sm">
+                            <Link href="/logistics/freight-invoices">
+                                Freight Invoices
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
                             <Link href="/logistics/analytics">Analytics</Link>
                         </Button>
                     </div>

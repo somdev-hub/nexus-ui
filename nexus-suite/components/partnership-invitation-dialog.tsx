@@ -23,6 +23,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { createRetailerInvitation } from '@/lib/services/partnership-invitations-service';
+import { getRetailerSentInvitations } from '@/lib/services/partnership-invitations-service';
+import { getOrganizationDirectory } from '@/lib/services/supplier-market-service';
 import type { PartnershipInvitationContext } from '@/types/partnership-invitations';
 
 interface PartnershipInvitationDialogProps {
@@ -33,6 +35,13 @@ interface PartnershipInvitationDialogProps {
     fixedContext?: PartnershipInvitationContext;
     /** Show the optional local-supplier reference field. */
     showRetailerSupplierRef?: boolean;
+    /**
+     * Locked counterparty org (discovery flow). When provided the org is
+     * shown read-only — the user can never type or edit an org ID.
+     */
+    invitedOrgId?: number;
+    /** Display name for the locked counterparty org. */
+    invitedOrgName?: string;
     trigger?: React.ReactNode;
     onCreated?: () => void;
 }
@@ -43,12 +52,49 @@ const CONTEXTS: PartnershipInvitationContext[] = [
     'SUPPLIER_LOGISTICS',
 ];
 
+/** Prefer the server's message (e.g. duplicate-invite rejection) over axios's generic one. */
+function extractServerMessage(err: unknown): string {
+    const data = (err as { response?: { data?: unknown } })?.response?.data;
+    if (typeof data === 'string' && data) {
+        try {
+            const parsed = JSON.parse(data) as Record<string, unknown>;
+            if (typeof parsed.message === 'string' && parsed.message)
+                return parsed.message;
+        } catch {
+            return data.slice(0, 300);
+        }
+    }
+    if (data && typeof data === 'object') {
+        const record = data as Record<string, unknown>;
+        for (const key of ['message', 'description', 'error']) {
+            if (typeof record[key] === 'string' && record[key]) {
+                return String(record[key]).slice(0, 300);
+            }
+        }
+    }
+    return err instanceof Error ? err.message : 'Failed to send invitation';
+}
+
+/** Which org directory feeds the picker for a given context. */
+function directoryTypeFor(
+    context: PartnershipInvitationContext
+): 'SUPPLIER' | 'LOGISTICS' {
+    return context === 'RETAILER_SUPPLIER' ? 'SUPPLIER' : 'LOGISTICS';
+}
+
+interface DirectoryOption {
+    id: number;
+    orgName: string;
+}
+
 export function PartnershipInvitationDialog({
     open,
     onOpenChange,
     defaultContext = 'RETAILER_SUPPLIER',
     fixedContext,
     showRetailerSupplierRef = false,
+    invitedOrgId: lockedOrgId,
+    invitedOrgName,
     trigger,
     onCreated,
 }: PartnershipInvitationDialogProps) {
@@ -60,49 +106,144 @@ export function PartnershipInvitationDialog({
         onOpenChange?.(v);
     };
 
-    const [invitedOrgId, setInvitedOrgId] = useState('');
     const [context, setContext] =
         useState<PartnershipInvitationContext>(defaultContext);
+    const [directory, setDirectory] = useState<DirectoryOption[]>([]);
+    const [directoryLoading, setDirectoryLoading] = useState(false);
+    const [selectedOrgId, setSelectedOrgId] = useState('');
+    // Org ids with an outstanding PENDING invitation from us. Send stays
+    // disabled for these until accepted/rejected (backend enforces too).
+    const [pendingOrgIds, setPendingOrgIds] = useState<Set<number>>(new Set());
     const [proposedTerms, setProposedTerms] = useState('');
     const [retailerSupplierId, setRetailerSupplierId] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    const effectiveContext = fixedContext ?? context;
+    const locked = lockedOrgId !== undefined;
+
     useEffect(() => {
-        if (dialogOpen) {
-            setContext(fixedContext ?? defaultContext);
-        }
-    }, [dialogOpen, fixedContext, defaultContext]);
+        if (!dialogOpen) return;
+        setContext(fixedContext ?? defaultContext);
+        if (locked) return;
+        let active = true;
+        setDirectoryLoading(true);
+        getOrganizationDirectory(
+            directoryTypeFor(fixedContext ?? defaultContext)
+        )
+            .then((entries) => {
+                if (!active) return;
+                setDirectory(
+                    entries.map((e) => ({
+                        id: Number(e.id),
+                        orgName: String(e.orgName ?? `Organization ${e.id}`),
+                    }))
+                );
+            })
+            .catch(() => {
+                if (active) toast.error('Failed to load organizations');
+            })
+            .finally(() => {
+                if (active) setDirectoryLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [dialogOpen, fixedContext, defaultContext, locked]);
+
+    // Outstanding sent invitations: drive the per-org Send disable state.
+    useEffect(() => {
+        if (!dialogOpen) return;
+        let active = true;
+        getRetailerSentInvitations({ pageNo: 0, pageOffset: 100 })
+            .then((res) => {
+                if (!active) return;
+                const pending = new Set<number>();
+                for (const inv of res.content ?? []) {
+                    const status = String(inv.status ?? '').toUpperCase();
+                    if (status !== 'PENDING') continue;
+                    const org = inv.invitedOrg ?? inv.invitedOrgId ?? undefined;
+                    const id = Number(org);
+                    if (Number.isFinite(id) && id > 0) pending.add(id);
+                }
+                setPendingOrgIds(pending);
+            })
+            .catch(() => {
+                // Non-fatal: backend still rejects duplicates.
+                if (active) setPendingOrgIds(new Set());
+            });
+        return () => {
+            active = false;
+        };
+    }, [dialogOpen]);
+
+    // Refetch the picker when the context changes (unlocked mode only).
+    useEffect(() => {
+        if (!dialogOpen || locked) return;
+        let active = true;
+        setDirectoryLoading(true);
+        setSelectedOrgId('');
+        getOrganizationDirectory(directoryTypeFor(effectiveContext))
+            .then((entries) => {
+                if (!active) return;
+                setDirectory(
+                    entries.map((e) => ({
+                        id: Number(e.id),
+                        orgName: String(e.orgName ?? `Organization ${e.id}`),
+                    }))
+                );
+            })
+            .catch(() => {
+                if (active) toast.error('Failed to load organizations');
+            })
+            .finally(() => {
+                if (active) setDirectoryLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [effectiveContext, dialogOpen, locked]);
 
     const handleSubmit = async () => {
-        const orgId = Number(invitedOrgId);
-        if (!invitedOrgId || Number.isNaN(orgId) || orgId < 1) {
-            toast.error('Counterparty organization ID is required');
+        const orgId = locked ? lockedOrgId : Number(selectedOrgId);
+        if (!Number.isFinite(orgId) || orgId < 1) {
+            toast.error('Please select a counterparty organization');
+            return;
+        }
+        if (pendingOrgIds.has(orgId)) {
+            toast.error(
+                'An invitation to this organization is already pending'
+            );
             return;
         }
         setSubmitting(true);
         try {
             await createRetailerInvitation({
                 invitedOrgId: orgId,
-                partnershipContext: fixedContext ?? context,
+                partnershipContext: effectiveContext,
                 proposedTerms: proposedTerms || undefined,
                 retailerSupplierId: retailerSupplierId
                     ? Number(retailerSupplierId)
                     : undefined,
             });
             toast.success('Partnership invitation sent');
-            setInvitedOrgId('');
+            setSelectedOrgId('');
             setProposedTerms('');
             setRetailerSupplierId('');
+            setPendingOrgIds((prev) => new Set(prev).add(orgId));
             setDialogOpen(false);
             onCreated?.();
         } catch (err: unknown) {
-            toast.error(
-                err instanceof Error ? err.message : 'Failed to send invitation'
-            );
+            toast.error(extractServerMessage(err));
         } finally {
             setSubmitting(false);
         }
     };
+
+    const targetOrgId = locked ? lockedOrgId : Number(selectedOrgId);
+    const alreadyPending =
+        Number.isFinite(targetOrgId) &&
+        targetOrgId > 0 &&
+        pendingOrgIds.has(targetOrgId);
 
     return (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -116,15 +257,45 @@ export function PartnershipInvitationDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6">
-                    <div className="grid gap-2">
-                        <Label>Counterparty Organization ID</Label>
-                        <Input
-                            type="number"
-                            value={invitedOrgId}
-                            onChange={(e) => setInvitedOrgId(e.target.value)}
-                            placeholder="e.g. 42"
-                        />
-                    </div>
+                    {locked ? (
+                        <div className="grid gap-2">
+                            <Label>Counterparty Organization</Label>
+                            <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">
+                                {invitedOrgName
+                                    ? `${invitedOrgName} (#${lockedOrgId})`
+                                    : `Organization #${lockedOrgId}`}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid gap-2">
+                            <Label>Counterparty Organization</Label>
+                            <Select
+                                value={selectedOrgId}
+                                onValueChange={setSelectedOrgId}
+                                disabled={directoryLoading}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue
+                                        placeholder={
+                                            directoryLoading
+                                                ? 'Loading organizations…'
+                                                : 'Select organization'
+                                        }
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {directory.map((o) => (
+                                        <SelectItem
+                                            key={o.id}
+                                            value={String(o.id)}
+                                        >
+                                            {o.orgName} (#{o.id})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                     {!fixedContext ? (
                         <div className="grid gap-2">
                             <Label>Partnership Context</Label>
@@ -150,7 +321,7 @@ export function PartnershipInvitationDialog({
                         </div>
                     ) : null}
                     {showRetailerSupplierRef ||
-                    (fixedContext ?? context) === 'RETAILER_SUPPLIER' ? (
+                    effectiveContext === 'RETAILER_SUPPLIER' ? (
                         <div className="grid gap-2">
                             <Label>Local Supplier Reference (optional)</Label>
                             <Input
@@ -181,10 +352,24 @@ export function PartnershipInvitationDialog({
                         <LoadingButton
                             loading={submitting}
                             onClick={handleSubmit}
+                            disabled={alreadyPending}
+                            title={
+                                alreadyPending
+                                    ? 'An invitation to this organization is already pending'
+                                    : undefined
+                            }
                         >
                             Send Invitation
                         </LoadingButton>
                     </div>
+                    {alreadyPending ? (
+                        <p className="text-sm text-muted-foreground">
+                            An invitation to this organization is already
+                            pending — sending is disabled until it is accepted
+                            or rejected. You can withdraw it from Sent
+                            Invitations.
+                        </p>
+                    ) : null}
                 </div>
             </DialogContent>
         </Dialog>

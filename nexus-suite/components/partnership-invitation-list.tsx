@@ -20,12 +20,23 @@ export function invitationIdOf(inv: PartnershipInvitation): number {
     return Number(raw);
 }
 
+/** Normalized UPPER-CASE status, '' when absent. */
+export function invitationStatusOf(inv: PartnershipInvitation): string {
+    return String(inv.status ?? '').toUpperCase();
+}
+
+/** True while the invitation is still awaiting a decision. */
+export function isInvitationPending(inv: PartnershipInvitation): boolean {
+    return invitationStatusOf(inv) === 'PENDING';
+}
+
 interface PartnershipInvitationListProps {
     invitations: PartnershipInvitation[];
     emptyText?: string;
     onAccept?: (invitation: PartnershipInvitation) => void;
     onReject?: (invitation: PartnershipInvitation) => void;
     onWithdraw?: (invitation: PartnershipInvitation) => void;
+    onReinvite?: (invitation: PartnershipInvitation) => void;
     busyId?: number | null;
 }
 
@@ -35,6 +46,7 @@ export function PartnershipInvitationList({
     onAccept,
     onReject,
     onWithdraw,
+    onReinvite,
     busyId = null,
 }: PartnershipInvitationListProps) {
     if (invitations.length === 0) {
@@ -107,6 +119,16 @@ export function PartnershipInvitationList({
                                             onClick={() => onWithdraw(inv)}
                                         >
                                             Withdraw
+                                        </Button>
+                                    ) : null}
+                                    {onReinvite ? (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={busyId === id}
+                                            onClick={() => onReinvite(inv)}
+                                        >
+                                            Reinvite
                                         </Button>
                                     ) : null}
                                 </div>

@@ -87,12 +87,6 @@ const retailerSections = [
                 url: '/retailer/products',
                 icon: IconPackage,
             },
-            {
-                title: 'Add Product',
-                url: '/retailer/products/add',
-                icon: IconCirclePlusFilled,
-            },
-            { title: 'Board', url: '/retailer/products/board', icon: IconEye },
         ],
     },
     {
@@ -105,6 +99,11 @@ const retailerSections = [
                 title: 'Purchase Orders',
                 url: '/retailer/purchase-orders',
                 icon: IconShoppingCart,
+            },
+            {
+                title: 'Quotations',
+                url: '/retailer/quotations',
+                icon: IconFileWord,
             },
             {
                 title: 'Goods Receipts',
@@ -352,9 +351,9 @@ const supplierSections = [
         showActions: true,
         items: [
             {
-                title: 'Partnership Inbox',
-                url: '/supplier/partnership/inbox',
-                icon: IconMail,
+                title: 'Partnerships',
+                url: '/supplier/partnership/management',
+                icon: IconLink,
             },
         ],
     },
@@ -400,9 +399,9 @@ const logisticsSections = [
                 icon: IconShoppingCart,
             },
             {
-                title: 'Partnership Inbox',
-                url: '/logistics/partnership/inbox',
-                icon: IconMail,
+                title: 'Partnerships',
+                url: '/logistics/partnership/management',
+                icon: IconLink,
             },
             {
                 title: 'Shipments',
@@ -439,6 +438,11 @@ const logisticsSections = [
             {
                 title: 'Financials',
                 url: '/logistics/financials',
+                icon: IconFileWord,
+            },
+            {
+                title: 'Freight Invoices',
+                url: '/logistics/freight-invoices',
                 icon: IconFileWord,
             },
         ],

@@ -50,6 +50,12 @@ export interface PurchaseOrderCreateRequest {
     /** yyyy-mm-dd */
     expectedDeliveryDate?: string;
     notes?: string;
+    isBlanketOrder?: boolean;
+    /** yyyy-mm-dd */
+    blanketStartDate?: string;
+    /** yyyy-mm-dd */
+    blanketEndDate?: string;
+    releaseSchedule?: string;
     lineItems: PurchaseOrderItemCreateRequest[];
 }
 

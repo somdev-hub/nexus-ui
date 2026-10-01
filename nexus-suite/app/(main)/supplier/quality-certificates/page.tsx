@@ -34,6 +34,7 @@ import {
 import {
     getQualityCerts,
     createQualityCert,
+    deleteQualityCert,
 } from '@/lib/services/supplier-orders-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
@@ -77,10 +78,21 @@ export default function QualityCertsPage() {
                 catalogId: form.catalogId ? Number(form.catalogId) : undefined,
                 certificateType: form.certificateType,
                 certificateNumber: form.certificateNumber || undefined,
-                dmsDocumentId: 'DMS-' + Date.now(),
             });
             toast({ title: 'Certificate created', variant: 'success' });
             setOpen(false);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteQualityCert(id);
+            toast({ title: 'Certificate deleted', variant: 'success' });
             load();
         } catch (e: unknown) {
             toast({
@@ -194,6 +206,7 @@ export default function QualityCertsPage() {
                                     <TableHead>Type</TableHead>
                                     <TableHead>Number</TableHead>
                                     <TableHead>DMS</TableHead>
+                                    <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -221,13 +234,26 @@ export default function QualityCertsPage() {
                                             <TableCell className="text-xs">
                                                 {c.dmsDocumentId || '-'}
                                             </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() =>
+                                                        handleDelete(
+                                                            c.certificateId
+                                                        )
+                                                    }
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     )
                                 )}
                                 {!data?.content?.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No certificates

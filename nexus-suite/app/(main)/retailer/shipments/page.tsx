@@ -1,6 +1,5 @@
 'use client';
 
-import { DataTable } from '@/components/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
     getShipments,
+    searchShipments,
     type Shipment,
     type ShipmentFilter,
     type ShipmentMode,
@@ -27,7 +35,6 @@ import {
     Plus,
     Ship,
     Train,
-    Trash2,
     Truck,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -38,6 +45,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 const STATUS_COLORS: Record<ShipmentStatus, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -70,6 +78,7 @@ export default function ShipmentsPage() {
     const [data, setData] = useState<ShipmentPaginatedResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState<ShipmentFilter>({
         pageNo: 0,
         pageOffset: 10,
@@ -86,7 +95,13 @@ export default function ShipmentsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const result = await getShipments(filter);
+            const result = searchTerm
+                ? await searchShipments(
+                      { q: searchTerm },
+                      filter.pageNo ?? 0,
+                      filter.pageOffset ?? 10
+                  )
+                : await getShipments(filter);
             setData(result);
         } catch (err: unknown) {
             const message =
@@ -96,11 +111,11 @@ export default function ShipmentsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [filter]);
+    }, [filter, searchTerm]);
 
     useEffect(() => {
         fetchShipments();
-    }, [fetchShipments, filter]);
+    }, [fetchShipments, filter, searchTerm]);
 
     const handlePageChange = (newPage: number) => {
         setFilter((prev) => ({ ...prev, pageNo: newPage }));
@@ -110,8 +125,9 @@ export default function ShipmentsPage() {
         setFilter((prev) => ({ ...prev, ...newFilter, pageNo: 0 }));
     };
 
-    const onSearchSubmit = (data: SearchFormData) => {
-        handleFilterChange({ pageNo: 0 });
+    const onSearchSubmit = (formData: SearchFormData) => {
+        setSearchTerm(formData.searchTerm?.trim() ?? '');
+        setFilter((prev) => ({ ...prev, pageNo: 0 }));
     };
 
     if (isLoading && !data) {
@@ -142,105 +158,10 @@ export default function ShipmentsPage() {
         );
     }
 
-    const columns = [
-        {
-            key: 'shipmentNumber',
-            header: 'Shipment #',
-            className: 'font-mono font-medium',
-        },
-        {
-            key: 'status',
-            header: 'Status',
-            render: (row: Shipment) => (
-                <Badge
-                    className={
-                        STATUS_COLORS[row.status as ShipmentStatus] ||
-                        'bg-gray-100 text-gray-800'
-                    }
-                >
-                    {row.status}
-                </Badge>
-            ),
-        },
-        {
-            key: 'mode',
-            header: 'Mode',
-            render: (row: Shipment) => (
-                <span className="flex items-center gap-2">
-                    {MODE_ICONS[row.mode as ShipmentMode] || (
-                        <Package className="w-4 h-4" />
-                    )}
-                    {row.mode}
-                </span>
-            ),
-        },
-        { key: 'supplierOrgName', header: 'Supplier' },
-        { key: 'logisticsOrgName', header: 'Logistics' },
-        {
-            key: 'pickupDate',
-            header: 'Pickup Date',
-            render: (row: Shipment) =>
-                row.pickupDate
-                    ? new Date(row.pickupDate).toLocaleDateString()
-                    : '—',
-        },
-        {
-            key: 'deliveryDate',
-            header: 'Delivery Date',
-            render: (row: Shipment) =>
-                row.deliveryDate
-                    ? new Date(row.deliveryDate).toLocaleDateString()
-                    : '—',
-        },
-        {
-            key: 'freightCost',
-            header: 'Freight Cost',
-            render: (row: Shipment) =>
-                row.freightCost
-                    ? `${row.currency || 'USD'} ${row.freightCost.toLocaleString()}`
-                    : '—',
-        },
-        {
-            key: 'actions',
-            header: 'Actions',
-            render: (row: Shipment) => (
-                <div className="flex items-center gap-2">
-                    <Link href={`/retailer/shipments/${row.shipmentId}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Eye className="w-4 h-4" />
-                        </Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-600 hover:text-red-700"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </Button>
-                </div>
-            ),
-        },
-    ];
-
-    // Transform shipment data to match DataTable schema
-    const tableData =
-        data?.content.map((shipment, index) => ({
-            id: index + 1 + (filter.pageNo ?? 0) * (filter.pageOffset ?? 10),
-            header: shipment.shipmentNumber,
-            type: shipment.mode,
-            status: shipment.status,
-            target: shipment.supplierOrgName || '—',
-            limit: shipment.logisticsOrgName || '—',
-            reviewer: shipment.freightCost
-                ? `${shipment.currency || 'USD'} ${shipment.freightCost.toLocaleString()}`
-                : '—',
-        })) || [];
+    const rows: Shipment[] = data?.content ?? [];
 
     return (
-        <div className="flex flex-1 flex-col p-6">
+        <div className="flex flex-1 flex-col p-6 gap-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Shipments</h1>
@@ -279,6 +200,9 @@ export default function ShipmentsPage() {
                         />
                     </div>
                     <div className="flex gap-2">
+                        <Button type="submit" variant="outline">
+                            Search
+                        </Button>
                         <Select
                             value={filter.status || ''}
                             onValueChange={(value) =>
@@ -345,7 +269,142 @@ export default function ShipmentsPage() {
                 </form>
             </Form>
 
-            <DataTable data={tableData} />
+            <div className="rounded-lg border overflow-hidden">
+                <Table>
+                    <TableHeader className="bg-muted">
+                        <TableRow>
+                            <TableHead>Shipment #</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Mode</TableHead>
+                            <TableHead>Supplier</TableHead>
+                            <TableHead>Logistics</TableHead>
+                            <TableHead>Pickup Date</TableHead>
+                            <TableHead>Delivery Date</TableHead>
+                            <TableHead>Freight Cost</TableHead>
+                            <TableHead>Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {rows.map((row) => (
+                            <TableRow key={row.shipmentId}>
+                                <TableCell className="font-mono font-medium">
+                                    {row.shipmentNumber}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        className={
+                                            STATUS_COLORS[
+                                                row.status as ShipmentStatus
+                                            ] || 'bg-gray-100 text-gray-800'
+                                        }
+                                    >
+                                        {row.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="flex items-center gap-2">
+                                        {MODE_ICONS[
+                                            row.mode as ShipmentMode
+                                        ] || <Package className="w-4 h-4" />}
+                                        {row.mode}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    {row.supplierOrgName || '—'}
+                                </TableCell>
+                                <TableCell>
+                                    {row.logisticsOrgName || '—'}
+                                </TableCell>
+                                <TableCell>
+                                    {row.pickupDate
+                                        ? new Date(
+                                              row.pickupDate
+                                          ).toLocaleDateString()
+                                        : '—'}
+                                </TableCell>
+                                <TableCell>
+                                    {row.deliveryDate
+                                        ? new Date(
+                                              row.deliveryDate
+                                          ).toLocaleDateString()
+                                        : '—'}
+                                </TableCell>
+                                <TableCell>
+                                    {row.freightCost
+                                        ? `${row.currency || 'USD'} ${row.freightCost.toLocaleString()}`
+                                        : '—'}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <Link
+                                            href={`/retailer/shipments/${row.shipmentId}`}
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </Button>
+                                        </Link>
+                                        <Link
+                                            href={`/retailer/shipments/${row.shipmentId}`}
+                                        >
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {rows.length === 0 && (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={9}
+                                    className="text-center py-8 text-muted-foreground"
+                                >
+                                    No shipments
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-1 items-center">
+                    <span className="text-sm text-muted-foreground">
+                        {data?.totalElements ?? 0} shipment(s)
+                    </span>
+                </div>
+                <div className="flex flex-1 items-center justify-center">
+                    <TablePagination
+                        pageIndex={filter.pageNo ?? 0}
+                        pageCount={data?.totalPages ?? 0}
+                        canPreviousPage={(filter.pageNo ?? 0) > 0}
+                        canNextPage={data ? !data.last : false}
+                        onPageChange={handlePageChange}
+                        onPreviousPage={() =>
+                            handlePageChange((filter.pageNo ?? 0) - 1)
+                        }
+                        onNextPage={() =>
+                            handlePageChange((filter.pageNo ?? 0) + 1)
+                        }
+                        showFirstLast={false}
+                    />
+                </div>
+                <div className="flex flex-1 items-center justify-end">
+                    <span className="text-sm text-muted-foreground">
+                        Page {(filter.pageNo ?? 0) + 1} of{' '}
+                        {data?.totalPages ?? 1}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 }

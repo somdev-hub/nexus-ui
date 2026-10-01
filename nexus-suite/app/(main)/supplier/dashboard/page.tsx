@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import type { SupplierCatalog } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
@@ -30,6 +31,7 @@ import {
 } from '@/lib/services/supplier-commercial-service';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { setQuickCreateIntent } from '@/lib/quick-create';
 import {
     IconPackage,
     IconShoppingCart,
@@ -41,6 +43,7 @@ import {
 
 export default function SupplierDashboard() {
     const { toast } = useToast();
+    const router = useRouter();
     const [dashboard, setDashboard] = useState<SupplierDashboard | null>(null);
     const [catalog, setCatalog] =
         useState<PaginatedResponse<SupplierCatalog> | null>(null);
@@ -140,17 +143,26 @@ export default function SupplierDashboard() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/supplier/catalog">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Catalog
-                        </Link>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            setQuickCreateIntent('supplier:catalog');
+                            router.push('/supplier/catalog');
+                        }}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Catalog
                     </Button>
-                    <Button asChild size="sm">
-                        <Link href="/supplier/orders">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Orders
-                        </Link>
+                    <Button
+                        size="sm"
+                        onClick={() => {
+                            setQuickCreateIntent('supplier:quotation');
+                            router.push('/supplier/quotations');
+                        }}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Orders
                     </Button>
                 </div>
             </div>
@@ -181,7 +193,7 @@ export default function SupplierDashboard() {
                 ))}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
                 <Card className="p-4 gap-2">
                     <CardHeader className="p-0">
                         <CardTitle>Order Fulfillment</CardTitle>
@@ -250,6 +262,38 @@ export default function SupplierDashboard() {
                         >
                             <Link href="/supplier/capacity">
                                 Manage Capacity
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+                <Card className="p-4 gap-2">
+                    <CardHeader className="p-0">
+                        <CardTitle>Customers</CardTitle>
+                        <CardDescription>
+                            Retailer orders & account health
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 p-0">
+                        <div className="flex justify-between">
+                            <span className="text-sm">Quotations sent</span>
+                            <Badge variant="secondary">
+                                {quotations?.sent ?? 0}
+                            </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-sm">Total quotations</span>
+                            <span className="text-sm font-medium">
+                                {dashboard?.totalQuotations ?? 0}
+                            </span>
+                        </div>
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2"
+                        >
+                            <Link href="/supplier/customers">
+                                View Customers
                             </Link>
                         </Button>
                     </CardContent>

@@ -14,6 +14,7 @@ export interface SupplierCatalog {
     accessLevel?: string;
     isPublished?: boolean;
     publishedAt?: string;
+    allowedPartnerOrgIds?: string;
     supplierOrgId?: number;
     createdAt?: string;
     updatedAt?: string;

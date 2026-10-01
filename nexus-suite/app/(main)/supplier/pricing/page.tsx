@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label';
 import {
     getPriceTiers,
     createPriceTier,
+    deletePriceTier,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
@@ -45,6 +46,9 @@ export default function SupplierPricingPage() {
         unitPrice: '',
         customerSegment: '',
         tierName: '',
+        contractId: '',
+        validFrom: '',
+        validTo: '',
     });
 
     const load = async () => {
@@ -78,10 +82,28 @@ export default function SupplierPricingPage() {
                 unitPrice: Number(form.unitPrice),
                 customerSegment: form.customerSegment || undefined,
                 tierName: form.tierName || undefined,
+                contractId: form.contractId
+                    ? Number(form.contractId)
+                    : undefined,
+                validFrom: form.validFrom || undefined,
+                validTo: form.validTo || undefined,
                 currency: 'USD',
             });
             toast({ title: 'Price tier created', variant: 'success' });
             setOpen(false);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        try {
+            await deletePriceTier(id);
+            toast({ title: 'Price tier deleted', variant: 'success' });
             load();
         } catch (e: unknown) {
             toast({
@@ -189,6 +211,47 @@ export default function SupplierPricingPage() {
                                     }
                                 />
                             </div>
+                            <div className="grid gap-2">
+                                <Label>Contract ID (optional)</Label>
+                                <Input
+                                    placeholder="e.g. 9"
+                                    value={form.contractId}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            contractId: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Valid From</Label>
+                                    <Input
+                                        type="date"
+                                        value={form.validFrom}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                validFrom: e.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Valid To</Label>
+                                    <Input
+                                        type="date"
+                                        value={form.validTo}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                validTo: e.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </div>
                             <Button onClick={handleCreate}>Create</Button>
                         </div>
                     </DialogContent>
@@ -214,7 +277,9 @@ export default function SupplierPricingPage() {
                                     <TableHead>Qty Range</TableHead>
                                     <TableHead>Unit Price</TableHead>
                                     <TableHead>Segment</TableHead>
+                                    <TableHead>Contract</TableHead>
                                     <TableHead>Validity</TableHead>
+                                    <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -233,16 +298,30 @@ export default function SupplierPricingPage() {
                                                 {t.customerSegment || 'ALL'}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell>
+                                            {t.contractId ?? '-'}
+                                        </TableCell>
                                         <TableCell className="text-xs">
                                             {t.validFrom || '-'} →{' '}
                                             {t.validTo || '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    handleDelete(t.tierId)
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {!data?.content?.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={7}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No tiers

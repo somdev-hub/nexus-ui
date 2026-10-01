@@ -1,5 +1,15 @@
 'use client';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
@@ -9,7 +19,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { getDeliveryAppointments } from '@/lib/services/delivery-appointment-service';
+import {
+    createDeliveryAppointment,
+    getDeliveryAppointments,
+} from '@/lib/services/delivery-appointment-service';
 import type { DeliveryAppointment } from '@/types/delivery-appointment';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -27,6 +40,31 @@ const COLOR: Record<string, string> = {
 export default function DeliveryAppointmentsPage() {
     const [data, setData] = useState<DeliveryAppointment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [open, setOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [form, setForm] = useState({
+        shipmentId: '',
+        warehouseId: '',
+        scheduledStart: '',
+        scheduledEnd: '',
+        dockNumber: '',
+    });
+
+    const load = async () => {
+        setIsLoading(true);
+        try {
+            const r = await getDeliveryAppointments({
+                pageNo: 0,
+                pageOffset: 20,
+            });
+            setData(r.content);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
         let a = true;
         (async () => {
@@ -47,6 +85,49 @@ export default function DeliveryAppointmentsPage() {
             a = false;
         };
     }, []);
+
+    const set =
+        (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+            setForm((f) => ({ ...f, [k]: e.target.value }));
+
+    const handleSchedule = async () => {
+        if (
+            !form.shipmentId ||
+            !form.warehouseId ||
+            !form.scheduledStart ||
+            !form.scheduledEnd
+        ) {
+            toast.error(
+                'Shipment, warehouse, start and end times are required'
+            );
+            return;
+        }
+        setSaving(true);
+        try {
+            await createDeliveryAppointment({
+                shipmentId: Number(form.shipmentId),
+                warehouseId: Number(form.warehouseId),
+                scheduledStart: new Date(form.scheduledStart).toISOString(),
+                scheduledEnd: new Date(form.scheduledEnd).toISOString(),
+                dockNumber: form.dockNumber || undefined,
+            });
+            toast.success('Delivery appointment scheduled');
+            setOpen(false);
+            setForm({
+                shipmentId: '',
+                warehouseId: '',
+                scheduledStart: '',
+                scheduledEnd: '',
+                dockNumber: '',
+            });
+            load();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to schedule');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (isLoading)
         return (
             <div className="p-6">
@@ -55,11 +136,84 @@ export default function DeliveryAppointmentsPage() {
         );
     return (
         <div className="flex flex-1 flex-col p-6 gap-6">
-            <div>
-                <h1 className="text-2xl font-bold">Delivery Appointments</h1>
-                <p className="text-muted-foreground">
-                    Warehouse receiving slots · FR-RET-034
-                </p>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold">
+                        Delivery Appointments
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Warehouse receiving slots · FR-RET-034
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={load}>
+                        Refresh
+                    </Button>
+                    <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                            <Button>Schedule</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>
+                                    Schedule Delivery Appointment
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-6">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Shipment ID</Label>
+                                        <Input
+                                            placeholder="e.g. 12"
+                                            value={form.shipmentId}
+                                            onChange={set('shipmentId')}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Warehouse ID</Label>
+                                        <Input
+                                            placeholder="e.g. 3"
+                                            value={form.warehouseId}
+                                            onChange={set('warehouseId')}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Start</Label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={form.scheduledStart}
+                                            onChange={set('scheduledStart')}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>End</Label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={form.scheduledEnd}
+                                            onChange={set('scheduledEnd')}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Dock Number</Label>
+                                    <Input
+                                        placeholder="e.g. DOCK-07"
+                                        value={form.dockNumber}
+                                        onChange={set('dockNumber')}
+                                    />
+                                </div>
+                                <Button
+                                    onClick={handleSchedule}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Scheduling...' : 'Schedule'}
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
             <div className="rounded-lg border overflow-hidden">
                 <Table>

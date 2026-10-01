@@ -14,24 +14,41 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
     getAllAccountHealth,
     getHealthSummary,
+    getCustomerOrders,
 } from '@/lib/services/supplier-commercial-service';
-import type { AccountHealth, AccountHealthSummary } from '@/types/supplier';
+import type {
+    AccountHealth,
+    AccountHealthSummary,
+    SupplierOrder,
+} from '@/types/supplier';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AccountHealthPage() {
     const { toast } = useToast();
     const [data, setData] = useState<AccountHealth[] | null>(null);
     const [summary, setSummary] = useState<AccountHealthSummary | null>(null);
+    const [buyerNames, setBuyerNames] = useState<Record<number, string>>({});
     const [loading, setLoading] = useState(true);
     useEffect(() => {
         (async () => {
             try {
-                const [d, s] = await Promise.all([
+                const [d, s, o] = await Promise.all([
                     getAllAccountHealth().catch(() => [] as AccountHealth[]),
                     getHealthSummary().catch(() => null),
+                    getCustomerOrders(undefined, { page: 0, size: 100 }).catch(
+                        () => null
+                    ),
                 ]);
                 setData(Array.isArray(d) ? d : []);
                 setSummary(s);
+                const names: Record<number, string> = {};
+                o?.content?.forEach((order: SupplierOrder) => {
+                    const id = order.buyerOrgId ?? order.buyerOrg?.accountId;
+                    const name = order.buyerOrg?.name;
+                    if (id !== undefined && name && !names[id])
+                        names[id] = name;
+                });
+                setBuyerNames(names);
             } catch (e: unknown) {
                 toast({
                     title: e instanceof Error ? e.message : 'Failed to load',
@@ -116,7 +133,14 @@ export default function AccountHealthPage() {
                                 {list.map((h, idx: number) => (
                                     <TableRow key={idx}>
                                         <TableCell>
-                                            {h.buyerOrgId || idx + 1}
+                                            {buyerNames[h.buyerOrgId] ?? (
+                                                <>
+                                                    {h.buyerOrgId || idx + 1}
+                                                    <div className="text-xs text-muted-foreground">
+                                                        ID {h.buyerOrgId}
+                                                    </div>
+                                                </>
+                                            )}
                                         </TableCell>
                                         <TableCell>{h.totalOrders}</TableCell>
                                         <TableCell>

@@ -30,17 +30,24 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-        getConsolidationGroups,
-        createConsolidationGroup,
-        updateGroup,
-        transitionGroupStatus,
-        addShipmentsToGroup,
-        deleteConsolidationGroup,
-        getCapacityForecasts,
-        createCapacityForecast,
-        updateCapacity,
-        deleteCapacityForecast,
-    } from '@/lib/services/logistics-ops-service';
+    getConsolidationGroups,
+    createConsolidationGroup,
+    updateGroup,
+    transitionGroupStatus,
+    addShipmentsToGroup,
+    deleteConsolidationGroup,
+    getCapacityForecasts,
+    createCapacityForecast,
+    updateCapacity,
+    deleteCapacityForecast,
+} from '@/lib/services/logistics-ops-service';
+import {
+    getShipmentStops,
+    addShipmentStop,
+    deleteShipmentStop,
+    transitionShipmentStopStatus,
+    type ShipmentStop,
+} from '@/lib/services/shipment-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -69,7 +76,21 @@ export default function RoutingPage() {
         availableCapacity: '',
     });
     const [busy, setBusy] = useState<string | null>(null);
-    const [groupEdit, setGroupEdit] = useState<{ id: number; notes: string } | null>(null);
+    const [stopsShipmentId, setStopsShipmentId] = useState('');
+    const [stops, setStops] = useState<ShipmentStop[]>([]);
+    const [stopsLoaded, setStopsLoaded] = useState(false);
+    const [stopForm, setStopForm] = useState({
+        sequenceNumber: '',
+        stopType: 'DELIVERY',
+        location: '',
+        address: '',
+        scheduledDate: '',
+        notes: '',
+    });
+    const [groupEdit, setGroupEdit] = useState<{
+        id: number;
+        notes: string;
+    } | null>(null);
     const [capEdit, setCapEdit] = useState<{
         id: number;
         originLane: string;
@@ -87,7 +108,10 @@ export default function RoutingPage() {
         try {
             await fn();
         } catch (e: unknown) {
-            toast({ title: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
         } finally {
             setBusy(null);
         }
@@ -184,10 +208,99 @@ export default function RoutingPage() {
         }
     };
 
+    const handleStopsLoad = async () => {
+        if (!stopsShipmentId) return;
+        try {
+            const list = await getShipmentStops(Number(stopsShipmentId));
+            setStops(
+                [...list].sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+            );
+            setStopsLoaded(true);
+        } catch (e: unknown) {
+            setStops([]);
+            setStopsLoaded(false);
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleStopAdd = async () => {
+        if (!stopsShipmentId || !stopForm.sequenceNumber) return;
+        try {
+            await addShipmentStop(Number(stopsShipmentId), {
+                sequenceNumber: Number(stopForm.sequenceNumber),
+                stopType: stopForm.stopType as ShipmentStop['stopType'],
+                location: stopForm.location || undefined,
+                address: stopForm.address || undefined,
+                scheduledDate: stopForm.scheduledDate || undefined,
+                notes: stopForm.notes || undefined,
+            });
+            toast({ title: 'Stop added', variant: 'success' });
+            setStopForm({
+                sequenceNumber: '',
+                stopType: 'DELIVERY',
+                location: '',
+                address: '',
+                scheduledDate: '',
+                notes: '',
+            });
+            await handleStopsLoad();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleStopRemove = async (stopId: number) => {
+        if (!stopsShipmentId) return;
+        try {
+            await deleteShipmentStop(Number(stopsShipmentId), stopId);
+            toast({ title: 'Stop removed', variant: 'success' });
+            await handleStopsLoad();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleStopAdvance = async (stopId: number, current: string) => {
+        const next =
+            current === 'PENDING'
+                ? 'ARRIVED'
+                : current === 'ARRIVED'
+                  ? 'DEPARTED'
+                  : current === 'DEPARTED'
+                    ? 'COMPLETED'
+                    : null;
+        if (!next || !stopsShipmentId) return;
+        try {
+            await transitionShipmentStopStatus(
+                Number(stopsShipmentId),
+                stopId,
+                next
+            );
+            toast({ title: `Stop ${next.toLowerCase()}`, variant: 'success' });
+            await handleStopsLoad();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+
     const handleGroupUpdate = async () => {
         if (!groupEdit) return;
         try {
-            await updateGroup(groupEdit.id, { notes: groupEdit.notes || undefined });
+            await updateGroup(groupEdit.id, {
+                notes: groupEdit.notes || undefined,
+            });
             toast({ title: 'Group updated', variant: 'success' });
             setGroupEdit(null);
             load();
@@ -205,13 +318,16 @@ export default function RoutingPage() {
             await updateCapacity(capEdit.id, {
                 originLane: capEdit.originLane || undefined,
                 destinationLane: capEdit.destinationLane || undefined,
-                equipmentType: capEdit.equipmentType as CapacityForecast['equipmentType'],
+                equipmentType:
+                    capEdit.equipmentType as CapacityForecast['equipmentType'],
                 periodStart: capEdit.periodStart || undefined,
                 periodEnd: capEdit.periodEnd || undefined,
                 availableCapacity: capEdit.availableCapacity
                     ? Number(capEdit.availableCapacity)
                     : undefined,
-                bookedCapacity: capEdit.bookedCapacity ? Number(capEdit.bookedCapacity) : undefined,
+                bookedCapacity: capEdit.bookedCapacity
+                    ? Number(capEdit.bookedCapacity)
+                    : undefined,
                 notes: capEdit.notes || undefined,
             });
             toast({ title: 'Capacity updated', variant: 'success' });
@@ -254,7 +370,15 @@ export default function RoutingPage() {
                                         placeholder="Lane, trailer, ..."
                                     />
                                 </div>
-                                <LoadingButton loading={busy === 'group-create'} onClick={() => withBusy('group-create', handleGroupCreate)}>
+                                <LoadingButton
+                                    loading={busy === 'group-create'}
+                                    onClick={() =>
+                                        withBusy(
+                                            'group-create',
+                                            handleGroupCreate
+                                        )
+                                    }
+                                >
                                     Create
                                 </LoadingButton>
                             </div>
@@ -275,7 +399,8 @@ export default function RoutingPage() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>Origin Lane</Label>
-                                        <Input placeholder="e.g. Mumbai"
+                                        <Input
+                                            placeholder="e.g. Mumbai"
                                             value={capForm.originLane}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -287,7 +412,8 @@ export default function RoutingPage() {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Destination Lane</Label>
-                                        <Input placeholder="e.g. Pune"
+                                        <Input
+                                            placeholder="e.g. Pune"
                                             value={capForm.destinationLane}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -302,7 +428,8 @@ export default function RoutingPage() {
                                 <div className="grid grid-cols-3 gap-3">
                                     <div className="grid gap-2">
                                         <Label>Equipment</Label>
-                                        <Input placeholder="e.g. TRUCK"
+                                        <Input
+                                            placeholder="e.g. TRUCK"
                                             value={capForm.equipmentType}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -315,7 +442,8 @@ export default function RoutingPage() {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>From (YYYY-MM-DD)</Label>
-                                        <Input placeholder="e.g. 2026-10-01"
+                                        <Input
+                                            placeholder="e.g. 2026-10-01"
                                             value={capForm.periodStart}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -327,7 +455,8 @@ export default function RoutingPage() {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>To (YYYY-MM-DD)</Label>
-                                        <Input placeholder="e.g. 2026-12-31"
+                                        <Input
+                                            placeholder="e.g. 2026-12-31"
                                             value={capForm.periodEnd}
                                             onChange={(e) =>
                                                 setCapForm({
@@ -340,7 +469,8 @@ export default function RoutingPage() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Available Capacity</Label>
-                                    <Input placeholder="e.g. 40"
+                                    <Input
+                                        placeholder="e.g. 40"
                                         type="number"
                                         value={capForm.availableCapacity}
                                         onChange={(e) =>
@@ -352,7 +482,12 @@ export default function RoutingPage() {
                                         }
                                     />
                                 </div>
-                                <LoadingButton loading={busy === 'cap-create'} onClick={() => withBusy('cap-create', handleCapCreate)}>
+                                <LoadingButton
+                                    loading={busy === 'cap-create'}
+                                    onClick={() =>
+                                        withBusy('cap-create', handleCapCreate)
+                                    }
+                                >
                                     Create
                                 </LoadingButton>
                             </div>
@@ -366,6 +501,7 @@ export default function RoutingPage() {
                         Consolidation
                     </TabsTrigger>
                     <TabsTrigger value="capacity">Capacity</TabsTrigger>
+                    <TabsTrigger value="stops">Shipment Stops</TabsTrigger>
                 </TabsList>
                 <TabsContent value="consolidation" className="space-y-4">
                     <Card className="p-4 gap-2">
@@ -402,7 +538,12 @@ export default function RoutingPage() {
                                 <LoadingButton
                                     loading={busy === 'group-add'}
                                     variant="outline"
-                                    onClick={() => withBusy('group-add', handleAddShipments)}
+                                    onClick={() =>
+                                        withBusy(
+                                            'group-add',
+                                            handleAddShipments
+                                        )
+                                    }
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add
@@ -456,16 +597,21 @@ export default function RoutingPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
-                                                        {g.status === 'OPEN' && (
+                                                        {g.status ===
+                                                            'OPEN' && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
                                                                 title="Edit group"
                                                                 onClick={() =>
-                                                                    setGroupEdit({
-                                                                        id: g.groupId,
-                                                                        notes: g.notes ?? '',
-                                                                    })
+                                                                    setGroupEdit(
+                                                                        {
+                                                                            id: g.groupId,
+                                                                            notes:
+                                                                                g.notes ??
+                                                                                '',
+                                                                        }
+                                                                    )
                                                                 }
                                                             >
                                                                 <Pencil className="h-4 w-4" />
@@ -474,16 +620,24 @@ export default function RoutingPage() {
                                                         {g.status ===
                                                             'OPEN' && (
                                                             <LoadingButton
-                                                                loading={busy === `group-${g.groupId}`}
+                                                                loading={
+                                                                    busy ===
+                                                                    `group-${g.groupId}`
+                                                                }
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => withBusy(`group-${g.groupId}`, async () => {
-                                                                    await transitionGroupStatus(
-                                                                        g.groupId,
-                                                                        'LOCKED'
-                                                                    );
-                                                                    load();
-                                                                })}
+                                                                onClick={() =>
+                                                                    withBusy(
+                                                                        `group-${g.groupId}`,
+                                                                        async () => {
+                                                                            await transitionGroupStatus(
+                                                                                g.groupId,
+                                                                                'LOCKED'
+                                                                            );
+                                                                            load();
+                                                                        }
+                                                                    )
+                                                                }
                                                             >
                                                                 <Check className="mr-2 h-4 w-4" />
                                                                 Lock
@@ -492,30 +646,46 @@ export default function RoutingPage() {
                                                         {g.status ===
                                                             'LOCKED' && (
                                                             <LoadingButton
-                                                                loading={busy === `group-${g.groupId}`}
+                                                                loading={
+                                                                    busy ===
+                                                                    `group-${g.groupId}`
+                                                                }
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => withBusy(`group-${g.groupId}`, async () => {
-                                                                    await transitionGroupStatus(
-                                                                        g.groupId,
-                                                                        'IN_TRANSIT'
-                                                                    );
-                                                                    load();
-                                                                })}
+                                                                onClick={() =>
+                                                                    withBusy(
+                                                                        `group-${g.groupId}`,
+                                                                        async () => {
+                                                                            await transitionGroupStatus(
+                                                                                g.groupId,
+                                                                                'IN_TRANSIT'
+                                                                            );
+                                                                            load();
+                                                                        }
+                                                                    )
+                                                                }
                                                             >
                                                                 Dispatch
                                                             </LoadingButton>
                                                         )}
                                                         <LoadingButton
-                                                            loading={busy === `group-del-${g.groupId}`}
+                                                            loading={
+                                                                busy ===
+                                                                `group-del-${g.groupId}`
+                                                            }
                                                             size="sm"
                                                             variant="ghost"
-                                                            onClick={() => withBusy(`group-del-${g.groupId}`, async () => {
-                                                                await deleteConsolidationGroup(
-                                                                    g.groupId
-                                                                );
-                                                                load();
-                                                            })}
+                                                            onClick={() =>
+                                                                withBusy(
+                                                                    `group-del-${g.groupId}`,
+                                                                    async () => {
+                                                                        await deleteConsolidationGroup(
+                                                                            g.groupId
+                                                                        );
+                                                                        load();
+                                                                    }
+                                                                )
+                                                            }
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </LoadingButton>
@@ -591,35 +761,61 @@ export default function RoutingPage() {
                                                             onClick={() =>
                                                                 setCapEdit({
                                                                     id: c.forecastId,
-                                                                    originLane: c.originLane ?? '',
-                                                                    destinationLane: c.destinationLane ?? '',
-                                                                    equipmentType: c.equipmentType ?? 'TRUCK',
-                                                                    periodStart: c.periodStart ?? '',
-                                                                    periodEnd: c.periodEnd ?? '',
+                                                                    originLane:
+                                                                        c.originLane ??
+                                                                        '',
+                                                                    destinationLane:
+                                                                        c.destinationLane ??
+                                                                        '',
+                                                                    equipmentType:
+                                                                        c.equipmentType ??
+                                                                        'TRUCK',
+                                                                    periodStart:
+                                                                        c.periodStart ??
+                                                                        '',
+                                                                    periodEnd:
+                                                                        c.periodEnd ??
+                                                                        '',
                                                                     availableCapacity:
-                                                                        c.availableCapacity != null
-                                                                            ? String(c.availableCapacity)
+                                                                        c.availableCapacity !=
+                                                                        null
+                                                                            ? String(
+                                                                                  c.availableCapacity
+                                                                              )
                                                                             : '',
                                                                     bookedCapacity:
-                                                                        c.bookedCapacity != null
-                                                                            ? String(c.bookedCapacity)
+                                                                        c.bookedCapacity !=
+                                                                        null
+                                                                            ? String(
+                                                                                  c.bookedCapacity
+                                                                              )
                                                                             : '',
-                                                                    notes: c.notes ?? '',
+                                                                    notes:
+                                                                        c.notes ??
+                                                                        '',
                                                                 })
                                                             }
                                                         >
                                                             <Pencil className="h-4 w-4" />
                                                         </Button>
                                                         <LoadingButton
-                                                            loading={busy === `cap-del-${c.forecastId}`}
+                                                            loading={
+                                                                busy ===
+                                                                `cap-del-${c.forecastId}`
+                                                            }
                                                             size="sm"
                                                             variant="ghost"
-                                                            onClick={() => withBusy(`cap-del-${c.forecastId}`, async () => {
-                                                                await deleteCapacityForecast(
-                                                                    c.forecastId
-                                                                );
-                                                                load();
-                                                            })}
+                                                            onClick={() =>
+                                                                withBusy(
+                                                                    `cap-del-${c.forecastId}`,
+                                                                    async () => {
+                                                                        await deleteCapacityForecast(
+                                                                            c.forecastId
+                                                                        );
+                                                                        load();
+                                                                    }
+                                                                )
+                                                            }
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </LoadingButton>
@@ -643,71 +839,426 @@ export default function RoutingPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="stops">
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
+                            <CardTitle className="flex gap-2">
+                                <Input
+                                    placeholder="Shipment ID"
+                                    type="number"
+                                    value={stopsShipmentId}
+                                    onChange={(e) =>
+                                        setStopsShipmentId(e.target.value)
+                                    }
+                                    className="max-w-36"
+                                />
+                                <LoadingButton
+                                    loading={busy === 'stops-load'}
+                                    variant="outline"
+                                    onClick={() =>
+                                        withBusy('stops-load', handleStopsLoad)
+                                    }
+                                >
+                                    Load Stops
+                                </LoadingButton>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {!stopsLoaded ? (
+                                <div className="py-6 text-center text-sm text-muted-foreground">
+                                    Enter a shipment ID to view its multi-stop
+                                    route
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Seq</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Location</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {stops.map((s) => (
+                                            <TableRow key={s.stopId}>
+                                                <TableCell className="font-medium">
+                                                    {s.sequenceNumber}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {s.stopType}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    {s.location ?? '-'}
+                                                    <div className="text-muted-foreground">
+                                                        {s.address ?? ''}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant={
+                                                            s.status ===
+                                                            'COMPLETED'
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                        }
+                                                    >
+                                                        {s.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-2">
+                                                        {[
+                                                            'PENDING',
+                                                            'ARRIVED',
+                                                            'DEPARTED',
+                                                        ].includes(
+                                                            s.status
+                                                        ) && (
+                                                            <LoadingButton
+                                                                loading={
+                                                                    busy ===
+                                                                    `stop-${s.stopId}`
+                                                                }
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    withBusy(
+                                                                        `stop-${s.stopId}`,
+                                                                        () =>
+                                                                            handleStopAdvance(
+                                                                                s.stopId,
+                                                                                s.status
+                                                                            )
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Check className="mr-2 h-4 w-4" />
+                                                                Advance
+                                                            </LoadingButton>
+                                                        )}
+                                                        <LoadingButton
+                                                            loading={
+                                                                busy ===
+                                                                `stop-del-${s.stopId}`
+                                                            }
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() =>
+                                                                withBusy(
+                                                                    `stop-del-${s.stopId}`,
+                                                                    () =>
+                                                                        handleStopRemove(
+                                                                            s.stopId
+                                                                        )
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </LoadingButton>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {!stops.length && (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={5}
+                                                    className="text-center text-sm text-muted-foreground"
+                                                >
+                                                    No stops on this shipment
+                                                    yet
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                            {stopsLoaded && (
+                                <div className="grid gap-6 border-t pt-4">
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid gap-2">
+                                            <Label>Sequence</Label>
+                                            <Input
+                                                placeholder="e.g. 1"
+                                                type="number"
+                                                value={stopForm.sequenceNumber}
+                                                onChange={(e) =>
+                                                    setStopForm({
+                                                        ...stopForm,
+                                                        sequenceNumber:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Type</Label>
+                                            <Input
+                                                placeholder="e.g. DELIVERY"
+                                                value={stopForm.stopType}
+                                                onChange={(e) =>
+                                                    setStopForm({
+                                                        ...stopForm,
+                                                        stopType:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>
+                                                Scheduled (YYYY-MM-DD)
+                                            </Label>
+                                            <Input
+                                                placeholder="e.g. 2026-10-15"
+                                                value={stopForm.scheduledDate}
+                                                onChange={(e) =>
+                                                    setStopForm({
+                                                        ...stopForm,
+                                                        scheduledDate:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid gap-2">
+                                            <Label>Location</Label>
+                                            <Input
+                                                placeholder="e.g. Mumbai Hub"
+                                                value={stopForm.location}
+                                                onChange={(e) =>
+                                                    setStopForm({
+                                                        ...stopForm,
+                                                        location:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Address</Label>
+                                            <Input
+                                                placeholder="e.g. Plot 7, MIDC Andheri"
+                                                value={stopForm.address}
+                                                onChange={(e) =>
+                                                    setStopForm({
+                                                        ...stopForm,
+                                                        address: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Notes</Label>
+                                        <Textarea
+                                            value={stopForm.notes}
+                                            onChange={(e) =>
+                                                setStopForm({
+                                                    ...stopForm,
+                                                    notes: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. Call consignee before arrival"
+                                        />
+                                    </div>
+                                    <LoadingButton
+                                        loading={busy === 'stop-add'}
+                                        onClick={() =>
+                                            withBusy('stop-add', handleStopAdd)
+                                        }
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Stop
+                                    </LoadingButton>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
-            <Dialog open={groupEdit != null} onOpenChange={(v) => { if (!v) setGroupEdit(null); }}>
+            <Dialog
+                open={groupEdit != null}
+                onOpenChange={(v) => {
+                    if (!v) setGroupEdit(null);
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Consolidation Group</DialogTitle>
-                        <DialogDescription>Only open groups can be edited</DialogDescription>
+                        <DialogDescription>
+                            Only open groups can be edited
+                        </DialogDescription>
                     </DialogHeader>
                     {groupEdit && (
                         <div className="grid gap-6">
                             <div className="grid gap-2">
                                 <Label>Notes</Label>
-                                <Textarea value={groupEdit.notes} onChange={(e) => setGroupEdit({ ...groupEdit, notes: e.target.value })} placeholder="Lane, trailer, ..." />
+                                <Textarea
+                                    value={groupEdit.notes}
+                                    onChange={(e) =>
+                                        setGroupEdit({
+                                            ...groupEdit,
+                                            notes: e.target.value,
+                                        })
+                                    }
+                                    placeholder="Lane, trailer, ..."
+                                />
                             </div>
-                            <LoadingButton loading={busy === 'group-update'} onClick={() => withBusy('group-update', handleGroupUpdate)}>Save</LoadingButton>
+                            <LoadingButton
+                                loading={busy === 'group-update'}
+                                onClick={() =>
+                                    withBusy('group-update', handleGroupUpdate)
+                                }
+                            >
+                                Save
+                            </LoadingButton>
                         </div>
                     )}
                 </DialogContent>
             </Dialog>
-            <Dialog open={capEdit != null} onOpenChange={(v) => { if (!v) setCapEdit(null); }}>
+            <Dialog
+                open={capEdit != null}
+                onOpenChange={(v) => {
+                    if (!v) setCapEdit(null);
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Capacity Entry</DialogTitle>
-                        <DialogDescription>Update lane capacity</DialogDescription>
+                        <DialogDescription>
+                            Update lane capacity
+                        </DialogDescription>
                     </DialogHeader>
                     {capEdit && (
                         <div className="grid gap-6">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Origin Lane</Label>
-                                    <Input value={capEdit.originLane} onChange={(e) => setCapEdit({ ...capEdit, originLane: e.target.value })} placeholder="e.g. Mumbai" />
+                                    <Input
+                                        value={capEdit.originLane}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                originLane: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. Mumbai"
+                                    />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Destination Lane</Label>
-                                    <Input value={capEdit.destinationLane} onChange={(e) => setCapEdit({ ...capEdit, destinationLane: e.target.value })} placeholder="e.g. Pune" />
+                                    <Input
+                                        value={capEdit.destinationLane}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                destinationLane: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. Pune"
+                                    />
                                 </div>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Equipment</Label>
-                                    <Input value={capEdit.equipmentType} onChange={(e) => setCapEdit({ ...capEdit, equipmentType: e.target.value })} placeholder="e.g. TRUCK" />
+                                    <Input
+                                        value={capEdit.equipmentType}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                equipmentType: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. TRUCK"
+                                    />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>From (YYYY-MM-DD)</Label>
-                                    <Input value={capEdit.periodStart} onChange={(e) => setCapEdit({ ...capEdit, periodStart: e.target.value })} placeholder="e.g. 2026-10-01" />
+                                    <Input
+                                        value={capEdit.periodStart}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                periodStart: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 2026-10-01"
+                                    />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>To (YYYY-MM-DD)</Label>
-                                    <Input value={capEdit.periodEnd} onChange={(e) => setCapEdit({ ...capEdit, periodEnd: e.target.value })} placeholder="e.g. 2026-12-31" />
+                                    <Input
+                                        value={capEdit.periodEnd}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                periodEnd: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 2026-12-31"
+                                    />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Available Capacity</Label>
-                                    <Input type="number" value={capEdit.availableCapacity} onChange={(e) => setCapEdit({ ...capEdit, availableCapacity: e.target.value })} placeholder="e.g. 40" />
+                                    <Input
+                                        type="number"
+                                        value={capEdit.availableCapacity}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                availableCapacity:
+                                                    e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 40"
+                                    />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Booked Capacity</Label>
-                                    <Input type="number" value={capEdit.bookedCapacity} onChange={(e) => setCapEdit({ ...capEdit, bookedCapacity: e.target.value })} placeholder="e.g. 10" />
+                                    <Input
+                                        type="number"
+                                        value={capEdit.bookedCapacity}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                bookedCapacity: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 10"
+                                    />
                                 </div>
                             </div>
                             <div className="grid gap-2">
                                 <Label>Notes</Label>
-                                <Textarea value={capEdit.notes} onChange={(e) => setCapEdit({ ...capEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
+                                <Textarea
+                                    value={capEdit.notes}
+                                    onChange={(e) =>
+                                        setCapEdit({
+                                            ...capEdit,
+                                            notes: e.target.value,
+                                        })
+                                    }
+                                    placeholder="e.g. Handle with care"
+                                />
                             </div>
-                            <LoadingButton loading={busy === 'cap-update'} onClick={() => withBusy('cap-update', handleCapUpdate)}>Save</LoadingButton>
+                            <LoadingButton
+                                loading={busy === 'cap-update'}
+                                onClick={() =>
+                                    withBusy('cap-update', handleCapUpdate)
+                                }
+                            >
+                                Save
+                            </LoadingButton>
                         </div>
                     )}
                 </DialogContent>

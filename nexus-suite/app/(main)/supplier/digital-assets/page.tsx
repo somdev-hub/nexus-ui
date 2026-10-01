@@ -34,6 +34,7 @@ import {
 import {
     getDigitalAssets,
     createDigitalAsset,
+    deleteDigitalAsset,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
 
@@ -74,6 +75,18 @@ export default function DigitalAssetsPage() {
             });
             toast({ title: 'Asset created', variant: 'success' });
             setOpen(false);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
+    const handleDelete = async (id: number) => {
+        try {
+            await deleteDigitalAsset(id);
+            toast({ title: 'Asset deleted', variant: 'success' });
             load();
         } catch (e: unknown) {
             toast({
@@ -185,6 +198,7 @@ export default function DigitalAssetsPage() {
                                     <TableHead>Type</TableHead>
                                     <TableHead>File</TableHead>
                                     <TableHead>DMS</TableHead>
+                                    <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -201,13 +215,24 @@ export default function DigitalAssetsPage() {
                                             <TableCell className="text-xs">
                                                 {a.dmsDocumentId || '-'}
                                             </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() =>
+                                                        handleDelete(a.assetId)
+                                                    }
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     )
                                 )}
                                 {!data?.content?.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={4}
+                                            colSpan={5}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No assets

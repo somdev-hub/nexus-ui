@@ -13,6 +13,7 @@ import {
 import {
     getFreightInvoices,
     handoffToPms,
+    transitionFreightInvoice,
 } from '@/lib/services/freight-invoice-service';
 import type { FreightInvoice } from '@/types/freight-invoice';
 import { useEffect, useState } from 'react';
@@ -49,6 +50,22 @@ export default function FreightInvoicesPage() {
         try {
             await handoffToPms(id);
             toast.success('Handed off to PMS');
+            load();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed');
+        }
+    };
+    const handleDispute = async (id: number) => {
+        if (
+            typeof window !== 'undefined' &&
+            !window.confirm(
+                `Mark invoice #${id} as DISPUTED? It can be re-approved afterwards.`
+            )
+        )
+            return;
+        try {
+            await transitionFreightInvoice(id, 'DISPUTED');
+            toast.success('Invoice disputed');
             load();
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Failed');
@@ -109,23 +126,40 @@ export default function FreightInvoicesPage() {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    {inv.status === 'APPROVED' && (
-                                        <Button
-                                            size="sm"
-                                            onClick={() =>
-                                                handleHandoff(
-                                                    inv.freightInvoiceId
-                                                )
-                                            }
-                                        >
-                                            Handoff to PMS
-                                        </Button>
-                                    )}
-                                    {inv.status === 'DISPUTED' && (
-                                        <Badge className="bg-orange-100 text-orange-800">
-                                            Disputed
-                                        </Badge>
-                                    )}
+                                    <div className="flex gap-2">
+                                        {inv.status === 'APPROVED' && (
+                                            <Button
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleHandoff(
+                                                        inv.freightInvoiceId
+                                                    )
+                                                }
+                                            >
+                                                Handoff to PMS
+                                            </Button>
+                                        )}
+                                        {(inv.status === 'PENDING_APPROVAL' ||
+                                            inv.status === 'APPROVED' ||
+                                            inv.status === 'SENT_TO_PMS') && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    handleDispute(
+                                                        inv.freightInvoiceId
+                                                    )
+                                                }
+                                            >
+                                                Dispute
+                                            </Button>
+                                        )}
+                                        {inv.status === 'DISPUTED' && (
+                                            <Badge className="bg-orange-100 text-orange-800">
+                                                Disputed
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}

@@ -15,6 +15,7 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -50,6 +51,10 @@ const poCreateSchema = z.object({
     requestedDeliveryDate: z.string().min(1, 'Delivery date is required'),
     expectedDeliveryDate: z.string().optional(),
     notes: z.string().optional(),
+    isBlanketOrder: z.boolean().optional(),
+    blanketStartDate: z.string().optional(),
+    blanketEndDate: z.string().optional(),
+    releaseSchedule: z.string().optional(),
     lineItems: z.array(lineItemSchema).min(1, 'Add at least one line item'),
 });
 
@@ -77,6 +82,10 @@ const Page = () => {
             requestedDeliveryDate: '',
             expectedDeliveryDate: '',
             notes: '',
+            isBlanketOrder: false,
+            blanketStartDate: '',
+            blanketEndDate: '',
+            releaseSchedule: '',
             lineItems: [
                 {
                     productId: undefined,
@@ -176,6 +185,10 @@ const Page = () => {
                 requestedDeliveryDate: data.requestedDeliveryDate,
                 expectedDeliveryDate: data.expectedDeliveryDate || undefined,
                 notes: data.notes || undefined,
+                isBlanketOrder: data.isBlanketOrder || undefined,
+                blanketStartDate: data.blanketStartDate || undefined,
+                blanketEndDate: data.blanketEndDate || undefined,
+                releaseSchedule: data.releaseSchedule || undefined,
                 lineItems: data.lineItems.map((it, idx) => ({
                     lineNumber: idx + 1,
                     description: it.description,
@@ -485,6 +498,113 @@ const Page = () => {
                                                 </FormItem>
                                             )}
                                         />
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="gap-2 p-4">
+                                    <CardHeader>
+                                        <CardTitle>Blanket Order</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 p-0">
+                                        <FormField
+                                            control={form.control}
+                                            name="isBlanketOrder"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={
+                                                                field.value ??
+                                                                false
+                                                            }
+                                                            onCheckedChange={
+                                                                field.onChange
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel>
+                                                        This is a blanket order
+                                                        (scheduled releases)
+                                                    </FormLabel>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        {form.watch('isBlanketOrder') && (
+                                            <>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="blanketStartDate"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>
+                                                                    Blanket
+                                                                    Start Date
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        type="date"
+                                                                        {...field}
+                                                                        value={
+                                                                            field.value ??
+                                                                            ''
+                                                                        }
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="blanketEndDate"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>
+                                                                    Blanket End
+                                                                    Date
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        type="date"
+                                                                        {...field}
+                                                                        value={
+                                                                            field.value ??
+                                                                            ''
+                                                                        }
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <FormField
+                                                    control={form.control}
+                                                    name="releaseSchedule"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>
+                                                                Release Schedule
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Textarea
+                                                                    placeholder="e.g. Monthly release of 500 units on the 1st"
+                                                                    rows={2}
+                                                                    {...field}
+                                                                    value={
+                                                                        field.value ??
+                                                                        ''
+                                                                    }
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </>
+                                        )}
                                     </CardContent>
                                 </Card>
 
