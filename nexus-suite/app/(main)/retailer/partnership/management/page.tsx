@@ -17,8 +17,17 @@ import {
 	isInvitationPending,
 } from '@/components/partnership-invitation-list';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
 import { PlusIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -181,6 +190,13 @@ const Page = () => {
 	const sentPending = sent.filter(isInvitationPending);
 	const sentClosed = sent.filter((inv) => !isInvitationPending(inv));
 
+	const activePartnerships = partnerships.filter(
+		(p) => p.status !== 'TERMINATED'
+	);
+	const closedPartnerships = partnerships.filter(
+		(p) => p.status === 'TERMINATED'
+	);
+
 	if (isLoading) {
 		return (
 			<div className="flex flex-1 flex-col p-4 md:p-6 gap-4">
@@ -204,7 +220,18 @@ const Page = () => {
 								Create Partnership
 							</Button>
 						</div>
-						<PartnershipTable partnerships={partnerships} />
+						<PartnershipTable
+							partnerships={activePartnerships}
+							onPartnershipUpdated={(updated) =>
+								setPartnerships((prev) =>
+									prev.map((p) =>
+										p.partnershipId === updated.partnershipId
+											? updated
+											: p
+									)
+								)
+							}
+						/>
 						<div className="grid gap-6 md:grid-cols-2">
 							<Card className="p-4 gap-2">
 								<CardHeader className="p-0">
@@ -240,15 +267,55 @@ const Page = () => {
 						</div>
 						<Card className="p-4 gap-2">
 							<CardHeader className="p-0">
-								<CardTitle>Closed Invitations</CardTitle>
-							</CardHeader>
-							<CardContent className="p-0">
-								<PartnershipInvitationList
-									invitations={sentClosed}
-									emptyText="No withdrawn, rejected or expired invitations."
-									onReinvite={handleReinvite}
-									busyId={busyId}
-								/>
+						<CardTitle>Closed Partnerships</CardTitle>
+						</CardHeader>
+						<CardContent className="p-0 space-y-4">
+							{closedPartnerships.length > 0 && (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Partnership #</TableHead>
+											<TableHead>Supplier</TableHead>
+											<TableHead>Type</TableHead>
+											<TableHead>Status</TableHead>
+											<TableHead>Start</TableHead>
+											<TableHead>End</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{closedPartnerships.map((p) => (
+											<TableRow key={p.partnershipId}>
+												<TableCell>{p.partnershipId}</TableCell>
+												<TableCell>
+													{p.secondaryOrgName ??
+														p.primaryOrgName ??
+														'—'}
+												</TableCell>
+												<TableCell>{p.partnershipType ?? '—'}</TableCell>
+												<TableCell>
+													<Badge variant="outline">{p.status}</Badge>
+												</TableCell>
+												<TableCell>
+													{p.startDate
+														? new Date(p.startDate).toLocaleDateString()
+														: '—'}
+												</TableCell>
+												<TableCell>
+													{p.endDate
+														? new Date(p.endDate).toLocaleDateString()
+														: '—'}
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							)}
+							<PartnershipInvitationList
+								invitations={sentClosed}
+								emptyText="No withdrawn, rejected or expired invitations."
+								onReinvite={handleReinvite}
+								busyId={busyId}
+							/>
 							</CardContent>
 						</Card>
 					</div>

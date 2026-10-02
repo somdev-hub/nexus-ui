@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -14,8 +15,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    counterpartyOf,
+    counterpartyLabelOf,
     getLogisticsPartnerships,
+    updateLogisticsPartnership,
     type OrgPartnership,
 } from '@/lib/services/org-partnerships-service';
 import {
@@ -27,6 +29,10 @@ import {
     invitationIdOf,
     isInvitationPending,
 } from '@/components/partnership-invitation-list';
+import {
+    PartnershipEditDialog,
+    type PartnershipEditValues,
+} from '@/components/partnership-edit-dialog';
 import type { PartnershipInvitation } from '@/types/partnership-invitations';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 
@@ -43,6 +49,10 @@ export default function LogisticsPartnershipsPage() {
     const [received, setReceived] = useState<PartnershipInvitation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
+    const [editing, setEditing] = useState<{
+        id: number;
+        initial: PartnershipEditValues;
+    } | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -111,6 +121,34 @@ export default function LogisticsPartnershipsPage() {
     const receivedPending = received.filter(isInvitationPending);
     const receivedHistory = received.filter((inv) => !isInvitationPending(inv));
 
+    const activePartnerships = partnerships.filter(
+        (p) => p.status !== 'TERMINATED'
+    );
+    const closedPartnerships = partnerships.filter(
+        (p) => p.status === 'TERMINATED'
+    );
+
+    const openEdit = (p: OrgPartnership) => {
+        setEditing({
+            id: p.partnershipId,
+            initial: {
+                partnershipTerm: p.term || undefined,
+                discountRate: p.discountRate,
+                endDate: p.endDate ? p.endDate.slice(0, 10) : undefined,
+            },
+        });
+    };
+
+    const handleSaveEdit = async (values: PartnershipEditValues) => {
+        if (!editing) return;
+        const updated = await updateLogisticsPartnership(editing.id, values);
+        setPartnerships((prev) =>
+            prev.map((p) =>
+                p.partnershipId === editing.id ? { ...p, ...updated } : p
+            )
+        );
+    };
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
@@ -128,11 +166,11 @@ export default function LogisticsPartnershipsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>
-                                My Partnerships ({partnerships.length})
+                                My Partnerships ({activePartnerships.length})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            {partnerships.length === 0 ? (
+                            {activePartnerships.length === 0 ? (
                                 <p className="p-4 text-sm text-muted-foreground">
                                     No partnerships yet. Accept an invitation
                                     below to get started.
@@ -147,18 +185,22 @@ export default function LogisticsPartnershipsPage() {
                                             <TableHead>Status</TableHead>
                                             <TableHead>Start</TableHead>
                                             <TableHead>End</TableHead>
+                                            <TableHead className="text-right">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {partnerships.map((p) => (
+                                        {activePartnerships.map((p) => (
                                             <TableRow key={p.partnershipId}>
                                                 <TableCell>
                                                     {p.partnershipId}
                                                 </TableCell>
                                                 <TableCell>
-                                                    Org{' '}
-                                                    {counterpartyOf(p, orgId) ??
-                                                        '—'}
+                                                    {counterpartyLabelOf(
+                                                        p,
+                                                        orgId
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="max-w-xs truncate">
                                                     {p.term || '—'}
@@ -173,6 +215,17 @@ export default function LogisticsPartnershipsPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {formatDate(p.endDate)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            openEdit(p)
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -198,9 +251,45 @@ export default function LogisticsPartnershipsPage() {
                         </Card>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Invitation History</CardTitle>
+                                <CardTitle>Closed Partnerships</CardTitle>
                             </CardHeader>
                             <CardContent>
+                                {closedPartnerships.length > 0 && (
+                                    <Table className="mb-4">
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Partner Org</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Start</TableHead>
+                                                <TableHead>End</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {closedPartnerships.map((p) => (
+                                                <TableRow key={p.partnershipId}>
+                                                    <TableCell>
+                                                        {p.partnershipId}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {counterpartyLabelOf(p, orgId)}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline">
+                                                            {p.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {formatDate(p.startDate)}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {formatDate(p.endDate)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
                                 <PartnershipInvitationList
                                     invitations={receivedHistory}
                                     emptyText="No accepted or rejected invitations yet."
@@ -210,6 +299,16 @@ export default function LogisticsPartnershipsPage() {
                     </div>
                 </div>
             </div>
+            <PartnershipEditDialog
+                open={editing !== null}
+                onOpenChange={(v) => {
+                    if (!v) setEditing(null);
+                }}
+                initial={editing?.initial}
+                onSave={async (values) => {
+                    await handleSaveEdit(values);
+                }}
+            />
         </div>
     );
 }

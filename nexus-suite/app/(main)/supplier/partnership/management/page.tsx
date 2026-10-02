@@ -1,8 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import {
+    PartnershipInvitationList,
+    invitationIdOf,
+    isInvitationPending,
+} from '@/components/partnership-invitation-list';
+import {
+    PartnershipEditDialog,
+    type PartnershipEditValues,
+} from '@/components/partnership-edit-dialog';
 import { Badge } from '@/components/ui/badge';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -13,22 +31,21 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 import {
-    counterpartyOf,
+    counterpartyLabelOf,
     getSupplierPartnerships,
+    updateSupplierPartnership,
+    updateSupplierPartnershipStatus,
     type OrgPartnership,
 } from '@/lib/services/org-partnerships-service';
 import {
     getSupplierReceivedInvitations,
     respondToSupplierInvitation,
 } from '@/lib/services/partnership-invitations-service';
-import {
-    PartnershipInvitationList,
-    invitationIdOf,
-    isInvitationPending,
-} from '@/components/partnership-invitation-list';
 import type { PartnershipInvitation } from '@/types/partnership-invitations';
-import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 function formatDate(value?: string): string {
     if (!value) return '—';
@@ -43,6 +60,10 @@ export default function SupplierPartnershipsPage() {
     const [received, setReceived] = useState<PartnershipInvitation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
+    const [editing, setEditing] = useState<{
+        id: number;
+        initial: PartnershipEditValues;
+    } | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -69,7 +90,7 @@ export default function SupplierPartnershipsPage() {
             } finally {
                 if (active) setIsLoading(false);
             }
-        };
+    };
         load();
         return () => {
             active = false;
@@ -111,11 +132,72 @@ export default function SupplierPartnershipsPage() {
     const receivedPending = received.filter(isInvitationPending);
     const receivedHistory = received.filter((inv) => !isInvitationPending(inv));
 
+    const activePartnerships = partnerships.filter(
+        (p) => p.status !== 'TERMINATED'
+    );
+    const closedPartnerships = partnerships.filter(
+        (p) => p.status === 'TERMINATED'
+    );
+
+    const openEdit = (p: OrgPartnership) => {
+        setEditing({
+            id: p.partnershipId,
+            initial: {
+                partnershipTerm: p.term || undefined,
+                discountRate: p.discountRate,
+                endDate: p.endDate ? p.endDate.slice(0, 10) : undefined,
+            },
+        });
+    };
+
+    const handleSaveEdit = async (values: PartnershipEditValues) => {
+        if (!editing) return;
+        const updated = await updateSupplierPartnership(editing.id, values);
+        setPartnerships((prev) =>
+            prev.map((p) =>
+                p.partnershipId === editing.id ? { ...p, ...updated } : p
+            )
+        );
+    };
+
+    const [terminating, setTerminating] = useState<OrgPartnership | null>(
+        null
+    );
+
+    const handleTerminate = async () => {
+        if (!terminating) return;
+        const p = terminating;
+        setBusyId(p.partnershipId);
+        try {
+            const updated = await updateSupplierPartnershipStatus(
+                p.partnershipId,
+                'TERMINATED'
+            );
+            setPartnerships((prev) =>
+                prev.map((x) =>
+                    x.partnershipId === p.partnershipId
+                        ? { ...x, ...updated, status: updated.status || 'TERMINATED' }
+                        : x
+                )
+            );
+            toast.success('Partnership terminated');
+        } catch (err: unknown) {
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to terminate partnership'
+            );
+        } finally {
+            setBusyId(null);
+            setTerminating(null);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
                 <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-[300px] w-full" />
+                <Skeleton className="h-75 w-full" />
             </div>
         );
     }
@@ -125,14 +207,14 @@ export default function SupplierPartnershipsPage() {
             <div className="@container/main flex flex-1 justify-between gap-2 p-4 md:gap-6 md:p-6 lg:flex-row">
                 <div className="w-full space-y-6">
                     <h2 className="text-lg font-semibold">Partnerships</h2>
-                    <Card>
-                        <CardHeader>
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
                             <CardTitle>
-                                My Partnerships ({partnerships.length})
+                                My Partnerships ({activePartnerships.length})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            {partnerships.length === 0 ? (
+                            {activePartnerships.length === 0 ? (
                                 <p className="p-4 text-sm text-muted-foreground">
                                     No partnerships yet. Accept an invitation
                                     below to get started.
@@ -147,18 +229,22 @@ export default function SupplierPartnershipsPage() {
                                             <TableHead>Status</TableHead>
                                             <TableHead>Start</TableHead>
                                             <TableHead>End</TableHead>
+                                            <TableHead className="text-right">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {partnerships.map((p) => (
+                                        {activePartnerships.map((p) => (
                                             <TableRow key={p.partnershipId}>
                                                 <TableCell>
                                                     {p.partnershipId}
                                                 </TableCell>
                                                 <TableCell>
-                                                    Org{' '}
-                                                    {counterpartyOf(p, orgId) ??
-                                                        '—'}
+                                                    {counterpartyLabelOf(
+                                                        p,
+                                                        orgId
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="max-w-xs truncate">
                                                     {p.term || '—'}
@@ -174,6 +260,36 @@ export default function SupplierPartnershipsPage() {
                                                 <TableCell>
                                                     {formatDate(p.endDate)}
                                                 </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={
+                                                                busyId === p.partnershipId ||
+                                                                p.status === 'TERMINATED'
+                                                            }
+                                                            onClick={() =>
+                                                                openEdit(p)
+                                                            }
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            disabled={
+                                                                busyId === p.partnershipId ||
+                                                                p.status === 'TERMINATED'
+                                                            }
+                                                            onClick={() =>
+                                                                setTerminating(p)
+                                                            }
+                                                        >
+                                                            Terminate
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -182,11 +298,11 @@ export default function SupplierPartnershipsPage() {
                         </CardContent>
                     </Card>
                     <div className="grid gap-6 md:grid-cols-2">
-                        <Card>
-                            <CardHeader>
+                        <Card className="p-4 gap-2">
+                            <CardHeader className="p-0">
                                 <CardTitle>Received Invitations</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-0">
                                 <PartnershipInvitationList
                                     invitations={receivedPending}
                                     emptyText="No received invitations."
@@ -196,20 +312,89 @@ export default function SupplierPartnershipsPage() {
                                 />
                             </CardContent>
                         </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Invitation History</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <PartnershipInvitationList
-                                    invitations={receivedHistory}
-                                    emptyText="No accepted or rejected invitations yet."
-                                />
+                        <Card className="p-4 gap-2">
+                            <CardHeader className="p-0">
+                            <CardTitle>Closed Partnerships</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0 space-y-4">
+                            {closedPartnerships.length > 0 && (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>ID</TableHead>
+                                            <TableHead>Partner Org</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Start</TableHead>
+                                            <TableHead>End</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {closedPartnerships.map((p) => (
+                                            <TableRow key={p.partnershipId}>
+                                                <TableCell>
+                                                    {p.partnershipId}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {counterpartyLabelOf(p, orgId)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {p.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatDate(p.startDate)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatDate(p.endDate)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                            <PartnershipInvitationList
+                                invitations={receivedHistory}
+                                emptyText="No accepted or rejected invitations yet."
+                            />
                             </CardContent>
                         </Card>
                     </div>
                 </div>
             </div>
+            <PartnershipEditDialog
+                open={editing !== null}
+                onOpenChange={(v) => {
+                    if (!v) setEditing(null);
+                }}
+                initial={editing?.initial}
+                onSave={async (values) => {
+                    await handleSaveEdit(values);
+                }}
+            />
+            <AlertDialog
+                open={terminating !== null}
+                onOpenChange={(v) => !v && setTerminating(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Terminate partnership?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to terminate partnership #
+                            {terminating?.partnershipId}? This action cannot be
+                            undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleTerminate}>
+                            Terminate
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

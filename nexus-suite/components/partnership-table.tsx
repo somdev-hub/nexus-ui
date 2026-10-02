@@ -69,9 +69,27 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
 import { TablePagination } from './ui/table-pagination';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import type { Partnership } from '@/types/partnerships';
-import { updatePartnershipStatus } from '@/lib/services/partnerships-service';
+import {
+    getPartnershipById,
+    updatePartnership,
+    updatePartnershipStatus,
+} from '@/lib/services/partnerships-service';
+import {
+    PartnershipEditDialog,
+    type PartnershipEditValues,
+} from '@/components/partnership-edit-dialog';
 
 const getPartnershipDetailHref = (partnership: Partnership) =>
     partnership.partnershipType === 'LOGISTICS'
@@ -111,7 +129,8 @@ const getPartnershipTypeColor = (type: string) => {
 };
 
 const buildColumns = (
-    onTerminate: (partnership: Partnership) => void
+    onTerminate: (partnership: Partnership) => void,
+    onEdit: (partnership: Partnership) => void
 ): ColumnDef<Partnership>[] => [
     {
         id: 'select',
@@ -142,25 +161,31 @@ const buildColumns = (
         enableHiding: false,
     },
     {
-        accessorKey: 'partnershipNumber',
+        accessorKey: 'partnershipId',
         header: 'Partnership #',
         cell: ({ row }) => (
-            <div className="font-medium">{row.original.partnershipNumber}</div>
+            <div className="font-medium">{row.original.partnershipId}</div>
         ),
         enableHiding: false,
     },
     {
-        accessorKey: 'title',
-        header: 'Title',
+        accessorKey: 'secondaryOrgName',
+        header: 'Partner Org',
         cell: ({ row }) => (
-            <div className="font-medium">{row.original.title}</div>
+            <div className="font-medium">
+                {row.original.secondaryOrgName ??
+                    row.original.primaryOrgName ??
+                    '—'}
+            </div>
         ),
     },
     {
-        accessorKey: 'supplierOrgName',
-        header: 'Supplier',
+        accessorKey: 'partnershipTerm',
+        header: 'Terms',
         cell: ({ row }) => (
-            <div className="font-medium">{row.original.supplierOrgName}</div>
+            <div className="text-sm text-muted-foreground max-w-[200px] truncate">
+                {row.original.partnershipTerm ?? '—'}
+            </div>
         ),
     },
     {
@@ -170,10 +195,10 @@ const buildColumns = (
             <Badge
                 variant="outline"
                 className={getPartnershipTypeColor(
-                    row.original.partnershipType
+                    row.original.partnershipType ?? ''
                 )}
             >
-                {row.original.partnershipType}
+                {row.original.partnershipType ?? '—'}
             </Badge>
         ),
     },
@@ -192,12 +217,18 @@ const buildColumns = (
     {
         accessorKey: 'startDate',
         header: 'Start Date',
-        cell: ({ row }) => row.original.startDate,
+        cell: ({ row }) =>
+            row.original.startDate
+                ? new Date(row.original.startDate).toLocaleDateString()
+                : '—',
     },
     {
         accessorKey: 'endDate',
         header: 'End Date',
-        cell: ({ row }) => row.original.endDate || '—',
+        cell: ({ row }) =>
+            row.original.endDate
+                ? new Date(row.original.endDate).toLocaleDateString()
+                : '—',
     },
     {
         id: 'actions',
@@ -220,11 +251,9 @@ const buildColumns = (
                             View Details
                         </a>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                        <a href={getPartnershipDetailHref(row.original)}>
-                            <IconEdit className="mr-2 h-4 w-4" />
-                            Edit
-                        </a>
+                    <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                        <IconEdit className="mr-2 h-4 w-4" />
+                        Edit
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {row.original.agreementDocumentId && (
@@ -254,8 +283,10 @@ const buildColumns = (
 
 export function PartnershipTable({
     partnerships: initialData,
+    onPartnershipUpdated,
 }: {
     partnerships: Partnership[];
+    onPartnershipUpdated?: (partnership: Partnership) => void;
 }) {
     const [data, setData] = React.useState(() => initialData);
     const [rowSelection, setRowSelection] = React.useState({});
@@ -269,43 +300,85 @@ export function PartnershipTable({
         pageSize: 10,
     });
 
-    const handleTerminate = React.useCallback(
-        async (partnership: Partnership) => {
-            if (
-                typeof window !== 'undefined' &&
-                !window.confirm(
-                    `Are you sure you want to terminate partnership ${partnership.partnershipNumber}?`
-                )
-            )
-                return;
-            try {
-                const updated = await updatePartnershipStatus(
-                    partnership.partnershipId,
-                    { status: 'TERMINATED' }
-                );
-                setData((prev) =>
-                    prev.map((p) =>
-                        p.partnershipId === partnership.partnershipId
-                            ? updated
-                            : p
-                    )
-                );
-                toast.success('Partnership terminated');
-            } catch (error) {
-                console.error('Failed to terminate partnership:', error);
-                toast.error('Failed to terminate partnership');
-            }
-        },
-        []
+    const [editing, setEditing] = React.useState<{
+        id: number;
+        initial: PartnershipEditValues;
+    } | null>(null);
+
+    const handleEdit = React.useCallback((partnership: Partnership) => {
+        // Prefill from the backend record (row shape lacks term/discount).
+        getPartnershipById(partnership.partnershipId)
+            .then((detail) => {
+                const raw = detail as unknown as Record<string, unknown>;
+                setEditing({
+                    id: partnership.partnershipId,
+                    initial: {
+                        partnershipTerm:
+                            typeof raw['partnershipTerm'] === 'string'
+                                ? (raw['partnershipTerm'] as string)
+                                : undefined,
+                        discountRate:
+                            typeof raw['discountRate'] === 'number'
+                                ? (raw['discountRate'] as number)
+                                : undefined,
+                        endDate:
+                            typeof raw['endDate'] === 'string'
+                                ? (raw['endDate'] as string)
+                                : undefined,
+                    },
+                });
+            })
+            .catch(() => {
+                // Fall back to a blank form rather than blocking the edit.
+                toast.error('Could not load current terms — editing blank');
+                setEditing({ id: partnership.partnershipId, initial: {} });
+            });
+    }, []);
+
+    const [terminating, setTerminating] = React.useState<Partnership | null>(
+        null
     );
 
+    const handleTerminate = React.useCallback(async () => {
+        if (!terminating) return;
+        try {
+            const updated = await updatePartnershipStatus(
+                terminating.partnershipId,
+                { status: 'TERMINATED' }
+            );
+            setData((prev) =>
+                prev.map((p) =>
+                    p.partnershipId === terminating.partnershipId
+                        ? updated
+                        : p
+                )
+            );
+            onPartnershipUpdated?.(updated);
+            toast.success('Partnership terminated');
+        } catch (error) {
+            console.error('Failed to terminate partnership:', error);
+            toast.error('Failed to terminate partnership');
+        } finally {
+            setTerminating(null);
+        }
+    }, [terminating, onPartnershipUpdated]);
+
+    const requestTerminate = React.useCallback((partnership: Partnership) => {
+        setTerminating(partnership);
+    }, []);
+
     const columns = React.useMemo(
-        () => buildColumns(handleTerminate),
-        [handleTerminate]
+        () => buildColumns(requestTerminate, handleEdit),
+        [requestTerminate, handleEdit]
+    );
+
+    const visibleData = React.useMemo(
+        () => data.filter((p) => p.status !== 'TERMINATED'),
+        [data]
     );
 
     const table = useReactTable({
-        data,
+        data: visibleData,
         columns,
         state: {
             sorting,
@@ -460,6 +533,57 @@ export function PartnershipTable({
                     </Select>
                 </div>
             </div>
+            <PartnershipEditDialog
+                open={editing !== null}
+                onOpenChange={(v) => {
+                    if (!v) setEditing(null);
+                }}
+                initial={editing?.initial}
+                onSave={async (values) => {
+                    if (!editing) return;
+                    await updatePartnership(editing.id, {
+                        termsAndConditions: values.partnershipTerm,
+                        discountRate: values.discountRate,
+                        endDate: values.endDate,
+                    });
+                    // Patch the visible end-date cell; terms live on detail.
+                    if (values.endDate !== undefined) {
+                        setData((prev) =>
+                            prev.map((p) =>
+                                p.partnershipId === editing.id
+                                    ? {
+                                          ...p,
+                                          endDate: values.endDate as string,
+                                      }
+                                    : p
+                            )
+                        );
+                    }
+                }}
+            />
+            <AlertDialog
+                open={terminating !== null}
+                onOpenChange={(v) => !v && setTerminating(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Terminate partnership?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to terminate partnership{' '}
+                            #{terminating?.partnershipId}? This action cannot be
+                            undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleTerminate}>
+                            Terminate
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

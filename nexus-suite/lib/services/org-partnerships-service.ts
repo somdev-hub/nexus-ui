@@ -13,7 +13,10 @@ export interface OrgPartnership {
     partnershipId: number;
     primaryOrgId?: number;
     secondaryOrgId?: number;
+    primaryOrgName?: string;
+    secondaryOrgName?: string;
     term?: string;
+    discountRate?: number;
     status?: string;
     startDate?: string;
     endDate?: string;
@@ -27,7 +30,10 @@ function toOrgPartnership(raw: any): OrgPartnership {
         partnershipId: raw.partnershipId ?? raw.id ?? 0,
         primaryOrgId: raw.primaryOrg ?? raw.primaryOrgId,
         secondaryOrgId: raw.secondaryOrg ?? raw.secondaryOrgId,
+        primaryOrgName: raw.primaryOrgName,
+        secondaryOrgName: raw.secondaryOrgName,
         term: raw.partnershipTerm ?? raw.term ?? raw.title ?? '',
+        discountRate: raw.discountRate,
         status: raw.status ?? '',
         startDate: raw.startDate ?? '',
         endDate: raw.endDate,
@@ -56,6 +62,38 @@ export function counterpartyOf(
             return Number(partnership.secondaryOrgId);
     }
     return partnership.secondaryOrgId ?? partnership.primaryOrgId ?? undefined;
+}
+
+/** Display label for the counterparty: name when known, else Org #id. */
+export function counterpartyLabelOf(
+    partnership: OrgPartnership,
+    ownOrgId?: number | string | null
+): string {
+    const own = Number(ownOrgId);
+    let id = counterpartyOf(partnership, ownOrgId);
+    let name: string | undefined;
+    if (
+        Number.isFinite(own) &&
+        partnership.primaryOrgId !== undefined &&
+        Number(partnership.primaryOrgId) !== own
+    ) {
+        name = partnership.primaryOrgName;
+    } else if (
+        Number.isFinite(own) &&
+        partnership.secondaryOrgId !== undefined &&
+        Number(partnership.secondaryOrgId) !== own
+    ) {
+        name = partnership.secondaryOrgName;
+    } else {
+        name = partnership.secondaryOrgName ?? partnership.primaryOrgName;
+        id =
+            id ??
+            partnership.secondaryOrgId ??
+            partnership.primaryOrgId ??
+            undefined;
+    }
+    if (name) return id !== undefined ? `${name} (#${id})` : name;
+    return id !== undefined ? `Org #${id}` : '—';
 }
 
 async function getOrgPartnerships(
@@ -94,3 +132,78 @@ export function getLogisticsPartnerships(): Promise<
 > {
     return getOrgPartnerships('/iam/core/logistics/partnerships');
 }
+
+export interface PartnershipEditPayload {
+    partnershipTerm?: string;
+    discountRate?: number;
+    endDate?: string;
+}
+
+async function updateOrgPartnership(
+    basePath: string,
+    partnershipId: number,
+    data: PartnershipEditPayload
+): Promise<OrgPartnership> {
+    const response = await apiClient.put<any>(
+        `${basePath}/${partnershipId}/update`,
+        data
+    );
+    return toOrgPartnership(response.data);
+}
+
+export function updateSupplierPartnership(
+    partnershipId: number,
+    data: PartnershipEditPayload
+): Promise<OrgPartnership> {
+    return updateOrgPartnership(
+        '/iam/core/supplier/partnerships',
+        partnershipId,
+        data
+    );
+}
+
+export function updateLogisticsPartnership(
+    partnershipId: number,
+    data: PartnershipEditPayload
+): Promise<OrgPartnership> {
+    return updateOrgPartnership(
+        '/iam/core/logistics/partnerships',
+        partnershipId,
+        data
+    );
+}
+
+async function updateOrgPartnershipStatus(
+    basePath: string,
+    partnershipId: number,
+    status: string
+): Promise<OrgPartnership> {
+    const response = await apiClient.post<any>(
+        `${basePath}/${partnershipId}/status`,
+        { status }
+    );
+    return toOrgPartnership(response.data);
+}
+
+export function updateSupplierPartnershipStatus(
+    partnershipId: number,
+    status: string
+): Promise<OrgPartnership> {
+    return updateOrgPartnershipStatus(
+        '/iam/core/supplier/partnerships',
+        partnershipId,
+        status
+    );
+}
+
+export function updateLogisticsPartnershipStatus(
+    partnershipId: number,
+    status: string
+): Promise<OrgPartnership> {
+    return updateOrgPartnershipStatus(
+        '/iam/core/logistics/partnerships',
+        partnershipId,
+        status
+    );
+}
+

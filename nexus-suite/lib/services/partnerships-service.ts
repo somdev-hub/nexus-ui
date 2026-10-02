@@ -56,9 +56,21 @@ export async function updatePartnership(
     partnershipId: number,
     data: PartnershipUpdateRequest
 ): Promise<Partnership> {
+    // NOTE: PUT /{id} does not exist on the gateway; the update route is
+    // PUT /{id}/update (previously this 404'd). Backend contract (Core
+    // PartnershipDto) uses partnershipTerm/discountRate — translate here.
+    const payload: Record<string, unknown> = {};
+    if (data.termsAndConditions !== undefined)
+        payload.partnershipTerm = data.termsAndConditions;
+    if (data.description !== undefined && payload.partnershipTerm === undefined)
+        payload.partnershipTerm = data.description;
+    if (data.discountRate !== undefined)
+        payload.discountRate = data.discountRate;
+    if (data.startDate !== undefined) payload.startDate = data.startDate;
+    if (data.endDate !== undefined) payload.endDate = data.endDate;
     const response = await apiClient.put<Partnership>(
-        `${BASE_PATH}/${partnershipId}`,
-        data
+        `${BASE_PATH}/${partnershipId}/update`,
+        payload
     );
     return response.data;
 }

@@ -70,6 +70,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
 import { TablePagination } from './ui/table-pagination';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import type { LogisticsPartner } from '@/types/logistics';
 import { updatePartnershipStatus } from '@/lib/services/partnerships-service';
@@ -123,19 +133,23 @@ const buildColumns = (
         enableHiding: false,
     },
     {
-        accessorKey: 'logisticsOrgName',
+        accessorKey: 'secondaryOrgName',
         header: 'Logistics Partner',
         cell: ({ row }) => (
-            <div className="font-medium">{row.original.logisticsOrgName}</div>
+            <div className="font-medium">
+                {row.original.secondaryOrgName ??
+                    row.original.primaryOrgName ??
+                    '—'}
+            </div>
         ),
         enableHiding: false,
     },
     {
-        accessorKey: 'title',
-        header: 'Partnership Title',
+        accessorKey: 'partnershipTerm',
+        header: 'Terms',
         cell: ({ row }) => (
             <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                {row.original.title}
+                {row.original.partnershipTerm ?? '—'}
             </div>
         ),
     },
@@ -170,21 +184,6 @@ const buildColumns = (
                 {row.original.endDate
                     ? new Date(row.original.endDate).toLocaleDateString()
                     : 'Ongoing'}
-            </div>
-        ),
-    },
-    {
-        accessorKey: 'autoRenewal',
-        header: 'Auto Renewal',
-        cell: ({ row }) => (
-            <div className="flex items-center justify-center">
-                <IconCircleCheckFilled
-                    className={`size-4 ${
-                        row.original.autoRenewal
-                            ? 'text-green-500'
-                            : 'text-muted-foreground'
-                    }`}
-                />
             </div>
         ),
     },
@@ -260,32 +259,33 @@ export function LogisticsTable({
         [data, removedIds]
     );
 
-    const handleTerminate = React.useCallback(
-        async (partner: LogisticsPartner) => {
-            if (
-                typeof window !== 'undefined' &&
-                !window.confirm(
-                    `Are you sure you want to terminate partnership with ${partner.logisticsOrgName}?`
-                )
-            )
-                return;
-            try {
-                await updatePartnershipStatus(partner.partnershipId, {
-                    status: 'TERMINATED',
-                });
-                setRemovedIds((prev) => [...prev, partner.partnershipId]);
-                toast.success('Partnership terminated');
-            } catch (error) {
-                console.error('Failed to terminate partnership:', error);
-                toast.error('Failed to terminate partnership');
-            }
-        },
-        []
+    const [terminating, setTerminating] = React.useState<LogisticsPartner | null>(
+        null
     );
 
+    const handleTerminate = React.useCallback(async () => {
+        if (!terminating) return;
+        try {
+            await updatePartnershipStatus(terminating.partnershipId, {
+                status: 'TERMINATED',
+            });
+            setRemovedIds((prev) => [...prev, terminating.partnershipId]);
+            toast.success('Partnership terminated');
+        } catch (error) {
+            console.error('Failed to terminate partnership:', error);
+            toast.error('Failed to terminate partnership');
+        } finally {
+            setTerminating(null);
+        }
+    }, [terminating]);
+
+    const requestTerminate = React.useCallback((partner: LogisticsPartner) => {
+        setTerminating(partner);
+    }, []);
+
     const columns = React.useMemo(
-        () => buildColumns(handleTerminate),
-        [handleTerminate]
+        () => buildColumns(requestTerminate),
+        [requestTerminate]
     );
 
     const table = useReactTable({
@@ -479,6 +479,31 @@ export function LogisticsTable({
                     </Select>
                 </div>
             </div>
+            <AlertDialog
+                open={terminating !== null}
+                onOpenChange={(v) => !v && setTerminating(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Terminate partnership?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to terminate partnership with{' '}
+                            {terminating?.secondaryOrgName ??
+                                terminating?.primaryOrgName ??
+                                '—'}
+                            ? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleTerminate}>
+                            Terminate
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

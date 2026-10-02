@@ -2,27 +2,22 @@ import { PaginatedResponse } from './paginated-response';
 
 export interface LogisticsPartner {
     partnershipId: number;
-    partnershipNumber: string;
-    retailerOrgId: number;
-    retailerOrgName: string;
-    logisticsOrgId: number;
-    logisticsOrgName: string;
-    partnershipType: 'LOGISTICS';
+    primaryOrg?: number;
+    secondaryOrg?: number;
+    primaryOrgName?: string;
+    secondaryOrgName?: string;
+    partnershipType?: string;
+    partnershipTerm?: string;
+    discountRate?: number;
     status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'REJECTED';
-    title: string;
-    description: string;
-    startDate: string;
+    startDate?: string;
     endDate?: string;
+    revivedDate?: string;
     agreementDocumentId?: number;
-    agreementDocumentUrl?: string;
-    agreementDocumentName?: string;
-    termsAndConditions: string;
-    autoRenewal: boolean;
-    renewalPeriodDays: number;
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-    updatedBy: string;
+    invitationId?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    [key: string]: unknown;
 }
 
 export interface LogisticsPartnerCreateRequest {

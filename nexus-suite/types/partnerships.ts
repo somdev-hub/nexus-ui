@@ -2,27 +2,23 @@ import { PaginatedResponse } from './paginated-response';
 
 export interface Partnership {
     partnershipId: number;
-    partnershipNumber: string;
-    retailerOrgId: number;
-    retailerOrgName: string;
-    supplierOrgId: number;
-    supplierOrgName: string;
-    partnershipType: 'SUPPLIER' | 'LOGISTICS' | 'DISTRIBUTOR' | 'STRATEGIC';
+    primaryOrg?: number;
+    secondaryOrg?: number;
+    primaryOrgName?: string;
+    secondaryOrgName?: string;
+    partnershipType?: string;
+    partnershipTerm?: string;
+    discountRate?: number;
     status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'REJECTED';
-    title: string;
-    description: string;
-    startDate: string;
+    startDate?: string;
     endDate?: string;
+    revivedDate?: string;
     agreementDocumentId?: number;
     agreementDocumentUrl?: string;
-    agreementDocumentName?: string;
-    termsAndConditions: string;
-    autoRenewal: boolean;
-    renewalPeriodDays: number;
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-    updatedBy: string;
+    invitationId?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    [key: string]: unknown;
 }
 
 export interface PartnershipCreateRequest {
@@ -46,6 +42,7 @@ export interface PartnershipUpdateRequest {
     termsAndConditions?: string;
     autoRenewal?: boolean;
     renewalPeriodDays?: number;
+    discountRate?: number;
 }
 
 export interface PartnershipStatusUpdateRequest {

@@ -119,7 +119,9 @@ const LogisticMarketPage = () => {
                                                             <CardContent className="flex flex-col items-center justify-center w-full h-full p-4">
                                                                 <p className="font-semibold text-center text-sm">
                                                                     {
-                                                                        partner.logisticsOrgName
+                                                                        partner.secondaryOrgName ??
+                                                                            partner.primaryOrgName ??
+                                                                            '—'
                                                                     }
                                                                 </p>
                                                                 <Badge
@@ -127,7 +129,8 @@ const LogisticMarketPage = () => {
                                                                     className="mt-2"
                                                                 >
                                                                     {
-                                                                        partner.title
+                                                                        partner.partnershipTerm ??
+                                                                            '—'
                                                                     }
                                                                 </Badge>
                                                             </CardContent>
