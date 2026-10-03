@@ -24,6 +24,15 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Money } from '@/components/money';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { CURRENCIES } from '@/lib/currency';
 import {
     getPriceTiers,
     createPriceTier,
@@ -31,6 +40,8 @@ import {
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
+import { DatePicker } from '@/components/ui/date-picker';
+import { formatYmd, parseYmd } from '@/lib/date-utils';
 
 export default function SupplierPricingPage() {
     const { toast } = useToast();
@@ -49,6 +60,7 @@ export default function SupplierPricingPage() {
         contractId: '',
         validFrom: '',
         validTo: '',
+        currency: 'USD',
     });
 
     const load = async () => {
@@ -87,7 +99,7 @@ export default function SupplierPricingPage() {
                     : undefined,
                 validFrom: form.validFrom || undefined,
                 validTo: form.validTo || undefined,
-                currency: 'USD',
+                currency: form.currency || 'USD',
             });
             toast({ title: 'Price tier created', variant: 'success' });
             setOpen(false);
@@ -186,6 +198,29 @@ export default function SupplierPricingPage() {
                                 />
                             </div>
                             <div className="grid gap-2">
+                                <Label>Currency</Label>
+                                <Select
+                                    value={form.currency || 'USD'}
+                                    onValueChange={(v) =>
+                                        setForm({ ...form, currency: v })
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {CURRENCIES.map((c) => (
+                                            <SelectItem
+                                                key={c.code}
+                                                value={c.code}
+                                            >
+                                                {c.code} — {c.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
                                 <Label>Customer Segment</Label>
                                 <Input
                                     value={form.customerSegment}
@@ -227,28 +262,28 @@ export default function SupplierPricingPage() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Valid From</Label>
-                                    <Input
-                                        type="date"
-                                        value={form.validFrom}
-                                        onChange={(e) =>
+                                    <DatePicker
+                                        date={parseYmd(form.validFrom)}
+                                        onDateChange={(d) =>
                                             setForm({
                                                 ...form,
-                                                validFrom: e.target.value,
+                                                validFrom: formatYmd(d),
                                             })
                                         }
+                                        placeholder="Pick start date"
                                     />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Valid To</Label>
-                                    <Input
-                                        type="date"
-                                        value={form.validTo}
-                                        onChange={(e) =>
+                                    <DatePicker
+                                        date={parseYmd(form.validTo)}
+                                        onDateChange={(d) =>
                                             setForm({
                                                 ...form,
-                                                validTo: e.target.value,
+                                                validTo: formatYmd(d),
                                             })
                                         }
+                                        placeholder="Pick end date"
                                     />
                                 </div>
                             </div>
@@ -292,7 +327,12 @@ export default function SupplierPricingPage() {
                                             {t.minQuantity ?? 0} -{' '}
                                             {t.maxQuantity ?? '∞'}
                                         </TableCell>
-                                        <TableCell>${t.unitPrice}</TableCell>
+                                        <TableCell>
+                                            <Money
+                                                amount={t.unitPrice}
+                                                currency={t.currency}
+                                            />
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant="outline">
                                                 {t.customerSegment || 'ALL'}

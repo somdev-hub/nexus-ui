@@ -53,7 +53,7 @@ export function ProductCards({ totalProducts, products }: ProductCardsProps) {
                 <CardHeader>
                     <CardDescription>Total Value</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                        {products.length > 0 ? products[0].currency : '$'}{' '}
+                        {products.length > 0 ? products[0].currency : 'USD'}{' '}
                         {totalValue.toLocaleString()}
                     </CardTitle>
                 </CardHeader>

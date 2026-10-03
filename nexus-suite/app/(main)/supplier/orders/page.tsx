@@ -31,6 +31,7 @@ import {
 import { getSupplierPod } from '@/lib/services/counterparty-docs-service';
 import PodSection from '@/components/pod-section';
 import { useToast } from '@/hooks/use-toast';
+import { Money } from '@/components/money';
 import {
     Dialog,
     DialogContent,
@@ -51,6 +52,7 @@ export default function SupplierOrdersPage() {
     const [partialOpen, setPartialOpen] = useState<number | null>(null);
     const [shippedQty, setShippedQty] = useState('');
     const [podOpen, setPodOpen] = useState<number | null>(null);
+    const [viewOpen, setViewOpen] = useState<number | null>(null);
     // Shipment refs created this session (createPartialShipment returns
     // PartialShipmentResponse: { shipmentId, shipmentNumber, ... }).
     const [shipmentByPo, setShipmentByPo] = useState<
@@ -172,8 +174,11 @@ export default function SupplierOrdersPage() {
                                 <TableRow>
                                     <TableHead>PO Number</TableHead>
                                     <TableHead>Buyer</TableHead>
+                                    <TableHead>Order Date</TableHead>
+                                    <TableHead>Expected Delivery</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Total</TableHead>
+                                    <TableHead>Payment Terms</TableHead>
                                     <TableHead>ASN / Shipment</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
@@ -202,22 +207,57 @@ export default function SupplierOrdersPage() {
                                                 {o.poNumber}
                                             </TableCell>
                                             <TableCell>
-                                                {o.buyerOrg?.name ||
-                                                    o.buyerOrgId ||
-                                                    '-'}
+                                                {o.buyerOrgName ||
+                                                    o.buyerOrg?.name ||
+                                                    (o.buyerOrgId !== undefined
+                                                        ? `Org #${o.buyerOrgId}`
+                                                        : '-')}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">
+                                                {o.orderDate
+                                                    ? new Date(
+                                                          o.orderDate
+                                                      ).toLocaleDateString()
+                                                    : o.createdAt
+                                                      ? new Date(
+                                                            o.createdAt
+                                                        ).toLocaleDateString()
+                                                      : '-'}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">
+                                                {o.expectedDeliveryDate
+                                                    ? new Date(
+                                                          o.expectedDeliveryDate
+                                                      ).toLocaleDateString()
+                                                    : '-'}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge>{o.status}</Badge>
                                             </TableCell>
                                             <TableCell>
-                                                {o.totalAmount
-                                                    ? `$${o.totalAmount}`
-                                                    : '-'}
+                                                <Money
+                                                    amount={o.totalAmount}
+                                                    currency={o.currency}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                {o.paymentTerms || '-'}
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">
                                                 {asnNumber}
                                             </TableCell>
                                             <TableCell className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        setViewOpen(
+                                                            o.purchaseOrderId
+                                                        )
+                                                    }
+                                                >
+                                                    View
+                                                </Button>
                                                 {o.status ===
                                                     'SENT_TO_SUPPLIER' && (
                                                     <Button
@@ -351,7 +391,7 @@ export default function SupplierOrdersPage() {
                                 {!data?.content?.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={9}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No orders
@@ -363,6 +403,207 @@ export default function SupplierOrdersPage() {
                     )}
                 </CardContent>
             </Card>
+            <OrderDetailDialog
+                order={
+                    viewOpen !== null
+                        ? (data?.content?.find(
+                              (o) => o.purchaseOrderId === viewOpen
+                          ) ?? null)
+                        : null
+                }
+                onOpenChange={(v) => !v && setViewOpen(null)}
+            />
         </div>
+    );
+}
+
+function OrderDetailDialog({
+    order,
+    onOpenChange,
+}: {
+    order: SupplierOrder | null;
+    onOpenChange: (v: boolean) => void;
+}) {
+    const formatDate = (value?: string) =>
+        value ? new Date(value).toLocaleDateString() : '—';
+    return (
+        <Dialog open={order !== null} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>
+                        Purchase Order {order?.poNumber ?? ''}
+                    </DialogTitle>
+                </DialogHeader>
+                {order && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Buyer
+                                </span>
+                                <span className="font-medium">
+                                    {order.buyerOrgName ||
+                                        order.buyerOrg?.name ||
+                                        (order.buyerOrgId !== undefined
+                                            ? `Org #${order.buyerOrgId}`
+                                            : '—')}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Status
+                                </span>
+                                <Badge>{order.status}</Badge>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Order Date
+                                </span>
+                                <span className="font-medium">
+                                    {formatDate(
+                                        order.orderDate ?? order.createdAt
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Requested Delivery
+                                </span>
+                                <span className="font-medium">
+                                    {formatDate(order.requestedDeliveryDate)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Expected Delivery
+                                </span>
+                                <span className="font-medium">
+                                    {formatDate(order.expectedDeliveryDate)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Confirmed Delivery
+                                </span>
+                                <span className="font-medium">
+                                    {formatDate(order.confirmedDeliveryDate)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Payment Terms
+                                </span>
+                                <span className="font-medium">
+                                    {order.paymentTerms || '—'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Incoterms
+                                </span>
+                                <span className="font-medium">
+                                    {order.incoterms || '—'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Currency
+                                </span>
+                                <span className="font-medium">
+                                    {order.currency || '—'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    Total
+                                </span>
+                                <span className="font-medium">
+                                    {order.totalAmount !== undefined &&
+                                    order.totalAmount !== null
+                                        ? Number(
+                                              order.totalAmount
+                                          ).toLocaleString()
+                                        : '—'}
+                                </span>
+                            </div>
+                        </div>
+                        {order.notes && (
+                            <div className="text-sm">
+                                <p className="text-muted-foreground">Notes</p>
+                                <p className="font-medium">{order.notes}</p>
+                            </div>
+                        )}
+                        {order.supplierNotes && (
+                            <div className="text-sm">
+                                <p className="text-muted-foreground">
+                                    Supplier Notes
+                                </p>
+                                <p className="font-medium">
+                                    {order.supplierNotes}
+                                </p>
+                            </div>
+                        )}
+                        <div>
+                            <h4 className="mb-2 text-sm font-semibold">
+                                Line Items ({order.lineItems?.length ?? 0})
+                            </h4>
+                            {order.lineItems?.length ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>#</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="text-right">
+                                                Qty
+                                            </TableHead>
+                                            <TableHead>UoM</TableHead>
+                                            <TableHead className="text-right">
+                                                Unit Price
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Total
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {order.lineItems.map((li, idx) => (
+                                            <TableRow
+                                                key={
+                                                    li.lineItemId ??
+                                                    `${idx}`
+                                                }
+                                            >
+                                                <TableCell>
+                                                    {li.lineNumber ?? idx + 1}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {li.description || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {li.quantityOrdered ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {li.unitOfMeasure || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {li.unitPrice ?? '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {li.totalPrice ?? '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No line items.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }

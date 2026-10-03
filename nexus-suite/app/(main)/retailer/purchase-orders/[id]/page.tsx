@@ -6,6 +6,16 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,15 +78,11 @@ const Page = () => {
         };
     }, [id, numericId]);
 
+    const [confirmSubmit, setConfirmSubmit] = useState(false);
+    const [confirmSend, setConfirmSend] = useState(false);
+
     const handleSubmitForApproval = async () => {
         if (!purchaseOrder) return;
-        if (
-            typeof window !== 'undefined' &&
-            !window.confirm(
-                `Submit purchase order ${purchaseOrder.purchaseOrderNumber} for approval?`
-            )
-        )
-            return;
         setIsSubmitting(true);
         try {
             const updated = await transitionPurchaseOrder(
@@ -91,6 +97,27 @@ const Page = () => {
             toast.error('Failed to submit purchase order. Please try again.');
         } finally {
             setIsSubmitting(false);
+            setConfirmSubmit(false);
+        }
+    };
+
+    const handleSendToSupplier = async () => {
+        if (!purchaseOrder) return;
+        setIsSubmitting(true);
+        try {
+            const updated = await transitionPurchaseOrder(
+                purchaseOrder.purchaseOrderId,
+                'SENT_TO_SUPPLIER'
+            );
+            setPurchaseOrder(updated);
+            toast.success('Purchase order sent to supplier');
+            router.refresh();
+        } catch (error) {
+            console.error('Failed to send purchase order:', error);
+            toast.error('Failed to send purchase order. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+            setConfirmSend(false);
         }
     };
 
@@ -120,6 +147,7 @@ const Page = () => {
     }
 
     return (
+        <>
         <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2 p-4 md:gap-6 md:p-6">
                 <div className="flex w-full items-center justify-between">
@@ -154,7 +182,7 @@ const Page = () => {
                         </Button>
                         {purchaseOrder.status === 'DRAFT' && (
                             <Button
-                                onClick={handleSubmitForApproval}
+                                onClick={() => setConfirmSubmit(true)}
                                 disabled={isSubmitting}
                             >
                                 {isSubmitting ? (
@@ -165,6 +193,21 @@ const Page = () => {
                                 {isSubmitting
                                     ? 'Submitting...'
                                     : 'Submit for Approval'}
+                            </Button>
+                        )}
+                        {purchaseOrder.status === 'APPROVED' && (
+                            <Button
+                                onClick={() => setConfirmSend(true)}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Send className="mr-2 h-4 w-4" />
+                                )}
+                                {isSubmitting
+                                    ? 'Sending...'
+                                    : 'Send to Supplier'}
                             </Button>
                         )}
                     </div>
@@ -332,6 +375,46 @@ const Page = () => {
                 </div>
             </div>
         </div>
+            <AlertDialog open={confirmSubmit} onOpenChange={setConfirmSubmit}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Submit purchase order?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Submit purchase order{' '}
+                            {purchaseOrder.purchaseOrderNumber} for approval?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSubmitForApproval}>
+                            Submit
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={confirmSend} onOpenChange={setConfirmSend}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Send purchase order?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Send purchase order{' '}
+                            {purchaseOrder.purchaseOrderNumber} to the supplier?
+                            The supplier will then be able to acknowledge it.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSendToSupplier}>
+                            Send
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 };
 

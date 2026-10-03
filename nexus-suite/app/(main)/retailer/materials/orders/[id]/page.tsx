@@ -1,6 +1,16 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card } from '@/components/ui/card';
 import { FieldSeparator } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,14 +54,9 @@ const Page = () => {
         };
     }, [orderId]);
 
+    const [confirmCancel, setConfirmCancel] = useState(false);
+
     const handleCancel = async () => {
-        if (
-            typeof window !== 'undefined' &&
-            !window.confirm(
-                `Cancel order ${order?.orderNumber ?? orderId}? This cannot be undone.`
-            )
-        )
-            return;
         setIsCancelling(true);
         try {
             await cancelOrder(orderId);
@@ -63,6 +68,7 @@ const Page = () => {
             );
         } finally {
             setIsCancelling(false);
+            setConfirmCancel(false);
         }
     };
 
@@ -120,7 +126,7 @@ const Page = () => {
                                     <Button
                                         variant="destructive"
                                         disabled={isCancelling}
-                                        onClick={handleCancel}
+                                        onClick={() => setConfirmCancel(true)}
                                     >
                                         <TrashIcon className="mr-2 h-4 w-4" />
                                         Cancel Order
@@ -217,6 +223,23 @@ const Page = () => {
                     </div>
                 </div>
             </div>
+            <AlertDialog open={confirmCancel} onOpenChange={setConfirmCancel}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel order?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Cancel order {order.orderNumber}? This cannot be
+                            undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Order</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleCancel}>
+                            Cancel Order
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 };

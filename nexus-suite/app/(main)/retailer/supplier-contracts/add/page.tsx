@@ -19,6 +19,8 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
+import { formatYmd, parseYmd } from '@/lib/date-utils';
 import {
     Select,
     SelectContent,
@@ -254,9 +256,20 @@ const Page = () => {
                                                         Start Date *
                                                     </FormLabel>
                                                     <FormControl>
-                                                        <Input
-                                                            type="date"
-                                                            {...field}
+                                                        <DatePicker
+                                                            date={parseYmd(
+                                                                field.value
+                                                            )}
+                                                            onDateChange={(
+                                                                date
+                                                            ) =>
+                                                                field.onChange(
+                                                                    formatYmd(
+                                                                        date
+                                                                    )
+                                                                )
+                                                            }
+                                                            placeholder="Pick start date"
                                                         />
                                                     </FormControl>
                                                     <FormMessage />
@@ -272,9 +285,20 @@ const Page = () => {
                                                         End Date *
                                                     </FormLabel>
                                                     <FormControl>
-                                                        <Input
-                                                            type="date"
-                                                            {...field}
+                                                        <DatePicker
+                                                            date={parseYmd(
+                                                                field.value
+                                                            )}
+                                                            onDateChange={(
+                                                                date
+                                                            ) =>
+                                                                field.onChange(
+                                                                    formatYmd(
+                                                                        date
+                                                                    )
+                                                                )
+                                                            }
+                                                            placeholder="Pick end date"
                                                         />
                                                     </FormControl>
                                                     <FormMessage />

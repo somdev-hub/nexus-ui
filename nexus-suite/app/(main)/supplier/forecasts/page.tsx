@@ -44,6 +44,8 @@ import {
 } from '@/lib/services/supplier-commercial-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
+import { DatePicker } from '@/components/ui/date-picker';
+import { formatYmd, parseYmd } from '@/lib/date-utils';
 
 const emptyForm = {
     retailerOrgId: '',
@@ -196,22 +198,25 @@ export default function ForecastsPage() {
             <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
                     <Label>Period Start</Label>
-                    <Input
-                        type="date"
-                        value={value.periodStart}
-                        onChange={(e) =>
-                            setValue({ ...value, periodStart: e.target.value })
+                    <DatePicker
+                        date={parseYmd(value.periodStart)}
+                        onDateChange={(d) =>
+                            setValue({
+                                ...value,
+                                periodStart: formatYmd(d),
+                            })
                         }
+                        placeholder="Pick start date"
                     />
                 </div>
                 <div className="grid gap-2">
                     <Label>Period End</Label>
-                    <Input
-                        type="date"
-                        value={value.periodEnd}
-                        onChange={(e) =>
-                            setValue({ ...value, periodEnd: e.target.value })
+                    <DatePicker
+                        date={parseYmd(value.periodEnd)}
+                        onDateChange={(d) =>
+                            setValue({ ...value, periodEnd: formatYmd(d) })
                         }
+                        placeholder="Pick end date"
                     />
                 </div>
             </div>

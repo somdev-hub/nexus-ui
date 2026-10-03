@@ -9,6 +9,7 @@ export interface SupplierCatalog {
     attributes?: string;
     specifications?: string;
     basePrice?: number;
+    unitOfMeasure?: string;
     currency?: string;
     status?: string;
     accessLevel?: string;
@@ -76,19 +77,35 @@ export interface ProductionCapacity {
 export interface SupplierOrder {
     purchaseOrderId: number;
     poNumber: string;
+    purchaseOrderNumber?: string;
     buyerOrg?: { accountId: number; name?: string };
     buyerOrgId?: number;
+    buyerOrgName?: string;
+    supplierOrgId?: number;
+    supplierOrgName?: string;
     status: string;
     totalAmount?: number;
     currency?: string;
+    paymentTerms?: string;
+    incoterms?: string;
+    notes?: string;
+    orderDate?: string;
     requestedDeliveryDate?: string;
     expectedDeliveryDate?: string;
     confirmedDeliveryDate?: string;
     supplierNotes?: string;
     lineItems?: Array<{
+        lineItemId?: number;
+        lineNumber?: number;
+        catalogId?: number;
+        materialId?: number;
+        productId?: number;
         quantityOrdered?: number;
+        quantityReceived?: number;
+        quantityInvoiced?: number;
         unitPrice?: number;
         totalPrice?: number;
+        unitOfMeasure?: string;
         description?: string;
     }>;
     createdAt?: string;

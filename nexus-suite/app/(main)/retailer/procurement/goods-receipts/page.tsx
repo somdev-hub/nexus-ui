@@ -10,6 +10,8 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
+import { formatYmd, parseYmd } from '@/lib/date-utils';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -219,10 +221,15 @@ export default function GoodsReceiptsPage() {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Received Date</Label>
-                                        <Input
-                                            type="date"
-                                            value={form.receivedDate}
-                                            onChange={set('receivedDate')}
+                                        <DatePicker
+                                            date={parseYmd(form.receivedDate)}
+                                            onDateChange={(d) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    receivedDate: formatYmd(d),
+                                                }))
+                                            }
+                                            placeholder="Pick received date"
                                         />
                                     </div>
                                 </div>

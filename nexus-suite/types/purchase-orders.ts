@@ -5,8 +5,10 @@ export interface PurchaseOrder {
     purchaseOrderNumber: string;
     retailerOrgId: number;
     retailerOrgName: string;
-    supplierOrgId: number;
-    supplierOrgName: string;
+    supplierOrgId?: number;
+    supplierOrgName?: string;
+    supplierName?: string;
+    buyerOrgName?: string;
     orderDate: string;
     expectedDeliveryDate: string;
     status:
@@ -18,7 +20,14 @@ export interface PurchaseOrder {
         | 'SHIPPED'
         | 'DELIVERED'
         | 'CANCELLED'
-        | 'PARTIALLY_DELIVERED';
+        | 'PARTIALLY_DELIVERED'
+        | 'SENT_TO_SUPPLIER'
+        | 'ACKNOWLEDGED'
+        | 'PARTIALLY_RECEIVED'
+        | 'RECEIVED'
+        | 'INVOICED'
+        | 'PAID'
+        | 'CLOSED';
     totalAmount: number;
     currency: string;
     paymentTerms: string;
@@ -64,7 +73,8 @@ export interface PurchaseOrderItemCreateRequest {
     description: string;
     quantityOrdered: number;
     unitPrice: number;
-    productId?: number;
+    /** Supplier catalog item this line is ordered from */
+    catalogId?: number;
     materialId?: number;
     unitOfMeasure?: string;
     incoterms?: string;

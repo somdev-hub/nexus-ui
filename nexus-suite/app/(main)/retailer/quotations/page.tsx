@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Money } from '@/components/money';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -133,9 +134,10 @@ export default function RetailerQuotationsPage() {
                                         {q.validTo || '—'}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {q.totalAmount != null
-                                            ? `${q.currency || 'USD'} ${Number(q.totalAmount).toLocaleString()}`
-                                            : '—'}
+                                        <Money
+                                            amount={q.totalAmount}
+                                            currency={q.currency}
+                                        />
                                     </TableCell>
                                     <TableCell>
                                         {q.status === 'SENT' && (

@@ -63,6 +63,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
 import { TablePagination } from './ui/table-pagination';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Product {
     productId: number;
@@ -275,27 +285,26 @@ export function ProductTable({
         pageSize: 10,
     });
 
-    const handleDelete = React.useCallback(
-        async (productId: number, productCode: string) => {
-            if (
-                typeof window !== 'undefined' &&
-                !window.confirm(
-                    `Delete product ${productCode || productId}? This cannot be undone.`
-                )
-            )
-                return;
-            try {
-                await deleteProduct(productId);
-                setData((prev) =>
-                    prev.filter((p) => p.productId !== productId)
-                );
-                toast.success('Product deleted');
-            } catch {
-                toast.error('Failed to delete product. Please try again.');
-            }
-        },
-        []
-    );
+    const [confirmingDelete, setConfirmingDelete] = React.useState<{
+        productId: number;
+        productCode: string;
+    } | null>(null);
+
+    const handleDelete = React.useCallback(async () => {
+        if (!confirmingDelete) return;
+        const { productId } = confirmingDelete;
+        try {
+            await deleteProduct(productId);
+            setData((prev) =>
+                prev.filter((p) => p.productId !== productId)
+            );
+            toast.success('Product deleted');
+        } catch {
+            toast.error('Failed to delete product. Please try again.');
+        } finally {
+            setConfirmingDelete(null);
+        }
+    }, [confirmingDelete]);
 
     const handleDuplicate = React.useCallback(async (product: Product) => {
         const copyCode = `${product.productCode || 'PRD'}-COPY-${Date.now().toString().slice(-6)}`;
@@ -328,9 +337,16 @@ export function ProductTable({
         }
     }, []);
 
+    const requestDelete = React.useCallback(
+        (productId: number, productCode: string) => {
+            setConfirmingDelete({ productId, productCode });
+        },
+        []
+    );
+
     const columns = React.useMemo(
-        () => createColumns(handleDelete, handleDuplicate),
-        [handleDelete, handleDuplicate]
+        () => createColumns(requestDelete, handleDuplicate),
+        [requestDelete, handleDuplicate]
     );
 
     const table = useReactTable({
@@ -575,6 +591,28 @@ export function ProductTable({
                     </div>
                 </div>
             </TabsContent>
+            <AlertDialog
+                open={confirmingDelete !== null}
+                onOpenChange={(v) => !v && setConfirmingDelete(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete product?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Delete product{' '}
+                            {confirmingDelete?.productCode ||
+                                confirmingDelete?.productId}
+                            ? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Tabs>
     );
 }

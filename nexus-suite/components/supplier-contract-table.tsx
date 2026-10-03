@@ -67,6 +67,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
 import { TablePagination } from './ui/table-pagination';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { updateSupplierContractStatus } from '@/lib/services/supplier-contracts-service';
@@ -334,37 +344,38 @@ export function SupplierContractTable({
         pageSize: 10,
     });
 
-    const handleSubmit = React.useCallback(
-        async (contract: SupplierContract) => {
-            if (
-                typeof window !== 'undefined' &&
-                !window.confirm(
-                    `Submit contract ${contract.contractNumber} for approval?`
-                )
-            )
-                return;
-            try {
-                const updated = await updateSupplierContractStatus(
-                    contract.contractId,
-                    { status: 'PENDING_APPROVAL' }
-                );
-                setData((prev) =>
-                    prev.map((c) =>
-                        c.contractId === contract.contractId ? updated : c
-                    )
-                );
-                toast.success('Contract submitted for approval');
-            } catch (error) {
-                console.error('Failed to submit contract:', error);
-                toast.error('Failed to submit contract');
-            }
-        },
-        []
+    const [confirming, setConfirming] = React.useState<SupplierContract | null>(
+        null
     );
 
+    const handleSubmit = React.useCallback(async () => {
+        if (!confirming) return;
+        try {
+            const updated = await updateSupplierContractStatus(
+                confirming.contractId,
+                { status: 'PENDING_APPROVAL' }
+            );
+            setData((prev) =>
+                prev.map((c) =>
+                    c.contractId === confirming.contractId ? updated : c
+                )
+            );
+            toast.success('Contract submitted for approval');
+        } catch (error) {
+            console.error('Failed to submit contract:', error);
+            toast.error('Failed to submit contract');
+        } finally {
+            setConfirming(null);
+        }
+    }, [confirming]);
+
+    const requestSubmit = React.useCallback((contract: SupplierContract) => {
+        setConfirming(contract);
+    }, []);
+
     const columns = React.useMemo(
-        () => buildColumns(handleSubmit),
-        [handleSubmit]
+        () => buildColumns(requestSubmit),
+        [requestSubmit]
     );
 
     const table = useReactTable({
@@ -609,6 +620,28 @@ export function SupplierContractTable({
                     </div>
                 </div>
             </TabsContent>
+            <AlertDialog
+                open={confirming !== null}
+                onOpenChange={(v) => !v && setConfirming(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Submit contract?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Submit contract {confirming?.contractNumber} for
+                            approval?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSubmit}>
+                            Submit
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Tabs>
     );
 }

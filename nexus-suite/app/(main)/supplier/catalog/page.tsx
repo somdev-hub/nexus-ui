@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Archive, Check, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Archive, Check, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { SupplierCatalog } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +61,7 @@ const emptyForm = {
     family: '',
     sku: '',
     basePrice: '',
+    unitOfMeasure: '',
     currency: 'USD',
     description: '',
     attributes: '',
@@ -83,6 +84,8 @@ export default function SupplierCatalogPage() {
     const [editing, setEditing] = useState<SupplierCatalog | null>(null);
     const [editForm, setEditForm] = useState(emptyForm);
     const [deleting, setDeleting] = useState<SupplierCatalog | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [deleteBusy, setDeleteBusy] = useState(false);
 
     const load = async () => {
         setLoading(true);
@@ -112,6 +115,8 @@ export default function SupplierCatalogPage() {
     }, [search]);
 
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             await createSupplierCatalog({
                 name: form.name,
@@ -120,6 +125,7 @@ export default function SupplierCatalogPage() {
                 family: form.family || undefined,
                 sku: form.sku || undefined,
                 basePrice: form.basePrice ? Number(form.basePrice) : undefined,
+                unitOfMeasure: form.unitOfMeasure || undefined,
                 currency: form.currency || 'USD',
                 description: form.description || undefined,
                 attributes: form.attributes || undefined,
@@ -140,6 +146,8 @@ export default function SupplierCatalogPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -156,6 +164,7 @@ export default function SupplierCatalogPage() {
                     ? String(c.basePrice)
                     : '',
             currency: c.currency ?? 'USD',
+            unitOfMeasure: c.unitOfMeasure ?? '',
             description: c.description ?? '',
             attributes: c.attributes ?? '',
             specifications: c.specifications ?? '',
@@ -165,7 +174,8 @@ export default function SupplierCatalogPage() {
     };
 
     const handleEdit = async () => {
-        if (!editing) return;
+        if (!editing || saving) return;
+        setSaving(true);
         try {
             await updateSupplierCatalog(editing.catalogId, {
                 name: editForm.name,
@@ -176,6 +186,7 @@ export default function SupplierCatalogPage() {
                 basePrice: editForm.basePrice
                     ? Number(editForm.basePrice)
                     : undefined,
+                unitOfMeasure: editForm.unitOfMeasure || undefined,
                 currency: editForm.currency || undefined,
                 description: editForm.description || undefined,
                 attributes: editForm.attributes || undefined,
@@ -195,6 +206,8 @@ export default function SupplierCatalogPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -220,7 +233,8 @@ export default function SupplierCatalogPage() {
     };
 
     const handleDelete = async () => {
-        if (!deleting) return;
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
         try {
             await deleteSupplierCatalog(deleting.catalogId);
             toast({ title: 'Catalog deleted', variant: 'success' });
@@ -231,6 +245,8 @@ export default function SupplierCatalogPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteBusy(false);
         }
     };
 
@@ -315,6 +331,19 @@ export default function SupplierCatalogPage() {
                         }
                     />
                 </div>
+            </div>
+            <div className="grid gap-2">
+                <Label>Unit of Measure</Label>
+                <Input
+                    placeholder="e.g. KG, PCS, LTR, MTR"
+                    value={value.unitOfMeasure}
+                    onChange={(e) =>
+                        setValue({
+                            ...value,
+                            unitOfMeasure: e.target.value,
+                        })
+                    }
+                />
             </div>
             <div className="grid gap-2">
                 <Label>Access Level</Label>
@@ -403,7 +432,12 @@ export default function SupplierCatalogPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             {renderFormFields(form, setForm)}
-                            <Button onClick={handleCreate}>Create</Button>
+                            <Button onClick={handleCreate} disabled={saving}>
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -418,7 +452,12 @@ export default function SupplierCatalogPage() {
                     </DialogHeader>
                     <div className="grid gap-6">
                         {renderFormFields(editForm, setEditForm)}
-                        <Button onClick={handleEdit}>Save Changes</Button>
+                        <Button onClick={handleEdit} disabled={saving}>
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -438,9 +477,17 @@ export default function SupplierCatalogPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>
-                            Delete
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

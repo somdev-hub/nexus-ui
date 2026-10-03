@@ -26,6 +26,7 @@ import {
     IconPlus,
     IconTrash,
     IconTrendingUp,
+    IconSend,
     IconTruck,
     IconFileText,
     IconClock,
@@ -67,6 +68,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field } from './ui/field';
 import { TablePagination } from './ui/table-pagination';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Money } from '@/components/money';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
@@ -162,10 +174,46 @@ const statusConfig: Record<
         variant: 'outline',
         icon: <IconAlertCircle className="h-3 w-3" />,
     },
+    SENT_TO_SUPPLIER: {
+        label: 'Sent to Supplier',
+        variant: 'default',
+        icon: <IconTruck className="h-3 w-3" />,
+    },
+    ACKNOWLEDGED: {
+        label: 'Acknowledged',
+        variant: 'default',
+        icon: <IconCheck className="h-3 w-3" />,
+    },
+    PARTIALLY_RECEIVED: {
+        label: 'Partially Received',
+        variant: 'outline',
+        icon: <IconAlertCircle className="h-3 w-3" />,
+    },
+    RECEIVED: {
+        label: 'Received',
+        variant: 'success',
+        icon: <IconCircleCheckFilled className="h-3 w-3 fill-green-500" />,
+    },
+    INVOICED: {
+        label: 'Invoiced',
+        variant: 'outline',
+        icon: <IconFileText className="h-3 w-3" />,
+    },
+    PAID: {
+        label: 'Paid',
+        variant: 'success',
+        icon: <IconCircleCheckFilled className="h-3 w-3 fill-green-500" />,
+    },
+    CLOSED: {
+        label: 'Closed',
+        variant: 'secondary',
+        icon: <IconCheck className="h-3 w-3" />,
+    },
 };
 
 const buildColumns = (
     onSubmit: (po: PurchaseOrder) => void,
+    onSend: (po: PurchaseOrder) => void,
     onDelete: (po: PurchaseOrder) => void
 ): ColumnDef<PurchaseOrder>[] => [
     {
@@ -242,7 +290,11 @@ const buildColumns = (
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => {
-            const config = statusConfig[row.original.status];
+            const config = statusConfig[row.original.status] ?? {
+                label: row.original.status ?? 'Unknown',
+                variant: 'outline' as const,
+                icon: null,
+            };
             return (
                 <Badge variant={config.variant} className="gap-1.5">
                     {config.icon}
@@ -256,10 +308,10 @@ const buildColumns = (
         header: () => <div className="w-full text-right">Total Amount</div>,
         cell: ({ row }) => (
             <div className="text-right font-mono font-medium">
-                {row.original.currency}{' '}
-                {row.original.totalAmount.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                })}
+                <Money
+                    amount={row.original.totalAmount}
+                    currency={row.original.currency}
+                />
             </div>
         ),
     },
@@ -308,6 +360,14 @@ const buildColumns = (
                             Submit for Approval
                         </DropdownMenuItem>
                     )}
+                    {row.original.status === 'APPROVED' && (
+                        <DropdownMenuItem
+                            onClick={() => onSend(row.original)}
+                        >
+                            <IconSend className="mr-2 h-4 w-4" />
+                            Send to Supplier
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                         variant="destructive"
                         onClick={() => onDelete(row.original)}
@@ -338,14 +398,14 @@ export function PurchaseOrderTable({
         pageSize: 10,
     });
 
-    const handleSubmit = React.useCallback(async (po: PurchaseOrder) => {
-        if (
-            typeof window !== 'undefined' &&
-            !window.confirm(
-                `Submit purchase order ${po.purchaseOrderNumber} for approval?`
-            )
-        )
-            return;
+    const [confirming, setConfirming] = React.useState<{
+        action: 'submit' | 'send' | 'delete';
+        po: PurchaseOrder;
+    } | null>(null);
+
+    const handleSubmit = React.useCallback(async () => {
+        if (!confirming || confirming.action !== 'submit') return;
+        const po = confirming.po;
         try {
             const updated = await transitionPurchaseOrder(
                 po.purchaseOrderId,
@@ -360,17 +420,36 @@ export function PurchaseOrderTable({
         } catch (error) {
             console.error('Failed to submit purchase order:', error);
             toast.error('Failed to submit purchase order');
+        } finally {
+            setConfirming(null);
         }
-    }, []);
+    }, [confirming]);
 
-    const handleDelete = React.useCallback(async (po: PurchaseOrder) => {
-        if (
-            typeof window !== 'undefined' &&
-            !window.confirm(
-                `Delete purchase order ${po.purchaseOrderNumber}? This cannot be undone.`
-            )
-        )
-            return;
+    const handleSend = React.useCallback(async () => {
+        if (!confirming || confirming.action !== 'send') return;
+        const po = confirming.po;
+        try {
+            const updated = await transitionPurchaseOrder(
+                po.purchaseOrderId,
+                'SENT_TO_SUPPLIER'
+            );
+            setData((prev) =>
+                prev.map((p) =>
+                    p.purchaseOrderId === po.purchaseOrderId ? updated : p
+                )
+            );
+            toast.success('Purchase order sent to supplier');
+        } catch (error) {
+            console.error('Failed to send purchase order:', error);
+            toast.error('Failed to send purchase order');
+        } finally {
+            setConfirming(null);
+        }
+    }, [confirming]);
+
+    const handleDelete = React.useCallback(async () => {
+        if (!confirming || confirming.action !== 'delete') return;
+        const po = confirming.po;
         try {
             await cancelPurchaseOrder(po.purchaseOrderId);
             setData((prev) =>
@@ -380,12 +459,26 @@ export function PurchaseOrderTable({
         } catch (error) {
             console.error('Failed to delete purchase order:', error);
             toast.error('Failed to delete purchase order');
+        } finally {
+            setConfirming(null);
         }
+    }, [confirming]);
+
+    const requestSubmit = React.useCallback((po: PurchaseOrder) => {
+        setConfirming({ action: 'submit', po });
+    }, []);
+
+    const requestSend = React.useCallback((po: PurchaseOrder) => {
+        setConfirming({ action: 'send', po });
+    }, []);
+
+    const requestDelete = React.useCallback((po: PurchaseOrder) => {
+        setConfirming({ action: 'delete', po });
     }, []);
 
     const columns = React.useMemo(
-        () => buildColumns(handleSubmit, handleDelete),
-        [handleSubmit, handleDelete]
+        () => buildColumns(requestSubmit, requestSend, requestDelete),
+        [requestSubmit, requestSend, requestDelete]
     );
 
     const table = useReactTable({
@@ -628,6 +721,47 @@ export function PurchaseOrderTable({
                     </div>
                 </div>
             </TabsContent>
+            <AlertDialog
+                open={confirming !== null}
+                onOpenChange={(v) => !v && setConfirming(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {confirming?.action === 'submit'
+                                ? 'Submit purchase order?'
+                                : confirming?.action === 'send'
+                                  ? 'Send purchase order?'
+                                  : 'Delete purchase order?'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {confirming?.action === 'submit'
+                                ? `Submit purchase order ${confirming?.po.purchaseOrderNumber} for approval?`
+                                : confirming?.action === 'send'
+                                  ? `Send purchase order ${confirming?.po.purchaseOrderNumber} to the supplier?`
+                                  : `Delete purchase order ${confirming?.po.purchaseOrderNumber}? This cannot be undone.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={
+                                confirming?.action === 'submit'
+                                    ? handleSubmit
+                                    : confirming?.action === 'send'
+                                      ? handleSend
+                                      : handleDelete
+                            }
+                        >
+                            {confirming?.action === 'submit'
+                                ? 'Submit'
+                                : confirming?.action === 'send'
+                                  ? 'Send'
+                                  : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Tabs>
     );
 }

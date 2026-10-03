@@ -72,6 +72,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { DatePicker } from '@/components/ui/date-picker';
+import { parseYmd, formatYmd } from '@/lib/date-utils';
 
 const ASSET_TYPES: {
     value: FleetAsset['assetType'];
@@ -653,34 +655,34 @@ export default function FleetPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="grid gap-2">
                                             <Label>Insurance Expiry</Label>
-                                            <Input
-                                                placeholder="e.g. 2026-12-31"
-                                                type="date"
-                                                value={
+                                            <DatePicker
+                                                date={parseYmd(
                                                     assetForm.insuranceExpiry
-                                                }
-                                                onChange={(e) =>
+                                                )}
+                                                onDateChange={(d) =>
                                                     setAssetForm({
                                                         ...assetForm,
                                                         insuranceExpiry:
-                                                            e.target.value,
+                                                            formatYmd(d),
                                                     })
                                                 }
+                                                placeholder="Pick insurance expiry"
                                             />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label>Permit Expiry</Label>
-                                            <Input
-                                                placeholder="e.g. 2026-12-31"
-                                                type="date"
-                                                value={assetForm.permitExpiry}
-                                                onChange={(e) =>
+                                            <DatePicker
+                                                date={parseYmd(
+                                                    assetForm.permitExpiry
+                                                )}
+                                                onDateChange={(d) =>
                                                     setAssetForm({
                                                         ...assetForm,
                                                         permitExpiry:
-                                                            e.target.value,
+                                                            formatYmd(d),
                                                     })
                                                 }
+                                                placeholder="Pick permit expiry"
                                             />
                                         </div>
                                     </div>
@@ -835,17 +837,17 @@ export default function FleetPage() {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>License Expiry</Label>
-                                        <Input
-                                            placeholder="e.g. 2027-05-31"
-                                            type="date"
-                                            value={driverForm.licenseExpiry}
-                                            onChange={(e) =>
+                                        <DatePicker
+                                            date={parseYmd(
+                                                driverForm.licenseExpiry
+                                            )}
+                                            onDateChange={(d) =>
                                                 setDriverForm({
                                                     ...driverForm,
-                                                    licenseExpiry:
-                                                        e.target.value,
+                                                    licenseExpiry: formatYmd(d),
                                                 })
                                             }
+                                            placeholder="Pick license expiry"
                                         />
                                     </div>
                                 </div>
@@ -1949,32 +1951,32 @@ export default function FleetPage() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Insurance Expiry</Label>
-                                    <Input
-                                        type="date"
-                                        value={assetEdit.insuranceExpiry}
-                                        onChange={(e) =>
+                                    <DatePicker
+                                        date={parseYmd(
+                                            assetEdit.insuranceExpiry
+                                        )}
+                                        onDateChange={(d) =>
                                             setAssetEdit({
                                                 ...assetEdit,
-                                                insuranceExpiry: e.target.value,
+                                                insuranceExpiry: formatYmd(d),
                                             })
                                         }
-                                        placeholder="e.g. 2026-12-31"
+                                        placeholder="Pick insurance expiry"
                                     />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Permit Expiry</Label>
-                                    <Input
-                                        type="date"
-                                        value={assetEdit.permitExpiry}
-                                        onChange={(e) =>
+                                    <DatePicker
+                                        date={parseYmd(assetEdit.permitExpiry)}
+                                        onDateChange={(d) =>
                                             setAssetEdit({
                                                 ...assetEdit,
-                                                permitExpiry: e.target.value,
+                                                permitExpiry: formatYmd(d),
                                             })
                                         }
-                                        placeholder="e.g. 2026-12-31"
+                                        placeholder="Pick permit expiry"
                                     />
                                 </div>
                                 <div className="grid gap-2">
@@ -2090,16 +2092,17 @@ export default function FleetPage() {
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="grid gap-2">
                                     <Label>License Expiry</Label>
-                                    <Input
-                                        type="date"
-                                        value={driverEdit.licenseExpiry}
-                                        onChange={(e) =>
+                                    <DatePicker
+                                        date={parseYmd(
+                                            driverEdit.licenseExpiry
+                                        )}
+                                        onDateChange={(d) =>
                                             setDriverEdit({
                                                 ...driverEdit,
-                                                licenseExpiry: e.target.value,
+                                                licenseExpiry: formatYmd(d),
                                             })
                                         }
-                                        placeholder="e.g. 2027-05-31"
+                                        placeholder="Pick license expiry"
                                     />
                                 </div>
                                 <div className="grid gap-2">

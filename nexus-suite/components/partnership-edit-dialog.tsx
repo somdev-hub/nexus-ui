@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingButton } from '@/components/ui/loading-button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { formatYmd, parseYmd } from '@/lib/date-utils';
 import { parseOptionalFloat } from '@/lib/utils';
 
 export interface PartnershipEditValues {
@@ -114,10 +116,10 @@ export function PartnershipEditDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label>End Date</Label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                            <DatePicker
+                                date={parseYmd(endDate)}
+                                onDateChange={(d) => setEndDate(formatYmd(d))}
+                                placeholder="Pick end date"
                             />
                         </div>
                     </div>

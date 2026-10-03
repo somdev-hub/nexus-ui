@@ -24,21 +24,23 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createPurchaseOrder } from '@/lib/services/purchase-orders-service';
 import { getSuppliers } from '@/lib/services/suppliers-service';
-import { getProducts } from '@/lib/services/products-service';
+import { browseSupplierCatalog } from '@/lib/services/supplier-market-service';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { parseOptionalFloat } from '@/lib/utils';
 import type { Supplier } from '@/types/suppliers';
-import type { Product } from '@/types/products';
+import type { SupplierBrowseItem } from '@/lib/services/supplier-market-service';
 
 const lineItemSchema = z.object({
-    productId: z.number().optional(),
+    catalogId: z.number().optional(),
     description: z.string().min(1, 'Description is required'),
     quantityOrdered: z.number().min(0.01, 'Quantity must be positive'),
+    unitOfMeasure: z.string().optional(),
     unitPrice: z.number().min(0.01, 'Unit price must be positive'),
 });
 
@@ -64,10 +66,26 @@ const PO_DRAFT_KEY = 'nexus:po:draft:new';
 
 const newPoNumber = () => `PO-${Date.now().toString().slice(-6)}`;
 
+/** yyyy-mm-dd <-> Date helpers (local time, no UTC shift). */
+const parseYmd = (value?: string): Date | undefined => {
+    if (!value) return undefined;
+    const [y, m, d] = value.split('-').map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d))
+        return undefined;
+    return new Date(y, m - 1, d);
+};
+
+const formatYmd = (date: Date | undefined): string => {
+    if (!date) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 const Page = () => {
     const { orgId } = useUserMetadata();
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [catalogItems, setCatalogItems] = useState<SupplierBrowseItem[]>([]);
+    const [catalogLoading, setCatalogLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [draftLoaded, setDraftLoaded] = useState(false);
 
@@ -88,9 +106,10 @@ const Page = () => {
             releaseSchedule: '',
             lineItems: [
                 {
-                    productId: undefined,
+                    catalogId: undefined,
                     description: '',
                     quantityOrdered: 1,
+                    unitOfMeasure: '',
                     unitPrice: 0,
                 },
             ],
@@ -105,16 +124,10 @@ const Page = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [sup, prod] = await Promise.all([
-                    getSuppliers({}).catch(() => null),
-                    getProducts({ pageNo: 0, pageOffset: 50 }).catch(
-                        () => null
-                    ),
-                ]);
+                const sup = await getSuppliers({}).catch(() => null);
                 if (sup) setSuppliers(sup.content ?? []);
-                if (prod) setProducts(prod.content ?? []);
             } catch (error) {
-                console.error('Failed to fetch suppliers/products:', error);
+                console.error('Failed to fetch suppliers:', error);
             }
             try {
                 const draft = localStorage.getItem(PO_DRAFT_KEY);
@@ -131,6 +144,42 @@ const Page = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // When a draft is restored (or supplier preselected), load that
+    // supplier's catalog so line items can reference it.
+    const selectedSupplierId = form.watch('supplierId');
+    useEffect(() => {
+        if (
+            draftLoaded &&
+            suppliers.length > 0 &&
+            selectedSupplierId > 0 &&
+            catalogItems.length === 0 &&
+            !catalogLoading
+        ) {
+            loadCatalogForSupplier(selectedSupplierId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftLoaded, suppliers, selectedSupplierId]);
+
+    const loadCatalogForSupplier = async (supplierId: number) => {
+        const supplier = suppliers.find((s) => s.supplierId === supplierId);
+        const supplierOrgId = supplier?.supplierOrgAccountId;
+        setCatalogItems([]);
+        if (!supplierOrgId) return;
+        setCatalogLoading(true);
+        try {
+            const res = await browseSupplierCatalog({
+                supplierOrgId,
+                pageNo: 0,
+                pageOffset: 100,
+            });
+            setCatalogItems(res.content ?? []);
+        } catch (error) {
+            console.error('Failed to fetch supplier catalog:', error);
+        } finally {
+            setCatalogLoading(false);
+        }
+    };
+
     const watchedItems = form.watch('lineItems');
     const total = watchedItems.reduce(
         (sum, it) =>
@@ -139,26 +188,35 @@ const Page = () => {
         0
     );
 
-    const applyProductToLine = (index: number, productId: number) => {
-        const product = products.find((p) => p.productId === productId);
-        form.setValue(`lineItems.${index}.productId`, productId, {
+    const applyCatalogItemToLine = (index: number, catalogId: number) => {
+        const item = catalogItems.find(
+            (c) => (c.catalogId ?? c.id) === catalogId
+        );
+        form.setValue(`lineItems.${index}.catalogId`, catalogId, {
             shouldValidate: true,
         });
-        if (product) {
+        if (item) {
             const currentDesc = form.getValues(
                 `lineItems.${index}.description`
             );
             if (!currentDesc) {
                 form.setValue(
                     `lineItems.${index}.description`,
-                    product.productName,
+                    item.name ?? '',
                     { shouldValidate: true }
                 );
             }
             if (!form.getValues(`lineItems.${index}.unitPrice`)) {
                 form.setValue(
                     `lineItems.${index}.unitPrice`,
-                    product.unitPrice,
+                    item.basePrice ?? 0,
+                    { shouldValidate: true }
+                );
+            }
+            if (!form.getValues(`lineItems.${index}.unitOfMeasure`)) {
+                form.setValue(
+                    `lineItems.${index}.unitOfMeasure`,
+                    item.unitOfMeasure ?? '',
                     { shouldValidate: true }
                 );
             }
@@ -193,8 +251,9 @@ const Page = () => {
                     lineNumber: idx + 1,
                     description: it.description,
                     quantityOrdered: it.quantityOrdered,
+                    unitOfMeasure: it.unitOfMeasure || undefined,
                     unitPrice: it.unitPrice,
-                    productId: it.productId,
+                    catalogId: it.catalogId,
                 })),
             });
             toast.success('Purchase order created successfully');
@@ -298,16 +357,37 @@ const Page = () => {
                                                         <FormLabel>
                                                             Supplier *
                                                         </FormLabel>
-                                                        <FormControl>
-                                                            <Select
+                                                        {suppliers.length === 0 ? (
+                                                            <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                                                                There is no
+                                                                established
+                                                                partnership
+                                                                with any
+                                                                supplier yet.
+                                                                Accept a
+                                                                supplier
+                                                                invitation
+                                                                first to raise
+                                                                a purchase
+                                                                order.
+                                                            </p>
+                                                        ) : (
+                                                            <FormControl>
+                                                                <Select
                                                                 onValueChange={(
                                                                     v
-                                                                ) =>
-                                                                    field.onChange(
+                                                                ) => {
+                                                                    const id =
                                                                         Number(
                                                                             v
-                                                                        )
-                                                                    )
+                                                                        );
+                                                                    field.onChange(
+                                                                        id
+                                                                    );
+                                                                    loadCatalogForSupplier(
+                                                                        id
+                                                                    );
+                                                                }
                                                                 }
                                                                 value={
                                                                     field.value
@@ -340,6 +420,7 @@ const Page = () => {
                                                                 </SelectContent>
                                                             </Select>
                                                         </FormControl>
+                                                        )}
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
@@ -444,9 +525,20 @@ const Page = () => {
                                                             Date *
                                                         </FormLabel>
                                                         <FormControl>
-                                                            <Input
-                                                                type="date"
-                                                                {...field}
+                                                            <DatePicker
+                                                                date={parseYmd(
+                                                                    field.value
+                                                                )}
+                                                                onDateChange={(
+                                                                    date
+                                                                ) =>
+                                                                    field.onChange(
+                                                                        formatYmd(
+                                                                            date
+                                                                        )
+                                                                    )
+                                                                }
+                                                                placeholder="Pick delivery date"
                                                             />
                                                         </FormControl>
                                                         <FormMessage />
@@ -463,13 +555,20 @@ const Page = () => {
                                                             Date
                                                         </FormLabel>
                                                         <FormControl>
-                                                            <Input
-                                                                type="date"
-                                                                {...field}
-                                                                value={
-                                                                    field.value ??
-                                                                    ''
+                                                            <DatePicker
+                                                                date={parseYmd(
+                                                                    field.value
+                                                                )}
+                                                                onDateChange={(
+                                                                    date
+                                                                ) =>
+                                                                    field.onChange(
+                                                                        formatYmd(
+                                                                            date
+                                                                        )
+                                                                    )
                                                                 }
+                                                                placeholder="Pick expected date"
                                                             />
                                                         </FormControl>
                                                         <FormMessage />
@@ -543,13 +642,21 @@ const Page = () => {
                                                                     Start Date
                                                                 </FormLabel>
                                                                 <FormControl>
-                                                                    <Input
-                                                                        type="date"
-                                                                        {...field}
-                                                                        value={
+                                                                    <DatePicker
+                                                                        date={parseYmd(
                                                                             field.value ??
-                                                                            ''
+                                                                                ''
+                                                                        )}
+                                                                        onDateChange={(
+                                                                            date
+                                                                        ) =>
+                                                                            field.onChange(
+                                                                                formatYmd(
+                                                                                    date
+                                                                                )
+                                                                            )
                                                                         }
+                                                                        placeholder="Pick start date"
                                                                     />
                                                                 </FormControl>
                                                                 <FormMessage />
@@ -566,13 +673,21 @@ const Page = () => {
                                                                     Date
                                                                 </FormLabel>
                                                                 <FormControl>
-                                                                    <Input
-                                                                        type="date"
-                                                                        {...field}
-                                                                        value={
+                                                                    <DatePicker
+                                                                        date={parseYmd(
                                                                             field.value ??
-                                                                            ''
+                                                                                ''
+                                                                        )}
+                                                                        onDateChange={(
+                                                                            date
+                                                                        ) =>
+                                                                            field.onChange(
+                                                                                formatYmd(
+                                                                                    date
+                                                                                )
+                                                                            )
                                                                         }
+                                                                        placeholder="Pick end date"
                                                                     />
                                                                 </FormControl>
                                                                 <FormMessage />
@@ -608,19 +723,21 @@ const Page = () => {
                                     </CardContent>
                                 </Card>
 
-                                <Card className="gap-2 p-4">
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle>Line Items</CardTitle>
+                                {selectedSupplierId > 0 && (
+                                    <Card className="gap-2 p-4">
+                                        <CardHeader>
+                                            <div className="flex items-center justify-between">
+                                                <CardTitle>Line Items</CardTitle>
                                             <Button
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() =>
                                                     append({
-                                                        productId: undefined,
+                                                        catalogId: undefined,
                                                         description: '',
                                                         quantityOrdered: 1,
+                                                        unitOfMeasure: '',
                                                         unitPrice: 0,
                                                     })
                                                 }
@@ -631,27 +748,38 @@ const Page = () => {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-4 p-0">
+                                        {!catalogLoading &&
+                                            catalogItems.length === 0 && (
+                                                <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                                                    The selected supplier has
+                                                    no published catalog
+                                                    items. You can still add
+                                                    line items manually below.
+                                                </p>
+                                            )}
                                         {fields.map((item, index) => (
                                             <div
                                                 key={item.id}
                                                 className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-12"
                                             >
-                                                <div className="md:col-span-4">
+                                                <div className="md:col-span-3">
                                                     <FormField
                                                         control={form.control}
-                                                        name={`lineItems.${index}.productId`}
+                                                        name={`lineItems.${index}.catalogId`}
                                                         render={({ field }) => (
                                                             <FormItem>
                                                                 <FormLabel>
-                                                                    Product
-                                                                    (optional)
+                                                                    Material
+                                                                    (from
+                                                                    supplier
+                                                                    catalog)
                                                                 </FormLabel>
                                                                 <FormControl>
                                                                     <Select
                                                                         onValueChange={(
                                                                             v
                                                                         ) =>
-                                                                            applyProductToLine(
+                                                                            applyCatalogItemToLine(
                                                                                 index,
                                                                                 Number(
                                                                                     v
@@ -667,36 +795,53 @@ const Page = () => {
                                                                         }
                                                                     >
                                                                         <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder="Select product" />
+                                                                            <SelectValue
+                                                                                placeholder={
+                                                                                    catalogLoading
+                                                                                        ? 'Loading catalog…'
+                                                                                        : catalogItems.length
+                                                                                          ? 'Select material'
+                                                                                          : 'Select a supplier first'
+                                                                                }
+                                                                            />
                                                                         </SelectTrigger>
                                                                         <SelectContent>
-                                                                            {products.map(
+                                                                            {catalogItems.map(
                                                                                 (
-                                                                                    p
-                                                                                ) => (
-                                                                                    <SelectItem
-                                                                                        key={
-                                                                                            p.productId
-                                                                                        }
-                                                                                        value={String(
-                                                                                            p.productId
-                                                                                        )}
-                                                                                    >
-                                                                                        {
-                                                                                            p.productName
-                                                                                        }
-                                                                                    </SelectItem>
-                                                                                )
+                                                                                    c
+                                                                                ) => {
+                                                                                    const id =
+                                                                                        c.catalogId ??
+                                                                                        c.id ??
+                                                                                        0;
+                                                                                    return (
+                                                                                        <SelectItem
+                                                                                            key={
+                                                                                                id
+                                                                                            }
+                                                                                            value={String(
+                                                                                                id
+                                                                                            )}
+                                                                                        >
+                                                                                            {
+                                                                                                c.name
+                                                                                            }
+                                                                                            {c.basePrice
+                                                                                                ? ` — ${c.basePrice}`
+                                                                                                : ''}
+                                                                                        </SelectItem>
+                                                                                    );
+                                                                                }
                                                                             )}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
                                                         )}
                                                     />
                                                 </div>
-                                                <div className="md:col-span-4">
+                                                <div className="md:col-span-3">
                                                     <FormField
                                                         control={form.control}
                                                         name={`lineItems.${index}.description`}
@@ -710,6 +855,30 @@ const Page = () => {
                                                                     <Input
                                                                         placeholder="e.g. Hydraulic Pump X200"
                                                                         {...field}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`lineItems.${index}.unitOfMeasure`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>
+                                                                    UoM
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        placeholder="e.g. KG"
+                                                                        {...field}
+                                                                        value={
+                                                                            field.value ??
+                                                                            ''
+                                                                        }
                                                                     />
                                                                 </FormControl>
                                                                 <FormMessage />
@@ -835,8 +1004,9 @@ const Page = () => {
                                                 </span>
                                             </p>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                         </div>
                     </div>

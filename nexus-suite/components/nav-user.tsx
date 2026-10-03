@@ -7,6 +7,7 @@ import {
     IconDotsVertical,
     IconLogout,
     IconNotification,
+    IconSettings,
     IconUserCircle,
 } from '@tabler/icons-react';
 
@@ -107,6 +108,14 @@ export function NavUser({
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    router.push('/settings/organization')
+                                }
+                            >
+                                <IconSettings />
+                                Organization Settings
+                            </DropdownMenuItem>
                             <DropdownMenuItem>
                                 <IconUserCircle />
                                 Account

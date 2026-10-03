@@ -9,6 +9,8 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
+import { formatYmd, parseYmd } from '@/lib/date-utils';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -214,18 +216,28 @@ export default function InvoicesPage() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>Invoice Date</Label>
-                                        <Input
-                                            type="date"
-                                            value={form.invoiceDate}
-                                            onChange={set('invoiceDate')}
+                                        <DatePicker
+                                            date={parseYmd(form.invoiceDate)}
+                                            onDateChange={(d) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    invoiceDate: formatYmd(d),
+                                                }))
+                                            }
+                                            placeholder="Pick invoice date"
                                         />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Due Date</Label>
-                                        <Input
-                                            type="date"
-                                            value={form.dueDate}
-                                            onChange={set('dueDate')}
+                                        <DatePicker
+                                            date={parseYmd(form.dueDate)}
+                                            onDateChange={(d) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    dueDate: formatYmd(d),
+                                                }))
+                                            }
+                                            placeholder="Pick due date"
                                         />
                                     </div>
                                 </div>

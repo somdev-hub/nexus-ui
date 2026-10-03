@@ -3,6 +3,7 @@ import axios, {
     InternalAxiosRequestConfig,
     AxiosResponse,
 } from 'axios';
+import { toast } from 'sonner';
 
 // Use the Next.js API proxy which adds the accessToken from server-side session
 // ALL Spring Boot requests MUST go through this proxy
@@ -216,6 +217,36 @@ const responseErrorHandler = async (error: AxiosError) => {
     return Promise.reject(error);
 };
 
+function notifyServerError(error: AxiosError) {
+    // Global safety net: surface every 5xx API failure to the user. Page-level
+    // handlers may show their own toast too, but a silent failure is worse.
+    if (typeof window === 'undefined') return;
+    const status = error.response?.status;
+    if (status === undefined || status < 500) return;
+    const data = error.response?.data as
+        | { message?: unknown; error?: unknown }
+        | undefined;
+    let message =
+        typeof data?.message === 'string' && data.message.trim()
+            ? data.message
+            : typeof data?.error === 'string' && data.error.trim()
+              ? data.error
+              : 'Something went wrong on the server. Please try again.';
+    if (message.length > 220) message = `${message.slice(0, 217)}…`;
+    const rawUrl = error.config?.url ?? '';
+    const path = rawUrl.startsWith('?path=')
+        ? decodeURIComponent(rawUrl.slice(6))
+        : rawUrl;
+    toast.error(`Request failed${status ? ` (${status})` : ''}: ${message}`, {
+        description: path ? `While calling ${path}` : undefined,
+    });
+}
+
+const responseErrorHandlerWithNotify = async (error: AxiosError) => {
+    notifyServerError(error);
+    return responseErrorHandler(error);
+};
+
 const apiClient = axios.create({
     baseURL: PROXY_BASE,
     withCredentials: true,
@@ -229,7 +260,10 @@ const apiClientMultipart = axios.create({
 });
 
 apiClient.interceptors.request.use(requestInterceptor, requestErrorHandler);
-apiClient.interceptors.response.use(responseInterceptor, responseErrorHandler);
+apiClient.interceptors.response.use(
+    responseInterceptor,
+    responseErrorHandlerWithNotify
+);
 
 apiClientMultipart.interceptors.request.use(
     requestInterceptor,
@@ -237,7 +271,7 @@ apiClientMultipart.interceptors.request.use(
 );
 apiClientMultipart.interceptors.response.use(
     responseInterceptor,
-    responseErrorHandler
+    responseErrorHandlerWithNotify
 );
 
 /**

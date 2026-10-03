@@ -1,6 +1,16 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -72,12 +82,9 @@ const page = () => {
         };
     }, [productId, numericId]);
 
+    const [confirmDelete, setConfirmDelete] = useState(false);
+
     const handleDelete = async () => {
-        if (
-            typeof window !== 'undefined' &&
-            !window.confirm('Delete this product? This cannot be undone.')
-        )
-            return;
         try {
             await deleteProduct(Number(productId));
             toast.success('Product deleted');
@@ -167,7 +174,10 @@ const page = () => {
                                 Edit
                             </Link>
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setConfirmDelete(true)}
+                        >
                             Delete
                         </Button>
                     </div>
@@ -343,6 +353,25 @@ const page = () => {
                     </div>
                 </div>
             </div>
+            <AlertDialog
+                open={confirmDelete}
+                onOpenChange={setConfirmDelete}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete product?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Delete this product? This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 };

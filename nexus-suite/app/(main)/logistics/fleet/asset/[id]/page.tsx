@@ -58,6 +58,8 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { DatePicker } from '@/components/ui/date-picker';
+import { parseYmd, formatYmd } from '@/lib/date-utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -1002,47 +1004,48 @@ export default function AssetDetailPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
                                 <Label>Insurance Expiry</Label>
-                                <Input
-                                    placeholder="e.g. 2026-12-31"
-                                    type="date"
-                                    value={expiryForm.insuranceExpiry}
-                                    onChange={(e) =>
+                                <DatePicker
+                                    date={parseYmd(
+                                        expiryForm.insuranceExpiry
+                                    )}
+                                    onDateChange={(d) =>
                                         setExpiryForm({
                                             ...expiryForm,
-                                            insuranceExpiry: e.target.value,
+                                            insuranceExpiry: formatYmd(d),
                                         })
                                     }
+                                    placeholder="Pick insurance expiry"
                                 />
                             </div>
                             <div className="grid gap-2">
                                 <Label>Permit Expiry</Label>
-                                <Input
-                                    placeholder="e.g. 2026-12-31"
-                                    type="date"
-                                    value={expiryForm.permitExpiry}
-                                    onChange={(e) =>
+                                <DatePicker
+                                    date={parseYmd(expiryForm.permitExpiry)}
+                                    onDateChange={(d) =>
                                         setExpiryForm({
                                             ...expiryForm,
-                                            permitExpiry: e.target.value,
+                                            permitExpiry: formatYmd(d),
                                         })
                                     }
+                                    placeholder="Pick permit expiry"
                                 />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
                                 <Label>Next Maintenance Due</Label>
-                                <Input
-                                    placeholder="e.g. 2026-11-01"
-                                    type="date"
-                                    value={expiryForm.nextMaintenanceDueDate}
-                                    onChange={(e) =>
+                                <DatePicker
+                                    date={parseYmd(
+                                        expiryForm.nextMaintenanceDueDate
+                                    )}
+                                    onDateChange={(d) =>
                                         setExpiryForm({
                                             ...expiryForm,
                                             nextMaintenanceDueDate:
-                                                e.target.value,
+                                                formatYmd(d),
                                         })
                                     }
+                                    placeholder="Pick due date"
                                 />
                             </div>
                             <div className="grid gap-2">

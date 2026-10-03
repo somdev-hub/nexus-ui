@@ -37,6 +37,7 @@ export interface SupplierBrowseItem {
     family?: string;
     description?: string;
     basePrice?: number;
+    unitOfMeasure?: string;
     currency?: string;
     status?: string;
     accessLevel?: string;

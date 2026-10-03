@@ -8,6 +8,7 @@ export interface Organization {
     orgType: OrgType;
     trustScore?: number;
     createdAt?: string;
+    defaultCurrency?: string;
 }
 
 export async function getOrganizationById(
@@ -36,6 +37,19 @@ export async function getOrganizationDetails(
     }
 }
 
+export async function updateOrganizationCurrency(
+    orgId: string | number,
+    defaultCurrency: string
+): Promise<Organization> {
+    // Send the full details back so partial DTO mapping on the server
+    // cannot null out other organization fields.
+    const current = await getOrganizationDetails(orgId);
+    const res = await apiClient.put<Organization>(
+        `/iam/organizations/${orgId}`,
+        { ...current, defaultCurrency }
+    );
+    return res.data;
+}
 export function resolveOrgType(orgType?: string): OrgType | undefined {
     if (!orgType) return undefined;
     const upper = orgType.toUpperCase();

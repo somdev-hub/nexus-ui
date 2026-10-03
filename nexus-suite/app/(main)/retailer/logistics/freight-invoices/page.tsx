@@ -1,6 +1,16 @@
 'use client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
@@ -55,20 +65,17 @@ export default function FreightInvoicesPage() {
             toast.error(e instanceof Error ? e.message : 'Failed');
         }
     };
-    const handleDispute = async (id: number) => {
-        if (
-            typeof window !== 'undefined' &&
-            !window.confirm(
-                `Mark invoice #${id} as DISPUTED? It can be re-approved afterwards.`
-            )
-        )
-            return;
+    const [disputingId, setDisputingId] = useState<number | null>(null);
+    const handleDispute = async () => {
+        if (disputingId === null) return;
         try {
-            await transitionFreightInvoice(id, 'DISPUTED');
+            await transitionFreightInvoice(disputingId, 'DISPUTED');
             toast.success('Invoice disputed');
             load();
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Failed');
+        } finally {
+            setDisputingId(null);
         }
     };
     if (isLoading)
@@ -146,7 +153,7 @@ export default function FreightInvoicesPage() {
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() =>
-                                                    handleDispute(
+                                                    setDisputingId(
                                                         inv.freightInvoiceId
                                                     )
                                                 }
@@ -176,6 +183,28 @@ export default function FreightInvoicesPage() {
                     </TableBody>
                 </Table>
             </div>
+            <AlertDialog
+                open={disputingId !== null}
+                onOpenChange={(v) => !v && setDisputingId(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Mark invoice as disputed?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Mark invoice #{disputingId} as DISPUTED? It can be
+                            re-approved afterwards.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDispute}>
+                            Dispute
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

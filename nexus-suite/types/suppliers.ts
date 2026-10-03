@@ -3,6 +3,7 @@ import { PaginatedResponse } from './paginated-response';
 export interface Supplier {
     supplierId: number;
     accountId: number;
+    supplierOrgAccountId?: number;
     businessName: string;
     category: string;
     location: string;
