@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { ProductionCapacity } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +67,8 @@ export default function CapacityPage() {
     const [editing, setEditing] = useState<ProductionCapacity | null>(null);
     const [editForm, setEditForm] = useState(emptyForm);
     const [deleting, setDeleting] = useState<ProductionCapacity | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [deleteBusy, setDeleteBusy] = useState(false);
     const load = async () => {
         setLoading(true);
         try {
@@ -96,6 +98,8 @@ export default function CapacityPage() {
         notes: f.notes || undefined,
     });
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             await createCapacity(toPayload(form));
             toast({ title: 'Capacity created', variant: 'success' });
@@ -107,6 +111,8 @@ export default function CapacityPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const openEdit = (c: ProductionCapacity) => {
@@ -126,7 +132,8 @@ export default function CapacityPage() {
         });
     };
     const handleEdit = async () => {
-        if (!editing) return;
+        if (!editing || saving) return;
+        setSaving(true);
         try {
             await updateCapacity(editing.capacityId, toPayload(editForm));
             toast({ title: 'Capacity updated', variant: 'success' });
@@ -137,10 +144,13 @@ export default function CapacityPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleDelete = async () => {
-        if (!deleting) return;
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
         try {
             await deleteCapacity(deleting.capacityId);
             toast({ title: 'Capacity deleted', variant: 'success' });
@@ -151,6 +161,8 @@ export default function CapacityPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteBusy(false);
         }
     };
     const renderFields = (
@@ -260,7 +272,12 @@ export default function CapacityPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             {renderFields(form, setForm)}
-                            <Button onClick={handleCreate}>Create</Button>
+                            <Button onClick={handleCreate} disabled={saving}>
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -275,7 +292,12 @@ export default function CapacityPage() {
                     </DialogHeader>
                     <div className="grid gap-6">
                         {renderFields(editForm, setEditForm)}
-                        <Button onClick={handleEdit}>Save Changes</Button>
+                        <Button onClick={handleEdit} disabled={saving}>
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -293,9 +315,17 @@ export default function CapacityPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>
-                            Delete
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

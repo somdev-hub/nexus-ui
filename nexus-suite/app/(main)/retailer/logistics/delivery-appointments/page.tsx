@@ -9,6 +9,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -23,7 +30,14 @@ import {
     createDeliveryAppointment,
     getDeliveryAppointments,
 } from '@/lib/services/delivery-appointment-service';
+import { getShipments } from '@/lib/services/shipment-service';
+import {
+    getWarehouses,
+    type Warehouse,
+} from '@/lib/services/stock-service';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import type { DeliveryAppointment } from '@/types/delivery-appointment';
+import type { Shipment } from '@/types/shipment';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -42,6 +56,8 @@ export default function DeliveryAppointmentsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [shipments, setShipments] = useState<Shipment[]>([]);
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [form, setForm] = useState({
         shipmentId: '',
         warehouseId: '',
@@ -83,6 +99,29 @@ export default function DeliveryAppointmentsPage() {
         })();
         return () => {
             a = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        let active = true;
+        (async () => {
+            try {
+                const r = await getShipments({ pageNo: 0, pageOffset: 100 });
+                if (!active) return;
+                setShipments(r.content ?? []);
+            } catch {
+                // Non-fatal: shipment dropdown stays empty.
+            }
+            try {
+                const w = await getWarehouses();
+                if (!active) return;
+                setWarehouses(w);
+            } catch {
+                // Non-fatal: warehouse dropdown stays empty.
+            }
+        })();
+        return () => {
+            active = false;
         };
     }, []);
 
@@ -162,37 +201,108 @@ export default function DeliveryAppointmentsPage() {
                             <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Shipment ID</Label>
-                                        <Input
-                                            placeholder="e.g. 12"
+                                        <Label>Shipment</Label>
+                                        <Select
                                             value={form.shipmentId}
-                                            onChange={set('shipmentId')}
-                                        />
+                                            onValueChange={(v) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    shipmentId: v,
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select shipment" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {shipments.map((s) => (
+                                                    <SelectItem
+                                                        key={s.shipmentId}
+                                                        value={String(
+                                                            s.shipmentId
+                                                        )}
+                                                    >
+                                                        {s.shipmentNumber ??
+                                                            `#${s.shipmentId}`}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Warehouse ID</Label>
-                                        <Input
-                                            placeholder="e.g. 3"
+                                        <Label>Warehouse</Label>
+                                        <Select
                                             value={form.warehouseId}
-                                            onChange={set('warehouseId')}
-                                        />
+                                            onValueChange={(v) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    warehouseId: v,
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select warehouse" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {warehouses.map((w) => (
+                                                    <SelectItem
+                                                        key={w.warehouseId}
+                                                        value={String(
+                                                            w.warehouseId
+                                                        )}
+                                                    >
+                                                        {w.code ??
+                                                            `#${w.warehouseId}`}
+                                                        {w.location
+                                                            ? ` — ${w.location}`
+                                                            : ''}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>Start</Label>
-                                        <Input
-                                            type="datetime-local"
-                                            value={form.scheduledStart}
-                                            onChange={set('scheduledStart')}
+                                        <DateTimePicker
+                                            value={
+                                                form.scheduledStart
+                                                    ? new Date(
+                                                          form.scheduledStart
+                                                      )
+                                                    : undefined
+                                            }
+                                            onChange={(d) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    scheduledStart: d
+                                                        ? d.toISOString()
+                                                        : '',
+                                                }))
+                                            }
+                                            placeholder="Pick start"
                                         />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>End</Label>
-                                        <Input
-                                            type="datetime-local"
-                                            value={form.scheduledEnd}
-                                            onChange={set('scheduledEnd')}
+                                        <DateTimePicker
+                                            value={
+                                                form.scheduledEnd
+                                                    ? new Date(
+                                                          form.scheduledEnd
+                                                      )
+                                                    : undefined
+                                            }
+                                            onChange={(d) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    scheduledEnd: d
+                                                        ? d.toISOString()
+                                                        : '',
+                                                }))
+                                            }
+                                            placeholder="Pick end"
                                         />
                                     </div>
                                 </div>

@@ -41,6 +41,10 @@ import {
     transitionQuoteStatus,
     deleteShipmentQuote,
 } from '@/lib/services/logistics-ops-service';
+import {
+    getShipments,
+    type Shipment,
+} from '@/lib/services/shipment-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -57,6 +61,7 @@ export default function LoadBoardPage() {
     const [mode, setMode] = useState('all');
     const [quoteStatus, setQuoteStatus] = useState('all');
     const [open, setOpen] = useState(false);
+    const [shipmentOptions, setShipmentOptions] = useState<Shipment[]>([]);
     useQuickCreateIntent('logistics:quote', () => setOpen(true));
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
@@ -117,6 +122,13 @@ export default function LoadBoardPage() {
     useEffect(() => {
         load();
     }, [mode, quoteStatus]);
+    useEffect(() => {
+        getShipments({ page: 0, size: 100 })
+            .then((s) => {
+                if (s?.content) setShipmentOptions(s.content);
+            })
+            .catch(() => {});
+    }, []);
     useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
@@ -230,18 +242,31 @@ export default function LoadBoardPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label>Shipment ID</Label>
-                                <Input
-                                    type="number"
-                                    value={form.shipmentId}
-                                    onChange={(e) =>
+                                <Label>Shipment</Label>
+                                <Select
+                                    value={form.shipmentId || undefined}
+                                    onValueChange={(v) =>
                                         setForm({
                                             ...form,
-                                            shipmentId: e.target.value,
+                                            shipmentId: v,
                                         })
                                     }
-                                    placeholder="e.g. 12"
-                                />
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select shipment" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {shipmentOptions.map((s) => (
+                                            <SelectItem
+                                                key={s.shipmentId}
+                                                value={String(s.shipmentId)}
+                                            >
+                                                {s.shipmentNumber} (#
+                                                {s.shipmentId})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="grid gap-2">

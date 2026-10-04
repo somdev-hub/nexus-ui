@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import type { SupplierDigitalAsset } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CatalogSelect } from '@/components/catalog-select';
 import {
     Select,
     SelectContent,
@@ -34,6 +35,7 @@ import {
 import {
     getDigitalAssets,
     createDigitalAsset,
+    uploadDigitalAssetFile,
     deleteDigitalAsset,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
@@ -44,11 +46,13 @@ export default function DigitalAssetsPage() {
         useState<PaginatedResponse<SupplierDigitalAsset> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
         catalogId: '',
         assetType: 'DATASHEET',
         fileName: '',
     });
+    const [file, setFile] = useState<File | null>(null);
     const load = async () => {
         setLoading(true);
         try {
@@ -66,21 +70,68 @@ export default function DigitalAssetsPage() {
     useEffect(() => {
         load();
     }, []);
+    const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+    const handleFileChange = (selected: File | null) => {
+        if (!selected) {
+            setFile(null);
+            return;
+        }
+        const ext = selected.name.toLowerCase();
+        const okType =
+            ACCEPTED_TYPES.includes(selected.type) ||
+            ext.endsWith('.jpg') ||
+            ext.endsWith('.jpeg') ||
+            ext.endsWith('.png') ||
+            ext.endsWith('.pdf');
+        if (!okType) {
+            toast({
+                title: 'Only JPG, PNG and PDF files are allowed',
+                variant: 'destructive',
+            });
+            return;
+        }
+        setFile(selected);
+        setForm((f) => ({ ...f, fileName: selected.name }));
+    };
+
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
-            await createDigitalAsset({
+            const created = await createDigitalAsset({
                 catalogId: Number(form.catalogId),
                 assetType: form.assetType,
                 fileName: form.fileName,
             });
+            if (file) {
+                try {
+                    await uploadDigitalAssetFile(
+                        created.assetId,
+                        file
+                    );
+                } catch (uploadError) {
+                    console.error(
+                        'Failed to upload asset file:',
+                        uploadError
+                    );
+                    toast({
+                        title: 'Asset created, but file upload failed — retry from the table',
+                        variant: 'destructive',
+                    });
+                }
+            }
             toast({ title: 'Asset created', variant: 'success' });
             setOpen(false);
+            setFile(null);
             load();
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleDelete = async (id: number) => {
@@ -114,16 +165,16 @@ export default function DigitalAssetsPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label>Catalog ID</Label>
-                                <Input
-                                    placeholder="e.g. 101"
+                                <Label>Catalog Item</Label>
+                                <CatalogSelect
                                     value={form.catalogId}
-                                    onChange={(e) =>
+                                    onChange={(v) =>
                                         setForm({
                                             ...form,
-                                            catalogId: e.target.value,
+                                            catalogId: v,
                                         })
                                     }
+                                    placeholder="Select catalog item"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -159,20 +210,30 @@ export default function DigitalAssetsPage() {
                                 </Select>
                             </div>
                             <div className="grid gap-2">
-                                <Label>File Name</Label>
+                                <Label>File (JPG, PNG or PDF)</Label>
                                 <Input
-                                    placeholder="e.g. datasheet-x200.pdf"
-                                    value={form.fileName}
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                                     onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            fileName: e.target.value,
-                                        })
+                                        handleFileChange(
+                                            e.target.files?.[0] ?? null
+                                        )
                                     }
                                 />
+                                {file && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Selected: {file.name}
+                                    </p>
+                                )}
                             </div>
-                            <Button onClick={handleCreate}>
-                                Create (DMS mocked)
+                            <Button
+                                onClick={handleCreate}
+                                disabled={saving}
+                            >
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
                             </Button>
                         </div>
                     </DialogContent>
@@ -213,7 +274,20 @@ export default function DigitalAssetsPage() {
                                             </TableCell>
                                             <TableCell>{a.fileName}</TableCell>
                                             <TableCell className="text-xs">
-                                                {a.dmsDocumentId || '-'}
+                                                {a.dmsDocumentUrl ? (
+                                                    <a
+                                                        href={
+                                                            a.dmsDocumentUrl
+                                                        }
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 underline"
+                                                    >
+                                                        Open file
+                                                    </a>
+                                                ) : (
+                                                    (a.dmsDocumentId || '-')
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <Button

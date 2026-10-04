@@ -1,6 +1,21 @@
 'use client';
 
-import * as React from 'react';
+import {
+    IconAlertCircle,
+    IconChevronDown,
+    IconCircleCheckFilled,
+    IconClock,
+    IconDotsVertical,
+    IconEdit,
+    IconFile,
+    IconFileText,
+    IconLayoutColumns,
+    IconLoader,
+    IconPlus,
+    IconRefresh,
+    IconTrendingUp,
+    IconX
+} from '@tabler/icons-react';
 import {
     flexRender,
     getCoreRowModel,
@@ -12,30 +27,22 @@ import {
     useReactTable,
     type ColumnDef,
     type ColumnFiltersState,
-    type Row,
     type SortingState,
-    type VisibilityState,
+    type VisibilityState
 } from '@tanstack/react-table';
-import {
-    IconChevronDown,
-    IconCircleCheckFilled,
-    IconDotsVertical,
-    IconEdit,
-    IconLayoutColumns,
-    IconLoader,
-    IconPlus,
-    IconTrendingUp,
-    IconFileText,
-    IconClock,
-    IconAlertCircle,
-    IconCheck,
-    IconX,
-    IconFile,
-    IconRefresh,
-} from '@tabler/icons-react';
+import * as React from 'react';
 import { toast } from 'sonner';
 
-import { useIsMobile } from '@/hooks/use-mobile';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -64,51 +71,19 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { updateSupplierContractStatus } from '@/lib/services/supplier-contracts-service';
+import { format } from 'date-fns';
+import Link from 'next/link';
 import { Field } from './ui/field';
 import { TablePagination } from './ui/table-pagination';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import Link from 'next/link';
-import { format } from 'date-fns';
-import { updateSupplierContractStatus } from '@/lib/services/supplier-contracts-service';
 
-interface SupplierContract {
-    contractId: number;
-    contractNumber: string;
-    supplierId: number;
-    supplierName: string;
-    retailerOrgId: number;
-    retailerOrgName: string;
-    title: string;
-    description: string;
-    startDate: string;
-    endDate: string;
-    status: 'DRAFT' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'PENDING_APPROVAL';
-    autoRenewal: boolean;
-    renewalPeriodDays: number;
-    paymentTerms: string;
-    currency: string;
-    totalValue: number;
-    documentId?: number;
-    documentUrl?: string;
-    documentName?: string;
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-    updatedBy: string;
-}
+import type { SupplierContract } from '@/types/supplier-contracts';
+
+type ContractStatus = SupplierContract['status'];
 
 const statusConfig: Record<
-    SupplierContract['status'],
+    ContractStatus,
     {
         label: string;
         variant:
@@ -141,6 +116,22 @@ const statusConfig: Record<
         variant: 'destructive',
         icon: <IconX className="h-3 w-3" />,
     },
+    SUSPENDED: {
+        label: 'Suspended',
+        variant: 'destructive',
+        icon: <IconLoader className="h-3 w-3" />,
+    },
+    RENEWAL_PENDING: {
+        label: 'Renewal Pending',
+        variant: 'outline',
+        icon: <IconRefresh className="h-3 w-3" />,
+    },
+};
+
+const fallbackStatusConfig = {
+    label: 'Unknown',
+    variant: 'secondary' as const,
+    icon: <IconFileText className="h-3 w-3" />,
 };
 
 const buildColumns = (
@@ -176,7 +167,7 @@ const buildColumns = (
     },
     {
         accessorKey: 'contractNumber',
-        header: 'Contract Number',
+        header: 'Contract #',
         cell: ({ row }) => (
             <div className="font-medium font-mono text-sm">
                 {row.original.contractNumber}
@@ -185,46 +176,27 @@ const buildColumns = (
         enableHiding: false,
     },
     {
-        accessorKey: 'title',
-        header: 'Title',
-        cell: ({ row }) => (
-            <div className="font-medium">{row.original.title}</div>
-        ),
-    },
-    {
         accessorKey: 'supplierName',
         header: 'Supplier',
         cell: ({ row }) => (
-            <div className="font-medium">{row.original.supplierName}</div>
-        ),
-    },
-    {
-        accessorKey: 'startDate',
-        header: 'Start Date',
-        cell: ({ row }) => (
-            <div className="text-sm">
-                {row.original.startDate
-                    ? format(new Date(row.original.startDate), 'MMM dd, yyyy')
-                    : '—'}
+            <div className="font-medium">
+                {(row.original.supplierName as string) || '—'}
             </div>
         ),
     },
     {
-        accessorKey: 'endDate',
-        header: 'End Date',
+        accessorKey: 'contractType',
+        header: 'Type',
         cell: ({ row }) => (
-            <div className="text-sm">
-                {row.original.endDate
-                    ? format(new Date(row.original.endDate), 'MMM dd, yyyy')
-                    : '—'}
-            </div>
+            <div className="text-sm">{row.original.contractType}</div>
         ),
     },
     {
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => {
-            const config = statusConfig[row.original.status];
+            const config =
+                statusConfig[row.original.status] ?? fallbackStatusConfig;
             return (
                 <Badge variant={config.variant} className="gap-1.5">
                     {config.icon}
@@ -234,40 +206,29 @@ const buildColumns = (
         },
     },
     {
-        accessorKey: 'totalValue',
-        header: () => <div className="w-full text-right">Total Value</div>,
+        accessorKey: 'effectiveDate',
+        header: 'Effective',
         cell: ({ row }) => (
-            <div className="text-right font-mono font-medium">
-                {row.original.currency}{' '}
-                {row.original.totalValue.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                })}
+            <div className="text-sm">
+                {row.original.effectiveDate
+                    ? format(new Date(row.original.effectiveDate), 'MMM dd, yyyy')
+                    : '—'}
             </div>
         ),
     },
     {
-        accessorKey: 'autoRenewal',
-        header: 'Auto Renewal',
-        cell: ({ row }) => (
-            <Badge
-                variant={row.original.autoRenewal ? 'default' : 'secondary'}
-                className="gap-1.5"
-            >
-                {row.original.autoRenewal ? (
-                    <>
-                        <IconRefresh className="h-3 w-3" />
-                        Yes ({row.original.renewalPeriodDays} days)
-                    </>
-                ) : (
-                    <IconX className="h-3 w-3" />
-                )}
-            </Badge>
-        ),
-    },
-    {
-        accessorKey: 'paymentTerms',
-        header: 'Payment Terms',
-        cell: ({ row }) => row.original.paymentTerms || '—',
+        accessorKey: 'expiryDate',
+        header: 'Expiry',
+        cell: ({ row }) => {
+            const expiry = row.original.expiryDate as string | undefined;
+            return (
+                <div className="text-sm">
+                    {expiry
+                        ? format(new Date(expiry), 'MMM dd, yyyy')
+                        : '—'}
+                </div>
+            );
+        },
     },
     {
         id: 'actions',
@@ -408,7 +369,7 @@ export function SupplierContractTable({
             defaultValue="outline"
             className="w-full flex-col justify-start gap-6"
         >
-            <div className="flex items-center justify-between px-4 lg:px-6">
+            <div className="flex items-center justify-between">
                 <Label htmlFor="view-selector" className="sr-only">
                     View
                 </Label>
@@ -490,7 +451,7 @@ export function SupplierContractTable({
             </div>
             <TabsContent
                 value="outline"
-                className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+                className="relative flex flex-col gap-4 overflow-auto"
             >
                 <div className="overflow-hidden rounded-lg border">
                     <Table>

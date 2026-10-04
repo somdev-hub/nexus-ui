@@ -318,6 +318,11 @@ const supplierSections = [
                 icon: IconFileWord,
             },
             {
+                title: 'Contracts',
+                url: '/supplier/contracts',
+                icon: IconFileWord,
+            },
+            {
                 title: 'Forecasts',
                 url: '/supplier/forecasts',
                 icon: IconShare3,

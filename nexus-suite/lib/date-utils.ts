@@ -1,7 +1,8 @@
-/** yyyy-mm-dd <-> Date helpers (local time, no UTC day-shift). */
+/** yyyy-mm-dd (or ISO timestamp) <-> Date helpers (local time, no UTC day-shift). */
 export function parseYmd(value?: string | null): Date | undefined {
     if (!value) return undefined;
-    const [y, m, d] = value.split('-').map(Number);
+    // Accept full ISO timestamps by using just the date part.
+    const [y, m, d] = value.slice(0, 10).split('-').map(Number);
     if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d))
         return undefined;
     return new Date(y, m - 1, d);

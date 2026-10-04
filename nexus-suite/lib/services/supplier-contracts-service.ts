@@ -2,7 +2,6 @@ import apiClient from '@/lib/api-client';
 import { PaginatedResponse } from '@/types/paginated-response';
 import type {
     SupplierContract,
-    SupplierContractApprovalRequest,
     SupplierContractCreateRequest,
     SupplierContractDocumentResponse,
     SupplierContractFilter,
@@ -28,7 +27,7 @@ export async function getSupplierContracts(
     });
 
     const query = params.toString();
-    const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
+    const url = query ? `${BASE_PATH}/all?${query}` : `${BASE_PATH}/all`;
 
     const response =
         await apiClient.get<PaginatedResponse<SupplierContract>>(url);
@@ -56,7 +55,10 @@ export async function getSupplierContractByNumber(
 export async function createSupplierContract(
     data: SupplierContractCreateRequest
 ): Promise<SupplierContract> {
-    const response = await apiClient.post<SupplierContract>(BASE_PATH, data);
+    const response = await apiClient.post<SupplierContract>(
+        `${BASE_PATH}/create`,
+        data
+    );
     return response.data;
 }
 
@@ -65,7 +67,7 @@ export async function updateSupplierContract(
     data: SupplierContractUpdateRequest
 ): Promise<SupplierContract> {
     const response = await apiClient.put<SupplierContract>(
-        `${BASE_PATH}/${contractId}`,
+        `${BASE_PATH}/${contractId}/update`,
         data
     );
     return response.data;
@@ -73,33 +75,40 @@ export async function updateSupplierContract(
 
 export async function updateSupplierContractStatus(
     contractId: number,
-    data: SupplierContractStatusUpdateRequest
+    data: SupplierContractStatusUpdateRequest & { reason?: string }
 ): Promise<SupplierContract> {
+    // IAM contract: status (+optional reason) are request params, not a body.
+    const params = new URLSearchParams({ status: data.status });
+    if (data.reason) params.append('reason', data.reason);
     const response = await apiClient.put<SupplierContract>(
-        `${BASE_PATH}/${contractId}/status`,
-        data
+        `${BASE_PATH}/${contractId}/status?${params.toString()}`,
+        null
     );
     return response.data;
 }
 
 export async function approveSupplierContract(
     contractId: number,
-    data: SupplierContractApprovalRequest
+    approvedBy: string
 ): Promise<SupplierContract> {
+    // IAM contract: approvedBy is a request param, not a body.
+    const params = new URLSearchParams({ approvedBy });
     const response = await apiClient.post<SupplierContract>(
-        `${BASE_PATH}/${contractId}/approve`,
-        data
+        `${BASE_PATH}/${contractId}/approve?${params.toString()}`,
+        null
     );
     return response.data;
 }
 
 export async function rejectSupplierContract(
     contractId: number,
-    data: SupplierContractApprovalRequest
+    rejectionReason: string
 ): Promise<SupplierContract> {
+    // IAM contract: rejectionReason is a request param, not a body.
+    const params = new URLSearchParams({ rejectionReason });
     const response = await apiClient.post<SupplierContract>(
-        `${BASE_PATH}/${contractId}/reject`,
-        data
+        `${BASE_PATH}/${contractId}/reject?${params.toString()}`,
+        null
     );
     return response.data;
 }
@@ -107,24 +116,34 @@ export async function rejectSupplierContract(
 export async function getExpiringContracts(
     days: number = 30
 ): Promise<SupplierContract[]> {
+    const before = new Date();
+    before.setDate(before.getDate() + days);
+    const beforeDate = before.toISOString().slice(0, 10);
     const response = await apiClient.get<SupplierContract[]>(
-        `${BASE_PATH}/expiring?days=${days}`
+        `${BASE_PATH}/expiring?beforeDate=${beforeDate}`
     );
     return response.data;
 }
 
-export async function getAutoRenewalContracts(): Promise<SupplierContract[]> {
+export async function getAutoRenewalContracts(
+    days: number = 30
+): Promise<SupplierContract[]> {
+    const before = new Date();
+    before.setDate(before.getDate() + days);
+    const beforeDate = before.toISOString().slice(0, 10);
     const response = await apiClient.get<SupplierContract[]>(
-        `${BASE_PATH}/auto-renewal`
+        `${BASE_PATH}/auto-renewal?beforeDate=${beforeDate}`
     );
     return response.data;
 }
 
 export async function getActiveContractsBySupplier(
-    supplierId: number
+    supplierId: number,
+    date?: string
 ): Promise<SupplierContract[]> {
+    const onDate = date ?? new Date().toISOString().slice(0, 10);
     const response = await apiClient.get<SupplierContract[]>(
-        `${BASE_PATH}/active-by-supplier/${supplierId}`
+        `${BASE_PATH}/supplier/${supplierId}/active?date=${onDate}`
     );
     return response.data;
 }
@@ -137,7 +156,37 @@ export async function getSupplierContractSummary(): Promise<SupplierContractSumm
 }
 
 // ─────────────────────────────────────────────────────────────
-// Document Management
+// Contract document (encrypted .md in DMS via Core)
+// ─────────────────────────────────────────────────────────────
+
+export interface ContractDocumentContent {
+    fileName?: string;
+    content?: string;
+}
+
+export async function uploadContractTextDocument(
+    contractId: number,
+    data: { fileName?: string; content: string }
+): Promise<{ message?: string; dmsId?: string; documentUrl?: string }> {
+    const response = await apiClient.post<{
+        message?: string;
+        dmsId?: string;
+        documentUrl?: string;
+    }>(`${BASE_PATH}/${contractId}/document-text`, data);
+    return response.data;
+}
+
+export async function getContractDocumentContent(
+    contractId: number
+): Promise<ContractDocumentContent> {
+    const response = await apiClient.get<ContractDocumentContent>(
+        `${BASE_PATH}/${contractId}/document-content`
+    );
+    return response.data;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Document Management (binary uploads)
 // ─────────────────────────────────────────────────────────────
 
 export async function uploadContractDocument(

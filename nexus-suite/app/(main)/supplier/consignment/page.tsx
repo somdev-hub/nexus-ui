@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { ConsignmentStock } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +32,18 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
+import { getMaterials } from '@/lib/services/materials-service';
+import type { Material } from '@/types/materials';
 import {
     getConsignments,
     createConsignment,
@@ -54,9 +65,16 @@ export default function ConsignmentPage() {
         quantityOnHand: '',
     });
     const [adjusting, setAdjusting] = useState<ConsignmentStock | null>(null);
+    const [retailers, setRetailers] = useState<
+        { orgId: number; label: string }[]
+    >([]);
+    const [materials, setMaterials] = useState<Material[]>([]);
+    const { orgId } = useUserMetadata();
     const [delta, setDelta] = useState('');
     const [reason, setReason] = useState('');
     const [deleting, setDeleting] = useState<ConsignmentStock | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [deleteBusy, setDeleteBusy] = useState(false);
     const load = async () => {
         setLoading(true);
         try {
@@ -74,7 +92,71 @@ export default function ConsignmentPage() {
     useEffect(() => {
         load();
     }, []);
+    useEffect(() => {
+        let active = true;
+        const loadRetailers = async () => {
+            try {
+                const res = await getSupplierPartnerships();
+                if (!active) return;
+                const own = Number(orgId);
+                const seen = new Map<number, string>();
+                for (const p of res.content ?? []) {
+                    if (p.status === 'TERMINATED') continue;
+                    const isPrimary =
+                        Number.isFinite(own) &&
+                        p.primaryOrgId !== undefined &&
+                        Number(p.primaryOrgId) === own;
+                    const counterId = isPrimary
+                        ? p.secondaryOrgId
+                        : p.primaryOrgId;
+                    if (counterId === undefined) continue;
+                    const id = Number(counterId);
+                    if (!Number.isFinite(id) || seen.has(id)) continue;
+                    const name = isPrimary
+                        ? p.secondaryOrgName
+                        : p.primaryOrgName;
+                    seen.set(
+                        id,
+                        name ? `${name} (#${id})` : `Org #${id}`
+                    );
+                }
+                setRetailers(
+                    [...seen.entries()].map(([orgId, label]) => ({
+                        orgId,
+                        label,
+                    }))
+                );
+            } catch {
+                // leave dropdown empty; global 500 toast already fired
+            }
+        };
+        loadRetailers();
+        return () => {
+            active = false;
+        };
+    }, [orgId]);
+    useEffect(() => {
+        let active = true;
+        const loadMaterials = async () => {
+            try {
+                const res = await getMaterials({
+                    pageNo: 0,
+                    pageOffset: 100,
+                });
+                if (!active) return;
+                setMaterials(res.content ?? []);
+            } catch {
+                // leave dropdown empty; global 500 toast already fired
+            }
+        };
+        loadMaterials();
+        return () => {
+            active = false;
+        };
+    }, []);
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             await createConsignment({
                 retailerOrgId: Number(form.retailerOrgId),
@@ -92,10 +174,13 @@ export default function ConsignmentPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleAdjust = async () => {
-        if (!adjusting) return;
+        if (!adjusting || saving) return;
+        setSaving(true);
         try {
             await adjustConsignment(
                 adjusting.consignmentId,
@@ -112,10 +197,13 @@ export default function ConsignmentPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleDelete = async () => {
-        if (!deleting) return;
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
         try {
             await deleteConsignment(deleting.consignmentId);
             toast({ title: 'Consignment deleted', variant: 'success' });
@@ -126,6 +214,8 @@ export default function ConsignmentPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteBusy(false);
         }
     };
     return (
@@ -147,17 +237,43 @@ export default function ConsignmentPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label>Retailer Org ID</Label>
-                                <Input
-                                    placeholder="e.g. 12"
-                                    value={form.retailerOrgId}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            retailerOrgId: e.target.value,
-                                        })
-                                    }
-                                />
+                                <Label>Retailer</Label>
+                                {retailers.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                                        There is no established partnership
+                                        with any retailer yet. Accept a
+                                        retailer invitation first to add
+                                        consignment stock.
+                                    </p>
+                                ) : (
+                                    <Select
+                                        value={
+                                            form.retailerOrgId
+                                                ? String(form.retailerOrgId)
+                                                : ''
+                                        }
+                                        onValueChange={(v) =>
+                                            setForm({
+                                                ...form,
+                                                retailerOrgId: v,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select retailer" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {retailers.map((r) => (
+                                                <SelectItem
+                                                    key={r.orgId}
+                                                    value={String(r.orgId)}
+                                                >
+                                                    {r.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
@@ -174,17 +290,35 @@ export default function ConsignmentPage() {
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label>Material ID</Label>
-                                    <Input
-                                        placeholder="e.g. 45"
-                                        value={form.materialId}
-                                        onChange={(e) =>
+                                    <Label>Material</Label>
+                                    <Select
+                                        value={
+                                            form.materialId
+                                                ? String(form.materialId)
+                                                : ''
+                                        }
+                                        onValueChange={(v) =>
                                             setForm({
                                                 ...form,
-                                                materialId: e.target.value,
+                                                materialId: v,
                                             })
                                         }
-                                    />
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select material" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {materials.map((m) => (
+                                                <SelectItem
+                                                    key={m.materialId}
+                                                    value={String(m.materialId)}
+                                                >
+                                                    {m.materialName} (
+                                                    {m.materialCode})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                             <div className="grid gap-2">
@@ -201,7 +335,12 @@ export default function ConsignmentPage() {
                                     }
                                 />
                             </div>
-                            <Button onClick={handleCreate}>Create</Button>
+                            <Button onClick={handleCreate} disabled={saving}>
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -234,7 +373,12 @@ export default function ConsignmentPage() {
                                 onChange={(e) => setReason(e.target.value)}
                             />
                         </div>
-                        <Button onClick={handleAdjust}>Apply</Button>
+                        <Button onClick={handleAdjust} disabled={saving}>
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {saving ? 'Applying…' : 'Apply'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -251,9 +395,17 @@ export default function ConsignmentPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>
-                            Delete
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

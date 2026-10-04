@@ -125,6 +125,16 @@ export async function createPriceTier(
 export async function deletePriceTier(id: number): Promise<void> {
     await apiClient.delete(`${PRICE_BASE}/${id}`);
 }
+export async function updatePriceTier(
+    id: number,
+    data: Partial<SupplierPriceTier>
+): Promise<SupplierPriceTier> {
+    const res = await apiClient.put<SupplierPriceTier>(
+        `${PRICE_BASE}/${id}/update`,
+        data
+    );
+    return res.data;
+}
 export async function getPriceForQuantity(
     catalogId: number,
     quantity: number,
@@ -166,4 +176,21 @@ export async function createDigitalAsset(
 }
 export async function deleteDigitalAsset(id: number): Promise<void> {
     await apiClient.delete(`${ASSET_BASE}/${id}`);
+}
+export async function uploadDigitalAssetFile(
+    id: number,
+    file: File
+): Promise<SupplierDigitalAsset> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<SupplierDigitalAsset>(
+        `${ASSET_BASE}/${id}/file`,
+        formData,
+        {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        }
+    );
+    return res.data;
 }

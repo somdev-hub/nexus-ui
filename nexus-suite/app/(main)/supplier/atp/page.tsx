@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { CatalogSelect } from '@/components/catalog-select';
 import {
     getAtpForCatalog,
     getAtpForProductLine,
@@ -63,11 +64,10 @@ export default function AtpPage() {
                     </CardHeader>
                     <CardContent className="grid gap-6 p-0">
                         <div className="grid gap-2">
-                            <Label>Catalog ID</Label>
-                            <Input
+                            <Label>Catalog Item</Label>
+                            <CatalogSelect
                                 value={catalogId}
-                                onChange={(e) => setCatalogId(e.target.value)}
-                                placeholder="e.g. 12"
+                                onChange={setCatalogId}
                             />
                         </div>
                         <div className="grid gap-2">

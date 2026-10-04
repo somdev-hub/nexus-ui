@@ -11,6 +11,26 @@ import type {
 const BASE = '/iam/core/retailer';
 const STOCK_BASE = `${BASE}/stock`;
 const MOVEMENT_BASE = `${BASE}/stock-movements`;
+const WAREHOUSE_BASE = `${BASE}/warehouses`;
+
+export interface Warehouse {
+    warehouseId: number;
+    code?: string;
+    location?: string;
+    storageCapacity?: number;
+    currentUtilization?: number;
+    [key: string]: unknown;
+}
+
+export async function getWarehouses(): Promise<Warehouse[]> {
+    const res = await apiClient.get<unknown>(`${WAREHOUSE_BASE}/all`);
+    const data = res.data as
+        | Warehouse[]
+        | { content?: Warehouse[] }
+        | undefined;
+    if (Array.isArray(data)) return data;
+    return data?.content ?? [];
+}
 
 function q(filter: Record<string, unknown>) {
     const p = new URLSearchParams();

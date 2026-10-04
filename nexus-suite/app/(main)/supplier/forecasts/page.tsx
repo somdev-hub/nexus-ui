@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Share2, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import type { CollaborativeForecast } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { CatalogSelect } from '@/components/catalog-select';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
 import { Textarea } from '@/components/ui/textarea';
 import {
     getForecasts,
@@ -70,6 +80,12 @@ export default function ForecastsPage() {
     const [deleting, setDeleting] = useState<CollaborativeForecast | null>(
         null
     );
+    const [saving, setSaving] = useState(false);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [retailers, setRetailers] = useState<
+        { orgId: number; label: string }[]
+    >([]);
+    const { orgId } = useUserMetadata();
     const load = async () => {
         setLoading(true);
         try {
@@ -87,6 +103,49 @@ export default function ForecastsPage() {
     useEffect(() => {
         load();
     }, []);
+    useEffect(() => {
+        let active = true;
+        const loadRetailers = async () => {
+            try {
+                const res = await getSupplierPartnerships();
+                if (!active) return;
+                const own = Number(orgId);
+                const seen = new Map<number, string>();
+                for (const p of res.content ?? []) {
+                    if (p.status === 'TERMINATED') continue;
+                    const isPrimary =
+                        Number.isFinite(own) &&
+                        p.primaryOrgId !== undefined &&
+                        Number(p.primaryOrgId) === own;
+                    const counterId = isPrimary
+                        ? p.secondaryOrgId
+                        : p.primaryOrgId;
+                    if (counterId === undefined) continue;
+                    const id = Number(counterId);
+                    if (!Number.isFinite(id) || seen.has(id)) continue;
+                    const name = isPrimary
+                        ? p.secondaryOrgName
+                        : p.primaryOrgName;
+                    seen.set(
+                        id,
+                        name ? `${name} (#${id})` : `Org #${id}`
+                    );
+                }
+                setRetailers(
+                    [...seen.entries()].map(([orgId, label]) => ({
+                        orgId,
+                        label,
+                    }))
+                );
+            } catch {
+                // leave dropdown empty; global 500 toast already fired
+            }
+        };
+        loadRetailers();
+        return () => {
+            active = false;
+        };
+    }, [orgId]);
     const toPayload = (f: typeof emptyForm) => ({
         retailerOrgId: f.retailerOrgId ? Number(f.retailerOrgId) : undefined,
         catalogId: f.catalogId ? Number(f.catalogId) : undefined,
@@ -97,6 +156,8 @@ export default function ForecastsPage() {
         notes: f.notes || undefined,
     });
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             await createForecast(toPayload(form));
             toast({ title: 'Forecast created', variant: 'success' });
@@ -108,6 +169,8 @@ export default function ForecastsPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const openEdit = (f: CollaborativeForecast) => {
@@ -126,7 +189,8 @@ export default function ForecastsPage() {
         });
     };
     const handleEdit = async () => {
-        if (!editing) return;
+        if (!editing || saving) return;
+        setSaving(true);
         try {
             await updateForecast(editing.forecastId, toPayload(editForm));
             toast({ title: 'Forecast updated', variant: 'success' });
@@ -137,10 +201,13 @@ export default function ForecastsPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleDelete = async () => {
-        if (!deleting) return;
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
         try {
             await deleteForecast(deleting.forecastId);
             toast({ title: 'Forecast deleted', variant: 'success' });
@@ -151,6 +218,8 @@ export default function ForecastsPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteBusy(false);
         }
     };
     const share = async (id: number) => {
@@ -172,25 +241,46 @@ export default function ForecastsPage() {
         <>
             <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
-                    <Label>Retailer Org ID</Label>
-                    <Input
-                        placeholder="e.g. 12"
-                        value={value.retailerOrgId}
-                        onChange={(e) =>
-                            setValue({
-                                ...value,
-                                retailerOrgId: e.target.value,
-                            })
-                        }
-                    />
+                    <Label>Retailer</Label>
+                    {retailers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                            There is no established partnership with any
+                            retailer yet. Accept a retailer invitation first to
+                            share a forecast.
+                        </p>
+                    ) : (
+                        <Select
+                            value={
+                                value.retailerOrgId
+                                    ? String(value.retailerOrgId)
+                                    : ''
+                            }
+                            onValueChange={(v) =>
+                                setValue({ ...value, retailerOrgId: v })
+                            }
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select retailer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {retailers.map((r) => (
+                                    <SelectItem
+                                        key={r.orgId}
+                                        value={String(r.orgId)}
+                                    >
+                                        {r.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
                 <div className="grid gap-2">
-                    <Label>Catalog ID</Label>
-                    <Input
-                        placeholder="e.g. 101"
+                    <Label>Catalog Item</Label>
+                    <CatalogSelect
                         value={value.catalogId}
-                        onChange={(e) =>
-                            setValue({ ...value, catalogId: e.target.value })
+                        onChange={(v) =>
+                            setValue({ ...value, catalogId: v })
                         }
                     />
                 </div>
@@ -281,7 +371,12 @@ export default function ForecastsPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             {renderFields(form, setForm)}
-                            <Button onClick={handleCreate}>Create</Button>
+                            <Button onClick={handleCreate} disabled={saving}>
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -296,7 +391,12 @@ export default function ForecastsPage() {
                     </DialogHeader>
                     <div className="grid gap-6">
                         {renderFields(editForm, setEditForm)}
-                        <Button onClick={handleEdit}>Save Changes</Button>
+                        <Button onClick={handleEdit} disabled={saving}>
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -313,9 +413,17 @@ export default function ForecastsPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>
-                            Delete
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

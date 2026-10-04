@@ -6,6 +6,17 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, FileText, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RichTextEditor } from '@/components/rich-text-editor';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    getContractDocumentContent,
+    uploadContractTextDocument,
+} from '@/lib/services/supplier-contracts-service';
+import {
+    htmlToMarkdown,
+    markdownToHtml,
+} from '@/lib/contract-doc';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -17,11 +28,14 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Money } from '@/components/money';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     getSupplierContractById,
     updateSupplierContractStatus,
+    approveSupplierContract,
+    rejectSupplierContract,
 } from '@/lib/services/supplier-contracts-service';
 import type { SupplierContract } from '@/types/supplier-contracts';
 
@@ -75,6 +89,64 @@ const Page = () => {
     }, [id, numericId]);
 
     const [confirmSubmit, setConfirmSubmit] = useState(false);
+    const [confirmApprove, setConfirmApprove] = useState(false);
+    const [confirmReject, setConfirmReject] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [isDeciding, setIsDeciding] = useState(false);
+    const [docHtml, setDocHtml] = useState<string>('');
+    const [docLoading, setDocLoading] = useState(false);
+    const [docSaving, setDocSaving] = useState(false);
+    const [docFileName, setDocFileName] = useState<string>('');
+
+    // Load the stored (decrypted) contract document into the editor
+    // whenever the viewed contract changes.
+    useEffect(() => {
+        let active = true;
+        const loadDoc = async () => {
+            if (!contract) return;
+            setDocLoading(true);
+            try {
+                const doc = await getContractDocumentContent(
+                    contract.contractId
+                );
+                if (!active) return;
+                setDocFileName(doc.fileName ?? '');
+                setDocHtml(markdownToHtml(doc.content ?? ''));
+            } catch {
+                if (!active) return;
+                setDocFileName('');
+                setDocHtml('');
+            } finally {
+                if (active) setDocLoading(false);
+            }
+        };
+        loadDoc();
+        return () => {
+            active = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [contract?.contractId]);
+
+    const handleSaveDocument = async () => {
+        if (!contract || docSaving) return;
+        setDocSaving(true);
+        try {
+            await uploadContractTextDocument(contract.contractId, {
+                fileName:
+                    docFileName || `${contract.contractNumber}.md`,
+                content: htmlToMarkdown(docHtml),
+            });
+            toast.success('Contract document saved');
+        } catch (err: unknown) {
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to save document'
+            );
+        } finally {
+            setDocSaving(false);
+        }
+    };
 
     const handleSubmitForApproval = async () => {
         if (!contract) return;
@@ -93,6 +165,50 @@ const Page = () => {
         } finally {
             setIsSubmitting(false);
             setConfirmSubmit(false);
+        }
+    };
+
+    const handleApprove = async () => {
+        if (!contract || isDeciding) return;
+        setIsDeciding(true);
+        try {
+            const updated = await approveSupplierContract(
+                contract.contractId,
+                'retailer-user'
+            );
+            setContract(updated);
+            toast.success('Contract approved');
+            router.refresh();
+        } catch (error) {
+            console.error('Failed to approve contract:', error);
+            toast.error('Failed to approve contract. Please try again.');
+        } finally {
+            setIsDeciding(false);
+            setConfirmApprove(false);
+        }
+    };
+
+    const handleReject = async () => {
+        if (!contract || isDeciding) return;
+        if (!rejectionReason.trim()) {
+            toast.error('Please enter a rejection reason');
+            return;
+        }
+        setIsDeciding(true);
+        try {
+            const updated = await rejectSupplierContract(
+                contract.contractId,
+                rejectionReason.trim()
+            );
+            setContract(updated);
+            toast.success('Contract rejected');
+            router.refresh();
+        } catch (error) {
+            console.error('Failed to reject contract:', error);
+            toast.error('Failed to reject contract. Please try again.');
+        } finally {
+            setIsDeciding(false);
+            setConfirmReject(false);
         }
     };
 
@@ -121,6 +237,13 @@ const Page = () => {
         );
     }
 
+    const documentUrl =
+        (contract.documentUrl as string | undefined) ?? undefined;
+    const documentName =
+        (contract.documentName as string | undefined) ??
+        (contract.dmsDocumentName as string | undefined) ??
+        'View Document';
+
     return (
         <>
         <div className="flex flex-1 flex-col">
@@ -143,20 +266,21 @@ const Page = () => {
                                 </Badge>
                             </div>
                             <p className="text-muted-foreground mt-1 text-sm">
-                                {contract.title} — {contract.supplierName}
+                                {contract.contractName} —{' '}
+                                {contract.supplierName ?? '—'}
                             </p>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        {contract.documentUrl && (
+                        {documentUrl && (
                             <Button variant="outline" asChild>
                                 <a
-                                    href={contract.documentUrl}
+                                    href={documentUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
                                     <FileText className="mr-2 h-4 w-4" />
-                                    {contract.documentName ?? 'View Document'}
+                                    {documentName}
                                 </a>
                             </Button>
                         )}
@@ -182,6 +306,24 @@ const Page = () => {
                                     : 'Submit for Approval'}
                             </Button>
                         )}
+                        {(contract.status === 'DRAFT' ||
+                            contract.status === 'PENDING_APPROVAL') && (
+                            <>
+                                <Button
+                                    onClick={() => setConfirmApprove(true)}
+                                    disabled={isDeciding}
+                                >
+                                    Approve
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => setConfirmReject(true)}
+                                    disabled={isDeciding}
+                                >
+                                    Reject
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -195,34 +337,58 @@ const Page = () => {
                         <CardContent className="space-y-3 p-0">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
+                                    Contract Number
+                                </span>
+                                <span className="font-medium">
+                                    {contract.contractNumber}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Contract Name
+                                </span>
+                                <span className="font-medium">
+                                    {contract.contractName}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
                                     Supplier
                                 </span>
                                 <span className="font-medium">
-                                    {contract.supplierName}
+                                    {contract.supplierName ?? '—'}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                    Retailer
+                                    Contract Type
                                 </span>
                                 <span className="font-medium">
-                                    {contract.retailerOrgName}
+                                    {contract.contractType}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                    Start Date
+                                    Status
                                 </span>
                                 <span className="font-medium">
-                                    {contract.startDate || '—'}
+                                    {contract.status}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                    End Date
+                                    Effective Date
                                 </span>
                                 <span className="font-medium">
-                                    {contract.endDate || '—'}
+                                    {contract.effectiveDate || '—'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Expiry Date
+                                </span>
+                                <span className="font-medium">
+                                    {(contract.expiryDate as string) || '—'}
                                 </span>
                             </div>
                             <div className="text-sm">
@@ -230,9 +396,37 @@ const Page = () => {
                                     Description
                                 </p>
                                 <p className="font-medium">
-                                    {contract.description || '—'}
+                                    {(contract.description as string) || '—'}
                                 </p>
                             </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Supplier Decision
+                                </span>
+                                <Badge
+                                    variant={
+                                        contract.supplierStatus === 'APPROVED'
+                                            ? 'default'
+                                            : 'secondary'
+                                    }
+                                >
+                                    {contract.supplierStatus ?? 'PENDING'}
+                                </Badge>
+                            </div>
+                            {(contract.supplierComments ||
+                                contract.supplierDecidedBy) && (
+                                <div className="text-sm rounded-md border p-3">
+                                    <p className="text-muted-foreground">
+                                        Supplier feedback
+                                        {contract.supplierDecidedAt
+                                            ? ` · ${new Date(contract.supplierDecidedAt).toLocaleString()}`
+                                            : ''}
+                                    </p>
+                                    <p className="font-medium">
+                                        {contract.supplierComments || '—'}
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -245,30 +439,37 @@ const Page = () => {
                         <CardContent className="space-y-3 p-0">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                    Currency
+                                    Base Currency
                                 </span>
                                 <span className="font-medium">
-                                    {contract.currency}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground text-sm">
-                                    Total Value
-                                </span>
-                                <span className="font-mono text-lg font-semibold">
-                                    {contract.currency}{' '}
-                                    {contract.totalValue.toLocaleString(
-                                        undefined,
-                                        { minimumFractionDigits: 2 }
-                                    )}
+                                    {(contract.baseCurrency as string) || '—'}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                    Payment Terms
+                                    Payment Terms (days)
                                 </span>
                                 <span className="font-medium">
-                                    {contract.paymentTerms || '—'}
+                                    {contract.paymentTermsDays ?? '—'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Incoterms
+                                </span>
+                                <span className="font-medium">
+                                    {(contract.incoterms as string) || '—'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Contract Amount
+                                </span>
+                                <span className="font-medium">
+                                    <Money
+                                        amount={contract.contractAmount}
+                                        currency={contract.baseCurrency}
+                                    />
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
@@ -277,7 +478,7 @@ const Page = () => {
                                 </span>
                                 <span className="font-medium">
                                     {contract.autoRenewal
-                                        ? `Yes (${contract.renewalPeriodDays} days)`
+                                        ? `Yes (${contract.renewalNoticeDays ?? 0} days notice)`
                                         : 'No'}
                                 </span>
                             </div>
@@ -294,7 +495,7 @@ const Page = () => {
                                     Created
                                 </span>
                                 <span className="font-medium">
-                                    {contract.createdAt} by {contract.createdBy}
+                                    {(contract.createdAt as string) || '—'}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
@@ -302,9 +503,41 @@ const Page = () => {
                                     Updated
                                 </span>
                                 <span className="font-medium">
-                                    {contract.updatedAt} by {contract.updatedBy}
+                                    {(contract.updatedAt as string) || '—'}
                                 </span>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="gap-2 p-4 md:col-span-2">
+                        <CardHeader className="p-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-lg">
+                                    Contract Document
+                                </CardTitle>
+                                <Button
+                                    size="sm"
+                                    onClick={handleSaveDocument}
+                                    disabled={docSaving || docLoading}
+                                >
+                                    {docSaving
+                                        ? 'Saving…'
+                                        : 'Save Document'}
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {docLoading ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Loading document…
+                                </p>
+                            ) : (
+                                <RichTextEditor
+                                    value={docHtml}
+                                    onChange={setDocHtml}
+                                    placeholder="Contract document…"
+                                />
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -325,6 +558,54 @@ const Page = () => {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleSubmitForApproval}>
                             Submit
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={confirmApprove} onOpenChange={setConfirmApprove}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Approve contract?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Approve contract {contract.contractNumber}? It will
+                            become ACTIVE.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleApprove}>
+                            Approve
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={confirmReject} onOpenChange={setConfirmReject}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Reject contract?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Reject contract {contract.contractNumber}? Please
+                            give a reason.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="grid gap-2">
+                        <Label htmlFor="rejection-reason">Reason</Label>
+                        <Textarea
+                            id="rejection-reason"
+                            value={rejectionReason}
+                            onChange={(e) =>
+                                setRejectionReason(e.target.value)
+                            }
+                            placeholder="e.g. Terms not acceptable"
+                            rows={3}
+                        />
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleReject}>
+                            Reject
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

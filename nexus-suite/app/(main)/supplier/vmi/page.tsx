@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { VmiConfig, VmiSuggestion } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
+import { getMaterials } from '@/lib/services/materials-service';
+import type { Material } from '@/types/materials';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -68,6 +79,13 @@ export default function VmiPage() {
     const [editing, setEditing] = useState<VmiConfig | null>(null);
     const [editForm, setEditForm] = useState(emptyForm);
     const [deleting, setDeleting] = useState<VmiConfig | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [retailers, setRetailers] = useState<
+        { orgId: number; label: string }[]
+    >([]);
+    const [materials, setMaterials] = useState<Material[]>([]);
+    const { orgId } = useUserMetadata();
     const load = async () => {
         setLoading(true);
         try {
@@ -89,6 +107,68 @@ export default function VmiPage() {
     useEffect(() => {
         load();
     }, []);
+    useEffect(() => {
+        let active = true;
+        const loadRetailers = async () => {
+            try {
+                const res = await getSupplierPartnerships();
+                if (!active) return;
+                const own = Number(orgId);
+                const seen = new Map<number, string>();
+                for (const p of res.content ?? []) {
+                    if (p.status === 'TERMINATED') continue;
+                    const isPrimary =
+                        Number.isFinite(own) &&
+                        p.primaryOrgId !== undefined &&
+                        Number(p.primaryOrgId) === own;
+                    const counterId = isPrimary
+                        ? p.secondaryOrgId
+                        : p.primaryOrgId;
+                    if (counterId === undefined) continue;
+                    const id = Number(counterId);
+                    if (!Number.isFinite(id) || seen.has(id)) continue;
+                    const name = isPrimary
+                        ? p.secondaryOrgName
+                        : p.primaryOrgName;
+                    seen.set(
+                        id,
+                        name ? `${name} (#${id})` : `Org #${id}`
+                    );
+                }
+                setRetailers(
+                    [...seen.entries()].map(([orgId, label]) => ({
+                        orgId,
+                        label,
+                    }))
+                );
+            } catch {
+                // leave dropdown empty; global 500 toast already fired
+            }
+        };
+        loadRetailers();
+        return () => {
+            active = false;
+        };
+    }, [orgId]);
+    useEffect(() => {
+        let active = true;
+        const loadMaterials = async () => {
+            try {
+                const res = await getMaterials({
+                    pageNo: 0,
+                    pageOffset: 100,
+                });
+                if (!active) return;
+                setMaterials(res.content ?? []);
+            } catch {
+                // leave dropdown empty; global 500 toast already fired
+            }
+        };
+        loadMaterials();
+        return () => {
+            active = false;
+        };
+    }, []);
     const toPayload = (f: typeof emptyForm) => ({
         retailerOrgId: Number(f.retailerOrgId),
         materialId: Number(f.materialId),
@@ -102,6 +182,8 @@ export default function VmiPage() {
         autoReplenish: f.autoReplenish,
     });
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             await createVmi(toPayload(form));
             toast({ title: 'VMI created', variant: 'success' });
@@ -113,6 +195,8 @@ export default function VmiPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const openEdit = (v: VmiConfig) => {
@@ -141,7 +225,8 @@ export default function VmiPage() {
         });
     };
     const handleEdit = async () => {
-        if (!editing) return;
+        if (!editing || saving) return;
+        setSaving(true);
         try {
             await updateVmi(editing.vmiId, toPayload(editForm));
             toast({ title: 'VMI updated', variant: 'success' });
@@ -152,10 +237,13 @@ export default function VmiPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleDelete = async () => {
-        if (!deleting) return;
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
         try {
             await deleteVmi(deleting.vmiId);
             toast({ title: 'VMI deleted', variant: 'success' });
@@ -166,6 +254,8 @@ export default function VmiPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteBusy(false);
         }
     };
     const replenish = async (id: number) => {
@@ -186,24 +276,62 @@ export default function VmiPage() {
     ) => (
         <>
             <div className="grid gap-2">
-                <Label>Retailer Org ID</Label>
-                <Input
-                    placeholder="e.g. 12"
-                    value={value.retailerOrgId}
-                    onChange={(e) =>
-                        setValue({ ...value, retailerOrgId: e.target.value })
-                    }
-                />
+                <Label>Retailer</Label>
+                {retailers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                        There is no established partnership with any retailer
+                        yet. Accept a retailer invitation first to configure
+                        VMI.
+                    </p>
+                ) : (
+                    <Select
+                        value={
+                            value.retailerOrgId
+                                ? String(value.retailerOrgId)
+                                : ''
+                        }
+                        onValueChange={(v) =>
+                            setValue({ ...value, retailerOrgId: v })
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select retailer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {retailers.map((r) => (
+                                <SelectItem
+                                    key={r.orgId}
+                                    value={String(r.orgId)}
+                                >
+                                    {r.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
             </div>
             <div className="grid gap-2">
-                <Label>Material ID</Label>
-                <Input
-                    placeholder="e.g. 45"
-                    value={value.materialId}
-                    onChange={(e) =>
-                        setValue({ ...value, materialId: e.target.value })
+                <Label>Material</Label>
+                <Select
+                    value={value.materialId ? String(value.materialId) : ''}
+                    onValueChange={(v) =>
+                        setValue({ ...value, materialId: v })
                     }
-                />
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select material" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {materials.map((m) => (
+                            <SelectItem
+                                key={m.materialId}
+                                value={String(m.materialId)}
+                            >
+                                {m.materialName} ({m.materialCode})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
             <div className="grid gap-2">
                 <Label>Warehouse ID</Label>
@@ -292,7 +420,12 @@ export default function VmiPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             {renderFields(form, setForm)}
-                            <Button onClick={handleCreate}>Create</Button>
+                            <Button onClick={handleCreate} disabled={saving}>
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -307,7 +440,12 @@ export default function VmiPage() {
                     </DialogHeader>
                     <div className="grid gap-6">
                         {renderFields(editForm, setEditForm)}
-                        <Button onClick={handleEdit}>Save Changes</Button>
+                        <Button onClick={handleEdit} disabled={saving}>
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -323,9 +461,17 @@ export default function VmiPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>
-                            Delete
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -10,6 +10,8 @@ import {
     Truck,
 } from 'lucide-react';
 import type {
+    Driver,
+    FleetAsset,
     LoadBoardShipment,
     ShipmentEta,
     ShipmentIncident,
@@ -47,6 +49,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     getLoadBoard,
+    getDrivers,
+    getFleetAssets,
     assignBooking,
     getShipmentEta,
     transitionShipmentStatus,
@@ -59,7 +63,9 @@ import {
     transitionIncidentStatus,
 } from '@/lib/services/logistics-ops-service';
 import {
+    getShipments,
     getShipmentDocuments,
+    type Shipment,
     type ShipmentDocument,
 } from '@/lib/services/shipment-service';
 import ShipmentMap from '@/components/shipment-map';
@@ -142,6 +148,9 @@ export default function LogisticsShipmentsPage() {
         claimAmount: '',
     });
     const [incidentOpen, setIncidentOpen] = useState(false);
+    const [shipmentOptions, setShipmentOptions] = useState<Shipment[]>([]);
+    const [driverOptions, setDriverOptions] = useState<Driver[]>([]);
+    const [assetOptions, setAssetOptions] = useState<FleetAsset[]>([]);
     useQuickCreateIntent('logistics:incident', () => setIncidentOpen(true));
     useQuickCreateIntent('logistics:pod', () => setPodOpen(true));
 
@@ -169,6 +178,18 @@ export default function LogisticsShipmentsPage() {
     };
     useEffect(() => {
         load();
+    }, []);
+    useEffect(() => {
+        Promise.all([
+            getShipments({ page: 0, size: 100 }).catch(() => null),
+            getDrivers({ page: 0, size: 100 }).catch(() => null),
+            getFleetAssets({ page: 0, size: 100 }).catch(() => null),
+        ]).then(([s, d, a]) => {
+            if (s?.content) setShipmentOptions(s.content);
+            else if (Array.isArray(s)) setShipmentOptions(s);
+            if (d?.content) setDriverOptions(d.content);
+            if (a?.content) setAssetOptions(a.content);
+        });
     }, []);
     useEffect(() => {
         const t = setTimeout(load, 400);
@@ -403,17 +424,31 @@ export default function LogisticsShipmentsPage() {
                             <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Shipment ID</Label>
-                                        <Input
-                                            placeholder="e.g. 12"
-                                            value={assignForm.shipmentId}
-                                            onChange={(e) =>
+                                        <Label>Shipment</Label>
+                                        <Select
+                                            value={assignForm.shipmentId || undefined}
+                                            onValueChange={(v) =>
                                                 setAssignForm({
                                                     ...assignForm,
-                                                    shipmentId: e.target.value,
+                                                    shipmentId: v,
                                                 })
                                             }
-                                        />
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select shipment" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {shipmentOptions.map((s) => (
+                                                    <SelectItem
+                                                        key={s.shipmentId}
+                                                        value={String(s.shipmentId)}
+                                                    >
+                                                        {s.shipmentNumber} (#
+                                                        {s.shipmentId})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>BOL Doc ID (DMS)</Label>
@@ -432,30 +467,58 @@ export default function LogisticsShipmentsPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Driver ID</Label>
-                                        <Input
-                                            placeholder="e.g. 3"
-                                            value={assignForm.driverId}
-                                            onChange={(e) =>
+                                        <Label>Driver</Label>
+                                        <Select
+                                            value={assignForm.driverId || undefined}
+                                            onValueChange={(v) =>
                                                 setAssignForm({
                                                     ...assignForm,
-                                                    driverId: e.target.value,
+                                                    driverId: v,
                                                 })
                                             }
-                                        />
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select driver" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {driverOptions.map((d) => (
+                                                    <SelectItem
+                                                        key={d.driverId}
+                                                        value={String(d.driverId)}
+                                                    >
+                                                        {d.fullName} (#
+                                                        {d.driverId})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Asset ID</Label>
-                                        <Input
-                                            placeholder="e.g. 7"
-                                            value={assignForm.assetId}
-                                            onChange={(e) =>
+                                        <Label>Asset</Label>
+                                        <Select
+                                            value={assignForm.assetId || undefined}
+                                            onValueChange={(v) =>
                                                 setAssignForm({
                                                     ...assignForm,
-                                                    assetId: e.target.value,
+                                                    assetId: v,
                                                 })
                                             }
-                                        />
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select asset" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {assetOptions.map((a) => (
+                                                    <SelectItem
+                                                        key={a.assetId}
+                                                        value={String(a.assetId)}
+                                                    >
+                                                        {a.assetNumber} (#
+                                                        {a.assetId})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                                 <LoadingButton
@@ -543,17 +606,31 @@ export default function LogisticsShipmentsPage() {
                             <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Shipment ID</Label>
-                                        <Input
-                                            placeholder="e.g. 12"
-                                            value={podForm.shipmentId}
-                                            onChange={(e) =>
+                                        <Label>Shipment</Label>
+                                        <Select
+                                            value={podForm.shipmentId || undefined}
+                                            onValueChange={(v) =>
                                                 setPodForm({
                                                     ...podForm,
-                                                    shipmentId: e.target.value,
+                                                    shipmentId: v,
                                                 })
                                             }
-                                        />
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select shipment" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {shipmentOptions.map((s) => (
+                                                    <SelectItem
+                                                        key={s.shipmentId}
+                                                        value={String(s.shipmentId)}
+                                                    >
+                                                        {s.shipmentNumber} (#
+                                                        {s.shipmentId})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Received By</Label>
@@ -674,17 +751,31 @@ export default function LogisticsShipmentsPage() {
                             <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Shipment ID</Label>
-                                        <Input
-                                            placeholder="e.g. 12"
-                                            value={incidentForm.shipmentId}
-                                            onChange={(e) =>
+                                        <Label>Shipment</Label>
+                                        <Select
+                                            value={incidentForm.shipmentId || undefined}
+                                            onValueChange={(v) =>
                                                 setIncidentForm({
                                                     ...incidentForm,
-                                                    shipmentId: e.target.value,
+                                                    shipmentId: v,
                                                 })
                                             }
-                                        />
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select shipment" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {shipmentOptions.map((s) => (
+                                                    <SelectItem
+                                                        key={s.shipmentId}
+                                                        value={String(s.shipmentId)}
+                                                    >
+                                                        {s.shipmentNumber} (#
+                                                        {s.shipmentId})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Type</Label>
@@ -1193,15 +1284,26 @@ export default function LogisticsShipmentsPage() {
                     <div className="grid gap-6">
                         <div className="flex items-end gap-2">
                             <div className="grid flex-1 gap-2">
-                                <Label>Shipment ID</Label>
-                                <Input
-                                    type="number"
-                                    value={podLookupId}
-                                    onChange={(e) =>
-                                        setPodLookupId(e.target.value)
-                                    }
-                                    placeholder="e.g. 12"
-                                />
+                                <Label>Shipment</Label>
+                                <Select
+                                    value={podLookupId || undefined}
+                                    onValueChange={setPodLookupId}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select shipment" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {shipmentOptions.map((s) => (
+                                            <SelectItem
+                                                key={s.shipmentId}
+                                                value={String(s.shipmentId)}
+                                            >
+                                                {s.shipmentNumber} (#
+                                                {s.shipmentId})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <LoadingButton
                                 loading={busy === 'pod-load'}

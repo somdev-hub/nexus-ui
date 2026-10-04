@@ -28,7 +28,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -36,17 +36,43 @@ import {
     updateSupplierContract,
 } from '@/lib/services/supplier-contracts-service';
 import { parseOptionalFloat, parseOptionalInt } from '@/lib/utils';
+import { CURRENCIES } from '@/lib/currency';
+
+const CONTRACT_TYPES = [
+    'STANDARD',
+    'BLANKET',
+    'FRAMEWORK',
+    'CONSIGNMENT',
+    'VMI',
+] as const;
 
 const contractUpdateSchema = z.object({
-    title: z.string().optional(),
-    description: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
+    contractNumber: z
+        .string()
+        .min(1, 'Contract number is required')
+        .max(50, 'Contract number must not exceed 50 characters'),
+    contractName: z
+        .string()
+        .min(1, 'Contract name is required')
+        .max(200, 'Contract name must not exceed 200 characters'),
+    description: z
+        .string()
+        .max(2000, 'Description must not exceed 2000 characters')
+        .optional(),
+    contractType: z.enum(CONTRACT_TYPES, {
+        message: 'Contract type is required',
+    }),
+    effectiveDate: z.string().min(1, 'Effective date is required'),
+    expiryDate: z.string().optional(),
     autoRenewal: z.boolean().optional(),
-    renewalPeriodDays: z.number().min(0).optional(),
-    paymentTerms: z.string().optional(),
-    currency: z.string().optional(),
-    totalValue: z.number().min(0).optional(),
+    renewalNoticeDays: z.number().min(0).optional(),
+    baseCurrency: z.string().optional(),
+    paymentTermsDays: z.number().min(0).optional(),
+    contractAmount: z.number().min(0).optional(),
+    incoterms: z
+        .string()
+        .max(10, 'Incoterms must not exceed 10 characters')
+        .optional(),
 });
 
 type ContractUpdateFormData = z.infer<typeof contractUpdateSchema>;
@@ -64,15 +90,17 @@ const Page = () => {
     const form = useForm<ContractUpdateFormData>({
         resolver: zodResolver(contractUpdateSchema),
         defaultValues: {
-            title: '',
+            contractNumber: '',
+            contractName: '',
             description: '',
-            startDate: '',
-            endDate: '',
+            contractType: 'STANDARD',
+            effectiveDate: '',
+            expiryDate: '',
             autoRenewal: false,
-            renewalPeriodDays: 0,
-            paymentTerms: '',
-            currency: '',
-            totalValue: 0,
+            renewalNoticeDays: 30,
+            baseCurrency: 'USD',
+            paymentTermsDays: 30,
+            incoterms: '',
         },
     });
 
@@ -88,17 +116,20 @@ const Page = () => {
             try {
                 const data = await getSupplierContractById(numericId);
                 if (!active) return;
-                setContractNumber(data.contractNumber);
+                setContractNumber(data.contractNumber ?? '');
                 form.reset({
-                    title: data.title ?? '',
-                    description: data.description ?? '',
-                    startDate: data.startDate ?? '',
-                    endDate: data.endDate ?? '',
+                    contractNumber: data.contractNumber ?? '',
+                    contractName: data.contractName ?? '',
+                    description: (data.description as string) ?? '',
+                    contractType: data.contractType ?? 'STANDARD',
+                    effectiveDate: data.effectiveDate ?? '',
+                    expiryDate: (data.expiryDate as string) ?? '',
                     autoRenewal: data.autoRenewal ?? false,
-                    renewalPeriodDays: data.renewalPeriodDays ?? 0,
-                    paymentTerms: data.paymentTerms ?? '',
-                    currency: data.currency ?? '',
-                    totalValue: data.totalValue ?? 0,
+                    renewalNoticeDays: data.renewalNoticeDays ?? 30,
+                    baseCurrency: (data.baseCurrency as string) ?? 'USD',
+                    paymentTermsDays: data.paymentTermsDays ?? 30,
+                    contractAmount: data.contractAmount ?? undefined,
+                    incoterms: (data.incoterms as string) ?? '',
                 });
             } catch (error) {
                 if (!active) return;
@@ -119,15 +150,18 @@ const Page = () => {
         setIsSaving(true);
         try {
             await updateSupplierContract(numericId, {
-                title: data.title || undefined,
-                description: data.description || undefined,
-                startDate: data.startDate || undefined,
-                endDate: data.endDate || undefined,
+                contractNumber: data.contractNumber?.trim() || undefined,
+                contractName: data.contractName?.trim() || undefined,
+                description: data.description?.trim() || undefined,
+                contractType: data.contractType,
+                effectiveDate: data.effectiveDate || undefined,
+                expiryDate: data.expiryDate || undefined,
                 autoRenewal: data.autoRenewal,
-                renewalPeriodDays: data.renewalPeriodDays,
-                paymentTerms: data.paymentTerms || undefined,
-                currency: data.currency || undefined,
-                totalValue: data.totalValue,
+                renewalNoticeDays: data.renewalNoticeDays,
+                baseCurrency: data.baseCurrency || undefined,
+                paymentTermsDays: data.paymentTermsDays,
+                contractAmount: data.contractAmount,
+                incoterms: data.incoterms?.trim() || undefined,
             });
             toast.success('Supplier contract updated successfully');
             router.push(`/retailer/supplier-contracts/${numericId}`);
@@ -186,20 +220,87 @@ const Page = () => {
                                     <CardTitle>Contract Details</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4 p-0">
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="contractNumber"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Contract Number *
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder="e.g. CON-123456"
+                                                            {...field}
+                                                            value={
+                                                                field.value ??
+                                                                ''
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="contractName"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Contract Name *
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder="Contract name"
+                                                            {...field}
+                                                            value={
+                                                                field.value ??
+                                                                ''
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
                                     <FormField
                                         control={form.control}
-                                        name="title"
+                                        name="contractType"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Title</FormLabel>
+                                                <FormLabel>
+                                                    Contract Type *
+                                                </FormLabel>
                                                 <FormControl>
-                                                    <Input
-                                                        placeholder="Contract title"
-                                                        {...field}
+                                                    <Select
+                                                        onValueChange={
+                                                            field.onChange
+                                                        }
                                                         value={
                                                             field.value ?? ''
                                                         }
-                                                    />
+                                                    >
+                                                        <SelectTrigger className="w-full">
+                                                            <SelectValue placeholder="Select contract type" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {CONTRACT_TYPES.map(
+                                                                (t) => (
+                                                                    <SelectItem
+                                                                        key={t}
+                                                                        value={
+                                                                            t
+                                                                        }
+                                                                    >
+                                                                        {t}
+                                                                    </SelectItem>
+                                                                )
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -230,11 +331,11 @@ const Page = () => {
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         <FormField
                                             control={form.control}
-                                            name="startDate"
+                                            name="effectiveDate"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>
-                                                        Start Date
+                                                        Effective Date *
                                                     </FormLabel>
                                                     <FormControl>
                                                         <DatePicker
@@ -251,7 +352,7 @@ const Page = () => {
                                                                     )
                                                                 )
                                                             }
-                                                            placeholder="Pick start date"
+                                                            placeholder="Pick effective date"
                                                         />
                                                     </FormControl>
                                                     <FormMessage />
@@ -260,11 +361,11 @@ const Page = () => {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="endDate"
+                                            name="expiryDate"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>
-                                                        End Date
+                                                        Expiry Date
                                                     </FormLabel>
                                                     <FormControl>
                                                         <DatePicker
@@ -281,7 +382,7 @@ const Page = () => {
                                                                     )
                                                                 )
                                                             }
-                                                            placeholder="Pick end date"
+                                                            placeholder="Pick expiry date"
                                                         />
                                                     </FormControl>
                                                     <FormMessage />
@@ -292,33 +393,11 @@ const Page = () => {
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                                         <FormField
                                             control={form.control}
-                                            name="paymentTerms"
+                                            name="baseCurrency"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>
-                                                        Payment Terms
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            placeholder="e.g. Net 30"
-                                                            {...field}
-                                                            value={
-                                                                field.value ??
-                                                                ''
-                                                            }
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="currency"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>
-                                                        Currency
+                                                        Base Currency
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Select
@@ -334,22 +413,26 @@ const Page = () => {
                                                                 <SelectValue placeholder="Select currency" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="USD">
-                                                                    USD - US
-                                                                    Dollar
-                                                                </SelectItem>
-                                                                <SelectItem value="EUR">
-                                                                    EUR - Euro
-                                                                </SelectItem>
-                                                                <SelectItem value="GBP">
-                                                                    GBP -
-                                                                    British
-                                                                    Pound
-                                                                </SelectItem>
-                                                                <SelectItem value="INR">
-                                                                    INR - Indian
-                                                                    Rupee
-                                                                </SelectItem>
+                                                                {CURRENCIES.map(
+                                                                    (c) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                c.code
+                                                                            }
+                                                                            value={
+                                                                                c.code
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                c.code
+                                                                            }{' '}
+                                                                            -{' '}
+                                                                            {
+                                                                                c.label
+                                                                            }
+                                                                        </SelectItem>
+                                                                    )
+                                                                )}
                                                             </SelectContent>
                                                         </Select>
                                                     </FormControl>
@@ -359,18 +442,19 @@ const Page = () => {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="totalValue"
+                                            name="contractAmount"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>
-                                                        Total Value
+                                                        Contract Amount
+                                                        (optional)
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Input
                                                             type="number"
                                                             min="0"
                                                             step="0.01"
-                                                            placeholder="0.00"
+                                                            placeholder="e.g. 50000"
                                                             value={
                                                                 field.value?.toString() ??
                                                                 ''
@@ -380,8 +464,62 @@ const Page = () => {
                                                                     parseOptionalFloat(
                                                                         e.target
                                                                             .value
+                                                                    )
+                                                                )
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="paymentTermsDays"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Payment Terms (days)
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="1"
+                                                            placeholder="30"
+                                                            value={
+                                                                field.value?.toString() ??
+                                                                ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                field.onChange(
+                                                                    parseOptionalInt(
+                                                                        e.target
+                                                                            .value
                                                                     ) ?? 0
                                                                 )
+                                                            }
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="incoterms"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Incoterms
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            placeholder="e.g. FOB"
+                                                            {...field}
+                                                            value={
+                                                                field.value ??
+                                                                ''
                                                             }
                                                         />
                                                     </FormControl>
@@ -400,7 +538,7 @@ const Page = () => {
                                                         Auto Renewal
                                                     </FormLabel>
                                                     <FormControl>
-                                                        <Switch
+                                                        <Checkbox
                                                             checked={
                                                                 field.value ??
                                                                 false
@@ -415,18 +553,18 @@ const Page = () => {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="renewalPeriodDays"
+                                            name="renewalNoticeDays"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>
-                                                        Renewal Period (days)
+                                                        Renewal Notice Days
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Input
                                                             type="number"
                                                             min="0"
                                                             step="1"
-                                                            placeholder="0"
+                                                            placeholder="30"
                                                             value={
                                                                 field.value?.toString() ??
                                                                 ''

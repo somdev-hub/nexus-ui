@@ -45,6 +45,8 @@ export interface SupplierPriceTier {
     unitPrice: number;
     customerSegment?: string;
     contractId?: number;
+    contractNumber?: string;
+    clearContract?: boolean;
     validFrom?: string;
     validTo?: string;
     currency?: string;
@@ -116,6 +118,8 @@ export interface SupplierQuotation {
     quotationNumber: string;
     buyerOrgId?: number;
     buyerOrgName?: string;
+    supplierOrgId?: number;
+    supplierOrgName?: string;
     status: string;
     validFrom?: string;
     validTo?: string;
@@ -123,12 +127,20 @@ export interface SupplierQuotation {
     currency?: string;
     totalAmount?: number;
     versionNumber?: number;
+    convertedToPoId?: number;
     lineItems?: Array<{
+        lineId?: number;
         catalogId?: number;
+        catalogName?: string;
+        digitalAssetId?: number;
+        digitalAssetName?: string;
+        digitalAssetIds?: number[];
+        digitalAssetNames?: string[];
         quantity?: number;
         unitPrice?: number;
         totalPrice?: number;
         description?: string;
+        notes?: string;
     }>;
     createdAt?: string;
 }

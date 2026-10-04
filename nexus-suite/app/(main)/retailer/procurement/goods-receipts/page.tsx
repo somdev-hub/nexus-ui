@@ -10,6 +10,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { formatYmd, parseYmd } from '@/lib/date-utils';
 import { Label } from '@/components/ui/label';
@@ -28,12 +35,55 @@ import {
     getGoodsReceipts,
 } from '@/lib/services/procurement-extended-service';
 import {
+    getPurchaseOrderById,
+    getPurchaseOrders,
+} from '@/lib/services/purchase-orders-service';
+import {
     getRetailerAsnByPo,
     type AsnDocument,
 } from '@/lib/services/counterparty-docs-service';
+import { getSuppliers } from '@/lib/services/suppliers-service';
 import type { GoodsReceipt } from '@/types/procurement';
+import type { PurchaseOrder } from '@/types/purchase-orders';
+import type { Supplier } from '@/types/suppliers';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+interface PoLineOption {
+    id: number;
+    lineNumber?: number;
+    description?: string;
+}
+
+function extractPoLines(po: unknown): PoLineOption[] {
+    const record = po as Record<string, unknown>;
+    const raw =
+        (record.lineItems as unknown[]) ??
+        (record.items as unknown[]) ??
+        [];
+    if (!Array.isArray(raw)) return [];
+    const out: PoLineOption[] = [];
+    for (const li of raw) {
+        const item = li as Record<string, unknown>;
+        const id = Number(item.poLineItemId ?? item.lineItemId ?? item.id);
+        if (!Number.isFinite(id)) continue;
+        const ln =
+            item.lineNumber !== undefined
+                ? Number(item.lineNumber)
+                : undefined;
+        out.push({
+            id,
+            lineNumber: Number.isFinite(ln as number)
+                ? (ln as number)
+                : undefined,
+            description:
+                typeof item.description === 'string'
+                    ? item.description
+                    : undefined,
+        });
+    }
+    return out;
+}
 
 const STATUS_COLOR: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -54,6 +104,10 @@ export default function GoodsReceiptsPage() {
     const [asnPoId, setAsnPoId] = useState('');
     const [asns, setAsns] = useState<AsnDocument[] | null>(null);
     const [asnLoading, setAsnLoading] = useState(false);
+    const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [poLines, setPoLines] = useState<PoLineOption[]>([]);
+    const [poLinesLoading, setPoLinesLoading] = useState(false);
     const [form, setForm] = useState({
         purchaseOrderId: '',
         supplierId: '',
@@ -94,6 +148,50 @@ export default function GoodsReceiptsPage() {
             a = false;
         };
     }, []);
+
+    useEffect(() => {
+        let active = true;
+        (async () => {
+            try {
+                const [pos, sups] = await Promise.all([
+                    getPurchaseOrders({ pageNo: 0, pageOffset: 100 }),
+                    getSuppliers({ pageNo: 0, pageOffset: 100 }),
+                ]);
+                if (!active) return;
+                setPurchaseOrders(pos.content ?? []);
+                setSuppliers(sups.content ?? []);
+            } catch {
+                // Non-fatal: dropdowns stay empty, manual submit still works.
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        const poId = Number(form.purchaseOrderId);
+        if (!Number.isFinite(poId) || poId < 1) {
+            setPoLines([]);
+            return;
+        }
+        let active = true;
+        setPoLinesLoading(true);
+        getPurchaseOrderById(poId)
+            .then((po) => {
+                if (!active) return;
+                setPoLines(extractPoLines(po));
+            })
+            .catch(() => {
+                if (active) setPoLines([]);
+            })
+            .finally(() => {
+                if (active) setPoLinesLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [form.purchaseOrderId]);
 
     const set =
         (k: keyof typeof form) =>
@@ -194,20 +292,62 @@ export default function GoodsReceiptsPage() {
                             <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Purchase Order ID</Label>
-                                        <Input
-                                            placeholder="e.g. 101"
+                                        <Label>Purchase Order</Label>
+                                        <Select
                                             value={form.purchaseOrderId}
-                                            onChange={set('purchaseOrderId')}
-                                        />
+                                            onValueChange={(v) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    purchaseOrderId: v,
+                                                    poLineItemId: '',
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select purchase order" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {purchaseOrders.map((po) => (
+                                                    <SelectItem
+                                                        key={po.purchaseOrderId}
+                                                        value={String(
+                                                            po.purchaseOrderId
+                                                        )}
+                                                    >
+                                                        {po.purchaseOrderNumber ??
+                                                            `#${po.purchaseOrderId}`}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Supplier ID</Label>
-                                        <Input
-                                            placeholder="e.g. 12"
+                                        <Label>Supplier</Label>
+                                        <Select
                                             value={form.supplierId}
-                                            onChange={set('supplierId')}
-                                        />
+                                            onValueChange={(v) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    supplierId: v,
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select supplier" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {suppliers.map((s) => (
+                                                    <SelectItem
+                                                        key={s.supplierId}
+                                                        value={String(
+                                                            s.supplierId
+                                                        )}
+                                                    >
+                                                        {s.businessName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -243,12 +383,47 @@ export default function GoodsReceiptsPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>PO Line Item ID</Label>
-                                        <Input
-                                            placeholder="e.g. 501"
+                                        <Label>PO Line Item</Label>
+                                        <Select
                                             value={form.poLineItemId}
-                                            onChange={set('poLineItemId')}
-                                        />
+                                            onValueChange={(v) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    poLineItemId: v,
+                                                }))
+                                            }
+                                            disabled={
+                                                !form.purchaseOrderId ||
+                                                poLinesLoading
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue
+                                                    placeholder={
+                                                        !form.purchaseOrderId
+                                                            ? 'Select a PO first'
+                                                            : poLinesLoading
+                                                              ? 'Loading lines…'
+                                                              : 'Select line item'
+                                                    }
+                                                />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {poLines.map((li) => (
+                                                    <SelectItem
+                                                        key={li.id}
+                                                        value={String(li.id)}
+                                                    >
+                                                        {li.lineNumber !==
+                                                        undefined
+                                                            ? `#${li.lineNumber} `
+                                                            : ''}
+                                                        {li.description ??
+                                                            `Line ${li.id}`}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Received Qty</Label>

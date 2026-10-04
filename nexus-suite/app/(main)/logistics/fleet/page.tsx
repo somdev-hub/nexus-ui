@@ -928,18 +928,31 @@ export default function FleetPage() {
                             <div className="grid gap-6">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Asset ID</Label>
-                                        <Input
-                                            placeholder="e.g. 7"
-                                            type="number"
-                                            value={maintForm.assetId}
-                                            onChange={(e) =>
+                                        <Label>Asset</Label>
+                                        <Select
+                                            value={maintForm.assetId || undefined}
+                                            onValueChange={(v) =>
                                                 setMaintForm({
                                                     ...maintForm,
-                                                    assetId: e.target.value,
+                                                    assetId: v,
                                                 })
                                             }
-                                        />
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select asset" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {assets?.content?.map((a) => (
+                                                    <SelectItem
+                                                        key={a.assetId}
+                                                        value={String(a.assetId)}
+                                                    >
+                                                        {a.assetNumber} (#
+                                                        {a.assetId})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Type</Label>

@@ -21,6 +21,7 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
 	Select,
@@ -90,6 +91,7 @@ export default function QuotationsPage() {
 		key: number;
 		catalogId: string;
 		variantId: string;
+		assetIds: string[];
 		quantity: string;
 		unitPrice: string;
 		description: string;
@@ -104,6 +106,7 @@ export default function QuotationsPage() {
 			key: 0,
 			catalogId: '',
 			variantId: '',
+			assetIds: [],
 			quantity: '',
 			unitPrice: '',
 			description: '',
@@ -115,6 +118,7 @@ export default function QuotationsPage() {
 		Record<number, CatalogRelated>
 	>({});
 	const [saving, setSaving] = useState(false);
+	const [deleteBusy, setDeleteBusy] = useState(false);
 	const [detail, setDetail] = useState<SupplierQuotation | null>(null);
 	const [deleting, setDeleting] = useState<SupplierQuotation | null>(null);
 	const [retailers, setRetailers] = useState<
@@ -237,6 +241,7 @@ export default function QuotationsPage() {
 		updateLine(index, {
 			catalogId: value,
 			variantId: '',
+			assetIds: [],
 			description: catalog?.name ?? '',
 			unitPrice:
 				catalog?.basePrice !== undefined &&
@@ -294,6 +299,7 @@ export default function QuotationsPage() {
 				key: lineSeq,
 				catalogId: '',
 				variantId: '',
+				assetIds: [],
 				quantity: '',
 				unitPrice: '',
 				description: '',
@@ -321,6 +327,13 @@ export default function QuotationsPage() {
 				lineItems: lines.map((l) => ({
 					...(l.catalogId
 						? { catalogId: Number(l.catalogId) }
+						: {}),
+					...(l.assetIds.length
+						? {
+								digitalAssetIds: l.assetIds.map((a) =>
+									Number(a)
+								),
+							}
 						: {}),
 					quantity: Number(l.quantity || 1),
 					unitPrice: Number(l.unitPrice || 0),
@@ -378,7 +391,8 @@ export default function QuotationsPage() {
 		}
 	};
 	const handleDelete = async () => {
-		if (!deleting) return;
+		if (!deleting || deleteBusy) return;
+		setDeleteBusy(true);
 		try {
 			await deleteQuotation(deleting.quotationId);
 			toast({ title: 'Quotation deleted', variant: 'success' });
@@ -389,6 +403,8 @@ export default function QuotationsPage() {
 				title: e instanceof Error ? e.message : String(e),
 				variant: 'destructive',
 			});
+		} finally {
+			setDeleteBusy(false);
 		}
 	};
 	return (
@@ -802,53 +818,117 @@ export default function QuotationsPage() {
 													</div>
 												)}
 											{related &&
-												related.assets.length > 0 && (
-													<div className="grid gap-2">
-														<Label>
-															Digital assets
-														</Label>
-														<ul className="space-y-1 text-xs text-muted-foreground">
-															{related.assets.map(
-																(a) => (
-																	<li
-																		key={
-																			a.assetId
-																		}
-																	>
-																		{a.dmsDocumentUrl ? (
-																			<a
-																				href={
-																					a.dmsDocumentUrl
-																				}
-																				target="_blank"
-																				rel="noreferrer"
-																				className="underline underline-offset-2"
-																			>
-																				{a.fileName ??
-																					`Asset #${a.assetId}`}{' '}
-																				(
-																				{
-																					a.assetType
-																				}
-																				)
-																			</a>
-																		) : (
-																			<span>
-																				{a.fileName ??
-																					`Asset #${a.assetId}`}{' '}
-																				(
-																				{
-																					a.assetType
-																				}
-																				)
-																			</span>
-																		)}
-																	</li>
+												related.assets.length > 0 && (() => {
+													const allIds =
+														related.assets.map(
+															(a) =>
+																String(
+																	a.assetId
 																)
-															)}
-														</ul>
-													</div>
-												)}
+														);
+													const allChecked =
+														allIds.length > 0 &&
+														allIds.every((id) =>
+															line.assetIds.includes(
+																id
+															)
+														);
+													const toggleAsset = (
+														id: string
+													) =>
+														updateLine(index, {
+															assetIds:
+																line.assetIds.includes(
+																	id
+																)
+																	? line.assetIds.filter(
+																			(x) =>
+																				x !==
+																				id
+																		)
+																	: [
+																			...line.assetIds,
+																			id,
+																		],
+														});
+													return (
+														<div className="grid gap-2">
+															<Label>
+																Digital assets
+																(
+																{
+																	line
+																		.assetIds
+																		.length
+																}{' '}
+																selected)
+															</Label>
+															<div className="flex items-center gap-2 rounded-md border px-3 py-2">
+																<Checkbox
+																	checked={
+																		allChecked
+																	}
+																	onCheckedChange={() =>
+																		updateLine(
+																			index,
+																			{
+																				assetIds:
+																					allChecked
+																						? []
+																						: [
+																								...allIds,
+																							],
+																			}
+																		)
+																	}
+																/>
+																<span className="text-sm font-medium">
+																	Select all
+																</span>
+															</div>
+															<div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
+																{related.assets.map(
+																	(a) => {
+																		const id =
+																			String(
+																				a.assetId
+																			);
+																		return (
+																			<label
+																				key={
+																					a.assetId
+																				}
+																				className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+																			>
+																				<Checkbox
+																					checked={line.assetIds.includes(
+																						id
+																					)}
+																					onCheckedChange={() =>
+																						toggleAsset(
+																							id
+																						)
+																					}
+																				/>
+																				<span>
+																					{a.fileName ??
+																						`Asset #${a.assetId}`}{' '}
+																					<span className="text-muted-foreground">
+																						(
+																						{
+																							a.assetType
+																						}
+																						)
+																					</span>
+																				</span>
+																			</label>
+																		);
+																	}
+																)}
+															</div>
+														</div>
+													);
+												})()}
 										</div>
 									);
 								})}
@@ -915,9 +995,18 @@ export default function QuotationsPage() {
 										<TableCell>
 											v{q.versionNumber ?? 1}
 										</TableCell>
-										<TableCell className="text-xs">
-											{q.validFrom || '-'} →{' '}
-											{q.validTo || '-'}
+										<TableCell className="text-xs whitespace-nowrap">
+											{q.validFrom
+												? new Date(
+														q.validFrom
+													).toLocaleDateString()
+												: '-'}{' '}
+											→{' '}
+											{q.validTo
+												? new Date(
+														q.validTo
+													).toLocaleDateString()
+												: '-'}
 										</TableCell>
 										<TableCell>
 											<Money
@@ -1072,6 +1161,22 @@ export default function QuotationsPage() {
 										<span>
 											Catalog {li.catalogId} ×{' '}
 											{li.quantity}
+											{(li.digitalAssetNames?.length ||
+												li.digitalAssetName ||
+												li.digitalAssetId !== undefined) && (
+												<span className="text-xs text-muted-foreground">
+													{' '}
+													· Assets:{' '}
+													{(li.digitalAssetNames ??
+														[]
+													).join(', ') ||
+														(li.digitalAssetName ??
+														(li.digitalAssetId !==
+														undefined
+															? `#${li.digitalAssetId}`
+															: ''))}
+												</span>
+											)}
 										</span>
 										<span>
 											${li.unitPrice} = ${li.totalPrice}
@@ -1108,9 +1213,17 @@ export default function QuotationsPage() {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleDelete}>
-							Delete
+						<AlertDialogCancel disabled={deleteBusy}>
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleDelete}
+							disabled={deleteBusy}
+						>
+							{deleteBusy && (
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							)}
+							{deleteBusy ? 'Deleting…' : 'Delete'}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

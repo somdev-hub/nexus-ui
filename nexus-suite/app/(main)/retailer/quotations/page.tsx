@@ -18,8 +18,16 @@ import {
     acceptRetailerQuotation,
     getRetailerQuotations,
 } from '@/lib/services/counterparty-docs-service';
+import { browseSupplierCatalog } from '@/lib/services/supplier-market-service';
+import type { SupplierBrowseItem } from '@/lib/services/supplier-market-service';
 import type { SupplierQuotation } from '@/types/supplier';
 import { toast } from 'sonner';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 const STATUS_COLOR: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -34,6 +42,10 @@ export default function RetailerQuotationsPage() {
     const [data, setData] = useState<SupplierQuotation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [acceptingId, setAcceptingId] = useState<number | null>(null);
+    const [viewing, setViewing] = useState<SupplierQuotation | null>(null);
+    const [catalogById, setCatalogById] = useState<
+        Record<number, SupplierBrowseItem>
+    >({});
 
     const load = async () => {
         setIsLoading(true);
@@ -50,6 +62,29 @@ export default function RetailerQuotationsPage() {
     useEffect(() => {
         load();
     }, []);
+
+    const openDetail = async (q: SupplierQuotation) => {
+        setViewing(q);
+        // Join catalog info (UoM, SKU, category) for the quoted lines from
+        // the supplier's published catalog.
+        if (q.supplierOrgId) {
+            try {
+                const res = await browseSupplierCatalog({
+                    supplierOrgId: q.supplierOrgId,
+                    pageNo: 0,
+                    pageOffset: 100,
+                });
+                const map: Record<number, SupplierBrowseItem> = {};
+                for (const item of res.content ?? []) {
+                    const id = item.catalogId ?? item.id;
+                    if (id !== undefined) map[Number(id)] = item;
+                }
+                setCatalogById(map);
+            } catch {
+                // catalog extras are best-effort; lines still render
+            }
+        }
+    };
 
     const handleAccept = async (id: number) => {
         setAcceptingId(id);
@@ -114,10 +149,10 @@ export default function RetailerQuotationsPage() {
                                         {q.quotationNumber}
                                     </TableCell>
                                     <TableCell>
-                                        {(q as { supplierOrgName?: string })
-                                            .supplierOrgName ||
-                                            q.buyerOrgName ||
-                                            '—'}
+                                        {q.supplierOrgName ||
+                                            (q.supplierOrgId !== undefined
+                                                ? `Org #${q.supplierOrgId}`
+                                                : '—')}
                                     </TableCell>
                                     <TableCell>
                                         <Badge
@@ -129,9 +164,18 @@ export default function RetailerQuotationsPage() {
                                             {q.status}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-xs">
-                                        {q.validFrom || '—'} →{' '}
-                                        {q.validTo || '—'}
+                                    <TableCell className="text-xs whitespace-nowrap">
+                                        {q.validFrom
+                                            ? new Date(
+                                                  q.validFrom
+                                              ).toLocaleDateString()
+                                            : '—'}{' '}
+                                        →{' '}
+                                        {q.validTo
+                                            ? new Date(
+                                                  q.validTo
+                                              ).toLocaleDateString()
+                                            : '—'}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Money
@@ -140,22 +184,34 @@ export default function RetailerQuotationsPage() {
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        {q.status === 'SENT' && (
+                                        <div className="flex gap-2">
                                             <Button
                                                 size="sm"
-                                                disabled={
-                                                    acceptingId ===
-                                                    q.quotationId
-                                                }
-                                                onClick={() =>
-                                                    handleAccept(q.quotationId)
-                                                }
+                                                variant="outline"
+                                                onClick={() => openDetail(q)}
                                             >
-                                                {acceptingId === q.quotationId
-                                                    ? 'Accepting…'
-                                                    : 'Accept'}
+                                                View
                                             </Button>
-                                        )}
+                                            {q.status === 'SENT' && (
+                                                <Button
+                                                    size="sm"
+                                                    disabled={
+                                                        acceptingId ===
+                                                        q.quotationId
+                                                    }
+                                                    onClick={() =>
+                                                        handleAccept(
+                                                            q.quotationId
+                                                        )
+                                                    }
+                                                >
+                                                    {acceptingId ===
+                                                    q.quotationId
+                                                        ? 'Accepting…'
+                                                        : 'Accept'}
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -173,6 +229,201 @@ export default function RetailerQuotationsPage() {
                     </Table>
                 </CardContent>
             </Card>
+            <Dialog
+                open={viewing !== null}
+                onOpenChange={(v) => !v && setViewing(null)}
+            >
+                <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Quotation {viewing?.quotationNumber ?? ''}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {viewing && (
+                        <QuotationDetail
+                            quotation={viewing}
+                            catalogById={catalogById}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+function QuotationDetail({
+    quotation: q,
+    catalogById,
+}: {
+    quotation: SupplierQuotation;
+    catalogById: Record<number, SupplierBrowseItem>;
+}) {
+    const formatDate = (value?: string) =>
+        value ? new Date(value).toLocaleDateString() : '—';
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Supplier</span>
+                    <span className="font-medium">
+                        {q.supplierOrgName ||
+                            (q.supplierOrgId !== undefined
+                                ? `Org #${q.supplierOrgId}`
+                                : '—')}
+                    </span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <Badge>{q.status}</Badge>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valid From</span>
+                    <span className="font-medium">
+                        {formatDate(q.validFrom)}
+                    </span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valid To</span>
+                    <span className="font-medium">
+                        {formatDate(q.validTo)}
+                    </span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Currency</span>
+                    <span className="font-medium">{q.currency || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-medium">
+                        <Money amount={q.totalAmount} currency={q.currency} />
+                    </span>
+                </div>
+                {q.versionNumber !== undefined && (
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Version</span>
+                        <span className="font-medium">
+                            v{q.versionNumber}
+                        </span>
+                    </div>
+                )}
+                {q.convertedToPoId !== undefined && (
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                            Converted PO
+                        </span>
+                        <span className="font-medium">
+                            #{q.convertedToPoId}
+                        </span>
+                    </div>
+                )}
+            </div>
+            {q.terms && (
+                <div className="text-sm">
+                    <p className="text-muted-foreground">Terms</p>
+                    <p className="font-medium">{q.terms}</p>
+                </div>
+            )}
+            <div>
+                <h4 className="mb-2 text-sm font-semibold">
+                    Line Items ({q.lineItems?.length ?? 0})
+                </h4>
+                {q.lineItems?.length ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Catalog Item</TableHead>
+                                <TableHead>Description</TableHead>
+                                <TableHead className="text-right">
+                                    Qty
+                                </TableHead>
+                                <TableHead className="text-right">
+                                    Unit Price
+                                </TableHead>
+                                <TableHead className="text-right">
+                                    Total
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {q.lineItems.map((li, idx) => {
+                                const catalog =
+                                    li.catalogId !== undefined
+                                        ? catalogById[li.catalogId]
+                                        : undefined;
+                                return (
+                                    <TableRow
+                                        key={li.lineId ?? `${idx}`}
+                                    >
+                                        <TableCell>
+                                            <div className="font-medium">
+                                                {li.catalogName ||
+                                                    catalog?.name ||
+                                                    (li.catalogId !== undefined
+                                                        ? `Catalog #${li.catalogId}`
+                                                        : '—')}
+                                            </div>
+                                            {(catalog?.sku ||
+                                                catalog?.unitOfMeasure ||
+                                                catalog?.category) && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    {[
+                                                        catalog?.sku,
+                                                        catalog?.unitOfMeasure,
+                                                        catalog?.category,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ')}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs">
+                                            {li.description || '—'}
+                                            {li.notes && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    {li.notes}
+                                                </div>
+                                            )}
+                                            {(li.digitalAssetNames?.length ||
+                                                li.digitalAssetName ||
+                                                li.digitalAssetId) && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    Assets:{' '}
+                                                    {(li.digitalAssetNames ??
+                                                        []
+                                                    ).join(', ') ||
+                                                        (li.digitalAssetName ??
+                                                        (li.digitalAssetId !== undefined
+                                                            ? `#${li.digitalAssetId}`
+                                                            : ''))}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {li.quantity ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Money
+                                                amount={li.unitPrice}
+                                                currency={q.currency}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Money
+                                                amount={li.totalPrice}
+                                                currency={q.currency}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <p className="text-sm text-muted-foreground">
+                        No line items.
+                    </p>
+                )}
+            </div>
         </div>
     );
 }

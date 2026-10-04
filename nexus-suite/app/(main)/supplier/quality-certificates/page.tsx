@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import type { SupplierQualityCertificate } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +35,10 @@ import {
     getQualityCerts,
     createQualityCert,
     deleteQualityCert,
+    getSupplierOrders,
 } from '@/lib/services/supplier-orders-service';
+import type { SupplierOrder } from '@/types/supplier';
+import { CatalogSelect } from '@/components/catalog-select';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 
@@ -46,17 +49,23 @@ export default function QualityCertsPage() {
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     useQuickCreateIntent('supplier:cert', () => setOpen(true));
+    const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
         purchaseOrderId: '',
         catalogId: '',
         certificateType: 'COA',
         certificateNumber: '',
     });
+    const [orders, setOrders] = useState<SupplierOrder[]>([]);
     const load = async () => {
         setLoading(true);
         try {
-            const res = await getQualityCerts({ page: 0, size: 20 });
-            setData(res);
+            const [certs, ords] = await Promise.all([
+                getQualityCerts({ page: 0, size: 20 }),
+                getSupplierOrders({ page: 0, size: 100 }).catch(() => null),
+            ]);
+            setData(certs);
+            if (ords?.content) setOrders(ords.content);
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
@@ -70,6 +79,8 @@ export default function QualityCertsPage() {
         load();
     }, []);
     const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             await createQualityCert({
                 purchaseOrderId: form.purchaseOrderId
@@ -87,6 +98,8 @@ export default function QualityCertsPage() {
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setSaving(false);
         }
     };
     const handleDelete = async (id: number) => {
@@ -120,28 +133,44 @@ export default function QualityCertsPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label>PO ID</Label>
-                                <Input
-                                    placeholder="e.g. 501"
-                                    value={form.purchaseOrderId}
-                                    onChange={(e) =>
+                                <Label>Purchase Order</Label>
+                                <Select
+                                    value={form.purchaseOrderId || 'none'}
+                                    onValueChange={(v) =>
                                         setForm({
                                             ...form,
-                                            purchaseOrderId: e.target.value,
+                                            purchaseOrderId:
+                                                v === 'none' ? '' : v,
                                         })
                                     }
-                                />
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select order (optional)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">
+                                            None
+                                        </SelectItem>
+                                        {orders.map((o) => (
+                                            <SelectItem
+                                                key={o.purchaseOrderId}
+                                                value={String(
+                                                    o.purchaseOrderId
+                                                )}
+                                            >
+                                                {o.poNumber} (
+                                                {o.purchaseOrderId})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid gap-2">
-                                <Label>Catalog ID</Label>
-                                <Input
-                                    placeholder="e.g. 101"
+                                <Label>Catalog Item</Label>
+                                <CatalogSelect
                                     value={form.catalogId}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            catalogId: e.target.value,
-                                        })
+                                    onChange={(v) =>
+                                        setForm({ ...form, catalogId: v })
                                     }
                                 />
                             </div>
@@ -178,8 +207,16 @@ export default function QualityCertsPage() {
                                     }
                                 />
                             </div>
-                            <Button onClick={handleCreate}>
-                                Create (DMS mocked)
+                            <Button
+                                onClick={handleCreate}
+                                disabled={saving}
+                            >
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving
+                                    ? 'Creating…'
+                                    : 'Create (DMS mocked)'}
                             </Button>
                         </div>
                     </DialogContent>
