@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Eye, Loader2, Plus } from 'lucide-react';
 import type { SupplierDigitalAsset } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,16 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CatalogSelect } from '@/components/catalog-select';
@@ -38,6 +48,10 @@ import {
     uploadDigitalAssetFile,
     deleteDigitalAsset,
 } from '@/lib/services/supplier-catalog-service';
+import {
+    AssetPreviewDialog,
+    type PreviewableAsset,
+} from '@/components/asset-preview-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export default function DigitalAssetsPage() {
@@ -47,12 +61,17 @@ export default function DigitalAssetsPage() {
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [preview, setPreview] = useState<PreviewableAsset | null>(null);
     const [form, setForm] = useState({
         catalogId: '',
         assetType: 'DATASHEET',
         fileName: '',
     });
     const [file, setFile] = useState<File | null>(null);
+    const [deleting, setDeleting] = useState<SupplierDigitalAsset | null>(
+        null
+    );
+    const [deleteBusy, setDeleteBusy] = useState(false);
     const load = async () => {
         setLoading(true);
         try {
@@ -97,6 +116,13 @@ export default function DigitalAssetsPage() {
 
     const handleCreate = async () => {
         if (saving) return;
+        if (!file) {
+            toast({
+                title: 'A file is required — please choose a JPG, PNG or PDF file',
+                variant: 'destructive',
+            });
+            return;
+        }
         setSaving(true);
         try {
             const created = await createDigitalAsset({
@@ -104,24 +130,28 @@ export default function DigitalAssetsPage() {
                 assetType: form.assetType,
                 fileName: form.fileName,
             });
-            if (file) {
-                try {
-                    await uploadDigitalAssetFile(
-                        created.assetId,
-                        file
-                    );
-                } catch (uploadError) {
-                    console.error(
-                        'Failed to upload asset file:',
-                        uploadError
-                    );
-                    toast({
-                        title: 'Asset created, but file upload failed — retry from the table',
-                        variant: 'destructive',
-                    });
-                }
+            try {
+                await uploadDigitalAssetFile(created.assetId, file);
+                toast({ title: 'Asset created', variant: 'success' });
+            } catch (uploadError) {
+                console.error(
+                    'Failed to upload asset file:',
+                    uploadError
+                );
+                const serverMessage = (
+                    uploadError as {
+                        response?: { data?: { message?: string } };
+                    }
+                )?.response?.data?.message;
+                toast({
+                    title:
+                        serverMessage ??
+                        (uploadError instanceof Error
+                            ? uploadError.message
+                            : 'File upload failed — asset was not saved, please try again'),
+                    variant: 'destructive',
+                });
             }
-            toast({ title: 'Asset created', variant: 'success' });
             setOpen(false);
             setFile(null);
             load();
@@ -134,16 +164,21 @@ export default function DigitalAssetsPage() {
             setSaving(false);
         }
     };
-    const handleDelete = async (id: number) => {
+    const handleDelete = async () => {
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
         try {
-            await deleteDigitalAsset(id);
+            await deleteDigitalAsset(deleting.assetId);
             toast({ title: 'Asset deleted', variant: 'success' });
+            setDeleting(null);
             load();
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteBusy(false);
         }
     };
     return (
@@ -210,7 +245,7 @@ export default function DigitalAssetsPage() {
                                 </Select>
                             </div>
                             <div className="grid gap-2">
-                                <Label>File (JPG, PNG or PDF)</Label>
+                                <Label>File (JPG, PNG or PDF) *</Label>
                                 <Input
                                     type="file"
                                     accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
@@ -228,7 +263,7 @@ export default function DigitalAssetsPage() {
                             </div>
                             <Button
                                 onClick={handleCreate}
-                                disabled={saving}
+                                disabled={saving || !file}
                             >
                                 {saving && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -274,31 +309,46 @@ export default function DigitalAssetsPage() {
                                             </TableCell>
                                             <TableCell>{a.fileName}</TableCell>
                                             <TableCell className="text-xs">
-                                                {a.dmsDocumentUrl ? (
-                                                    <a
-                                                        href={
-                                                            a.dmsDocumentUrl
-                                                        }
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 underline"
-                                                    >
-                                                        Open file
-                                                    </a>
-                                                ) : (
-                                                    (a.dmsDocumentId || '-')
-                                                )}
+                                                {a.dmsDocumentId || '—'}
                                             </TableCell>
                                             <TableCell>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() =>
-                                                        handleDelete(a.assetId)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={
+                                                            !a.dmsDocumentUrl
+                                                        }
+                                                        title={
+                                                            a.dmsDocumentUrl
+                                                                ? 'Preview file'
+                                                                : 'No file uploaded yet'
+                                                        }
+                                                        onClick={() =>
+                                                            setPreview({
+                                                                assetId:
+                                                                    a.assetId,
+                                                                name:
+                                                                    a.fileName ??
+                                                                    `Asset #${a.assetId}`,
+                                                                url: a.dmsDocumentUrl,
+                                                                type: a.assetType,
+                                                            })
+                                                        }
+                                                    >
+                                                        <Eye className="mr-1 h-3.5 w-3.5" />
+                                                        View
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() =>
+                                                            setDeleting(a)
+                                                        }
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -318,6 +368,41 @@ export default function DigitalAssetsPage() {
                     )}
                 </CardContent>
             </Card>
+            <AssetPreviewDialog
+                asset={preview}
+                onClose={() => setPreview(null)}
+            />
+            <AlertDialog
+                open={deleting !== null}
+                onOpenChange={(v) => !v && setDeleting(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete asset?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete &ldquo;
+                            {deleting?.fileName ??
+                                (deleting
+                                    ? `Asset #${deleting.assetId}`
+                                    : '')}
+                            &rdquo;. Quotations referencing this asset will
+                            keep their saved file links, but the asset
+                            itself cannot be recovered.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

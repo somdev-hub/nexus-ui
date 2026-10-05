@@ -41,6 +41,8 @@ export interface PurchaseOrder {
     updatedAt: string;
     createdBy: string;
     updatedBy: string;
+    sourceQuotationId?: number;
+    sourceQuotationNumber?: string;
 }
 
 // Backend contract: Core PurchaseOrderDto / PurchaseOrderLineItemDto
@@ -66,6 +68,8 @@ export interface PurchaseOrderCreateRequest {
     blanketEndDate?: string;
     releaseSchedule?: string;
     lineItems: PurchaseOrderItemCreateRequest[];
+    /** Accepted quotation this PO is converted from (marks it CONVERTED) */
+    sourceQuotationId?: number;
 }
 
 export interface PurchaseOrderItemCreateRequest {

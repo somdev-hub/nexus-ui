@@ -62,6 +62,25 @@ export async function acceptRetailerQuotation(
     return res.data;
 }
 
+export async function getRetailerQuotationById(
+    id: number
+): Promise<SupplierQuotation> {
+    const res = await apiClient.get<SupplierQuotation>(
+        `/iam/core/retailer/quotations/${id}`
+    );
+    return res.data;
+}
+
+export async function rejectRetailerQuotation(
+    id: number
+): Promise<SupplierQuotation> {
+    const res = await apiClient.put<SupplierQuotation>(
+        `/iam/core/retailer/quotations/${id}/reject`,
+        {}
+    );
+    return res.data;
+}
+
 export async function getRetailerAsnByPo(poId: number): Promise<AsnDocument[]> {
     const res = await apiClient.get<AsnDocument[] | AsnDocument>(
         `/iam/core/retailer/asn/purchase-order/${poId}`

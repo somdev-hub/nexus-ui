@@ -29,6 +29,7 @@ import { ArrowLeft, Plus, Save, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createPurchaseOrder } from '@/lib/services/purchase-orders-service';
+import { getRetailerQuotationById } from '@/lib/services/counterparty-docs-service';
 import { getSuppliers } from '@/lib/services/suppliers-service';
 import { browseSupplierCatalog } from '@/lib/services/supplier-market-service';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
@@ -88,6 +89,13 @@ const Page = () => {
     const [catalogLoading, setCatalogLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [draftLoaded, setDraftLoaded] = useState(false);
+    const [sourceQuotationId, setSourceQuotationId] = useState<number | null>(
+        null
+    );
+    const [sourceQuotationNumber, setSourceQuotationNumber] = useState<
+        string | null
+    >(null);
+    const [prefilling, setPrefilling] = useState(false);
 
     const form = useForm<PoCreateFormData>({
         resolver: zodResolver(poCreateSchema),
@@ -123,11 +131,23 @@ const Page = () => {
 
     useEffect(() => {
         const fetchData = async () => {
+            let supList: Supplier[] = [];
             try {
                 const sup = await getSuppliers({}).catch(() => null);
-                if (sup) setSuppliers(sup.content ?? []);
+                if (sup) {
+                    supList = sup.content ?? [];
+                    setSuppliers(supList);
+                }
             } catch (error) {
                 console.error('Failed to fetch suppliers:', error);
+            }
+            // Converting from a quotation takes precedence over drafts.
+            const fromQuotation = new URLSearchParams(
+                window.location.search
+            ).get('fromQuotation');
+            if (fromQuotation) {
+                await prefillFromQuotation(Number(fromQuotation), supList);
+                return;
             }
             try {
                 const draft = localStorage.getItem(PO_DRAFT_KEY);
@@ -143,6 +163,94 @@ const Page = () => {
         fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Fill the PO form from an ACCEPTED quotation (Convert to PO flow).
+    const prefillFromQuotation = async (
+        quotationId: number,
+        supList: Supplier[]
+    ) => {
+        if (!Number.isFinite(quotationId)) {
+            toast.error('Invalid quotation reference');
+            return;
+        }
+        setPrefilling(true);
+        try {
+            const q = await getRetailerQuotationById(quotationId);
+            if (q.status !== 'ACCEPTED') {
+                toast.error(
+                    `Quotation ${q.quotationNumber} is ${q.status} — only ACCEPTED quotations can be converted`
+                );
+                return;
+            }
+            const supplier = supList.find(
+                (s) => Number(s.supplierOrgAccountId) === Number(q.supplierOrgId)
+            );
+            if (!supplier) {
+                toast.error(
+                    'No matching supplier record found for this quotation'
+                );
+                return;
+            }
+            let items: SupplierBrowseItem[] = [];
+            try {
+                const res = await browseSupplierCatalog({
+                    supplierOrgId: q.supplierOrgId,
+                    pageNo: 0,
+                    pageOffset: 100,
+                });
+                items = res.content ?? [];
+                setCatalogItems(items);
+            } catch {
+                // catalog extras are best-effort; lines still pre-fill
+            }
+            const byId: Record<number, SupplierBrowseItem> = {};
+            for (const it of items) {
+                const cid = it.catalogId ?? it.id;
+                if (cid !== undefined) byId[Number(cid)] = it;
+            }
+            const lines = (q.lineItems ?? []).map((li) => ({
+                catalogId: li.catalogId,
+                description:
+                    li.description || li.catalogName || 'Quoted item',
+                quantityOrdered: li.quantity ?? 1,
+                unitOfMeasure:
+                    (li.catalogId !== undefined
+                        ? byId[li.catalogId]?.unitOfMeasure
+                        : undefined) ?? '',
+                unitPrice: Number(li.unitPrice ?? 0),
+            }));
+            form.reset({
+                ...form.getValues(),
+                supplierId: supplier.supplierId,
+                currency: q.currency || 'USD',
+                notes: q.terms
+                    ? `Converted from ${q.quotationNumber} — ${q.terms}`
+                    : `Converted from ${q.quotationNumber}`,
+                lineItems: lines.length
+                    ? lines
+                    : [
+                          {
+                              catalogId: undefined,
+                              description: '',
+                              quantityOrdered: 1,
+                              unitOfMeasure: '',
+                              unitPrice: 0,
+                          },
+                      ],
+            });
+            setSourceQuotationId(q.quotationId);
+            setSourceQuotationNumber(q.quotationNumber);
+            toast.success(
+                `Pre-filled from quotation ${q.quotationNumber}`
+            );
+        } catch (e) {
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to load quotation'
+            );
+        } finally {
+            setPrefilling(false);
+        }
+    };
 
     // When a draft is restored (or supplier preselected), load that
     // supplier's catalog so line items can reference it.
@@ -247,6 +355,7 @@ const Page = () => {
                 blanketStartDate: data.blanketStartDate || undefined,
                 blanketEndDate: data.blanketEndDate || undefined,
                 releaseSchedule: data.releaseSchedule || undefined,
+                sourceQuotationId: sourceQuotationId ?? undefined,
                 lineItems: data.lineItems.map((it, idx) => ({
                     lineNumber: idx + 1,
                     description: it.description,
@@ -256,7 +365,11 @@ const Page = () => {
                     catalogId: it.catalogId,
                 })),
             });
-            toast.success('Purchase order created successfully');
+            toast.success(
+                sourceQuotationId
+                    ? 'Purchase order created — quotation marked CONVERTED'
+                    : 'Purchase order created successfully'
+            );
             try {
                 localStorage.removeItem(PO_DRAFT_KEY);
             } catch {
@@ -325,6 +438,47 @@ const Page = () => {
                             </div>
 
                             <div className="mt-4 flex w-full flex-col gap-4">
+                                {(prefilling || sourceQuotationId) && (
+                                    <div className="rounded-md border border-dashed p-3 text-sm">
+                                        {prefilling ? (
+                                            <span className="text-muted-foreground">
+                                                Loading quotation details…
+                                            </span>
+                                        ) : (
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span>
+                                                    Creating from accepted
+                                                    quotation{' '}
+                                                    <span className="font-mono font-medium">
+                                                        {
+                                                            sourceQuotationNumber
+                                                        }
+                                                    </span>
+                                                    {' — '}supplier, currency
+                                                    and line items
+                                                    pre-filled. The quotation
+                                                    will be marked CONVERTED
+                                                    on creation.
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setSourceQuotationId(
+                                                            null
+                                                        );
+                                                        setSourceQuotationNumber(
+                                                            null
+                                                        );
+                                                    }}
+                                                >
+                                                    Remove link
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                                 <Card className="gap-2 p-4">
                                     <CardHeader>
                                         <CardTitle>Order Details</CardTitle>

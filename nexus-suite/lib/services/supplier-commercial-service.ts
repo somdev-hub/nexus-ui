@@ -44,6 +44,16 @@ export async function createQuotation(
     );
     return res.data;
 }
+export async function updateQuotation(
+    id: number,
+    data: Partial<SupplierQuotation>
+): Promise<SupplierQuotation> {
+    const res = await apiClient.put<SupplierQuotation>(
+        `${QUO_BASE}/${id}/update`,
+        data
+    );
+    return res.data;
+}
 export async function transitionQuotation(
     id: number,
     newStatus: string,

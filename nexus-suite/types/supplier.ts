@@ -127,6 +127,7 @@ export interface SupplierQuotation {
     currency?: string;
     totalAmount?: number;
     versionNumber?: number;
+    parentQuotationId?: number;
     convertedToPoId?: number;
     lineItems?: Array<{
         lineId?: number;
@@ -136,6 +137,12 @@ export interface SupplierQuotation {
         digitalAssetName?: string;
         digitalAssetIds?: number[];
         digitalAssetNames?: string[];
+        digitalAssetUrls?: (string | null)[];
+        digitalAssetTypes?: (string | null)[];
+        priceTierId?: number;
+        priceTierName?: string;
+        variantId?: number;
+        variantName?: string;
         quantity?: number;
         unitPrice?: number;
         totalPrice?: number;
@@ -143,6 +150,7 @@ export interface SupplierQuotation {
         notes?: string;
     }>;
     createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface CollaborativeForecast {
