@@ -45,7 +45,7 @@ export function HRTable<T extends Record<string, any>>({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-x-auto min-w-0 max-w-full [&_td]:whitespace-normal [&_td]:break-words">
       <Table>
         <TableHeader>
           <TableRow className="bg-gray-50 dark:bg-gray-900">

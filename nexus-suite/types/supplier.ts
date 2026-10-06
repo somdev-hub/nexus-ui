@@ -85,17 +85,39 @@ export interface SupplierOrder {
     buyerOrgName?: string;
     supplierOrgId?: number;
     supplierOrgName?: string;
+    supplierId?: number;
+    partnershipId?: number;
+    revisionNumber?: number;
+    parentPoId?: number;
     status: string;
     totalAmount?: number;
     currency?: string;
     paymentTerms?: string;
     incoterms?: string;
     notes?: string;
+    shippingAddress?: string;
+    billingAddress?: string;
     orderDate?: string;
     requestedDeliveryDate?: string;
     expectedDeliveryDate?: string;
     confirmedDeliveryDate?: string;
     supplierNotes?: string;
+    acknowledgedBy?: string;
+    acknowledgedAt?: string;
+    sentToSupplierAt?: string;
+    approvedBy?: string;
+    approvedAt?: string;
+    rejectionReason?: string;
+    approvalLevel?: string;
+    requiredApproverLevel?: string;
+    currentApprover?: string;
+    approvalDelegatedTo?: string;
+    isBlanketOrder?: boolean;
+    blanketStartDate?: string;
+    blanketEndDate?: string;
+    releaseSchedule?: string;
+    sourceQuotationId?: number;
+    sourceQuotationNumber?: string;
     lineItems?: Array<{
         lineItemId?: number;
         lineNumber?: number;
@@ -109,8 +131,11 @@ export interface SupplierOrder {
         totalPrice?: number;
         unitOfMeasure?: string;
         description?: string;
+        incoterms?: string;
+        deliveryLocation?: string;
     }>;
     createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface SupplierQuotation {

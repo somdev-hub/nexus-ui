@@ -15,6 +15,7 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
@@ -30,6 +31,12 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { createPurchaseOrder } from '@/lib/services/purchase-orders-service';
 import { getRetailerQuotationById } from '@/lib/services/counterparty-docs-service';
+import {
+    formatOrgAddress,
+    getOrgAddresses,
+    orgAddressOptionLabel,
+    type OrgAddress,
+} from '@/lib/services/org-profile-service';
 import { getSuppliers } from '@/lib/services/suppliers-service';
 import { browseSupplierCatalog } from '@/lib/services/supplier-market-service';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
@@ -96,6 +103,9 @@ const Page = () => {
         string | null
     >(null);
     const [prefilling, setPrefilling] = useState(false);
+    const [orgAddresses, setOrgAddresses] = useState<OrgAddress[]>([]);
+    const [shippingId, setShippingId] = useState('');
+    const [billingId, setBillingId] = useState('');
 
     const form = useForm<PoCreateFormData>({
         resolver: zodResolver(poCreateSchema),
@@ -252,6 +262,47 @@ const Page = () => {
         }
     };
 
+    // Organization addresses for shipping/billing selection. A single
+    // address serves both; otherwise the flagged defaults are pre-selected.
+    // Applied only on first load so user picks are never overridden.
+    useEffect(() => {
+        if (!orgId) return;
+        let active = true;
+        const run = async () => {
+            try {
+                const list = await getOrgAddresses(orgId);
+                if (!active) return;
+                setOrgAddresses(list);
+                const pickDefault = (
+                    current: string,
+                    flagged?: OrgAddress
+                ) => {
+                    if (current) return current;
+                    const one = list.length === 1 ? list[0] : undefined;
+                    const pick = flagged ?? one;
+                    return pick?.orgAddressId !== undefined
+                        ? String(pick.orgAddressId)
+                        : '';
+                };
+                setShippingId((cur) =>
+                    pickDefault(
+                        cur,
+                        list.find((a) => a.isDefaultShipping)
+                    )
+                );
+                setBillingId((cur) =>
+                    pickDefault(cur, list.find((a) => a.isDefaultBilling))
+                );
+            } catch {
+                // selecting stays optional; backend fills defaults
+            }
+        };
+        run();
+        return () => {
+            active = false;
+        };
+    }, [orgId]);
+
     // When a draft is restored (or supplier preselected), load that
     // supplier's catalog so line items can reference it.
     const selectedSupplierId = form.watch('supplierId');
@@ -341,6 +392,11 @@ const Page = () => {
         }
         setIsSubmitting(true);
         try {
+            const addressById: Record<string, OrgAddress> = {};
+            for (const a of orgAddresses) {
+                if (a.orgAddressId !== undefined)
+                    addressById[String(a.orgAddressId)] = a;
+            }
             await createPurchaseOrder({
                 poNumber: data.poNumber,
                 buyerOrgId,
@@ -356,6 +412,14 @@ const Page = () => {
                 blanketEndDate: data.blanketEndDate || undefined,
                 releaseSchedule: data.releaseSchedule || undefined,
                 sourceQuotationId: sourceQuotationId ?? undefined,
+                shippingAddress:
+                    shippingId && addressById[shippingId]
+                        ? formatOrgAddress(addressById[shippingId])
+                        : undefined,
+                billingAddress:
+                    billingId && addressById[billingId]
+                        ? formatOrgAddress(addressById[billingId])
+                        : undefined,
                 lineItems: data.lineItems.map((it, idx) => ({
                     lineNumber: idx + 1,
                     description: it.description,
@@ -751,6 +815,107 @@ const Page = () => {
                                                 </FormItem>
                                             )}
                                         />
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="gap-2 p-4">
+                                    <CardHeader>
+                                        <CardTitle>
+                                            Delivery & Billing Addresses
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 p-0">
+                                        {orgAddresses.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                                                No organization addresses
+                                                saved yet — add them under HR
+                                                → Organization → Org Profile.
+                                                If left empty, the backend
+                                                applies the defaults when
+                                                available.
+                                            </p>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                <div className="grid gap-2">
+                                                    <Label>
+                                                        Shipping Address
+                                                    </Label>
+                                                    <Select
+                                                        value={shippingId}
+                                                        onValueChange={(v) =>
+                                                            setShippingId(
+                                                                v === '__none'
+                                                                    ? ''
+                                                                    : v
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="w-full">
+                                                            <SelectValue placeholder="Select shipping address" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__none">
+                                                                — None —
+                                                            </SelectItem>
+                                                            {orgAddresses.map(
+                                                                (a) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            a.orgAddressId
+                                                                        }
+                                                                        value={String(
+                                                                            a.orgAddressId
+                                                                        )}
+                                                                    >
+                                                                        {orgAddressOptionLabel(
+                                                                            a
+                                                                        )}
+                                                                    </SelectItem>
+                                                                )
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label>Billing Address</Label>
+                                                    <Select
+                                                        value={billingId}
+                                                        onValueChange={(v) =>
+                                                            setBillingId(
+                                                                v === '__none'
+                                                                    ? ''
+                                                                    : v
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="w-full">
+                                                            <SelectValue placeholder="Select billing address" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__none">
+                                                                — None —
+                                                            </SelectItem>
+                                                            {orgAddresses.map(
+                                                                (a) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            a.orgAddressId
+                                                                        }
+                                                                        value={String(
+                                                                            a.orgAddressId
+                                                                        )}
+                                                                    >
+                                                                        {orgAddressOptionLabel(
+                                                                            a
+                                                                        )}
+                                                                    </SelectItem>
+                                                                )
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
 

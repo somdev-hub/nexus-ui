@@ -969,8 +969,62 @@ export interface AnalyticsMetric {
 export interface RecruitmentAnalytics {
   currentApplications: AnalyticsMetric;
   offerAcceptance: AnalyticsMetric;
-  offerSent: AnalyticsMetric;
   openRoles: AnalyticsMetric;
   recruitmentTAT: AnalyticsMetric;
   underReview: AnalyticsMetric;
+  offerSent: AnalyticsMetric;
+}
+
+// ============================================================================
+// ORGANIZATION PROFILE TYPES (bank/account details + addresses)
+// ============================================================================
+
+export type OrgBankAccountType =
+  | "SAVINGS"
+  | "CURRENT"
+  | "CHECKING"
+  | "BUSINESS"
+  | "JOINT";
+
+export interface OrgAccountInfo {
+  orgAccountInfoId?: number;
+  orgId?: number;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  bankName?: string;
+  bankIfscCode?: string;
+  bankAccountType?: OrgBankAccountType | string;
+  bankAccountBranch?: string;
+  panNumber?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type OrgAddressType =
+  | "HEAD_OFFICE"
+  | "BRANCH_OFFICE"
+  | "BILLING"
+  | "SHIPPING"
+  | "WAREHOUSE"
+  | "OTHER";
+
+export interface OrgAddress {
+  orgAddressId?: number;
+  orgId?: number;
+  label?: string;
+  addressType?: OrgAddressType | string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
+  contactName?: string;
+  contactPhone?: string;
+  isDefaultBilling?: boolean;
+  isDefaultShipping?: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }

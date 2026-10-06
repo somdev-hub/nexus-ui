@@ -41,8 +41,46 @@ export interface PurchaseOrder {
     updatedAt: string;
     createdBy: string;
     updatedBy: string;
+    // Extended detail fields (Core PurchaseOrderDto)
+    supplierId?: number;
+    partnershipId?: number;
+    revisionNumber?: number;
+    parentPoId?: number;
+    incoterms?: string;
+    requestedDeliveryDate?: string;
+    isBlanketOrder?: boolean;
+    blanketStartDate?: string;
+    blanketEndDate?: string;
+    releaseSchedule?: string;
+    approvalLevel?: string;
+    requiredApproverLevel?: string;
+    currentApprover?: string;
+    approvalDelegatedTo?: string;
+    sentToSupplierAt?: string;
+    acknowledgedAt?: string;
+    acknowledgedBy?: string;
+    supplierNotes?: string;
+    confirmedDeliveryDate?: string;
     sourceQuotationId?: number;
     sourceQuotationNumber?: string;
+    lineItems?: PurchaseOrderLineItem[];
+}
+
+export interface PurchaseOrderLineItem {
+    lineItemId?: number;
+    lineNumber?: number;
+    materialId?: number;
+    productId?: number;
+    catalogId?: number;
+    description?: string;
+    quantityOrdered?: number;
+    quantityReceived?: number;
+    quantityInvoiced?: number;
+    unitPrice?: number;
+    totalPrice?: number;
+    unitOfMeasure?: string;
+    incoterms?: string;
+    deliveryLocation?: string;
 }
 
 // Backend contract: Core PurchaseOrderDto / PurchaseOrderLineItemDto
@@ -70,6 +108,8 @@ export interface PurchaseOrderCreateRequest {
     lineItems: PurchaseOrderItemCreateRequest[];
     /** Accepted quotation this PO is converted from (marks it CONVERTED) */
     sourceQuotationId?: number;
+    shippingAddress?: string;
+    billingAddress?: string;
 }
 
 export interface PurchaseOrderItemCreateRequest {

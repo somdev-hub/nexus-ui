@@ -45,6 +45,8 @@ import type {
   AddTeamMemberRequest,
   UpdateTeamMemberRequest,
   ChangeManagerRequest,
+  OrgAccountInfo,
+  OrgAddress,
 } from "@/types";
 import { AxiosResponse } from "axios";
 
@@ -2558,5 +2560,148 @@ export async function encrypt(payload: string): Promise<string> {
     return response.data;
   } catch (error: unknown) {
     throw new Error(`Encryption failed: ${(error as Error).message}`);
+  }
+}
+
+// ============================================================================
+// Organization profile: bank/account details + addresses (HR module via IAM)
+// ============================================================================
+
+const hrOrgsBase = (orgId: number) => `/iam/hr/orgs/${orgId}`;
+
+function isNotFound(error: unknown): boolean {
+  return (
+    (error as { response?: { status?: number } })?.response?.status === 404
+  );
+}
+
+export async function getOrgAccountInfo(
+  orgId: number,
+): Promise<OrgAccountInfo | null> {
+  try {
+    const response = await apiClient.get<OrgAccountInfo>(
+      `${hrOrgsBase(orgId)}/account-info`,
+    );
+    return response.data ?? null;
+  } catch (error: unknown) {
+    // No account details saved yet — normal empty state, not an error.
+    if (isNotFound(error)) return null;
+    throw new Error(
+      `Get organization account details failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function createOrgAccountInfo(
+  orgId: number,
+  data: OrgAccountInfo,
+): Promise<OrgAccountInfo> {
+  try {
+    const response = await apiClient.post<OrgAccountInfo>(
+      `${hrOrgsBase(orgId)}/account-info`,
+      data,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Save organization account details failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function updateOrgAccountInfo(
+  orgId: number,
+  data: OrgAccountInfo,
+): Promise<OrgAccountInfo> {
+  try {
+    const response = await apiClient.put<OrgAccountInfo>(
+      `${hrOrgsBase(orgId)}/account-info`,
+      data,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Update organization account details failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function deleteOrgAccountInfo(orgId: number): Promise<void> {
+  try {
+    await apiClient.delete(`${hrOrgsBase(orgId)}/account-info`);
+  } catch (error: unknown) {
+    throw new Error(
+      `Delete organization account details failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+function toAddressList(data: unknown): OrgAddress[] {
+  if (Array.isArray(data)) return data as OrgAddress[];
+  if (data && typeof data === "object") {
+    const content = (data as { content?: unknown }).content;
+    if (Array.isArray(content)) return content as OrgAddress[];
+  }
+  return [];
+}
+
+export async function getOrgAddresses(orgId: number): Promise<OrgAddress[]> {
+  try {
+    const response = await apiClient.get<unknown>(
+      `${hrOrgsBase(orgId)}/addresses`,
+    );
+    return toAddressList(response.data);
+  } catch (error: unknown) {
+    throw new Error(
+      `Get organization addresses failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function createOrgAddress(
+  orgId: number,
+  data: OrgAddress,
+): Promise<OrgAddress> {
+  try {
+    const response = await apiClient.post<OrgAddress>(
+      `${hrOrgsBase(orgId)}/addresses`,
+      data,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Save organization address failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function updateOrgAddress(
+  orgId: number,
+  addressId: number,
+  data: OrgAddress,
+): Promise<OrgAddress> {
+  try {
+    const response = await apiClient.put<OrgAddress>(
+      `${hrOrgsBase(orgId)}/addresses/${addressId}`,
+      data,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw new Error(
+      `Update organization address failed: ${(error as Error).message}`,
+    );
+  }
+}
+
+export async function deleteOrgAddress(
+  orgId: number,
+  addressId: number,
+): Promise<void> {
+  try {
+    await apiClient.delete(`${hrOrgsBase(orgId)}/addresses/${addressId}`);
+  } catch (error: unknown) {
+    throw new Error(
+      `Delete organization address failed: ${(error as Error).message}`,
+    );
   }
 }

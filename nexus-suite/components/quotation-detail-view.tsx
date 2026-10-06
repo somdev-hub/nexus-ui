@@ -257,6 +257,7 @@ export function QuotationDetailView({
                 </CardHeader>
                 <CardContent className="p-0">
                     {q.lineItems?.length ? (
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -434,6 +435,7 @@ export function QuotationDetailView({
                                 })}
                             </TableBody>
                         </Table>
+                        </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">
                             No line items.

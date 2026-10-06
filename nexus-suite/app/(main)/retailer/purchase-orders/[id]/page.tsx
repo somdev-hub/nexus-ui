@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -18,12 +18,34 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Money } from '@/components/money';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import {
     getPurchaseOrderById,
     transitionPurchaseOrder,
 } from '@/lib/services/purchase-orders-service';
+import {
+    browseSupplierCatalog,
+    type SupplierBrowseItem,
+} from '@/lib/services/supplier-market-service';
+import { getRetailerQuotationById } from '@/lib/services/counterparty-docs-service';
 import type { PurchaseOrder } from '@/types/purchase-orders';
+import type { SupplierQuotation } from '@/types/supplier';
+
+/** Raw ISO timestamps from the API -> locale date, with safe fallbacks. */
+const formatDate = (value?: string | null): string => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
+};
 
 const Page = () => {
     const params = useParams();
@@ -37,6 +59,47 @@ const Page = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [catalogById, setCatalogById] = useState<
+        Record<number, SupplierBrowseItem>
+    >({});
+    const [sourceQuotation, setSourceQuotation] =
+        useState<SupplierQuotation | null>(null);
+
+    // Best-effort enrichment for the detail view: supplier catalog names
+    // (a PO is raised strictly against supplier catalog material) and the
+    // source quotation. Never blocks rendering.
+    const enrichDetails = useCallback(
+        async (po: PurchaseOrder, isActive: () => boolean) => {
+        if (po.supplierOrgId) {
+            try {
+                const res = await browseSupplierCatalog({
+                    supplierOrgId: po.supplierOrgId,
+                    pageNo: 0,
+                    pageOffset: 100,
+                });
+                if (!isActive()) return;
+                const map: Record<number, SupplierBrowseItem> = {};
+                for (const item of res.content ?? []) {
+                    const cid = item.catalogId ?? item.id;
+                    if (cid !== undefined) map[Number(cid)] = item;
+                }
+                setCatalogById(map);
+            } catch {
+                // catalog extras are best-effort; lines still render
+            }
+        }
+        if (po.sourceQuotationId) {
+            try {
+                const q = await getRetailerQuotationById(
+                    po.sourceQuotationId
+                );
+                if (!isActive()) return;
+                setSourceQuotation(q);
+            } catch {
+                // IDs from the PO still render below
+            }
+        }
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -52,6 +115,8 @@ const Page = () => {
                 const data = await getPurchaseOrderById(numericId);
                 if (!active) return;
                 setPurchaseOrder(data);
+                // Best-effort enrichment (never blocks the detail view).
+                void enrichDetails(data, () => active);
             } catch (error) {
                 if (!active) return;
                 console.error('Failed to fetch purchase order:', error);
@@ -76,7 +141,7 @@ const Page = () => {
         return () => {
             active = false;
         };
-    }, [id, numericId]);
+    }, [id, numericId, enrichDetails]);
 
     const [confirmSubmit, setConfirmSubmit] = useState(false);
     const [confirmSend, setConfirmSend] = useState(false);
@@ -242,7 +307,7 @@ const Page = () => {
                                     Order Date
                                 </span>
                                 <span className="font-medium">
-                                    {purchaseOrder.orderDate || '—'}
+                                    {formatDate(purchaseOrder.orderDate)}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
@@ -250,7 +315,19 @@ const Page = () => {
                                     Expected Delivery
                                 </span>
                                 <span className="font-medium">
-                                    {purchaseOrder.expectedDeliveryDate || '—'}
+                                    {formatDate(
+                                        purchaseOrder.expectedDeliveryDate
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Requested Delivery
+                                </span>
+                                <span className="font-medium">
+                                    {formatDate(
+                                        purchaseOrder.requestedDeliveryDate
+                                    )}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
@@ -261,6 +338,27 @@ const Page = () => {
                                     {purchaseOrder.paymentTerms || '—'}
                                 </span>
                             </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Incoterms
+                                </span>
+                                <span className="font-medium">
+                                    {purchaseOrder.incoterms || '—'}
+                                </span>
+                            </div>
+                            {(purchaseOrder.revisionNumber ?? 0) > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Revision
+                                    </span>
+                                    <span className="font-medium">
+                                        Rev {purchaseOrder.revisionNumber}
+                                        {purchaseOrder.parentPoId
+                                            ? ` of PO #${purchaseOrder.parentPoId}`
+                                            : ''}
+                                    </span>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -297,7 +395,7 @@ const Page = () => {
                                     <span className="font-medium">
                                         {purchaseOrder.approvedBy}
                                         {purchaseOrder.approvedAt
-                                            ? ` on ${purchaseOrder.approvedAt}`
+                                            ? ` on ${formatDate(purchaseOrder.approvedAt)}`
                                             : ''}
                                     </span>
                                 </div>
@@ -309,6 +407,46 @@ const Page = () => {
                                     </span>
                                     <span className="font-medium">
                                         {purchaseOrder.rejectionReason}
+                                    </span>
+                                </div>
+                            )}
+                            {purchaseOrder.approvalLevel && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Approval Level
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.approvalLevel}
+                                    </span>
+                                </div>
+                            )}
+                            {purchaseOrder.requiredApproverLevel && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Required Approver
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.requiredApproverLevel}
+                                    </span>
+                                </div>
+                            )}
+                            {purchaseOrder.currentApprover && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Current Approver
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.currentApprover}
+                                    </span>
+                                </div>
+                            )}
+                            {purchaseOrder.approvalDelegatedTo && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Delegated To
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.approvalDelegatedTo}
                                     </span>
                                 </div>
                             )}
@@ -357,7 +495,7 @@ const Page = () => {
                                     Created
                                 </span>
                                 <span className="font-medium">
-                                    {purchaseOrder.createdAt} by{' '}
+                                    {formatDate(purchaseOrder.createdAt)} by{' '}
                                     {purchaseOrder.createdBy}
                                 </span>
                             </div>
@@ -366,12 +504,290 @@ const Page = () => {
                                     Updated
                                 </span>
                                 <span className="font-medium">
-                                    {purchaseOrder.updatedAt} by{' '}
+                                    {formatDate(purchaseOrder.updatedAt)} by{' '}
                                     {purchaseOrder.updatedBy}
                                 </span>
                             </div>
                         </CardContent>
                     </Card>
+
+                    <Card className="gap-2 p-4 md:col-span-2">
+                        <CardHeader className="p-0">
+                            <CardTitle className="text-lg">
+                                Requested Materials (
+                                {purchaseOrder.lineItems?.length ?? 0})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {purchaseOrder.lineItems?.length ? (
+                                <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>#</TableHead>
+                                            <TableHead>Item</TableHead>
+                                            <TableHead className="text-right">
+                                                Ordered
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Received
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Invoiced
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Unit Price
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Total
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {purchaseOrder.lineItems.map(
+                                            (li, idx) => {
+                                                const catalog =
+                                                    li.catalogId !==
+                                                    undefined
+                                                        ? catalogById[
+                                                              li.catalogId
+                                                          ]
+                                                        : undefined;
+                                                return (
+                                                    <TableRow
+                                                        key={
+                                                            li.lineItemId ??
+                                                            `${idx}`
+                                                        }
+                                                    >
+                                                        <TableCell>
+                                                            {li.lineNumber ??
+                                                                idx + 1}
+                                                        </TableCell>
+                                                        <TableCell className="max-w-xs">
+                                                            <div className="font-medium">
+                                                                {li.description ||
+                                                                    '—'}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {[
+                                                                    li.catalogId !==
+                                                                    undefined
+                                                                        ? `Catalog: ${catalog?.name ?? `#${li.catalogId}`}`
+                                                                        : null,
+                                                                    catalog?.sku ??
+                                                                        null,
+                                                                ]
+                                                                    .filter(
+                                                                        Boolean
+                                                                    )
+                                                                    .join(
+                                                                        ' · '
+                                                                    ) || '—'}
+                                                            </div>
+                                                            {(li.unitOfMeasure ||
+                                                                li.deliveryLocation ||
+                                                                li.incoterms) && (
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {[
+                                                                        li.unitOfMeasure,
+                                                                        li.deliveryLocation,
+                                                                        li.incoterms,
+                                                                    ]
+                                                                        .filter(
+                                                                            Boolean
+                                                                        )
+                                                                        .join(
+                                                                            ' · '
+                                                                        )}
+                                                                </div>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {li.quantityOrdered ??
+                                                                '—'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {li.quantityReceived ??
+                                                                '—'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {li.quantityInvoiced ??
+                                                                '—'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Money
+                                                                amount={
+                                                                    li.unitPrice
+                                                                }
+                                                                currency={
+                                                                    purchaseOrder.currency
+                                                                }
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Money
+                                                                amount={
+                                                                    li.totalPrice
+                                                                }
+                                                                currency={
+                                                                    purchaseOrder.currency
+                                                                }
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            }
+                                        )}
+                                    </TableBody>
+                                </Table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No line items.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {(purchaseOrder.sourceQuotationId || sourceQuotation) && (
+                        <Card className="gap-2 p-4 md:col-span-2">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">
+                                    Source Quotation
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Quotation
+                                    </span>
+                                    {purchaseOrder.sourceQuotationId ? (
+                                        <Link
+                                            href={`/retailer/quotations/${purchaseOrder.sourceQuotationId}`}
+                                            className="font-mono font-medium underline underline-offset-2"
+                                        >
+                                            {sourceQuotation?.quotationNumber ??
+                                                purchaseOrder.sourceQuotationNumber ??
+                                                `#${purchaseOrder.sourceQuotationId}`}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-mono font-medium">
+                                            {purchaseOrder.sourceQuotationNumber ??
+                                                '—'}
+                                        </span>
+                                    )}
+                                </div>
+                                {sourceQuotation && (
+                                    <>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">
+                                                Status
+                                            </span>
+                                            <Badge variant="outline">
+                                                {sourceQuotation.status}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">
+                                                Supplier
+                                            </span>
+                                            <span className="font-medium">
+                                                {sourceQuotation.supplierOrgName ||
+                                                    (sourceQuotation.supplierOrgId !==
+                                                    undefined
+                                                        ? `Org #${sourceQuotation.supplierOrgId}`
+                                                        : '—')}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">
+                                                Validity
+                                            </span>
+                                            <span className="font-medium">
+                                                {sourceQuotation.validFrom
+                                                    ? new Date(
+                                                          sourceQuotation.validFrom
+                                                      ).toLocaleDateString()
+                                                    : '—'}{' '}
+                                                →{' '}
+                                                {sourceQuotation.validTo
+                                                    ? new Date(
+                                                          sourceQuotation.validTo
+                                                      ).toLocaleDateString()
+                                                    : '—'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">
+                                                Quotation Total
+                                            </span>
+                                            <span className="font-medium">
+                                                <Money
+                                                    amount={
+                                                        sourceQuotation.totalAmount
+                                                    }
+                                                    currency={
+                                                        sourceQuotation.currency
+                                                    }
+                                                />
+                                            </span>
+                                        </div>
+                                        {sourceQuotation.terms && (
+                                            <div className="text-sm">
+                                                <p className="text-muted-foreground">
+                                                    Quotation Terms
+                                                </p>
+                                                <p className="font-medium">
+                                                    {sourceQuotation.terms}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {purchaseOrder.isBlanketOrder && (
+                        <Card className="gap-2 p-4 md:col-span-2">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">
+                                    Blanket Schedule
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Start Date
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(
+                                            purchaseOrder.blanketStartDate
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        End Date
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(
+                                            purchaseOrder.blanketEndDate
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="text-sm">
+                                    <p className="text-muted-foreground">
+                                        Release Schedule
+                                    </p>
+                                    <p className="font-medium">
+                                        {purchaseOrder.releaseSchedule || '—'}
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div>
