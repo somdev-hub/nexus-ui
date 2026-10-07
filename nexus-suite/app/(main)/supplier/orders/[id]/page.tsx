@@ -20,6 +20,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Dialog,
     DialogContent,
     DialogHeader,
@@ -31,6 +38,10 @@ import {
     createPartialShipment,
     getSupplierOrderById,
 } from '@/lib/services/supplier-orders-service';
+import {
+    getSupplierLogisticsPartnerships,
+    type SupplierLogisticsPartnership,
+} from '@/lib/services/supplier-logistics-service';
 import {
     getSupplierAsnByPo,
     getSupplierPod,
@@ -59,6 +70,10 @@ export default function SupplierOrderDetailPage() {
     const [actionBusy, setActionBusy] = useState(false);
     const [partialOpen, setPartialOpen] = useState(false);
     const [shippedQty, setShippedQty] = useState('');
+    const [logisticsPartnerships, setLogisticsPartnerships] = useState<
+        SupplierLogisticsPartnership[]
+    >([]);
+    const [handoverPartnershipId, setHandoverPartnershipId] = useState('');
     const [podOpen, setPodOpen] = useState(false);
     const [shipmentId, setShipmentId] = useState<number | null>(null);
     const [shipmentNumber, setShipmentNumber] = useState<string | null>(null);
@@ -135,6 +150,16 @@ export default function SupplierOrderDetailPage() {
         };
     }, [id, numericId, enrichDetails]);
 
+    useEffect(() => {
+        getSupplierLogisticsPartnerships()
+            .then((res) =>
+                setLogisticsPartnerships(
+                    (res.content ?? []).filter((p) => p.status === 'ACTIVE')
+                )
+            )
+            .catch(() => setLogisticsPartnerships([]));
+    }, []);
+
     const reload = async () => {
         if (!Number.isFinite(numericId)) return;
         try {
@@ -173,18 +198,27 @@ export default function SupplierOrderDetailPage() {
         if (!order || actionBusy) return;
         setActionBusy(true);
         try {
+            const partnership = logisticsPartnerships.find(
+                (p) => String(p.partnershipId) === handoverPartnershipId
+            );
             const res = await createPartialShipment(order.purchaseOrderId, {
                 shippedQuantity: Number(shippedQty),
                 trackingNumber: 'TRK-' + Date.now(),
+                partnershipId: partnership?.partnershipId,
+                logisticsOrgId:
+                    partnership?.secondaryOrgId ?? partnership?.primaryOrgId,
             });
             setShipmentId(res.shipmentId);
             setShipmentNumber(res.shipmentNumber);
             toast({
-                title: `Partial shipment ${res.shipmentNumber} created`,
+                title: res.handedOverToLogistics
+                    ? `Shipment ${res.shipmentNumber} created & handed over — ${res.status}`
+                    : `Partial shipment ${res.shipmentNumber} created`,
                 variant: 'success',
             });
             setPartialOpen(false);
             setShippedQty('');
+            setHandoverPartnershipId('');
             await reload();
         } catch (e: unknown) {
             toast({
@@ -299,6 +333,46 @@ export default function SupplierOrderDetailPage() {
                                                     }
                                                     type="number"
                                                 />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>
+                                                    Hand over to logistics
+                                                    (optional)
+                                                </Label>
+                                                <Select
+                                                    value={
+                                                        handoverPartnershipId
+                                                    }
+                                                    onValueChange={
+                                                        setHandoverPartnershipId
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Prepare only — hand over later" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {logisticsPartnerships.map(
+                                                            (p) => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        p.partnershipId
+                                                                    }
+                                                                    value={String(
+                                                                        p.partnershipId
+                                                                    )}
+                                                                >
+                                                                    #
+                                                                    {
+                                                                        p.partnershipId
+                                                                    }{' '}
+                                                                    {p.secondaryOrgName ??
+                                                                        p.primaryOrgName ??
+                                                                        ''}
+                                                                </SelectItem>
+                                                            )
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                             <Button
                                                 disabled={actionBusy}

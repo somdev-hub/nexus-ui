@@ -17,10 +17,19 @@ export interface PartnershipInvitation {
     invitedOrg?: number;
     invitingOrg?: number;
     partnershipContext?: PartnershipInvitationContext;
+    partnershipTermType?: 'SHORT_TERM' | 'LONG_TERM' | string;
     proposedTerms?: string;
+    validityStart?: string;
+    validityEnd?: string;
+    linkedCapacityForecastId?: number;
+    desiredRoutesJson?: string;
+    desiredCapacity?: number;
+    desiredCapacityUnit?: string;
     retailerSupplierId?: number;
     partnershipId?: number;
     status?: PartnershipInvitationStatus | string;
+    invitedAt?: string;
+    expiresAt?: string;
     createdAt?: string;
     updatedAt?: string;
     // Flexible for backend shape variations
@@ -33,6 +42,15 @@ export interface PartnershipInvitationCreateRequest {
         'RETAILER_SUPPLIER' | 'RETAILER_LOGISTICS' | 'SUPPLIER_LOGISTICS';
     proposedTerms?: string;
     retailerSupplierId?: number;
+    // Supplier-logistics proposal term model.
+    partnershipTermType?: 'SHORT_TERM' | 'LONG_TERM';
+    validityStart?: string;
+    validityEnd?: string;
+    linkedCapacityForecastId?: number;
+    // LONG_TERM wish list defined by the supplier.
+    desiredRoutesJson?: string;
+    desiredCapacity?: number;
+    desiredCapacityUnit?: string;
 }
 
 export interface PartnershipInvitationRespondRequest {

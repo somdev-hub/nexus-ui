@@ -23,7 +23,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { createRetailerInvitation } from '@/lib/services/partnership-invitations-service';
+import { createSupplierInvitation } from '@/lib/services/partnership-invitations-service';
 import { getRetailerSentInvitations } from '@/lib/services/partnership-invitations-service';
+import { getSupplierSentInvitations } from '@/lib/services/partnership-invitations-service';
 import { getOrganizationDirectory } from '@/lib/services/supplier-market-service';
 import type { PartnershipInvitationContext } from '@/types/partnership-invitations';
 
@@ -42,6 +44,11 @@ interface PartnershipInvitationDialogProps {
     invitedOrgId?: number;
     /** Display name for the locked counterparty org. */
     invitedOrgName?: string;
+    /**
+     * Which portal sends the invitation. Supplier senders use the supplier
+     * passthrough so SUPPLIER_LOGISTICS proposals originate from suppliers.
+     */
+    senderRole?: 'retailer' | 'supplier';
     trigger?: React.ReactNode;
     onCreated?: () => void;
 }
@@ -95,6 +102,7 @@ export function PartnershipInvitationDialog({
     showRetailerSupplierRef = false,
     invitedOrgId: lockedOrgId,
     invitedOrgName,
+    senderRole = 'retailer',
     trigger,
     onCreated,
 }: PartnershipInvitationDialogProps) {
@@ -154,7 +162,11 @@ export function PartnershipInvitationDialog({
     useEffect(() => {
         if (!dialogOpen) return;
         let active = true;
-        getRetailerSentInvitations({ pageNo: 0, pageOffset: 100 })
+        const fetchSent =
+            senderRole === 'supplier'
+                ? getSupplierSentInvitations
+                : getRetailerSentInvitations;
+        fetchSent({ pageNo: 0, pageOffset: 100 })
             .then((res) => {
                 if (!active) return;
                 const pending = new Set<number>();
@@ -217,14 +229,19 @@ export function PartnershipInvitationDialog({
         }
         setSubmitting(true);
         try {
-            await createRetailerInvitation({
+            const payload = {
                 invitedOrgId: orgId,
                 partnershipContext: effectiveContext,
                 proposedTerms: proposedTerms || undefined,
                 retailerSupplierId: retailerSupplierId
                     ? Number(retailerSupplierId)
                     : undefined,
-            });
+            };
+            if (senderRole === 'supplier') {
+                await createSupplierInvitation(payload);
+            } else {
+                await createRetailerInvitation(payload);
+            }
             toast.success('Partnership invitation sent');
             setSelectedOrgId('');
             setProposedTerms('');

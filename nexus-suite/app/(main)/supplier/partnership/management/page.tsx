@@ -43,6 +43,14 @@ import {
     getSupplierReceivedInvitations,
     respondToSupplierInvitation,
 } from '@/lib/services/partnership-invitations-service';
+import {
+    getSupplierLogisticsPartnerships,
+    type SupplierLogisticsPartnership,
+} from '@/lib/services/supplier-logistics-service';
+import {
+    getOrganizationDirectory,
+    type SupplierDirectoryEntry,
+} from '@/lib/services/supplier-market-service';
 import type { PartnershipInvitation } from '@/types/partnership-invitations';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -58,6 +66,12 @@ export default function SupplierPartnershipsPage() {
     const { orgId } = useUserMetadata();
     const [partnerships, setPartnerships] = useState<OrgPartnership[]>([]);
     const [received, setReceived] = useState<PartnershipInvitation[]>([]);
+    const [logisticsPartnerships, setLogisticsPartnerships] = useState<
+        SupplierLogisticsPartnership[]
+    >([]);
+    const [logisticsDir, setLogisticsDir] = useState<SupplierDirectoryEntry[]>(
+        []
+    );
     const [isLoading, setIsLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
     const [editing, setEditing] = useState<{
@@ -70,16 +84,21 @@ export default function SupplierPartnershipsPage() {
         const load = async () => {
             setIsLoading(true);
             try {
-                const [partnershipsRes, receivedRes] = await Promise.all([
-                    getSupplierPartnerships(),
-                    getSupplierReceivedInvitations({
-                        pageNo: 0,
-                        pageOffset: 20,
-                    }),
-                ]);
+                const [partnershipsRes, receivedRes, logisticsRes, dirRes] =
+                    await Promise.all([
+                        getSupplierPartnerships(),
+                        getSupplierReceivedInvitations({
+                            pageNo: 0,
+                            pageOffset: 20,
+                        }),
+                        getSupplierLogisticsPartnerships().catch(() => null),
+                        getOrganizationDirectory('LOGISTICS').catch(() => []),
+                    ]);
                 if (!active) return;
                 setPartnerships(partnershipsRes.content ?? []);
                 setReceived(receivedRes.content ?? []);
+                setLogisticsPartnerships(logisticsRes?.content ?? []);
+                setLogisticsDir(dirRes ?? []);
             } catch (err: unknown) {
                 if (!active) return;
                 toast.error(
@@ -114,12 +133,14 @@ export default function SupplierPartnershipsPage() {
                     ? 'Invitation accepted'
                     : 'Invitation rejected'
             );
-            const [partnershipsRes, receivedRes] = await Promise.all([
+            const [partnershipsRes, receivedRes, logisticsRes] = await Promise.all([
                 getSupplierPartnerships(),
                 getSupplierReceivedInvitations({ pageNo: 0, pageOffset: 20 }),
+                getSupplierLogisticsPartnerships().catch(() => null),
             ]);
             setPartnerships(partnershipsRes.content ?? []);
             setReceived(receivedRes.content ?? []);
+            if (logisticsRes) setLogisticsPartnerships(logisticsRes.content ?? []);
         } catch (err: unknown) {
             toast.error(
                 err instanceof Error ? err.message : 'Failed to respond'
@@ -132,12 +153,52 @@ export default function SupplierPartnershipsPage() {
     const receivedPending = received.filter(isInvitationPending);
     const receivedHistory = received.filter((inv) => !isInvitationPending(inv));
 
-    const activePartnerships = partnerships.filter(
+    // Supplier-logistics partnerships live in their own card below; keep
+    // them out of the general retailer-facing table.
+    const isLogisticsRow = (p: OrgPartnership) =>
+        String(
+            (p as unknown as Record<string, unknown>).partnershipType ?? ''
+        ).toUpperCase() === 'LOGISTICS';
+    const nonLogistics = partnerships.filter((p) => !isLogisticsRow(p));
+
+    const activePartnerships = nonLogistics.filter(
         (p) => p.status !== 'TERMINATED'
     );
-    const closedPartnerships = partnerships.filter(
+    const closedPartnerships = nonLogistics.filter(
         (p) => p.status === 'TERMINATED'
     );
+
+    const logisticsDirNameOf = (id?: number | null): string | undefined => {
+        if (id === undefined || id === null) return undefined;
+        const text = String(
+            logisticsDir.find((d) => Number(d.id) === Number(id))?.orgName ?? ''
+        ).trim();
+        return text ? text : undefined;
+    };
+
+    const logisticsPartnerName = (
+        p: SupplierLogisticsPartnership
+    ): string => {
+        const own = Number(orgId);
+        const counterparty =
+            Number.isFinite(own) && Number(p.primaryOrgId) === own
+                ? p.secondaryOrgId
+                : Number.isFinite(own) && Number(p.secondaryOrgId) === own
+                  ? p.primaryOrgId
+                  : (p.secondaryOrgId ?? p.primaryOrgId);
+        const core = String(
+            (Number.isFinite(own) && Number(p.primaryOrgId) === own
+                ? p.secondaryOrgName
+                : Number.isFinite(own) && Number(p.secondaryOrgId) === own
+                  ? p.primaryOrgName
+                  : (p.secondaryOrgName ?? p.primaryOrgName)) ?? ''
+        ).trim();
+        return (
+            logisticsDirNameOf(counterparty) ??
+            (core ? core : undefined) ??
+            (counterparty ? `Org #${counterparty}` : '—')
+        );
+    };
 
     const openEdit = (p: OrgPartnership) => {
         setEditing({
@@ -289,6 +350,66 @@ export default function SupplierPartnershipsPage() {
                                                             Terminate
                                                         </Button>
                                                     </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
+                            <CardTitle>
+                                My Logistics Partnerships (
+                                {logisticsPartnerships.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {logisticsPartnerships.length === 0 ? (
+                                <p className="p-4 text-sm text-muted-foreground">
+                                    No logistics partnerships yet. Propose one
+                                    from the logistics marketplace.
+                                </p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>ID</TableHead>
+                                            <TableHead>Partner</TableHead>
+                                            <TableHead>Term</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Validity</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {logisticsPartnerships.map((p) => (
+                                            <TableRow
+                                                key={p.partnershipId}
+                                            >
+                                                <TableCell>
+                                                    {p.partnershipId}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {logisticsPartnerName(p)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {(p.partnershipTermType as string) ??
+                                                            '—'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {p.status || '—'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-xs">
+                                                    {(p.validityStart as string) ??
+                                                        '—'}{' '}
+                                                    →{' '}
+                                                    {(p.validityEnd as string) ??
+                                                        '—'}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

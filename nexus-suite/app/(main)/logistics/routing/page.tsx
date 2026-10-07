@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarClock, Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import type {
     CapacityForecast,
     ConsolidationGroup,
@@ -27,6 +27,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -40,6 +47,11 @@ import {
     createCapacityForecast,
     updateCapacity,
     deleteCapacityForecast,
+    extendCapacityForPartnership,
+    CAPACITY_UNITS,
+    isUnitizedCapacityUnit,
+    formatUnitSpecs,
+    capacityUnitLabel,
 } from '@/lib/services/logistics-ops-service';
 import {
     getShipmentStops,
@@ -74,6 +86,13 @@ export default function RoutingPage() {
         periodStart: '',
         periodEnd: '',
         availableCapacity: '',
+        capacityUnit: 'KG',
+        unitLength: '',
+        unitWidth: '',
+        unitHeight: '',
+        dimensionUom: 'M',
+        unitVolume: '',
+        volumeUom: 'CBM',
     });
     const [busy, setBusy] = useState<string | null>(null);
     const [stopsShipmentId, setStopsShipmentId] = useState('');
@@ -100,7 +119,22 @@ export default function RoutingPage() {
         periodEnd: string;
         availableCapacity: string;
         bookedCapacity: string;
+        capacityUnit: string;
+        unitLength: string;
+        unitWidth: string;
+        unitHeight: string;
+        dimensionUom: string;
+        unitVolume: string;
+        volumeUom: string;
         notes: string;
+    } | null>(null);
+    // LONG_TERM partner flexibility: extend a routing-capacity period so the
+    // partner supplier keeps logistics availability.
+    const [capExtend, setCapExtend] = useState<{
+        id: number;
+        periodEnd: string;
+        partnershipId: string;
+        newPeriodEnd: string;
     } | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;
@@ -185,6 +219,16 @@ export default function RoutingPage() {
     };
 
     const handleCapCreate = async () => {
+        if (
+            isUnitizedCapacityUnit(capForm.capacityUnit) &&
+            (!capForm.unitLength || !capForm.unitWidth || !capForm.unitHeight)
+        ) {
+            toast({
+                title: 'Container/pallet capacity needs length, width and height specs',
+                variant: 'destructive',
+            });
+            return;
+        }
         try {
             await createCapacityForecast({
                 originLane: capForm.originLane || undefined,
@@ -196,6 +240,21 @@ export default function RoutingPage() {
                 availableCapacity: capForm.availableCapacity
                     ? Number(capForm.availableCapacity)
                     : undefined,
+                capacityUnit: capForm.capacityUnit as CapacityForecast['capacityUnit'],
+                unitLength: capForm.unitLength
+                    ? Number(capForm.unitLength)
+                    : undefined,
+                unitWidth: capForm.unitWidth
+                    ? Number(capForm.unitWidth)
+                    : undefined,
+                unitHeight: capForm.unitHeight
+                    ? Number(capForm.unitHeight)
+                    : undefined,
+                dimensionUom: capForm.dimensionUom || undefined,
+                unitVolume: capForm.unitVolume
+                    ? Number(capForm.unitVolume)
+                    : undefined,
+                volumeUom: capForm.volumeUom || undefined,
             });
             toast({ title: 'Capacity added', variant: 'success' });
             setCapOpen(false);
@@ -314,6 +373,16 @@ export default function RoutingPage() {
 
     const handleCapUpdate = async () => {
         if (!capEdit) return;
+        if (
+            isUnitizedCapacityUnit(capEdit.capacityUnit) &&
+            (!capEdit.unitLength || !capEdit.unitWidth || !capEdit.unitHeight)
+        ) {
+            toast({
+                title: 'Container/pallet capacity needs length, width and height specs',
+                variant: 'destructive',
+            });
+            return;
+        }
         try {
             await updateCapacity(capEdit.id, {
                 originLane: capEdit.originLane || undefined,
@@ -328,6 +397,21 @@ export default function RoutingPage() {
                 bookedCapacity: capEdit.bookedCapacity
                     ? Number(capEdit.bookedCapacity)
                     : undefined,
+                capacityUnit: capEdit.capacityUnit as CapacityForecast['capacityUnit'],
+                unitLength: capEdit.unitLength
+                    ? Number(capEdit.unitLength)
+                    : undefined,
+                unitWidth: capEdit.unitWidth
+                    ? Number(capEdit.unitWidth)
+                    : undefined,
+                unitHeight: capEdit.unitHeight
+                    ? Number(capEdit.unitHeight)
+                    : undefined,
+                dimensionUom: capEdit.dimensionUom || undefined,
+                unitVolume: capEdit.unitVolume
+                    ? Number(capEdit.unitVolume)
+                    : undefined,
+                volumeUom: capEdit.volumeUom || undefined,
                 notes: capEdit.notes || undefined,
             });
             toast({ title: 'Capacity updated', variant: 'success' });
@@ -467,21 +551,182 @@ export default function RoutingPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label>Available Capacity</Label>
-                                    <Input
-                                        placeholder="e.g. 40"
-                                        type="number"
-                                        value={capForm.availableCapacity}
-                                        onChange={(e) =>
-                                            setCapForm({
-                                                ...capForm,
-                                                availableCapacity:
-                                                    e.target.value,
-                                            })
-                                        }
-                                    />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Available Capacity</Label>
+                                        <Input
+                                            placeholder="e.g. 40"
+                                            type="number"
+                                            value={capForm.availableCapacity}
+                                            onChange={(e) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    availableCapacity:
+                                                        e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Unit</Label>
+                                        <Select
+                                            value={capForm.capacityUnit}
+                                            onValueChange={(v) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    capacityUnit: v,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select unit" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {CAPACITY_UNITS.map((u) => (
+                                                    <SelectItem
+                                                        key={u}
+                                                        value={u}
+                                                    >
+                                                        {capacityUnitLabel(u)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
+                                {isUnitizedCapacityUnit(
+                                    capForm.capacityUnit
+                                ) && (
+                                    <div className="grid gap-3 rounded-md border p-3">
+                                        <p className="text-sm font-medium">
+                                            Unit specifications (per{' '}
+                                            {capacityUnitLabel(
+                                                capForm.capacityUnit
+                                            ).replace(/s$/, '')}
+                                            )
+                                        </p>
+                                        <div className="grid grid-cols-4 gap-3">
+                                            <div className="grid gap-2">
+                                                <Label>Length</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="e.g. 12"
+                                                    value={capForm.unitLength}
+                                                    onChange={(e) =>
+                                                        setCapForm({
+                                                            ...capForm,
+                                                            unitLength:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Width</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="e.g. 2.4"
+                                                    value={capForm.unitWidth}
+                                                    onChange={(e) =>
+                                                        setCapForm({
+                                                            ...capForm,
+                                                            unitWidth:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Height</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="e.g. 2.6"
+                                                    value={capForm.unitHeight}
+                                                    onChange={(e) =>
+                                                        setCapForm({
+                                                            ...capForm,
+                                                            unitHeight:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Dim. unit</Label>
+                                                <Select
+                                                    value={
+                                                        capForm.dimensionUom
+                                                    }
+                                                    onValueChange={(v) =>
+                                                        setCapForm({
+                                                            ...capForm,
+                                                            dimensionUom: v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="M">
+                                                            Meters
+                                                        </SelectItem>
+                                                        <SelectItem value="FT">
+                                                            Feet
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid gap-2">
+                                                <Label>
+                                                    Total volume per unit
+                                                    (optional — auto from L×W×H)
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="e.g. 76"
+                                                    value={capForm.unitVolume}
+                                                    onChange={(e) =>
+                                                        setCapForm({
+                                                            ...capForm,
+                                                            unitVolume:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Volume unit</Label>
+                                                <Select
+                                                    value={capForm.volumeUom}
+                                                    onValueChange={(v) =>
+                                                        setCapForm({
+                                                            ...capForm,
+                                                            volumeUom: v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="CBM">
+                                                            CBM
+                                                        </SelectItem>
+                                                        <SelectItem value="CFT">
+                                                            CFT
+                                                        </SelectItem>
+                                                        <SelectItem value="L">
+                                                            Litres
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <LoadingButton
                                     loading={busy === 'cap-create'}
                                     onClick={() =>
@@ -747,13 +992,48 @@ export default function RoutingPage() {
                                                     {c.periodEnd ?? '-'}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    avail{' '}
-                                                    {c.availableCapacity ?? 0} •
-                                                    booked{' '}
-                                                    {c.bookedCapacity ?? 0}
+                                                    <span>
+                                                        avail{' '}
+                                                        {c.availableCapacity ??
+                                                            0}{' '}
+                                                        {capacityUnitLabel(
+                                                            c.capacityUnit
+                                                        )}
+                                                    </span>
+                                                    <span className="text-muted-foreground">
+                                                        {' '}
+                                                        • booked{' '}
+                                                        {c.bookedCapacity ??
+                                                            0}
+                                                    </span>
+                                                    {formatUnitSpecs(c) && (
+                                                        <span className="block text-muted-foreground">
+                                                            {formatUnitSpecs(c)}
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            title="Extend period for LONG_TERM partner"
+                                                            onClick={() =>
+                                                                setCapExtend({
+                                                                    id: c.forecastId,
+                                                                    periodEnd:
+                                                                        c.periodEnd ??
+                                                                        '',
+                                                                    partnershipId:
+                                                                        '',
+                                                                    newPeriodEnd:
+                                                                        c.periodEnd ??
+                                                                        '',
+                                                                })
+                                                            }
+                                                        >
+                                                            <CalendarClock className="h-4 w-4" />
+                                                        </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
@@ -790,6 +1070,51 @@ export default function RoutingPage() {
                                                                                   c.bookedCapacity
                                                                               )
                                                                             : '',
+                                                                    capacityUnit:
+                                                                        c.capacityUnit ??
+                                                                        'KG',
+                                                                    unitLength:
+                                                                        c.unitLength !=
+                                                                        null &&
+                                                                        c.unitLength !==
+                                                                            undefined
+                                                                            ? String(
+                                                                                  c.unitLength
+                                                                              )
+                                                                            : '',
+                                                                    unitWidth:
+                                                                        c.unitWidth !=
+                                                                        null &&
+                                                                        c.unitWidth !==
+                                                                            undefined
+                                                                            ? String(
+                                                                                  c.unitWidth
+                                                                              )
+                                                                            : '',
+                                                                    unitHeight:
+                                                                        c.unitHeight !=
+                                                                        null &&
+                                                                        c.unitHeight !==
+                                                                            undefined
+                                                                            ? String(
+                                                                                  c.unitHeight
+                                                                              )
+                                                                            : '',
+                                                                    dimensionUom:
+                                                                        c.dimensionUom ??
+                                                                        'M',
+                                                                    unitVolume:
+                                                                        c.unitVolume !=
+                                                                        null &&
+                                                                        c.unitVolume !==
+                                                                            undefined
+                                                                            ? String(
+                                                                                  c.unitVolume
+                                                                              )
+                                                                            : '',
+                                                                    volumeUom:
+                                                                        c.volumeUom ??
+                                                                        'CBM',
                                                                     notes:
                                                                         c.notes ??
                                                                         '',
@@ -1207,7 +1532,7 @@ export default function RoutingPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-3 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Available Capacity</Label>
                                     <Input
@@ -1237,7 +1562,161 @@ export default function RoutingPage() {
                                         placeholder="e.g. 10"
                                     />
                                 </div>
+                                <div className="grid gap-2">
+                                    <Label>Unit</Label>
+                                    <Select
+                                        value={capEdit.capacityUnit}
+                                        onValueChange={(v) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                capacityUnit: v,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {CAPACITY_UNITS.map((u) => (
+                                                <SelectItem key={u} value={u}>
+                                                    {capacityUnitLabel(u)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
+                            {isUnitizedCapacityUnit(
+                                capEdit.capacityUnit
+                            ) && (
+                                <div className="grid gap-3 rounded-md border p-3">
+                                    <p className="text-sm font-medium">
+                                        Unit specifications (per{' '}
+                                        {capacityUnitLabel(
+                                            capEdit.capacityUnit
+                                        ).replace(/s$/, '')}
+                                        )
+                                    </p>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        <div className="grid gap-2">
+                                            <Label>Length</Label>
+                                            <Input
+                                                type="number"
+                                                value={capEdit.unitLength}
+                                                onChange={(e) =>
+                                                    setCapEdit({
+                                                        ...capEdit,
+                                                        unitLength:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                placeholder="e.g. 12"
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Width</Label>
+                                            <Input
+                                                type="number"
+                                                value={capEdit.unitWidth}
+                                                onChange={(e) =>
+                                                    setCapEdit({
+                                                        ...capEdit,
+                                                        unitWidth:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                placeholder="e.g. 2.4"
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Height</Label>
+                                            <Input
+                                                type="number"
+                                                value={capEdit.unitHeight}
+                                                onChange={(e) =>
+                                                    setCapEdit({
+                                                        ...capEdit,
+                                                        unitHeight:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                placeholder="e.g. 2.6"
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Dim. unit</Label>
+                                            <Select
+                                                value={capEdit.dimensionUom}
+                                                onValueChange={(v) =>
+                                                    setCapEdit({
+                                                        ...capEdit,
+                                                        dimensionUom: v,
+                                                    })
+                                                }
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="M">
+                                                        Meters
+                                                    </SelectItem>
+                                                    <SelectItem value="FT">
+                                                        Feet
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid gap-2">
+                                            <Label>
+                                                Total volume per unit
+                                                (optional — auto from L×W×H)
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                value={capEdit.unitVolume}
+                                                onChange={(e) =>
+                                                    setCapEdit({
+                                                        ...capEdit,
+                                                        unitVolume:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                placeholder="e.g. 76"
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Volume unit</Label>
+                                            <Select
+                                                value={capEdit.volumeUom}
+                                                onValueChange={(v) =>
+                                                    setCapEdit({
+                                                        ...capEdit,
+                                                        volumeUom: v,
+                                                    })
+                                                }
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="CBM">
+                                                        CBM
+                                                    </SelectItem>
+                                                    <SelectItem value="CFT">
+                                                        CFT
+                                                    </SelectItem>
+                                                    <SelectItem value="L">
+                                                        Litres
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div className="grid gap-2">
                                 <Label>Notes</Label>
                                 <Textarea
@@ -1258,6 +1737,82 @@ export default function RoutingPage() {
                                 }
                             >
                                 Save
+                            </LoadingButton>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={capExtend != null}
+                onOpenChange={(v) => {
+                    if (!v) setCapExtend(null);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Extend capacity for LONG_TERM partner
+                        </DialogTitle>
+                        <DialogDescription>
+                            Current period ends {capExtend?.periodEnd ?? '—'}.
+                            Only LONG_TERM partnerships qualify — the partner
+                            supplier keeps logistics flexibility beyond the
+                            current window.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {capExtend && (
+                        <div className="grid gap-6">
+                            <div className="grid gap-2">
+                                <Label>Partnership ID (LONG_TERM)</Label>
+                                <Input
+                                    type="number"
+                                    value={capExtend.partnershipId}
+                                    onChange={(e) =>
+                                        setCapExtend({
+                                            ...capExtend,
+                                            partnershipId: e.target.value,
+                                        })
+                                    }
+                                    placeholder="e.g. 12"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>New period end (YYYY-MM-DD)</Label>
+                                <Input
+                                    type="date"
+                                    value={capExtend.newPeriodEnd}
+                                    onChange={(e) =>
+                                        setCapExtend({
+                                            ...capExtend,
+                                            newPeriodEnd: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <LoadingButton
+                                loading={busy === 'cap-extend'}
+                                onClick={() =>
+                                    withBusy('cap-extend', async () => {
+                                        await extendCapacityForPartnership(
+                                            capExtend.id,
+                                            {
+                                                partnershipId: Number(
+                                                    capExtend.partnershipId
+                                                ),
+                                                newPeriodEnd:
+                                                    capExtend.newPeriodEnd,
+                                            }
+                                        );
+                                        toast({
+                                            title: 'Capacity period extended',
+                                            variant: 'success',
+                                        });
+                                        setCapExtend(null);
+                                        load();
+                                    })
+                                }
+                            >
+                                Extend Period
                             </LoadingButton>
                         </div>
                     )}

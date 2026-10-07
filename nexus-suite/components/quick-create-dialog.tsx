@@ -7,7 +7,6 @@ import {
 	BadgeCheck,
 	BadgeDollarSign,
 	Boxes,
-	CalendarClock,
 	ClipboardCheck,
 	Factory,
 	FileText,
@@ -75,13 +74,6 @@ const RETAILER_OPTIONS: QuickCreateOption[] = [
 		href: '/retailer/purchase-orders',
 	},
 	{
-		key: 'shipment',
-		label: 'Shipment',
-		description: 'Book inbound freight',
-		icon: Truck,
-		href: '/retailer/shipments/new',
-	},
-	{
 		key: 'goods-receipt',
 		label: 'Goods Receipt',
 		description: 'Receive delivered goods',
@@ -94,13 +86,6 @@ const RETAILER_OPTIONS: QuickCreateOption[] = [
 		description: 'Record supplier invoice',
 		icon: Receipt,
 		href: '/retailer/procurement/invoices',
-	},
-	{
-		key: 'appointment',
-		label: 'Appointment',
-		description: 'Book a delivery slot',
-		icon: CalendarClock,
-		href: '/retailer/logistics/delivery-appointments',
 	},
 ];
 

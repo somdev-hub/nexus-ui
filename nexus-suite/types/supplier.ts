@@ -354,6 +354,12 @@ export interface PartialShipmentRequest {
     trackingNumber?: string;
     carrierName?: string;
     notes?: string;
+    // Supplier-owned delivery: hand over to a partnered logistics org at
+    // creation (requires an ACTIVE supplier-logistics partnership).
+    logisticsOrgId?: number;
+    partnershipId?: number;
+    pickupLocation?: string;
+    deliveryLocation?: string;
 }
 
 export interface PartialShipmentResponse {
@@ -362,6 +368,8 @@ export interface PartialShipmentResponse {
     purchaseOrderId: number;
     backorderedQuantity: number;
     status: string;
+    handedOverToLogistics?: boolean;
+    logisticsOrgId?: number | null;
 }
 
 export interface QuotationConvertResponse {

@@ -29,6 +29,10 @@ import {
     acknowledgeOrder,
     createPartialShipment,
 } from '@/lib/services/supplier-orders-service';
+import {
+    getSupplierLogisticsPartnerships,
+    type SupplierLogisticsPartnership,
+} from '@/lib/services/supplier-logistics-service';
 import { getSupplierPod } from '@/lib/services/counterparty-docs-service';
 import PodSection from '@/components/pod-section';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +56,12 @@ export default function SupplierOrdersPage() {
     const [search, setSearch] = useState('');
     const [partialOpen, setPartialOpen] = useState<number | null>(null);
     const [shippedQty, setShippedQty] = useState('');
+    const [logisticsPartnerships, setLogisticsPartnerships] = useState<
+        SupplierLogisticsPartnership[]
+    >([]);
+    const [handoverPartnershipId, setHandoverPartnershipId] = useState('');
+    const [pickupLocation, setPickupLocation] = useState('');
+    const [deliveryLocation, setDeliveryLocation] = useState('');
     const [podOpen, setPodOpen] = useState<number | null>(null);
     // Shipment refs created this session (createPartialShipment returns
     // PartialShipmentResponse: { shipmentId, shipmentNumber, ... }).
@@ -81,6 +91,15 @@ export default function SupplierOrdersPage() {
         load();
     }, [status]);
     useEffect(() => {
+        getSupplierLogisticsPartnerships()
+            .then((res) =>
+                setLogisticsPartnerships(
+                    (res.content ?? []).filter((p) => p.status === 'ACTIVE')
+                )
+            )
+            .catch(() => setLogisticsPartnerships([]));
+    }, []);
+    useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
     }, [search]);
@@ -98,9 +117,17 @@ export default function SupplierOrdersPage() {
     };
     const createPartial = async (id: number) => {
         try {
+            const partnership = logisticsPartnerships.find(
+                (p) => String(p.partnershipId) === handoverPartnershipId
+            );
             const res = await createPartialShipment(id, {
                 shippedQuantity: Number(shippedQty),
                 trackingNumber: 'TRK-' + Date.now(),
+                partnershipId: partnership?.partnershipId,
+                logisticsOrgId:
+                    partnership?.secondaryOrgId ?? partnership?.primaryOrgId,
+                pickupLocation: pickupLocation || undefined,
+                deliveryLocation: deliveryLocation || undefined,
             });
             setShipmentByPo((m) => ({
                 ...m,
@@ -110,11 +137,16 @@ export default function SupplierOrdersPage() {
                 },
             }));
             toast({
-                title: `Partial shipment ${res.shipmentNumber} created`,
+                title: res.handedOverToLogistics
+                    ? `Shipment ${res.shipmentNumber} created & handed over — ${res.status}`
+                    : `Partial shipment ${res.shipmentNumber} created`,
                 variant: 'success',
             });
             setPartialOpen(null);
             setShippedQty('');
+            setHandoverPartnershipId('');
+            setPickupLocation('');
+            setDeliveryLocation('');
             load();
         } catch (e: unknown) {
             toast({
@@ -328,6 +360,110 @@ export default function SupplierOrdersPage() {
                                                                         type="number"
                                                                     />
                                                                 </div>
+                                                                <div className="grid gap-2">
+                                                                    <Label>
+                                                                        Hand over
+                                                                        to
+                                                                        logistics
+                                                                        (optional)
+                                                                    </Label>
+                                                                    <Select
+                                                                        value={
+                                                                            handoverPartnershipId
+                                                                        }
+                                                                        onValueChange={
+                                                                            setHandoverPartnershipId
+                                                                        }
+                                                                    >
+                                                                        <SelectTrigger className="w-full">
+                                                                            <SelectValue placeholder="Prepare only — hand over later" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {logisticsPartnerships.map(
+                                                                                (
+                                                                                    p
+                                                                                ) => (
+                                                                                    <SelectItem
+                                                                                        key={
+                                                                                            p.partnershipId
+                                                                                        }
+                                                                                        value={String(
+                                                                                            p.partnershipId
+                                                                                        )}
+                                                                                    >
+                                                                                        #
+                                                                                        {
+                                                                                            p.partnershipId
+                                                                                        }{' '}
+                                                                                        {p.secondaryOrgName ??
+                                                                                            p.primaryOrgName ??
+                                                                                            ''}
+                                                                                    </SelectItem>
+                                                                                )
+                                                                            )}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        With a
+                                                                        partner
+                                                                        selected
+                                                                        the
+                                                                        shipment
+                                                                        is
+                                                                        BOOKED
+                                                                        immediately.
+                                                                        Otherwise
+                                                                        hand
+                                                                        over
+                                                                        later
+                                                                        from
+                                                                        Shipments.
+                                                                    </p>
+                                                                </div>
+                                                                {handoverPartnershipId && (
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <div className="grid gap-2">
+                                                                            <Label>
+                                                                                Pickup
+                                                                            </Label>
+                                                                            <Input
+                                                                                value={
+                                                                                    pickupLocation
+                                                                                }
+                                                                                onChange={(
+                                                                                    e
+                                                                                ) =>
+                                                                                    setPickupLocation(
+                                                                                        e
+                                                                                            .target
+                                                                                            .value
+                                                                                    )
+                                                                                }
+                                                                                placeholder="Warehouse A"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="grid gap-2">
+                                                                            <Label>
+                                                                                Delivery
+                                                                            </Label>
+                                                                            <Input
+                                                                                value={
+                                                                                    deliveryLocation
+                                                                                }
+                                                                                onChange={(
+                                                                                    e
+                                                                                ) =>
+                                                                                    setDeliveryLocation(
+                                                                                        e
+                                                                                            .target
+                                                                                            .value
+                                                                                    )
+                                                                                }
+                                                                                placeholder="Retailer dock"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                                 <Button
                                                                     onClick={() =>
                                                                         createPartial(

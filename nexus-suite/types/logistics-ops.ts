@@ -218,6 +218,18 @@ export interface ConsolidationFilter {
     search?: string;
 }
 
+export type CapacityUnit =
+    | 'KG'
+    | 'LBS'
+    | 'TONNES'
+    | 'LITRES'
+    | 'GALLONS'
+    | 'CUBIC_METERS'
+    | 'CUBIC_FEET'
+    | 'PALLETS'
+    | 'SHIPPING_CONTAINER'
+    | 'FREIGHT_CONTAINER';
+
 export interface CapacityForecast {
     forecastId: number;
     originLane?: string;
@@ -227,6 +239,13 @@ export interface CapacityForecast {
     periodEnd?: string;
     availableCapacity?: number;
     bookedCapacity?: number;
+    capacityUnit?: CapacityUnit | string;
+    unitLength?: number;
+    unitWidth?: number;
+    unitHeight?: number;
+    dimensionUom?: string;
+    unitVolume?: number;
+    volumeUom?: string;
     notes?: string;
 }
 

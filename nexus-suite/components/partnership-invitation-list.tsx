@@ -37,6 +37,10 @@ interface PartnershipInvitationListProps {
     onReject?: (invitation: PartnershipInvitation) => void;
     onWithdraw?: (invitation: PartnershipInvitation) => void;
     onReinvite?: (invitation: PartnershipInvitation) => void;
+    /** Open the full proposal details. */
+    onView?: (invitation: PartnershipInvitation) => void;
+    /** Resolve a display name; falls back to the built-in Org #id label. */
+    nameOf?: (invitation: PartnershipInvitation) => string | undefined;
     busyId?: number | null;
 }
 
@@ -47,6 +51,8 @@ export function PartnershipInvitationList({
     onReject,
     onWithdraw,
     onReinvite,
+    onView,
+    nameOf,
     busyId = null,
 }: PartnershipInvitationListProps) {
     if (invitations.length === 0) {
@@ -71,6 +77,7 @@ export function PartnershipInvitationList({
                     const invitedRaw = inv.invitedOrg ?? inv.invitedOrgId;
                     const invitingRaw = inv.invitingOrg ?? inv.inviterOrgId;
                     const counterparty =
+                        nameOf?.(inv) ??
                         inv.invitedOrgName ??
                         inv.inviterOrgName ??
                         (invitedRaw !== undefined
@@ -92,6 +99,15 @@ export function PartnershipInvitationList({
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
+                                    {onView ? (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => onView(inv)}
+                                        >
+                                            View
+                                        </Button>
+                                    ) : null}
                                     {onAccept ? (
                                         <Button
                                             size="sm"

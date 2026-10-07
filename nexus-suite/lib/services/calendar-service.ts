@@ -408,15 +408,13 @@ export async function getSupplierCalendarActivities(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Retailer — purchase orders, inbound shipments, delivery
-// appointments, invoices, goods receipts
+// Retailer — purchase orders, invoices, goods receipts.
+// Delivery is supplier-owned, so the retailer calendar no longer
+// aggregates retailer-managed shipments or dock appointments.
 // ─────────────────────────────────────────────────────────────
 
 export const RETAILER_CALENDAR_KINDS: CalendarKindMeta[] = [
     { value: 'purchase', label: 'Purchase Orders' },
-    { value: 'delivery', label: 'Deliveries' },
-    { value: 'eta', label: 'ETAs' },
-    { value: 'appointment', label: 'Appointments' },
     { value: 'invoice', label: 'Invoices Due' },
     { value: 'receipt', label: 'Goods Receipts' },
 ];
@@ -430,7 +428,7 @@ export async function getRetailerCalendarActivities(
     const startDate = toISODate(rangeStart);
     const endDate = toISODate(rangeEnd);
 
-    const [posRes, shipmentActs, appointmentsRes, invoicesRes, receiptsRes] =
+    const [posRes, invoicesRes, receiptsRes] =
         await Promise.all([
             getPurchaseOrders({
                 orderDateFrom: startDate,
@@ -438,18 +436,11 @@ export async function getRetailerCalendarActivities(
                 pageNo: 0,
                 pageOffset: 100,
             }).catch(() => getPurchaseOrders({ pageNo: 0, pageOffset: 100 }).catch(() => null)),
-            getShipmentActivities(rangeStart, rangeEnd, '/retailer/shipments', false, '/retailer/shipments'),
-            getDeliveryAppointments({
-                fromDate: startDate,
-                toDate: endDate,
-                pageNo: 0,
-                pageOffset: 100,
-            }).catch(() => null),
             getInvoices({ pageNo: 0, pageOffset: 100 }).catch(() => null),
             getGoodsReceipts({ pageNo: 0, pageOffset: 100 }).catch(() => null),
         ]);
 
-    const activities: CalendarActivity[] = [...shipmentActs];
+    const activities: CalendarActivity[] = [];
 
     for (const po of posRes?.content ?? []) {
         if (po.orderDate && inRange(po.orderDate, startMs, endMs)) {
@@ -475,22 +466,6 @@ export async function getRetailerCalendarActivities(
                 href: '/retailer/purchase-orders',
             });
         }
-    }
-
-    for (const a of appointmentsRes?.content ?? []) {
-        activities.push({
-            id: `appt-${a.appointmentId}`,
-            kind: 'appointment',
-            title: `Dock ${a.dockNumber ?? a.appointmentNumber}`,
-            start: a.scheduledStart,
-            end: a.scheduledEnd,
-            status: a.status,
-            shipmentId: a.shipmentId,
-            shipmentNumber: a.shipmentNumber,
-            location: a.warehouseCode,
-            description: a.specialInstructions ?? a.notes ?? undefined,
-            href: '/retailer/logistics/delivery-appointments',
-        });
     }
 
     for (const inv of invoicesRes?.content ?? []) {

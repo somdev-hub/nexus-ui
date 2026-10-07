@@ -32,6 +32,86 @@ import type {
 
 const BASE = '/iam/core/logistics';
 
+// ─────────────────────────────────────────────────────────────
+// Capacity units. Mass/volume units describe bulk capacity
+// directly; unitized units (pallets/containers) count load units
+// and require per-unit specifications (L×W×H + volume).
+// ─────────────────────────────────────────────────────────────
+
+export const CAPACITY_UNITS = [
+    'KG',
+    'LBS',
+    'TONNES',
+    'LITRES',
+    'GALLONS',
+    'CUBIC_METERS',
+    'CUBIC_FEET',
+    'PALLETS',
+    'SHIPPING_CONTAINER',
+    'FREIGHT_CONTAINER',
+] as const;
+
+export type CapacityUnitOption = (typeof CAPACITY_UNITS)[number];
+
+const UNITIZED: ReadonlySet<string> = new Set([
+    'PALLETS',
+    'SHIPPING_CONTAINER',
+    'FREIGHT_CONTAINER',
+]);
+
+export function isUnitizedCapacityUnit(unit?: string | null): boolean {
+    return !!unit && UNITIZED.has(String(unit).toUpperCase());
+}
+
+const UNIT_LABELS: Record<string, string> = {
+    KG: 'kg',
+    LBS: 'lbs',
+    TONNES: 'tonnes',
+    LITRES: 'L',
+    GALLONS: 'gal',
+    CUBIC_METERS: 'CBM',
+    CUBIC_FEET: 'CFT',
+    PALLETS: 'pallets',
+    SHIPPING_CONTAINER: 'shipping containers',
+    FREIGHT_CONTAINER: 'freight containers',
+};
+
+export function capacityUnitLabel(unit?: string | null): string {
+    if (!unit) return 'kg';
+    return UNIT_LABELS[String(unit).toUpperCase()] ?? String(unit).toLowerCase();
+}
+
+export interface UnitSpecs {
+    unitLength?: number | null;
+    unitWidth?: number | null;
+    unitHeight?: number | null;
+    dimensionUom?: string | null;
+    unitVolume?: number | null;
+    volumeUom?: string | null;
+}
+
+/** "12 × 2.4 × 2.6 M · 76 CBM each" or null when no specs present. */
+export function formatUnitSpecs(specs?: UnitSpecs | null): string | null {
+    if (!specs) return null;
+    const parts: string[] = [];
+    if (
+        specs.unitLength !== undefined &&
+        specs.unitLength !== null &&
+        specs.unitWidth !== undefined &&
+        specs.unitWidth !== null &&
+        specs.unitHeight !== undefined &&
+        specs.unitHeight !== null
+    ) {
+        parts.push(
+            `${specs.unitLength} × ${specs.unitWidth} × ${specs.unitHeight} ${specs.dimensionUom ?? 'M'}`
+        );
+    }
+    if (specs.unitVolume !== undefined && specs.unitVolume !== null) {
+        parts.push(`${specs.unitVolume} ${specs.volumeUom ?? 'CBM'} each`);
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function toQuery(filter: object = {}): string {
     const p = new URLSearchParams();
     Object.entries(filter).forEach(([k, v]) => {
@@ -422,6 +502,14 @@ export async function getCapacityForecasts(
     );
     return res.data;
 }
+export async function getCapacityForecast(
+    id: number
+): Promise<CapacityForecast> {
+    const res = await apiClient.get<CapacityForecast>(
+        `${BASE}/operations/capacity/${id}`
+    );
+    return res.data;
+}
 export async function createCapacityForecast(
     data: Partial<CapacityForecast>
 ): Promise<CapacityForecast> {
@@ -516,6 +604,16 @@ export async function updateCapacity(
 ): Promise<CapacityForecast> {
     const res = await apiClient.put<CapacityForecast>(
         `${BASE}/operations/capacity/${id}/update`,
+        data
+    );
+    return res.data;
+}
+export async function extendCapacityForPartnership(
+    id: number,
+    data: { partnershipId: number; newPeriodEnd: string; availableCapacity?: number }
+): Promise<CapacityForecast> {
+    const res = await apiClient.put<CapacityForecast>(
+        `${BASE}/operations/capacity/${id}/extend-for-partnership`,
         data
     );
     return res.data;

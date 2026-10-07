@@ -192,25 +192,6 @@ const retailerSections = [
         ],
     },
     {
-        id: 'logistics',
-        label: 'Logistics',
-        showHeader: false,
-        showActions: true,
-        items: [
-            { title: 'Shipments', url: '/retailer/shipments', icon: IconTruck },
-            {
-                title: 'Freight Invoices',
-                url: '/retailer/logistics/freight-invoices',
-                icon: IconFileWord,
-            },
-            {
-                title: 'Delivery Appointments',
-                url: '/retailer/logistics/delivery-appointments',
-                icon: IconPackage,
-            },
-        ],
-    },
-    {
         id: 'partnerships',
         label: 'Partnerships',
         showHeader: false,
@@ -220,11 +201,6 @@ const retailerSections = [
                 title: 'Partnership Management',
                 url: '/retailer/partnership/management',
                 icon: IconFileWord,
-            },
-            {
-                title: 'Logistics Market',
-                url: '/retailer/partnership/logistic-market',
-                icon: IconTruck,
             },
         ],
     },
@@ -300,6 +276,11 @@ const supplierSections = [
                 icon: IconShoppingCart,
             },
             {
+                title: 'Shipments',
+                url: '/supplier/shipments',
+                icon: IconTruck,
+            },
+            {
                 title: 'Quality Certs',
                 url: '/supplier/quality-certificates',
                 icon: IconFileWord,
@@ -359,6 +340,11 @@ const supplierSections = [
                 title: 'Partnerships',
                 url: '/supplier/partnership/management',
                 icon: IconLink,
+            },
+            {
+                title: 'Logistics Market',
+                url: '/supplier/partnership/logistics-market',
+                icon: IconTruck,
             },
         ],
     },
