@@ -17,15 +17,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -35,13 +26,9 @@ import {
 } from '@/components/ui/dialog';
 import {
     acknowledgeOrder,
-    createPartialShipment,
     getSupplierOrderById,
 } from '@/lib/services/supplier-orders-service';
-import {
-    getSupplierLogisticsPartnerships,
-    type SupplierLogisticsPartnership,
-} from '@/lib/services/supplier-logistics-service';
+import PartialShipmentDialog from '@/components/supplier-handover-dialog';
 import {
     getSupplierAsnByPo,
     getSupplierPod,
@@ -69,11 +56,6 @@ export default function SupplierOrderDetailPage() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [actionBusy, setActionBusy] = useState(false);
     const [partialOpen, setPartialOpen] = useState(false);
-    const [shippedQty, setShippedQty] = useState('');
-    const [logisticsPartnerships, setLogisticsPartnerships] = useState<
-        SupplierLogisticsPartnership[]
-    >([]);
-    const [handoverPartnershipId, setHandoverPartnershipId] = useState('');
     const [podOpen, setPodOpen] = useState(false);
     const [shipmentId, setShipmentId] = useState<number | null>(null);
     const [shipmentNumber, setShipmentNumber] = useState<string | null>(null);
@@ -150,16 +132,6 @@ export default function SupplierOrderDetailPage() {
         };
     }, [id, numericId, enrichDetails]);
 
-    useEffect(() => {
-        getSupplierLogisticsPartnerships()
-            .then((res) =>
-                setLogisticsPartnerships(
-                    (res.content ?? []).filter((p) => p.status === 'ACTIVE')
-                )
-            )
-            .catch(() => setLogisticsPartnerships([]));
-    }, []);
-
     const reload = async () => {
         if (!Number.isFinite(numericId)) return;
         try {
@@ -194,40 +166,12 @@ export default function SupplierOrderDetailPage() {
         }
     };
 
-    const handlePartialShip = async () => {
-        if (!order || actionBusy) return;
-        setActionBusy(true);
-        try {
-            const partnership = logisticsPartnerships.find(
-                (p) => String(p.partnershipId) === handoverPartnershipId
-            );
-            const res = await createPartialShipment(order.purchaseOrderId, {
-                shippedQuantity: Number(shippedQty),
-                trackingNumber: 'TRK-' + Date.now(),
-                partnershipId: partnership?.partnershipId,
-                logisticsOrgId:
-                    partnership?.secondaryOrgId ?? partnership?.primaryOrgId,
-            });
-            setShipmentId(res.shipmentId);
-            setShipmentNumber(res.shipmentNumber);
-            toast({
-                title: res.handedOverToLogistics
-                    ? `Shipment ${res.shipmentNumber} created & handed over — ${res.status}`
-                    : `Partial shipment ${res.shipmentNumber} created`,
-                variant: 'success',
-            });
-            setPartialOpen(false);
-            setShippedQty('');
-            setHandoverPartnershipId('');
-            await reload();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        } finally {
-            setActionBusy(false);
-        }
+    const handlePartialCreated = (
+        res: import('@/types/supplier').PartialShipmentResponse
+    ) => {
+        setShipmentId(res.shipmentId);
+        setShipmentNumber(res.shipmentNumber);
+        void reload();
     };
 
     if (isLoading) {
@@ -303,87 +247,22 @@ export default function SupplierOrderDetailPage() {
                             )}
                             {(order.status === 'ACKNOWLEDGED' ||
                                 order.status === 'PARTIALLY_RECEIVED') && (
-                                <Dialog
-                                    open={partialOpen}
-                                    onOpenChange={setPartialOpen}
-                                >
-                                    <DialogTrigger asChild>
-                                        <Button size="sm" variant="outline">
-                                            <Truck className="mr-2 h-4 w-4" />
-                                            Partial Ship
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>
-                                                Partial Shipment for{' '}
-                                                {order.poNumber}
-                                            </DialogTitle>
-                                        </DialogHeader>
-                                        <div className="grid gap-6">
-                                            <div className="grid gap-2">
-                                                <Label>Shipped Qty</Label>
-                                                <Input
-                                                    placeholder="e.g. 50"
-                                                    value={shippedQty}
-                                                    onChange={(e) =>
-                                                        setShippedQty(
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    type="number"
-                                                />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label>
-                                                    Hand over to logistics
-                                                    (optional)
-                                                </Label>
-                                                <Select
-                                                    value={
-                                                        handoverPartnershipId
-                                                    }
-                                                    onValueChange={
-                                                        setHandoverPartnershipId
-                                                    }
-                                                >
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Prepare only — hand over later" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {logisticsPartnerships.map(
-                                                            (p) => (
-                                                                <SelectItem
-                                                                    key={
-                                                                        p.partnershipId
-                                                                    }
-                                                                    value={String(
-                                                                        p.partnershipId
-                                                                    )}
-                                                                >
-                                                                    #
-                                                                    {
-                                                                        p.partnershipId
-                                                                    }{' '}
-                                                                    {p.secondaryOrgName ??
-                                                                        p.primaryOrgName ??
-                                                                        ''}
-                                                                </SelectItem>
-                                                            )
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <Button
-                                                disabled={actionBusy}
-                                                onClick={handlePartialShip}
-                                            >
-                                                Create Shipment & Track
-                                                Backorder
-                                            </Button>
-                                        </div>
-                                    </DialogContent>
-                                </Dialog>
+                                <>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setPartialOpen(true)}
+                                    >
+                                        <Truck className="mr-2 h-4 w-4" />
+                                        Partial Ship
+                                    </Button>
+                                    <PartialShipmentDialog
+                                        order={order}
+                                        open={partialOpen}
+                                        onOpenChange={setPartialOpen}
+                                        onCreated={handlePartialCreated}
+                                    />
+                                </>
                             )}
                             {shipmentId !== null && (
                                 <Dialog

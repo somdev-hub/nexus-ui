@@ -45,8 +45,20 @@ import {
 } from '@/lib/services/partnership-invitations-service';
 import {
     getSupplierLogisticsPartnerships,
+    getSupplierQuotations,
+    respondToLogisticsQuotation,
+    terminateLogisticsPartnership,
+    type LogisticsPartnershipQuotation,
     type SupplierLogisticsPartnership,
 } from '@/lib/services/supplier-logistics-service';
+import { capacityUnitLabel } from '@/lib/services/logistics-ops-service';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     getOrganizationDirectory,
     type SupplierDirectoryEntry,
@@ -74,6 +86,14 @@ export default function SupplierPartnershipsPage() {
     );
     const [isLoading, setIsLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
+    const [quotations, setQuotations] = useState<
+        LogisticsPartnershipQuotation[]
+    >([]);
+    const [quoteViewing, setQuoteViewing] =
+        useState<LogisticsPartnershipQuotation | null>(null);
+    const [confirmTerminate, setConfirmTerminate] = useState<number | null>(
+        null
+    );
     const [editing, setEditing] = useState<{
         id: number;
         initial: PartnershipEditValues;
@@ -84,7 +104,7 @@ export default function SupplierPartnershipsPage() {
         const load = async () => {
             setIsLoading(true);
             try {
-                const [partnershipsRes, receivedRes, logisticsRes, dirRes] =
+                const [partnershipsRes, receivedRes, logisticsRes, dirRes, quotesRes] =
                     await Promise.all([
                         getSupplierPartnerships(),
                         getSupplierReceivedInvitations({
@@ -93,12 +113,14 @@ export default function SupplierPartnershipsPage() {
                         }),
                         getSupplierLogisticsPartnerships().catch(() => null),
                         getOrganizationDirectory('LOGISTICS').catch(() => []),
+                        getSupplierQuotations().catch(() => null),
                     ]);
                 if (!active) return;
                 setPartnerships(partnershipsRes.content ?? []);
                 setReceived(receivedRes.content ?? []);
                 setLogisticsPartnerships(logisticsRes?.content ?? []);
                 setLogisticsDir(dirRes ?? []);
+                setQuotations(quotesRes?.content ?? []);
             } catch (err: unknown) {
                 if (!active) return;
                 toast.error(
@@ -133,20 +155,81 @@ export default function SupplierPartnershipsPage() {
                     ? 'Invitation accepted'
                     : 'Invitation rejected'
             );
-            const [partnershipsRes, receivedRes, logisticsRes] = await Promise.all([
+            const [partnershipsRes, receivedRes, logisticsRes, quotesRes] = await Promise.all([
                 getSupplierPartnerships(),
                 getSupplierReceivedInvitations({ pageNo: 0, pageOffset: 20 }),
                 getSupplierLogisticsPartnerships().catch(() => null),
+                getSupplierQuotations().catch(() => null),
             ]);
             setPartnerships(partnershipsRes.content ?? []);
             setReceived(receivedRes.content ?? []);
             if (logisticsRes) setLogisticsPartnerships(logisticsRes.content ?? []);
+            if (quotesRes) setQuotations(quotesRes.content ?? []);
         } catch (err: unknown) {
             toast.error(
                 err instanceof Error ? err.message : 'Failed to respond'
             );
         } finally {
             setBusyId(null);
+        }
+    };
+
+    const respondQuotation = async (
+        q: LogisticsPartnershipQuotation,
+        action: 'ACCEPT' | 'REJECT'
+    ) => {
+        setBusyId(q.quotationId);
+        try {
+            await respondToLogisticsQuotation(q.quotationId, action);
+            toast.success(
+                action === 'ACCEPT'
+                    ? 'Quotation accepted — logistics will now publish the agreed routes'
+                    : 'Quotation rejected'
+            );
+            setQuoteViewing(null);
+            const quotesRes = await getSupplierQuotations().catch(() => null);
+            if (quotesRes) setQuotations(quotesRes.content ?? []);
+        } catch (err: unknown) {
+            toast.error(
+                err instanceof Error ? err.message : 'Failed to respond'
+            );
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const terminate = async (p: SupplierLogisticsPartnership) => {
+        setBusyId(p.partnershipId);
+        try {
+            await terminateLogisticsPartnership(p.partnershipId);
+            toast.success('Partnership terminated');
+            setConfirmTerminate(null);
+            const logisticsRes = await getSupplierLogisticsPartnerships().catch(
+                () => null
+            );
+            if (logisticsRes)
+                setLogisticsPartnerships(logisticsRes.content ?? []);
+        } catch (err: unknown) {
+            toast.error(
+                err instanceof Error ? err.message : 'Termination failed'
+            );
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const parseQuoteLines = (
+        q: LogisticsPartnershipQuotation | null
+    ): Record<string, unknown>[] => {
+        if (!q?.routeLinesJson) return [];
+        try {
+            const parsed = JSON.parse(q.routeLinesJson) as Record<
+                string,
+                unknown
+            >[];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
         }
     };
 
@@ -380,6 +463,9 @@ export default function SupplierPartnershipsPage() {
                                             <TableHead>Term</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead>Validity</TableHead>
+                                            <TableHead className="text-right">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -394,10 +480,35 @@ export default function SupplierPartnershipsPage() {
                                                     {logisticsPartnerName(p)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline">
-                                                        {(p.partnershipTermType as string) ??
-                                                            '—'}
-                                                    </Badge>
+                                                    {(() => {
+                                                        const term = String(
+                                                            p.partnershipTermType ??
+                                                                ''
+                                                        ).toUpperCase();
+                                                        if (
+                                                            term ===
+                                                            'LONG_TERM'
+                                                        )
+                                                            return (
+                                                                <Badge>
+                                                                    Long-term
+                                                                </Badge>
+                                                            );
+                                                        if (
+                                                            term ===
+                                                            'SHORT_TERM'
+                                                        )
+                                                            return (
+                                                                <Badge variant="secondary">
+                                                                    Short-term
+                                                                </Badge>
+                                                            );
+                                                        return (
+                                                            <Badge variant="outline">
+                                                                —
+                                                            </Badge>
+                                                        );
+                                                    })()}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline">
@@ -410,6 +521,158 @@ export default function SupplierPartnershipsPage() {
                                                     →{' '}
                                                     {(p.validityEnd as string) ??
                                                         '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {p.status ===
+                                                    'TERMINATED' ? (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    ) : confirmTerminate ===
+                                                      p.partnershipId ? (
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    setConfirmTerminate(
+                                                                        null
+                                                                    )
+                                                                }
+                                                            >
+                                                                Keep
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                disabled={
+                                                                    busyId ===
+                                                                    p.partnershipId
+                                                                }
+                                                                onClick={() =>
+                                                                    terminate(
+                                                                        p
+                                                                    )
+                                                                }
+                                                            >
+                                                                Confirm?
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() =>
+                                                                setConfirmTerminate(
+                                                                    p.partnershipId
+                                                                )
+                                                            }
+                                                        >
+                                                            Terminate
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
+                            <CardTitle>
+                                Logistics Quotations ({quotations.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {quotations.length === 0 ? (
+                                <p className="p-4 text-sm text-muted-foreground">
+                                    No quotations from logistics partners yet.
+                                    They appear here when a partner answers
+                                    your long-term proposal with their own
+                                    terms.
+                                </p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Quote</TableHead>
+                                            <TableHead>Partner</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">
+                                                Actions
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {quotations.map((q) => (
+                                            <TableRow key={q.quotationId}>
+                                                <TableCell className="font-mono text-xs">
+                                                    {q.quotationNumber ??
+                                                        q.quotationId}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {q.logisticsOrgName ??
+                                                        (q.logisticsOrgId
+                                                            ? `Org #${q.logisticsOrgId}`
+                                                            : '—')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {q.status ?? '—'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setQuoteViewing(
+                                                                    q
+                                                                )
+                                                            }
+                                                        >
+                                                            View
+                                                        </Button>
+                                                        {q.status ===
+                                                            'SUBMITTED' && (
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    disabled={
+                                                                        busyId ===
+                                                                        q.quotationId
+                                                                    }
+                                                                    onClick={() =>
+                                                                        respondQuotation(
+                                                                            q,
+                                                                            'REJECT'
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Reject
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    disabled={
+                                                                        busyId ===
+                                                                        q.quotationId
+                                                                    }
+                                                                    onClick={() =>
+                                                                        respondQuotation(
+                                                                            q,
+                                                                            'ACCEPT'
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Accept
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -516,6 +779,102 @@ export default function SupplierPartnershipsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <Dialog
+                open={quoteViewing !== null}
+                onOpenChange={(v) => {
+                    if (!v) setQuoteViewing(null);
+                }}
+            >
+                <DialogContent className="md:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Quotation {quoteViewing?.quotationNumber ?? ''}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {quoteViewing?.status ?? ''} · validity{' '}
+                            {formatDate(quoteViewing?.validityStart)} →{' '}
+                            {formatDate(quoteViewing?.validityEnd)}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {quoteViewing && (
+                        <div className="grid gap-4">
+                            <div className="divide-y rounded-md border">
+                                {parseQuoteLines(quoteViewing).map((l, i) => (
+                                    <div
+                                        key={i}
+                                        className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                                    >
+                                        <span className="font-medium">
+                                            {String(
+                                                l.fromLane ?? l.from ?? '—'
+                                            )}{' '}
+                                            →{' '}
+                                            {String(l.toLane ?? l.to ?? '—')}
+                                        </span>
+                                        <span className="font-mono text-xs">
+                                            {(l.capacity as number) ?? '—'}{' '}
+                                            {capacityUnitLabel(
+                                                String(
+                                                    l.capacityUnit ?? ''
+                                                ) || undefined
+                                            )}
+                                            {l.unitPrice !== undefined &&
+                                            l.unitPrice !== null
+                                                ? ` @ ${l.unitPrice} ${String(l.currency ?? '')}`
+                                                : ''}
+                                        </span>
+                                    </div>
+                                ))}
+                                {parseQuoteLines(quoteViewing).length ===
+                                    0 && (
+                                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                        No route lines.
+                                    </p>
+                                )}
+                            </div>
+                            <div className="grid gap-1">
+                                <p className="text-sm font-medium">Terms</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {quoteViewing.terms || '—'}
+                                </p>
+                            </div>
+                            {quoteViewing.status === 'SUBMITTED' && (
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={
+                                            busyId === quoteViewing.quotationId
+                                        }
+                                        onClick={() =>
+                                            respondQuotation(
+                                                quoteViewing,
+                                                'REJECT'
+                                            )
+                                        }
+                                    >
+                                        Reject
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        disabled={
+                                            busyId === quoteViewing.quotationId
+                                        }
+                                        onClick={() =>
+                                            respondQuotation(
+                                                quoteViewing,
+                                                'ACCEPT'
+                                            )
+                                        }
+                                    >
+                                        Accept
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -27,14 +27,11 @@ import {
 import {
     getSupplierOrders,
     acknowledgeOrder,
-    createPartialShipment,
 } from '@/lib/services/supplier-orders-service';
-import {
-    getSupplierLogisticsPartnerships,
-    type SupplierLogisticsPartnership,
-} from '@/lib/services/supplier-logistics-service';
 import { getSupplierPod } from '@/lib/services/counterparty-docs-service';
 import PodSection from '@/components/pod-section';
+import PartialShipmentDialog from '@/components/supplier-handover-dialog';
+import type { PartialShipmentResponse } from '@/types/supplier';
 import { useToast } from '@/hooks/use-toast';
 import { Money } from '@/components/money';
 import {
@@ -44,7 +41,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 
 export default function SupplierOrdersPage() {
     const { toast } = useToast();
@@ -54,14 +50,9 @@ export default function SupplierOrdersPage() {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('all');
     const [search, setSearch] = useState('');
-    const [partialOpen, setPartialOpen] = useState<number | null>(null);
-    const [shippedQty, setShippedQty] = useState('');
-    const [logisticsPartnerships, setLogisticsPartnerships] = useState<
-        SupplierLogisticsPartnership[]
-    >([]);
-    const [handoverPartnershipId, setHandoverPartnershipId] = useState('');
-    const [pickupLocation, setPickupLocation] = useState('');
-    const [deliveryLocation, setDeliveryLocation] = useState('');
+    const [partialOrder, setPartialOrder] = useState<SupplierOrder | null>(
+        null
+    );
     const [podOpen, setPodOpen] = useState<number | null>(null);
     // Shipment refs created this session (createPartialShipment returns
     // PartialShipmentResponse: { shipmentId, shipmentNumber, ... }).
@@ -91,15 +82,6 @@ export default function SupplierOrdersPage() {
         load();
     }, [status]);
     useEffect(() => {
-        getSupplierLogisticsPartnerships()
-            .then((res) =>
-                setLogisticsPartnerships(
-                    (res.content ?? []).filter((p) => p.status === 'ACTIVE')
-                )
-            )
-            .catch(() => setLogisticsPartnerships([]));
-    }, []);
-    useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
     }, [search]);
@@ -115,45 +97,18 @@ export default function SupplierOrdersPage() {
             });
         }
     };
-    const createPartial = async (id: number) => {
-        try {
-            const partnership = logisticsPartnerships.find(
-                (p) => String(p.partnershipId) === handoverPartnershipId
-            );
-            const res = await createPartialShipment(id, {
-                shippedQuantity: Number(shippedQty),
-                trackingNumber: 'TRK-' + Date.now(),
-                partnershipId: partnership?.partnershipId,
-                logisticsOrgId:
-                    partnership?.secondaryOrgId ?? partnership?.primaryOrgId,
-                pickupLocation: pickupLocation || undefined,
-                deliveryLocation: deliveryLocation || undefined,
-            });
-            setShipmentByPo((m) => ({
-                ...m,
-                [id]: {
-                    shipmentId: res.shipmentId,
-                    shipmentNumber: res.shipmentNumber,
-                },
-            }));
-            toast({
-                title: res.handedOverToLogistics
-                    ? `Shipment ${res.shipmentNumber} created & handed over — ${res.status}`
-                    : `Partial shipment ${res.shipmentNumber} created`,
-                variant: 'success',
-            });
-            setPartialOpen(null);
-            setShippedQty('');
-            setHandoverPartnershipId('');
-            setPickupLocation('');
-            setDeliveryLocation('');
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
+    const handlePartialCreated = (
+        orderId: number,
+        res: PartialShipmentResponse
+    ) => {
+        setShipmentByPo((m) => ({
+            ...m,
+            [orderId]: {
+                shipmentId: res.shipmentId,
+                shipmentNumber: res.shipmentNumber,
+            },
+        }));
+        load();
     };
     return (
         <div className="p-4 lg:p-6 space-y-4">
@@ -307,178 +262,16 @@ export default function SupplierOrdersPage() {
                                                 {(o.status === 'ACKNOWLEDGED' ||
                                                     o.status ===
                                                         'PARTIALLY_RECEIVED') && (
-                                                    <Dialog
-                                                        open={
-                                                            partialOpen ===
-                                                            o.purchaseOrderId
-                                                        }
-                                                        onOpenChange={(v) =>
-                                                            setPartialOpen(
-                                                                v
-                                                                    ? o.purchaseOrderId
-                                                                    : null
-                                                            )
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            setPartialOrder(o)
                                                         }
                                                     >
-                                                        <DialogTrigger asChild>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                            >
-                                                                <Truck className="mr-2 h-4 w-4" />
-                                                                Partial Ship
-                                                            </Button>
-                                                        </DialogTrigger>
-                                                        <DialogContent>
-                                                            <DialogHeader>
-                                                                <DialogTitle>
-                                                                    Partial
-                                                                    Shipment for{' '}
-                                                                    {o.poNumber}
-                                                                </DialogTitle>
-                                                            </DialogHeader>
-                                                            <div className="grid gap-6">
-                                                                <div className="grid gap-2">
-                                                                    <Label>
-                                                                        Shipped
-                                                                        Qty
-                                                                    </Label>
-                                                                    <Input
-                                                                        placeholder="e.g. 50"
-                                                                        value={
-                                                                            shippedQty
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            setShippedQty(
-                                                                                e
-                                                                                    .target
-                                                                                    .value
-                                                                            )
-                                                                        }
-                                                                        type="number"
-                                                                    />
-                                                                </div>
-                                                                <div className="grid gap-2">
-                                                                    <Label>
-                                                                        Hand over
-                                                                        to
-                                                                        logistics
-                                                                        (optional)
-                                                                    </Label>
-                                                                    <Select
-                                                                        value={
-                                                                            handoverPartnershipId
-                                                                        }
-                                                                        onValueChange={
-                                                                            setHandoverPartnershipId
-                                                                        }
-                                                                    >
-                                                                        <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder="Prepare only — hand over later" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {logisticsPartnerships.map(
-                                                                                (
-                                                                                    p
-                                                                                ) => (
-                                                                                    <SelectItem
-                                                                                        key={
-                                                                                            p.partnershipId
-                                                                                        }
-                                                                                        value={String(
-                                                                                            p.partnershipId
-                                                                                        )}
-                                                                                    >
-                                                                                        #
-                                                                                        {
-                                                                                            p.partnershipId
-                                                                                        }{' '}
-                                                                                        {p.secondaryOrgName ??
-                                                                                            p.primaryOrgName ??
-                                                                                            ''}
-                                                                                    </SelectItem>
-                                                                                )
-                                                                            )}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        With a
-                                                                        partner
-                                                                        selected
-                                                                        the
-                                                                        shipment
-                                                                        is
-                                                                        BOOKED
-                                                                        immediately.
-                                                                        Otherwise
-                                                                        hand
-                                                                        over
-                                                                        later
-                                                                        from
-                                                                        Shipments.
-                                                                    </p>
-                                                                </div>
-                                                                {handoverPartnershipId && (
-                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                        <div className="grid gap-2">
-                                                                            <Label>
-                                                                                Pickup
-                                                                            </Label>
-                                                                            <Input
-                                                                                value={
-                                                                                    pickupLocation
-                                                                                }
-                                                                                onChange={(
-                                                                                    e
-                                                                                ) =>
-                                                                                    setPickupLocation(
-                                                                                        e
-                                                                                            .target
-                                                                                            .value
-                                                                                    )
-                                                                                }
-                                                                                placeholder="Warehouse A"
-                                                                            />
-                                                                        </div>
-                                                                        <div className="grid gap-2">
-                                                                            <Label>
-                                                                                Delivery
-                                                                            </Label>
-                                                                            <Input
-                                                                                value={
-                                                                                    deliveryLocation
-                                                                                }
-                                                                                onChange={(
-                                                                                    e
-                                                                                ) =>
-                                                                                    setDeliveryLocation(
-                                                                                        e
-                                                                                            .target
-                                                                                            .value
-                                                                                    )
-                                                                                }
-                                                                                placeholder="Retailer dock"
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                                <Button
-                                                                    onClick={() =>
-                                                                        createPartial(
-                                                                            o.purchaseOrderId
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Create
-                                                                    Shipment &
-                                                                    Track
-                                                                    Backorder
-                                                                </Button>
-                                                            </div>
-                                                        </DialogContent>
-                                                    </Dialog>
+                                                        <Truck className="mr-2 h-4 w-4" />
+                                                        Partial Ship
+                                                    </Button>
                                                 )}
                                                 {podShipmentId !== null && (
                                                     <Dialog
@@ -539,6 +332,21 @@ export default function SupplierOrdersPage() {
                     )}
                 </CardContent>
             </Card>
+            <PartialShipmentDialog
+                order={partialOrder}
+                open={partialOrder !== null}
+                onOpenChange={(v) => {
+                    if (!v) setPartialOrder(null);
+                }}
+                onCreated={(res) => {
+                    if (partialOrder) {
+                        handlePartialCreated(
+                            partialOrder.purchaseOrderId,
+                            res
+                        );
+                    }
+                }}
+            />
         </div>
     );
 }

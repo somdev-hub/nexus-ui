@@ -87,6 +87,8 @@ export default function RoutingPage() {
         periodEnd: '',
         availableCapacity: '',
         capacityUnit: 'KG',
+        unitPrice: '',
+        currency: 'USD',
         unitLength: '',
         unitWidth: '',
         unitHeight: '',
@@ -120,6 +122,8 @@ export default function RoutingPage() {
         availableCapacity: string;
         bookedCapacity: string;
         capacityUnit: string;
+        unitPrice: string;
+        currency: string;
         unitLength: string;
         unitWidth: string;
         unitHeight: string;
@@ -241,6 +245,10 @@ export default function RoutingPage() {
                     ? Number(capForm.availableCapacity)
                     : undefined,
                 capacityUnit: capForm.capacityUnit as CapacityForecast['capacityUnit'],
+                unitPrice: capForm.unitPrice
+                    ? Number(capForm.unitPrice)
+                    : undefined,
+                currency: capForm.currency || undefined,
                 unitLength: capForm.unitLength
                     ? Number(capForm.unitLength)
                     : undefined,
@@ -398,6 +406,10 @@ export default function RoutingPage() {
                     ? Number(capEdit.bookedCapacity)
                     : undefined,
                 capacityUnit: capEdit.capacityUnit as CapacityForecast['capacityUnit'],
+                unitPrice: capEdit.unitPrice
+                    ? Number(capEdit.unitPrice)
+                    : undefined,
+                currency: capEdit.currency || undefined,
                 unitLength: capEdit.unitLength
                     ? Number(capEdit.unitLength)
                     : undefined,
@@ -592,6 +604,40 @@ export default function RoutingPage() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>
+                                            Price per{' '}
+                                            {capacityUnitLabel(
+                                                capForm.capacityUnit
+                                            ).replace(/s$/, '')}
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 1200"
+                                            value={capForm.unitPrice}
+                                            onChange={(e) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    unitPrice: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Currency</Label>
+                                        <Input
+                                            placeholder="USD"
+                                            value={capForm.currency}
+                                            onChange={(e) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    currency: e.target.value.toUpperCase(),
+                                                })
+                                            }
+                                        />
                                     </div>
                                 </div>
                                 {isUnitizedCapacityUnit(
@@ -1011,6 +1057,21 @@ export default function RoutingPage() {
                                                             {formatUnitSpecs(c)}
                                                         </span>
                                                     )}
+                                                    {c.unitPrice !== undefined &&
+                                                        c.unitPrice !== null && (
+                                                            <span className="block font-medium">
+                                                                {c.unitPrice}{' '}
+                                                                {c.currency ??
+                                                                    'USD'}{' '}
+                                                                /{' '}
+                                                                {capacityUnitLabel(
+                                                                    c.capacityUnit
+                                                                ).replace(
+                                                                    /s$/,
+                                                                    ''
+                                                                )}
+                                                            </span>
+                                                        )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
@@ -1115,6 +1176,18 @@ export default function RoutingPage() {
                                                                     volumeUom:
                                                                         c.volumeUom ??
                                                                         'CBM',
+                                                                    unitPrice:
+                                                                        c.unitPrice !=
+                                                                        null &&
+                                                                        c.unitPrice !==
+                                                                            undefined
+                                                                            ? String(
+                                                                                  c.unitPrice
+                                                                              )
+                                                                            : '',
+                                                                    currency:
+                                                                        c.currency ??
+                                                                        'USD',
                                                                     notes:
                                                                         c.notes ??
                                                                         '',
@@ -1584,6 +1657,41 @@ export default function RoutingPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>
+                                        Price per{' '}
+                                        {capacityUnitLabel(
+                                            capEdit.capacityUnit
+                                        ).replace(/s$/, '')}
+                                    </Label>
+                                    <Input
+                                        type="number"
+                                        value={capEdit.unitPrice}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                unitPrice: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 1200"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Currency</Label>
+                                    <Input
+                                        value={capEdit.currency}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                currency:
+                                                    e.target.value.toUpperCase(),
+                                            })
+                                        }
+                                        placeholder="USD"
+                                    />
                                 </div>
                             </div>
                             {isUnitizedCapacityUnit(

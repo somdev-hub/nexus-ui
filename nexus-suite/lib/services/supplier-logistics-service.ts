@@ -30,6 +30,8 @@ export interface LogisticsCapacityRow {
     availableCapacity?: number;
     bookedCapacity?: number;
     capacityUnit?: string;
+    unitPrice?: number;
+    currency?: string;
     unitLength?: number;
     unitWidth?: number;
     unitHeight?: number;
@@ -52,6 +54,9 @@ export interface SupplierLogisticsPartnership {
     validityStart?: string;
     validityEnd?: string;
     linkedCapacityForecastId?: number;
+    desiredRoutesJson?: string;
+    desiredCapacity?: number;
+    desiredCapacityUnit?: string;
     status?: string;
     startDate?: string;
     endDate?: string;
@@ -155,6 +160,87 @@ export async function extendCapacityForPartnership(
     const res = await apiClient.put(
         `/iam/core/logistics/operations/capacity/${forecastId}/extend-for-partnership`,
         data
+    );
+    return res.data;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Long-term counter-quotations (raised by logistics, reviewed by
+// supplier) + private routes + termination.
+// ─────────────────────────────────────────────────────────────
+
+export interface QuotationRouteLine {
+    fromLane?: string;
+    from?: string;
+    toLane?: string;
+    to?: string;
+    capacity?: number;
+    capacityUnit?: string;
+    unitPrice?: number;
+    currency?: string;
+    periodStart?: string;
+    periodEnd?: string;
+    [key: string]: unknown;
+}
+
+export interface LogisticsPartnershipQuotation {
+    quotationId: number;
+    quotationNumber?: string;
+    invitationId?: number;
+    supplierOrgId?: number;
+    supplierOrgName?: string;
+    logisticsOrgId?: number;
+    logisticsOrgName?: string;
+    partnershipId?: number;
+    status?: string;
+    routeLinesJson?: string;
+    totalAmount?: number;
+    currency?: string;
+    validityStart?: string;
+    validityEnd?: string;
+    terms?: string;
+    [key: string]: unknown;
+}
+
+export interface PrivateRouteRow extends LogisticsCapacityRow {
+    partnershipId?: number;
+}
+
+export async function getSupplierQuotations(
+    status?: string
+): Promise<PaginatedResponse<LogisticsPartnershipQuotation>> {
+    const res = await apiClient.get<
+        PaginatedResponse<LogisticsPartnershipQuotation>
+    >(`${BASE}/quotations${toQuery({ status, page: 0, size: 50 })}`);
+    return res.data;
+}
+
+export async function respondToLogisticsQuotation(
+    quotationId: number,
+    action: 'ACCEPT' | 'REJECT'
+): Promise<LogisticsPartnershipQuotation> {
+    const res = await apiClient.post<LogisticsPartnershipQuotation>(
+        `${BASE}/quotations/${quotationId}/respond`,
+        { action }
+    );
+    return res.data;
+}
+
+export async function getMyPrivateRoutes(): Promise<
+    PaginatedResponse<PrivateRouteRow>
+> {
+    const res = await apiClient.get<PaginatedResponse<PrivateRouteRow>>(
+        `${BASE}/my-routes?page=0&size=100`
+    );
+    return res.data;
+}
+
+export async function terminateLogisticsPartnership(
+    partnershipId: number
+): Promise<{ status?: string; [key: string]: unknown }> {
+    const res = await apiClient.post(
+        `${BASE}/partnerships/${partnershipId}/terminate`,
+        {}
     );
     return res.data;
 }

@@ -240,6 +240,9 @@ export interface CapacityForecast {
     availableCapacity?: number;
     bookedCapacity?: number;
     capacityUnit?: CapacityUnit | string;
+    unitPrice?: number;
+    currency?: string;
+    partnershipId?: number;
     unitLength?: number;
     unitWidth?: number;
     unitHeight?: number;

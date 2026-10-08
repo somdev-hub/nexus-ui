@@ -1,52 +1,52 @@
 "use client";
 
-import * as React from "react";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  IconChartBar,
-  IconDashboard,
-  IconFolder,
-  IconInnerShadowTop,
-  IconUsers,
-  IconCirclePlusFilled,
-  IconMail,
-  IconDots,
-  IconShare3,
-  IconTrash,
-  IconClock,
-  IconMoneybag,
-  IconClipboard,
-  IconMessageCircle
+    IconChartBar,
+    IconCirclePlusFilled,
+    IconClipboard,
+    IconClock,
+    IconDashboard,
+    IconDots,
+    IconFolder,
+    IconInnerShadowTop,
+    IconMail,
+    IconMessageCircle,
+    IconMoneybag,
+    IconShare3,
+    IconTrash,
+    IconUsers
 } from "@tabler/icons-react";
+import { usePathname } from "next/navigation";
+import * as React from "react";
 
 import { NavUser } from "@/components/nav-user";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuAction,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    useSidebar
 } from "@/components/ui/sidebar";
-import Link from "next/link";
 import { Building2, PartyPopper } from "lucide-react";
-import ChatDialog from "./chat/ChatDialog";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ChatDialog from "./chat/ChatDialog";
 
 const data = {
   user: {
@@ -262,56 +262,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // ✅ Stable callback — won't change between renders
   const handleOpenChat = React.useCallback(() => setOpenChatDialog(true), []);
 
-  // Filter sidebar sections based on user role
+  // No role-based filtering: every authenticated user sees the full menu.
+  // Supplier/logistics orgs use their own custom role names, so a hardcoded
+  // role map can never match them. The sidebar is presentation-only —
+  // backend APIs enforce real permissions.
   const filteredSections = useMemo(() => {
     if (!isAuthenticated || !user) {
       return [];
     }
-    const roleAccess: Record<string, string[]> = {
-      ROLE_ADMIN: ["main", "Products", "materials", "partnerships", "hr"],
-      ROLE_DIRECTOR: ["main", "Products", "materials", "partnerships", "hr"],
-      ROLE_PRODUCT_MANAGER: [
-        "main",
-        "Products",
-        "materials",
-        "partnerships",
-        "hr"
-      ],
-      ROLE_ACCOUNT_MANAGER: [
-        "main",
-        "Products",
-        "materials",
-        "partnerships",
-        "hr"
-      ],
-      ROLE_OPERATION_MANAGER: [
-        "main",
-        "Products",
-        "materials",
-        "partnerships",
-        "hr"
-      ],
-      ROLE_WAREHOUSE_MANAGER: [
-        "main",
-        "Products",
-        "materials",
-        "partnerships",
-        "hr"
-      ],
-      ROLE_FLEET_MANAGER: [
-        "main",
-        "Products",
-        "materials",
-        "partnerships",
-        "hr"
-      ],
-      CLERK: ["main", "Products", "materials", "partnerships", "hr"],
-      DRIVER: ["main", "Products", "materials", "partnerships", "hr"]
-    };
-
-    return data.sidebarSections.filter((section) =>
-      roleAccess[user.role]?.includes(section.id)
-    );
+    return data.sidebarSections;
   }, [isAuthenticated, user]);
 
   return (

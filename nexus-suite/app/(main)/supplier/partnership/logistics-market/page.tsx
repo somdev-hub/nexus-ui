@@ -557,6 +557,18 @@ export default function SupplierLogisticsMarketPage() {
                                                                 {capacityUnitLabel(
                                                                     r.capacityUnit
                                                                 )}
+                                                                {r.unitPrice !==
+                                                                    undefined &&
+                                                                    r.unitPrice !==
+                                                                        null && (
+                                                                        <span className="block">
+                                                                            {
+                                                                                r.unitPrice
+                                                                            }{' '}
+                                                                            {r.currency ??
+                                                                                'USD'}
+                                                                        </span>
+                                                                    )}
                                                                 {formatUnitSpecs(
                                                                     r
                                                                 ) && (
@@ -688,6 +700,21 @@ export default function SupplierLogisticsMarketPage() {
                                                         r.capacityUnit
                                                     )}{' '}
                                                     / {r.bookedCapacity ?? 0}
+                                                    {r.unitPrice !== undefined &&
+                                                        r.unitPrice !== null && (
+                                                            <span className="block font-medium">
+                                                                {r.unitPrice}{' '}
+                                                                {r.currency ??
+                                                                    'USD'}{' '}
+                                                                per{' '}
+                                                                {capacityUnitLabel(
+                                                                    r.capacityUnit
+                                                                ).replace(
+                                                                    /s$/,
+                                                                    ''
+                                                                )}
+                                                            </span>
+                                                        )}
                                                     {formatUnitSpecs(r) && (
                                                         <span className="block text-muted-foreground">
                                                             {formatUnitSpecs(r)}
