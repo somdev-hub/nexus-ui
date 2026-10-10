@@ -135,6 +135,12 @@ export default function SupplierOrdersPage() {
                             <SelectItem value="ACKNOWLEDGED">
                                 ACKNOWLEDGED
                             </SelectItem>
+                            <SelectItem value="AWAITING_PICKUP">
+                                AWAITING_PICKUP
+                            </SelectItem>
+                            <SelectItem value="PICKED_UP">
+                                PICKED_UP
+                            </SelectItem>
                             <SelectItem value="PARTIALLY_RECEIVED">
                                 PARTIAL
                             </SelectItem>
@@ -261,7 +267,11 @@ export default function SupplierOrdersPage() {
                                                 )}
                                                 {(o.status === 'ACKNOWLEDGED' ||
                                                     o.status ===
-                                                        'PARTIALLY_RECEIVED') && (
+                                                        'PARTIALLY_RECEIVED' ||
+                                                    o.status ===
+                                                        'AWAITING_PICKUP' ||
+                                                    o.status ===
+                                                        'PICKED_UP') && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"

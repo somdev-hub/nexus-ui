@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
@@ -45,6 +51,40 @@ import {
 // org (DRAFT -> BOOKED). The retailer journey ends at the PO —
 // they only receive and pay.
 // ─────────────────────────────────────────────────────────────
+
+const ADDRESS_PREVIEW_CHARS = 28;
+
+function truncateMiddle(value: string, limit: number): string {
+    const text = (value ?? '').trim();
+    if (text.length <= limit) return text;
+    return `${text.slice(0, limit).trimEnd()}…`;
+}
+
+function AddressCell({ pickup, delivery }: { pickup?: string; delivery?: string }) {
+    const fullPickup = (pickup ?? '').trim() || '—';
+    const fullDelivery = (delivery ?? '').trim() || '—';
+    const preview = `${truncateMiddle(fullPickup, ADDRESS_PREVIEW_CHARS)} → ${truncateMiddle(fullDelivery, ADDRESS_PREVIEW_CHARS)}`;
+    const full = `${fullPickup} → ${fullDelivery}`;
+    return (
+        <span className="inline-flex max-w-56 items-center gap-1 text-xs">
+            <span className="truncate">{preview}</span>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={`Full addresses: ${full}`}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                    >
+                        <Info className="h-3.5 w-3.5" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs whitespace-pre-wrap">
+                    {full}
+                </TooltipContent>
+            </Tooltip>
+        </span>
+    );
+}
 
 export default function SupplierShipmentsPage() {
     const { toast } = useToast();
@@ -168,6 +208,8 @@ export default function SupplierShipmentsPage() {
                                     <TableHead>Shipment #</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>PO</TableHead>
+                                    <TableHead>Backordered</TableHead>
+                                    <TableHead>Expected Delivery</TableHead>
                                     <TableHead>Tracking</TableHead>
                                     <TableHead>Pickup → Delivery</TableHead>
                                     <TableHead>Actions</TableHead>
@@ -186,12 +228,35 @@ export default function SupplierShipmentsPage() {
                                             {(s.purchaseOrder as { poNumber?: string } | undefined)
                                                 ?.poNumber ?? '—'}
                                         </TableCell>
+                                        <TableCell>
+                                            {s.backorderedQuantity !== undefined &&
+                                            s.backorderedQuantity !== null &&
+                                            s.backorderedQuantity > 0 ? (
+                                                <Badge variant="secondary">
+                                                    {s.backorderedQuantity}{' '}
+                                                    pending
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">
+                                                    Full qty
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap text-xs">
+                                            {s.estimatedArrival
+                                                ? new Date(
+                                                      s.estimatedArrival
+                                                  ).toLocaleString()
+                                                : '—'}
+                                        </TableCell>
                                         <TableCell className="font-mono text-xs">
                                             {s.trackingNumber ?? '—'}
                                         </TableCell>
-                                        <TableCell className="text-xs">
-                                            {s.pickupLocation ?? '—'} →{' '}
-                                            {s.deliveryLocation ?? '—'}
+                                        <TableCell>
+                                            <AddressCell
+                                                pickup={s.pickupLocation}
+                                                delivery={s.deliveryLocation}
+                                            />
                                         </TableCell>
                                         <TableCell>
                                             {s.status === 'DRAFT' ? (
@@ -221,7 +286,7 @@ export default function SupplierShipmentsPage() {
                                 {!shipments.length && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={8}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             No shipments yet — create one from

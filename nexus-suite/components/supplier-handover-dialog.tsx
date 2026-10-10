@@ -117,6 +117,12 @@ export function PartialShipmentDialog({
     const { toast } = useToast();
     const { orgId } = useUserMetadata();
     const [shippedQty, setShippedQty] = useState('');
+    const [totalPackages, setTotalPackages] = useState('');
+    const [packageWeight, setPackageWeight] = useState('');
+    const [packageLength, setPackageLength] = useState('');
+    const [packageWidth, setPackageWidth] = useState('');
+    const [packageHeight, setPackageHeight] = useState('');
+    const [packageDimensionUom, setPackageDimensionUom] = useState('M');
     const [options, setOptions] = useState<HandoverOptionsData | null>(null);
     const [optionsError, setOptionsError] = useState<string | null>(null);
     const [optionsLoading, setOptionsLoading] = useState(false);
@@ -134,6 +140,12 @@ export function PartialShipmentDialog({
                 0
             ) ?? 0;
         setShippedQty(ordered > 0 ? String(ordered) : '');
+        setTotalPackages('');
+        setPackageWeight('');
+        setPackageLength('');
+        setPackageWidth('');
+        setPackageHeight('');
+        setPackageDimensionUom('M');
         setOptions(null);
         setOptionsError(null);
         setSelectedPartnershipId('');
@@ -173,6 +185,31 @@ export function PartialShipmentDialog({
             (sum, li) => sum + (Number(li.quantityOrdered) || 0),
             0
         ) ?? 0;
+
+    // Auto totals: packages × weight each, packages × L×W×H (CBM).
+    const num = (v: string): number | undefined => {
+        const n = Number(v);
+        return v.trim() !== '' && Number.isFinite(n) ? n : undefined;
+    };
+    const pkgCount = num(totalPackages);
+    const pkgWeight = num(packageWeight);
+    const dimL = num(packageLength);
+    const dimW = num(packageWidth);
+    const dimH = num(packageHeight);
+    const toMeters = packageDimensionUom === 'FT' ? 0.3048 : 1;
+    const autoTotalWeight =
+        pkgCount !== undefined && pkgWeight !== undefined
+            ? Math.round(pkgCount * pkgWeight * 100) / 100
+            : undefined;
+    const autoTotalVolume =
+        pkgCount !== undefined &&
+        dimL !== undefined &&
+        dimW !== undefined &&
+        dimH !== undefined
+            ? Math.round(
+                  pkgCount * dimL * toMeters * dimW * toMeters * dimH * toMeters * 100
+              ) / 100
+            : undefined;
 
     const chosenSupplierAddress: OrgAddress | undefined =
         options?.supplierAddresses.find(
@@ -222,6 +259,14 @@ export function PartialShipmentDialog({
             const res = await createPartialShipment(order.purchaseOrderId, {
                 shippedQuantity: qty,
                 trackingNumber: 'TRK-' + Date.now(),
+                totalPackages: pkgCount,
+                packageWeight: pkgWeight,
+                packageLength: dimL,
+                packageWidth: dimW,
+                packageHeight: dimH,
+                packageDimensionUom,
+                totalWeight: autoTotalWeight,
+                totalVolume: autoTotalVolume,
                 ...(withHandover && selectedOption
                     ? {
                           partnershipId: selectedOption.partnershipId,
@@ -295,6 +340,103 @@ export function PartialShipmentDialog({
                             min={0}
                             max={orderedQty > 0 ? orderedQty : undefined}
                         />
+                    </div>
+
+                    <div className="grid gap-2 rounded-md border p-3">
+                        <p className="text-sm font-medium">Package details</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-2">
+                                <Label>Total packages</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 20"
+                                    value={totalPackages}
+                                    onChange={(e) =>
+                                        setTotalPackages(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Weight of each package (kg)</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 25"
+                                    value={packageWeight}
+                                    onChange={(e) =>
+                                        setPackageWeight(e.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="grid gap-2">
+                                <Label>Length</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 1.2"
+                                    value={packageLength}
+                                    onChange={(e) =>
+                                        setPackageLength(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Width</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 0.8"
+                                    value={packageWidth}
+                                    onChange={(e) =>
+                                        setPackageWidth(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Height</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 0.6"
+                                    value={packageHeight}
+                                    onChange={(e) =>
+                                        setPackageHeight(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Dim. unit</Label>
+                                <Select
+                                    value={packageDimensionUom}
+                                    onValueChange={setPackageDimensionUom}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="M">
+                                            Meters
+                                        </SelectItem>
+                                        <SelectItem value="FT">
+                                            Feet
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Total weight (auto):{' '}
+                            {autoTotalWeight !== undefined
+                                ? `${autoTotalWeight} kg`
+                                : '—'}
+                            {' · '}Total volume (auto):{' '}
+                            {autoTotalVolume !== undefined
+                                ? `${autoTotalVolume} CBM`
+                                : '—'}
+                        </p>
                     </div>
 
                     {optionsLoading ? (

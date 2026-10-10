@@ -295,6 +295,8 @@ export interface OrderSummary {
     pendingAck: number;
     acknowledged: number;
     partiallyReceived: number;
+    awaitingPickup?: number;
+    pickedUp?: number;
     received: number;
 }
 
@@ -360,6 +362,15 @@ export interface PartialShipmentRequest {
     partnershipId?: number;
     pickupLocation?: string;
     deliveryLocation?: string;
+    // Package facts; totals derive server-side when omitted.
+    totalPackages?: number;
+    packageWeight?: number;
+    packageLength?: number;
+    packageWidth?: number;
+    packageHeight?: number;
+    packageDimensionUom?: string;
+    totalWeight?: number;
+    totalVolume?: number;
 }
 
 export interface PartialShipmentResponse {

@@ -109,6 +109,7 @@ export default function LogisticsShipmentsPage() {
         driverId: '',
         assetId: '',
         bolDocumentId: '',
+        startPickup: false,
     });
     const [assignOpen, setAssignOpen] = useState(false);
     const [bolDocs, setBolDocs] = useState<ShipmentDocument[]>([]);
@@ -181,7 +182,7 @@ export default function LogisticsShipmentsPage() {
     }, []);
     useEffect(() => {
         Promise.all([
-            getShipments({ page: 0, size: 100 }).catch(() => null),
+            getShipments({ pageNo: 0, pageOffset: 100 }).catch(() => null),
             getDrivers({ page: 0, size: 100 }).catch(() => null),
             getFleetAssets({ page: 0, size: 100 }).catch(() => null),
         ]).then(([s, d, a]) => {
@@ -206,8 +207,14 @@ export default function LogisticsShipmentsPage() {
                     ? Number(assignForm.assetId)
                     : undefined,
                 bolDocumentId: assignForm.bolDocumentId || undefined,
+                startPickup: assignForm.startPickup || undefined,
             });
-            toast({ title: 'Booking assigned', variant: 'success' });
+            toast({
+                title: assignForm.startPickup
+                    ? 'Booking assigned — pickup started, ETA computed'
+                    : 'Booking assigned',
+                variant: 'success',
+            });
             setAssignOpen(false);
             load();
         } catch (e: unknown) {
@@ -529,6 +536,21 @@ export default function LogisticsShipmentsPage() {
                                 >
                                     Assign
                                 </LoadingButton>
+                                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={assignForm.startPickup}
+                                        onChange={(e) =>
+                                            setAssignForm({
+                                                ...assignForm,
+                                                startPickup: e.target.checked,
+                                            })
+                                        }
+                                    />
+                                    Start pickup now (stamps pickup time and
+                                    computes ETA from the route&apos;s average
+                                    delivery time)
+                                </label>
                                 <div className="grid gap-2 border-t pt-4">
                                     <div className="flex items-center justify-between">
                                         <Label>
@@ -918,7 +940,7 @@ export default function LogisticsShipmentsPage() {
                                                     {(() => {
                                                         const next =
                                                             nextLifecycleState(
-                                                                s.status
+                                                                s.status ?? ''
                                                             );
                                                         if (!next)
                                                             return (

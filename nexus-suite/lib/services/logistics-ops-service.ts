@@ -53,6 +53,14 @@ export const CAPACITY_UNITS = [
 
 export type CapacityUnitOption = (typeof CAPACITY_UNITS)[number];
 
+export const TRANSPORT_MODES = [
+    'ROAD',
+    'RAIL',
+    'AIR',
+    'SEA',
+    'MULTIMODAL',
+] as const;
+
 const UNITIZED: ReadonlySet<string> = new Set([
     'PALLETS',
     'SHIPPING_CONTAINER',
@@ -358,7 +366,7 @@ export async function deleteFreightRate(id: number): Promise<void> {
 // Execution
 export async function assignBooking(
     shipmentId: number,
-    body: { driverId?: number; assetId?: number; bolDocumentId?: string }
+    body: { driverId?: number; assetId?: number; bolDocumentId?: string; startPickup?: boolean }
 ): Promise<unknown> {
     const res = await apiClient.put(
         `${BASE}/execution/shipments/${shipmentId}/assign`,

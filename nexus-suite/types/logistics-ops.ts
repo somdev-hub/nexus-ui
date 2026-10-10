@@ -235,6 +235,7 @@ export interface CapacityForecast {
     originLane?: string;
     destinationLane?: string;
     equipmentType?: string;
+    transportMode?: string;
     periodStart?: string;
     periodEnd?: string;
     availableCapacity?: number;
@@ -242,6 +243,14 @@ export interface CapacityForecast {
     capacityUnit?: CapacityUnit | string;
     unitPrice?: number;
     currency?: string;
+    totalFuelRequired?: number;
+    fuelPrice?: number;
+    fuelSurcharge?: number;
+    driverFees?: number;
+    miscPrice?: number;
+    totalDistance?: number;
+    averageDeliveryTime?: number;
+    deliveryTimeUom?: string;
     partnershipId?: number;
     unitLength?: number;
     unitWidth?: number;
@@ -349,14 +358,47 @@ export interface AssetCurrentShipment {
 
 export interface LoadBoardShipment {
     shipmentId: number;
-    shipmentNumber: string;
-    status: string;
+    shipmentNumber?: string;
+    status?: string;
+    shipmentMode?: string;
+    // Mode resolved from the matched route capacity (shipments handed
+    // over by suppliers rarely carry their own mode).
+    routeMode?: string;
+    routeCapacityId?: number;
+    // Legacy aliases some readers still use.
     mode?: string;
+    pickupLocation?: string;
     pickupAddress?: string;
+    deliveryLocation?: string;
     deliveryAddress?: string;
+    pickupDate?: string;
+    deliveryDate?: string;
+    estimatedArrival?: string;
     totalWeight?: number;
     totalVolume?: number;
     totalPackages?: number;
     freightCost?: number;
+    currency?: string;
+    freightTerms?: string;
+    trackingNumber?: string;
     carrierName?: string;
+    carrierReference?: string;
+    isPartialShipment?: boolean;
+    backorderedQuantity?: number;
+    specialInstructions?: string;
+    hazardousMaterial?: boolean;
+    temperatureControlled?: boolean;
+    pickupContactName?: string;
+    pickupContactPhone?: string;
+    deliveryContactName?: string;
+    deliveryContactPhone?: string;
+    supplierOrgId?: number;
+    supplierOrgName?: string;
+    retailerOrgId?: number;
+    retailerOrgName?: string;
+    logisticsOrgId?: number;
+    logisticsOrgName?: string;
+    purchaseOrderId?: number;
+    poNumber?: string;
+    [key: string]: unknown;
 }

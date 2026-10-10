@@ -169,6 +169,13 @@ export default function LogisticsPartnershipsPage() {
         dimensionUom: 'M',
         unitVolume: '',
         volumeUom: 'CBM',
+        totalFuelRequired: '',
+        fuelPrice: '',
+        driverFees: '',
+        miscPrice: '',
+        totalDistance: '',
+        averageDeliveryTime: '',
+        deliveryTimeUom: 'HOURS',
     });
     const [confirmTerminate, setConfirmTerminate] =
         useState<OrgPartnership | null>(null);
@@ -464,6 +471,25 @@ export default function LogisticsPartnershipsPage() {
                     ? Number(newRoute.unitVolume)
                     : undefined,
                 volumeUom: newRoute.volumeUom || undefined,
+                totalFuelRequired: newRoute.totalFuelRequired
+                    ? Number(newRoute.totalFuelRequired)
+                    : undefined,
+                fuelPrice: newRoute.fuelPrice
+                    ? Number(newRoute.fuelPrice)
+                    : undefined,
+                driverFees: newRoute.driverFees
+                    ? Number(newRoute.driverFees)
+                    : undefined,
+                miscPrice: newRoute.miscPrice
+                    ? Number(newRoute.miscPrice)
+                    : undefined,
+                totalDistance: newRoute.totalDistance
+                    ? Number(newRoute.totalDistance)
+                    : undefined,
+                averageDeliveryTime: newRoute.averageDeliveryTime
+                    ? Number(newRoute.averageDeliveryTime)
+                    : undefined,
+                deliveryTimeUom: newRoute.deliveryTimeUom || undefined,
                 partnershipId: managing.partnershipId,
             });
             toast.success('Private route added');
@@ -485,6 +511,13 @@ export default function LogisticsPartnershipsPage() {
                 dimensionUom: 'M',
                 unitVolume: '',
                 volumeUom: 'CBM',
+                totalFuelRequired: '',
+                fuelPrice: '',
+                driverFees: '',
+                miscPrice: '',
+                totalDistance: '',
+                averageDeliveryTime: '',
+                deliveryTimeUom: 'HOURS',
             });
         } catch (err: unknown) {
             toast.error(
@@ -541,6 +574,25 @@ export default function LogisticsPartnershipsPage() {
                   .desiredRoutesJson as string | undefined
           )
         : [];
+
+    // All agreed routes already have a private capacity: the add form
+    // locks and the partnership is ready to activate.
+    const laneHit = (lane?: string | null, want?: string | null): boolean => {
+        const a = (lane ?? '').trim().toLowerCase();
+        const b = (want ?? '').trim().toLowerCase();
+        return (
+            !!a && !!b && (a === b || a.includes(b) || b.includes(a))
+        );
+    };
+    const allRoutesCreated =
+        managingWanted.length > 0 &&
+        managingWanted.every((w) =>
+            privateRoutes.some(
+                (r) =>
+                    laneHit(r.originLane, w.from) &&
+                    laneHit(r.destinationLane, w.to)
+            )
+        );
 
     const managingAgreed = managing
         ? quotations.filter(
@@ -1798,6 +1850,19 @@ export default function LogisticsPartnershipsPage() {
                             <p className="text-sm font-medium">
                                 Add route for this partnership
                             </p>
+                            {allRoutesCreated && (
+                                <p className="rounded-md bg-primary/5 p-2 text-sm text-muted-foreground">
+                                    All agreed routes have already been created
+                                    for this partnership ({privateRoutes.length}/
+                                    {managingWanted.length}). The form is
+                                    locked — activate the partnership to bring
+                                    it into effect.
+                                </p>
+                            )}
+                            <fieldset
+                                disabled={allRoutesCreated}
+                                className="grid gap-2 disabled:opacity-60"
+                            >
                             {managingAgreed.length > 0 && (
                                 <div className="grid gap-2">
                                     <p className="text-xs text-muted-foreground">
@@ -2083,12 +2148,150 @@ export default function LogisticsPartnershipsPage() {
                                     </div>
                                 </div>
                             )}
+                            <div className="grid gap-2 rounded-md border p-2">
+                                <p className="text-xs font-medium">
+                                    Fuel & cost breakup
+                                </p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid gap-1">
+                                        <Label>Total fuel (L)</Label>
+                                        <Input
+                                            type="number"
+                                            value={newRoute.totalFuelRequired}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    totalFuelRequired:
+                                                        e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Fuel price / L</Label>
+                                        <Input
+                                            type="number"
+                                            value={newRoute.fuelPrice}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    fuelPrice: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Surcharge (auto)</Label>
+                                        <Input
+                                            type="number"
+                                            value={String(
+                                                newRoute.totalFuelRequired &&
+                                                    newRoute.fuelPrice
+                                                    ? Math.round(
+                                                          Number(
+                                                              newRoute.totalFuelRequired
+                                                          ) *
+                                                              Number(
+                                                                  newRoute.fuelPrice
+                                                              ) *
+                                                              100
+                                                      ) / 100
+                                                    : ''
+                                            )}
+                                            disabled
+                                            readOnly
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid gap-1">
+                                        <Label>Driver&apos;s fees</Label>
+                                        <Input
+                                            type="number"
+                                            value={newRoute.driverFees}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    driverFees: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Misc price</Label>
+                                        <Input
+                                            type="number"
+                                            value={newRoute.miscPrice}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    miscPrice: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="grid gap-1">
+                                    <Label>Distance (km)</Label>
+                                    <Input
+                                        type="number"
+                                        value={newRoute.totalDistance}
+                                        onChange={(e) =>
+                                            setNewRoute({
+                                                ...newRoute,
+                                                totalDistance: e.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label>Avg. delivery time</Label>
+                                    <Input
+                                        type="number"
+                                        value={newRoute.averageDeliveryTime}
+                                        onChange={(e) =>
+                                            setNewRoute({
+                                                ...newRoute,
+                                                averageDeliveryTime:
+                                                    e.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label>Time unit</Label>
+                                    <Select
+                                        value={newRoute.deliveryTimeUom}
+                                        onValueChange={(v) =>
+                                            setNewRoute({
+                                                ...newRoute,
+                                                deliveryTimeUom: v,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="HOURS">
+                                                Hours
+                                            </SelectItem>
+                                            <SelectItem value="DAYS">
+                                                Days
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                             <Button
                                 onClick={addPrivateRoute}
                                 disabled={busyId === -1}
                             >
                                 {busyId === -1 ? 'Adding…' : 'Add Route'}
                             </Button>
+                            </fieldset>
                         </div>
                         <div className="flex justify-end gap-2">
                             <Button

@@ -25,6 +25,8 @@ const ORDER_METRICS: Array<{ key: keyof OrderSummary; label: string }> = [
     { key: 'total', label: 'Total Orders' },
     { key: 'pendingAck', label: 'Pending Acknowledgement' },
     { key: 'acknowledged', label: 'Acknowledged' },
+    { key: 'awaitingPickup', label: 'Waiting for Pickup' },
+    { key: 'pickedUp', label: 'Picked Up by Logistics' },
     { key: 'partiallyReceived', label: 'Partially Received' },
     { key: 'received', label: 'Received' },
 ];

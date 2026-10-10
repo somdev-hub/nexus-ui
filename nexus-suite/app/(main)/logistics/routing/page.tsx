@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { CalendarClock, Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import type {
@@ -49,6 +49,7 @@ import {
     deleteCapacityForecast,
     extendCapacityForPartnership,
     CAPACITY_UNITS,
+    TRANSPORT_MODES,
     isUnitizedCapacityUnit,
     formatUnitSpecs,
     capacityUnitLabel,
@@ -64,6 +65,145 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
+import Link from 'next/link';
+
+function CapacityTableRow({
+    c,
+    showPartnership,
+    deleting,
+    onExtend,
+    onEdit,
+    onDelete,
+}: {
+    c: CapacityForecast;
+    showPartnership: boolean;
+    deleting: boolean;
+    onExtend: (c: CapacityForecast) => void;
+    onEdit: (c: CapacityForecast) => void;
+    onDelete: (c: CapacityForecast) => void;
+}) {
+    return (
+        <TableRow key={c.forecastId}>
+            <TableCell className="text-xs">
+                {c.originLane ?? '?'} â†’ {c.destinationLane ?? '?'}
+            </TableCell>
+            {showPartnership && (
+                <TableCell>
+                    <Link
+                        href="/logistics/partnership/management"
+                        title="Open partnership management"
+                    >
+                        <Badge variant="secondary">
+                            #{c.partnershipId}
+                        </Badge>
+                    </Link>
+                </TableCell>
+            )}
+            <TableCell>
+                <Badge variant="outline">{c.equipmentType ?? '-'}</Badge>
+                {c.transportMode && (
+                    <Badge variant="secondary" className="ml-1">
+                        {c.transportMode}
+                    </Badge>
+                )}
+            </TableCell>
+            <TableCell className="text-xs">
+                {c.periodStart ?? '-'} â†’ {c.periodEnd ?? '-'}
+            </TableCell>
+            <TableCell className="text-xs">
+                <span>
+                    avail {c.availableCapacity ?? 0}{' '}
+                    {capacityUnitLabel(c.capacityUnit)}
+                </span>
+                <span className="text-muted-foreground">
+                    {' '}
+                    â€¢ booked {c.bookedCapacity ?? 0}
+                </span>
+                {formatUnitSpecs(c) && (
+                    <span className="block text-muted-foreground">
+                        {formatUnitSpecs(c)}
+                    </span>
+                )}
+                {c.unitPrice !== undefined && c.unitPrice !== null && (
+                    <span className="block font-medium">
+                        {c.unitPrice} {c.currency ?? 'USD'} /{' '}
+                        {capacityUnitLabel(c.capacityUnit).replace(/s$/, '')}
+                    </span>
+                )}
+                {(c.fuelSurcharge !== undefined && c.fuelSurcharge !== null) ||
+                (c.driverFees !== undefined && c.driverFees !== null) ||
+                (c.miscPrice !== undefined && c.miscPrice !== null) ? (
+                    <span className="block text-muted-foreground">
+                        {[
+                            c.fuelSurcharge !== undefined &&
+                            c.fuelSurcharge !== null
+                                ? `fuel +${c.fuelSurcharge}`
+                                : null,
+                            c.driverFees !== undefined &&
+                            c.driverFees !== null
+                                ? `driver +${c.driverFees}`
+                                : null,
+                            c.miscPrice !== undefined &&
+                            c.miscPrice !== null
+                                ? `misc +${c.miscPrice}`
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                    </span>
+                ) : null}
+                {(c.totalDistance !== undefined && c.totalDistance !== null) ||
+                (c.averageDeliveryTime !== undefined &&
+                    c.averageDeliveryTime !== null) ? (
+                    <span className="block text-muted-foreground">
+                        {c.totalDistance !== undefined &&
+                        c.totalDistance !== null
+                            ? `${c.totalDistance} km`
+                            : ''}
+                        {c.totalDistance !== undefined &&
+                        c.totalDistance !== null &&
+                        c.averageDeliveryTime !== undefined &&
+                        c.averageDeliveryTime !== null
+                            ? ' · '
+                            : ''}
+                        {c.averageDeliveryTime !== undefined &&
+                        c.averageDeliveryTime !== null
+                            ? `~${c.averageDeliveryTime} ${(c.deliveryTimeUom ?? 'HOURS').toLowerCase()}`
+                            : ''}
+                    </span>
+                ) : null}
+            </TableCell>
+            <TableCell>
+                <div className="flex gap-2">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Extend period for LONG_TERM partner"
+                        onClick={() => onExtend(c)}
+                    >
+                        <CalendarClock className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Edit capacity"
+                        onClick={() => onEdit(c)}
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+                    <LoadingButton
+                        loading={deleting}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onDelete(c)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </LoadingButton>
+                </div>
+            </TableCell>
+        </TableRow>
+    );
+}
 
 export default function RoutingPage() {
     const { toast } = useToast();
@@ -83,12 +223,20 @@ export default function RoutingPage() {
         originLane: '',
         destinationLane: '',
         equipmentType: 'TRUCK',
+        transportMode: '',
         periodStart: '',
         periodEnd: '',
         availableCapacity: '',
         capacityUnit: 'KG',
         unitPrice: '',
         currency: 'USD',
+        totalFuelRequired: '',
+        fuelPrice: '',
+        driverFees: '',
+        miscPrice: '',
+        totalDistance: '',
+        averageDeliveryTime: '',
+        deliveryTimeUom: 'HOURS',
         unitLength: '',
         unitWidth: '',
         unitHeight: '',
@@ -117,6 +265,7 @@ export default function RoutingPage() {
         originLane: string;
         destinationLane: string;
         equipmentType: string;
+        transportMode: string;
         periodStart: string;
         periodEnd: string;
         availableCapacity: string;
@@ -124,6 +273,13 @@ export default function RoutingPage() {
         capacityUnit: string;
         unitPrice: string;
         currency: string;
+        totalFuelRequired: string;
+        fuelPrice: string;
+        driverFees: string;
+        miscPrice: string;
+        totalDistance: string;
+        averageDeliveryTime: string;
+        deliveryTimeUom: string;
         unitLength: string;
         unitWidth: string;
         unitHeight: string;
@@ -239,6 +395,7 @@ export default function RoutingPage() {
                 destinationLane: capForm.destinationLane || undefined,
                 equipmentType:
                     capForm.equipmentType as CapacityForecast['equipmentType'],
+                transportMode: capForm.transportMode || undefined,
                 periodStart: capForm.periodStart || undefined,
                 periodEnd: capForm.periodEnd || undefined,
                 availableCapacity: capForm.availableCapacity
@@ -249,6 +406,25 @@ export default function RoutingPage() {
                     ? Number(capForm.unitPrice)
                     : undefined,
                 currency: capForm.currency || undefined,
+                totalFuelRequired: capForm.totalFuelRequired
+                    ? Number(capForm.totalFuelRequired)
+                    : undefined,
+                fuelPrice: capForm.fuelPrice
+                    ? Number(capForm.fuelPrice)
+                    : undefined,
+                driverFees: capForm.driverFees
+                    ? Number(capForm.driverFees)
+                    : undefined,
+                miscPrice: capForm.miscPrice
+                    ? Number(capForm.miscPrice)
+                    : undefined,
+                totalDistance: capForm.totalDistance
+                    ? Number(capForm.totalDistance)
+                    : undefined,
+                averageDeliveryTime: capForm.averageDeliveryTime
+                    ? Number(capForm.averageDeliveryTime)
+                    : undefined,
+                deliveryTimeUom: capForm.deliveryTimeUom || undefined,
                 unitLength: capForm.unitLength
                     ? Number(capForm.unitLength)
                     : undefined,
@@ -397,6 +573,7 @@ export default function RoutingPage() {
                 destinationLane: capEdit.destinationLane || undefined,
                 equipmentType:
                     capEdit.equipmentType as CapacityForecast['equipmentType'],
+                transportMode: capEdit.transportMode || undefined,
                 periodStart: capEdit.periodStart || undefined,
                 periodEnd: capEdit.periodEnd || undefined,
                 availableCapacity: capEdit.availableCapacity
@@ -410,6 +587,25 @@ export default function RoutingPage() {
                     ? Number(capEdit.unitPrice)
                     : undefined,
                 currency: capEdit.currency || undefined,
+                totalFuelRequired: capEdit.totalFuelRequired
+                    ? Number(capEdit.totalFuelRequired)
+                    : undefined,
+                fuelPrice: capEdit.fuelPrice
+                    ? Number(capEdit.fuelPrice)
+                    : undefined,
+                driverFees: capEdit.driverFees
+                    ? Number(capEdit.driverFees)
+                    : undefined,
+                miscPrice: capEdit.miscPrice
+                    ? Number(capEdit.miscPrice)
+                    : undefined,
+                totalDistance: capEdit.totalDistance
+                    ? Number(capEdit.totalDistance)
+                    : undefined,
+                averageDeliveryTime: capEdit.averageDeliveryTime
+                    ? Number(capEdit.averageDeliveryTime)
+                    : undefined,
+                deliveryTimeUom: capEdit.deliveryTimeUom || undefined,
                 unitLength: capEdit.unitLength
                     ? Number(capEdit.unitLength)
                     : undefined,
@@ -436,6 +632,96 @@ export default function RoutingPage() {
             });
         }
     };
+
+    // Public lanes vs lanes dedicated to one long-term partnership.
+    const publicCapacities = (capacity?.content ?? []).filter(
+        (c) => c.partnershipId === undefined || c.partnershipId === null
+    );
+    const dedicatedCapacities = (capacity?.content ?? []).filter(
+        (c) => c.partnershipId !== undefined && c.partnershipId !== null
+    );
+
+    const handleCapExtendRow = (c: CapacityForecast) =>
+        setCapExtend({
+            id: c.forecastId,
+            periodEnd: c.periodEnd ?? '',
+            partnershipId: '',
+            newPeriodEnd: c.periodEnd ?? '',
+        });
+
+    const handleCapEditRow = (c: CapacityForecast) =>
+        setCapEdit({
+            id: c.forecastId,
+            originLane: c.originLane ?? '',
+            destinationLane: c.destinationLane ?? '',
+            equipmentType: c.equipmentType ?? 'TRUCK',
+            transportMode: c.transportMode ?? '',
+            periodStart: c.periodStart ?? '',
+            periodEnd: c.periodEnd ?? '',
+            availableCapacity:
+                c.availableCapacity != null
+                    ? String(c.availableCapacity)
+                    : '',
+            bookedCapacity:
+                c.bookedCapacity != null ? String(c.bookedCapacity) : '',
+            capacityUnit: c.capacityUnit ?? 'KG',
+            unitLength:
+                c.unitLength != null && c.unitLength !== undefined
+                    ? String(c.unitLength)
+                    : '',
+            unitWidth:
+                c.unitWidth != null && c.unitWidth !== undefined
+                    ? String(c.unitWidth)
+                    : '',
+            unitHeight:
+                c.unitHeight != null && c.unitHeight !== undefined
+                    ? String(c.unitHeight)
+                    : '',
+            dimensionUom: c.dimensionUom ?? 'M',
+            unitVolume:
+                c.unitVolume != null && c.unitVolume !== undefined
+                    ? String(c.unitVolume)
+                    : '',
+            volumeUom: c.volumeUom ?? 'CBM',
+            unitPrice:
+                c.unitPrice != null && c.unitPrice !== undefined
+                    ? String(c.unitPrice)
+                    : '',
+            currency: c.currency ?? 'USD',
+            totalFuelRequired:
+                c.totalFuelRequired != null && c.totalFuelRequired !== undefined
+                    ? String(c.totalFuelRequired)
+                    : '',
+            fuelPrice:
+                c.fuelPrice != null && c.fuelPrice !== undefined
+                    ? String(c.fuelPrice)
+                    : '',
+            driverFees:
+                c.driverFees != null && c.driverFees !== undefined
+                    ? String(c.driverFees)
+                    : '',
+            miscPrice:
+                c.miscPrice != null && c.miscPrice !== undefined
+                    ? String(c.miscPrice)
+                    : '',
+            totalDistance:
+                c.totalDistance != null && c.totalDistance !== undefined
+                    ? String(c.totalDistance)
+                    : '',
+            averageDeliveryTime:
+                c.averageDeliveryTime != null &&
+                c.averageDeliveryTime !== undefined
+                    ? String(c.averageDeliveryTime)
+                    : '',
+            deliveryTimeUom: c.deliveryTimeUom ?? 'HOURS',
+            notes: c.notes ?? '',
+        });
+
+    const handleCapDeleteRow = (c: CapacityForecast) =>
+        withBusy(`cap-del-${c.forecastId}`, async () => {
+            await deleteCapacityForecast(c.forecastId);
+            load();
+        });
 
     return (
         <div className="p-4 lg:p-6 space-y-4">
@@ -487,11 +773,11 @@ export default function RoutingPage() {
                                 Capacity Entry
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="md:max-w-4xl h-[90dvh] *:overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle>New Capacity Entry</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-6">
+                            <div className="grid gap-6 slim-scrollbar">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>Origin Lane</Label>
@@ -521,7 +807,7 @@ export default function RoutingPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>Equipment</Label>
                                         <Input
@@ -536,6 +822,40 @@ export default function RoutingPage() {
                                             }
                                         />
                                     </div>
+                                    <div className="grid gap-2">
+                                        <Label>Transport Mode</Label>
+                                        <Select
+                                            value={
+                                                capForm.transportMode || 'NONE'
+                                            }
+                                            onValueChange={(v) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    transportMode:
+                                                        v === 'NONE' ? '' : v,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select mode" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="NONE">
+                                                    Not set
+                                                </SelectItem>
+                                                {TRANSPORT_MODES.map((m) => (
+                                                    <SelectItem
+                                                        key={m}
+                                                        value={m}
+                                                    >
+                                                        {m}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>From (YYYY-MM-DD)</Label>
                                         <Input
@@ -640,6 +960,159 @@ export default function RoutingPage() {
                                         />
                                     </div>
                                 </div>
+                                <div className="grid gap-3 rounded-md border p-3">
+                                    <p className="text-sm font-medium">
+                                        Fuel & cost breakup
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid gap-2">
+                                            <Label>Total fuel (L)</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g. 120"
+                                                value={
+                                                    capForm.totalFuelRequired
+                                                }
+                                                onChange={(e) =>
+                                                    setCapForm({
+                                                        ...capForm,
+                                                        totalFuelRequired:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Fuel price / L</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g. 90"
+                                                value={capForm.fuelPrice}
+                                                onChange={(e) =>
+                                                    setCapForm({
+                                                        ...capForm,
+                                                        fuelPrice:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>
+                                                Fuel surcharge (auto = fuel ×
+                                                price)
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="auto"
+                                                value={String(
+                                                    capForm.totalFuelRequired &&
+                                                        capForm.fuelPrice
+                                                        ? Math.round(
+                                                              Number(
+                                                                  capForm.totalFuelRequired
+                                                              ) *
+                                                                  Number(
+                                                                      capForm.fuelPrice
+                                                                  ) *
+                                                                  100
+                                                          ) / 100
+                                                        : ''
+                                                )}
+                                                disabled
+                                                readOnly
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid gap-2">
+                                            <Label>Driver&apos;s fees</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g. 3000"
+                                                value={capForm.driverFees}
+                                                onChange={(e) =>
+                                                    setCapForm({
+                                                        ...capForm,
+                                                        driverFees:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Misc price</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="e.g. 500"
+                                                value={capForm.miscPrice}
+                                                onChange={(e) =>
+                                                    setCapForm({
+                                                        ...capForm,
+                                                        miscPrice:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Total distance (km)</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 850"
+                                            value={capForm.totalDistance}
+                                            onChange={(e) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    totalDistance:
+                                                        e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Avg. delivery time</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 18"
+                                            value={capForm.averageDeliveryTime}
+                                            onChange={(e) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    averageDeliveryTime:
+                                                        e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Time unit</Label>
+                                        <Select
+                                            value={capForm.deliveryTimeUom}
+                                            onValueChange={(v) =>
+                                                setCapForm({
+                                                    ...capForm,
+                                                    deliveryTimeUom: v,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="HOURS">
+                                                    Hours
+                                                </SelectItem>
+                                                <SelectItem value="DAYS">
+                                                    Days
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
                                 {isUnitizedCapacityUnit(
                                     capForm.capacityUnit
                                 ) && (
@@ -728,7 +1201,7 @@ export default function RoutingPage() {
                                             <div className="grid gap-2">
                                                 <Label>
                                                     Total volume per unit
-                                                    (optional — auto from L×W×H)
+                                                    (optional â€” auto from LÃ—WÃ—H)
                                                 </Label>
                                                 <Input
                                                     type="number"
@@ -872,8 +1345,8 @@ export default function RoutingPage() {
                                                     ) || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    {g.totalWeight ?? 0} kg •{' '}
-                                                    {g.totalVolume ?? 0} m³
+                                                    {g.totalWeight ?? 0} kg â€¢{' '}
+                                                    {g.totalVolume ?? 0} mÂ³
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
@@ -1000,11 +1473,12 @@ export default function RoutingPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="capacity">
+                <TabsContent value="capacity" className="space-y-4">
                     <Card className="p-4 gap-2">
                         <CardHeader className="p-0">
                             <CardTitle>
-                                Available Capacity by Lane & Equipment
+                                Public Route Capacities (
+                                {publicCapacities.length})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -1022,212 +1496,83 @@ export default function RoutingPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {capacity?.content?.map((c) => (
-                                            <TableRow key={c.forecastId}>
-                                                <TableCell className="text-xs">
-                                                    {c.originLane ?? '?'} →{' '}
-                                                    {c.destinationLane ?? '?'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {c.equipmentType ?? '-'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    {c.periodStart ?? '-'} →{' '}
-                                                    {c.periodEnd ?? '-'}
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    <span>
-                                                        avail{' '}
-                                                        {c.availableCapacity ??
-                                                            0}{' '}
-                                                        {capacityUnitLabel(
-                                                            c.capacityUnit
-                                                        )}
-                                                    </span>
-                                                    <span className="text-muted-foreground">
-                                                        {' '}
-                                                        • booked{' '}
-                                                        {c.bookedCapacity ??
-                                                            0}
-                                                    </span>
-                                                    {formatUnitSpecs(c) && (
-                                                        <span className="block text-muted-foreground">
-                                                            {formatUnitSpecs(c)}
-                                                        </span>
-                                                    )}
-                                                    {c.unitPrice !== undefined &&
-                                                        c.unitPrice !== null && (
-                                                            <span className="block font-medium">
-                                                                {c.unitPrice}{' '}
-                                                                {c.currency ??
-                                                                    'USD'}{' '}
-                                                                /{' '}
-                                                                {capacityUnitLabel(
-                                                                    c.capacityUnit
-                                                                ).replace(
-                                                                    /s$/,
-                                                                    ''
-                                                                )}
-                                                            </span>
-                                                        )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            title="Extend period for LONG_TERM partner"
-                                                            onClick={() =>
-                                                                setCapExtend({
-                                                                    id: c.forecastId,
-                                                                    periodEnd:
-                                                                        c.periodEnd ??
-                                                                        '',
-                                                                    partnershipId:
-                                                                        '',
-                                                                    newPeriodEnd:
-                                                                        c.periodEnd ??
-                                                                        '',
-                                                                })
-                                                            }
-                                                        >
-                                                            <CalendarClock className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            title="Edit capacity"
-                                                            onClick={() =>
-                                                                setCapEdit({
-                                                                    id: c.forecastId,
-                                                                    originLane:
-                                                                        c.originLane ??
-                                                                        '',
-                                                                    destinationLane:
-                                                                        c.destinationLane ??
-                                                                        '',
-                                                                    equipmentType:
-                                                                        c.equipmentType ??
-                                                                        'TRUCK',
-                                                                    periodStart:
-                                                                        c.periodStart ??
-                                                                        '',
-                                                                    periodEnd:
-                                                                        c.periodEnd ??
-                                                                        '',
-                                                                    availableCapacity:
-                                                                        c.availableCapacity !=
-                                                                        null
-                                                                            ? String(
-                                                                                  c.availableCapacity
-                                                                              )
-                                                                            : '',
-                                                                    bookedCapacity:
-                                                                        c.bookedCapacity !=
-                                                                        null
-                                                                            ? String(
-                                                                                  c.bookedCapacity
-                                                                              )
-                                                                            : '',
-                                                                    capacityUnit:
-                                                                        c.capacityUnit ??
-                                                                        'KG',
-                                                                    unitLength:
-                                                                        c.unitLength !=
-                                                                        null &&
-                                                                        c.unitLength !==
-                                                                            undefined
-                                                                            ? String(
-                                                                                  c.unitLength
-                                                                              )
-                                                                            : '',
-                                                                    unitWidth:
-                                                                        c.unitWidth !=
-                                                                        null &&
-                                                                        c.unitWidth !==
-                                                                            undefined
-                                                                            ? String(
-                                                                                  c.unitWidth
-                                                                              )
-                                                                            : '',
-                                                                    unitHeight:
-                                                                        c.unitHeight !=
-                                                                        null &&
-                                                                        c.unitHeight !==
-                                                                            undefined
-                                                                            ? String(
-                                                                                  c.unitHeight
-                                                                              )
-                                                                            : '',
-                                                                    dimensionUom:
-                                                                        c.dimensionUom ??
-                                                                        'M',
-                                                                    unitVolume:
-                                                                        c.unitVolume !=
-                                                                        null &&
-                                                                        c.unitVolume !==
-                                                                            undefined
-                                                                            ? String(
-                                                                                  c.unitVolume
-                                                                              )
-                                                                            : '',
-                                                                    volumeUom:
-                                                                        c.volumeUom ??
-                                                                        'CBM',
-                                                                    unitPrice:
-                                                                        c.unitPrice !=
-                                                                        null &&
-                                                                        c.unitPrice !==
-                                                                            undefined
-                                                                            ? String(
-                                                                                  c.unitPrice
-                                                                              )
-                                                                            : '',
-                                                                    currency:
-                                                                        c.currency ??
-                                                                        'USD',
-                                                                    notes:
-                                                                        c.notes ??
-                                                                        '',
-                                                                })
-                                                            }
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                        <LoadingButton
-                                                            loading={
-                                                                busy ===
-                                                                `cap-del-${c.forecastId}`
-                                                            }
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                withBusy(
-                                                                    `cap-del-${c.forecastId}`,
-                                                                    async () => {
-                                                                        await deleteCapacityForecast(
-                                                                            c.forecastId
-                                                                        );
-                                                                        load();
-                                                                    }
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </LoadingButton>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
+                                        {publicCapacities.map((c) => (
+                                            <CapacityTableRow
+                                                key={c.forecastId}
+                                                c={c}
+                                                showPartnership={false}
+                                                deleting={
+                                                    busy ===
+                                                    `cap-del-${c.forecastId}`
+                                                }
+                                                onExtend={handleCapExtendRow}
+                                                onEdit={handleCapEditRow}
+                                                onDelete={handleCapDeleteRow}
+                                            />
                                         ))}
-                                        {!capacity?.content?.length && (
+                                        {publicCapacities.length === 0 && (
                                             <TableRow>
                                                 <TableCell
                                                     colSpan={5}
                                                     className="text-center text-sm text-muted-foreground"
                                                 >
-                                                    No capacity entries
+                                                    No public routes
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
+                            <CardTitle>
+                                Dedicated Partnership Routes (
+                                {dedicatedCapacities.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <p className="pb-2 text-sm text-muted-foreground">
+                                Lanes reserved for one long-term partnership
+                                each â€” hidden from the public marketplace.
+                            </p>
+                            {loading ? (
+                                <TableSkeleton rows={3} />
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Lane</TableHead>
+                                            <TableHead>Partnership</TableHead>
+                                            <TableHead>Equipment</TableHead>
+                                            <TableHead>Period</TableHead>
+                                            <TableHead>Capacity</TableHead>
+                                            <TableHead>Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {dedicatedCapacities.map((c) => (
+                                            <CapacityTableRow
+                                                key={c.forecastId}
+                                                c={c}
+                                                showPartnership={true}
+                                                deleting={
+                                                    busy ===
+                                                    `cap-del-${c.forecastId}`
+                                                }
+                                                onExtend={handleCapExtendRow}
+                                                onEdit={handleCapEditRow}
+                                                onDelete={handleCapDeleteRow}
+                                            />
+                                        ))}
+                                        {dedicatedCapacities.length === 0 && (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={6}
+                                                    className="text-center text-sm text-muted-foreground"
+                                                >
+                                                    No dedicated routes
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -1527,7 +1872,7 @@ export default function RoutingPage() {
                     if (!v) setCapEdit(null);
                 }}
             >
-                <DialogContent>
+                <DialogContent className="md:max-w-4xl h-[90dvh] *:overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Capacity Entry</DialogTitle>
                         <DialogDescription>
@@ -1535,7 +1880,7 @@ export default function RoutingPage() {
                         </DialogDescription>
                     </DialogHeader>
                     {capEdit && (
-                        <div className="grid gap-6">
+                        <div className="grid gap-6 slim-scrollbar">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Origin Lane</Label>
@@ -1564,7 +1909,7 @@ export default function RoutingPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>Equipment</Label>
                                     <Input
@@ -1578,6 +1923,35 @@ export default function RoutingPage() {
                                         placeholder="e.g. TRUCK"
                                     />
                                 </div>
+                                <div className="grid gap-2">
+                                    <Label>Transport Mode</Label>
+                                    <Select
+                                        value={capEdit.transportMode || 'NONE'}
+                                        onValueChange={(v) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                transportMode:
+                                                    v === 'NONE' ? '' : v,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select mode" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="NONE">
+                                                Not set
+                                            </SelectItem>
+                                            {TRANSPORT_MODES.map((m) => (
+                                                <SelectItem key={m} value={m}>
+                                                    {m}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-2">
                                     <Label>From (YYYY-MM-DD)</Label>
                                     <Input
@@ -1694,6 +2068,153 @@ export default function RoutingPage() {
                                     />
                                 </div>
                             </div>
+                            <div className="grid gap-3 rounded-md border p-3">
+                                <p className="text-sm font-medium">
+                                    Fuel & cost breakup
+                                </p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Total fuel (L)</Label>
+                                        <Input
+                                            type="number"
+                                            value={capEdit.totalFuelRequired}
+                                            onChange={(e) =>
+                                                setCapEdit({
+                                                    ...capEdit,
+                                                    totalFuelRequired:
+                                                        e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. 120"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Fuel price / L</Label>
+                                        <Input
+                                            type="number"
+                                            value={capEdit.fuelPrice}
+                                            onChange={(e) =>
+                                                setCapEdit({
+                                                    ...capEdit,
+                                                    fuelPrice: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. 90"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>
+                                            Fuel surcharge (auto = fuel ×
+                                            price)
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="auto"
+                                            value={String(
+                                                capEdit.totalFuelRequired &&
+                                                    capEdit.fuelPrice
+                                                    ? Math.round(
+                                                          Number(
+                                                              capEdit.totalFuelRequired
+                                                          ) *
+                                                              Number(
+                                                                  capEdit.fuelPrice
+                                                              ) *
+                                                              100
+                                                      ) / 100
+                                                    : ''
+                                            )}
+                                            disabled
+                                            readOnly
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Driver&apos;s fees</Label>
+                                        <Input
+                                            type="number"
+                                            value={capEdit.driverFees}
+                                            onChange={(e) =>
+                                                setCapEdit({
+                                                    ...capEdit,
+                                                    driverFees: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. 3000"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Misc price</Label>
+                                        <Input
+                                            type="number"
+                                            value={capEdit.miscPrice}
+                                            onChange={(e) =>
+                                                setCapEdit({
+                                                    ...capEdit,
+                                                    miscPrice: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. 500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Total distance (km)</Label>
+                                    <Input
+                                        type="number"
+                                        value={capEdit.totalDistance}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                totalDistance: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 850"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Avg. delivery time</Label>
+                                    <Input
+                                        type="number"
+                                        value={capEdit.averageDeliveryTime}
+                                        onChange={(e) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                averageDeliveryTime:
+                                                    e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. 18"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Time unit</Label>
+                                    <Select
+                                        value={capEdit.deliveryTimeUom}
+                                        onValueChange={(v) =>
+                                            setCapEdit({
+                                                ...capEdit,
+                                                deliveryTimeUom: v,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="HOURS">
+                                                Hours
+                                            </SelectItem>
+                                            <SelectItem value="DAYS">
+                                                Days
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                             {isUnitizedCapacityUnit(
                                 capEdit.capacityUnit
                             ) && (
@@ -1780,7 +2301,7 @@ export default function RoutingPage() {
                                         <div className="grid gap-2">
                                             <Label>
                                                 Total volume per unit
-                                                (optional — auto from L×W×H)
+                                                (optional â€” auto from LÃ—WÃ—H)
                                             </Label>
                                             <Input
                                                 type="number"
@@ -1862,8 +2383,8 @@ export default function RoutingPage() {
                             Extend capacity for LONG_TERM partner
                         </DialogTitle>
                         <DialogDescription>
-                            Current period ends {capExtend?.periodEnd ?? '—'}.
-                            Only LONG_TERM partnerships qualify — the partner
+                            Current period ends {capExtend?.periodEnd ?? 'â€”'}.
+                            Only LONG_TERM partnerships qualify â€” the partner
                             supplier keeps logistics flexibility beyond the
                             current window.
                         </DialogDescription>

@@ -25,6 +25,7 @@ export interface LogisticsCapacityRow {
     originLane?: string;
     destinationLane?: string;
     equipmentType?: string;
+    transportMode?: string;
     periodStart?: string;
     periodEnd?: string;
     availableCapacity?: number;
@@ -32,6 +33,14 @@ export interface LogisticsCapacityRow {
     capacityUnit?: string;
     unitPrice?: number;
     currency?: string;
+    totalFuelRequired?: number;
+    fuelPrice?: number;
+    fuelSurcharge?: number;
+    driverFees?: number;
+    miscPrice?: number;
+    totalDistance?: number;
+    averageDeliveryTime?: number;
+    deliveryTimeUom?: string;
     unitLength?: number;
     unitWidth?: number;
     unitHeight?: number;
@@ -73,6 +82,10 @@ export interface SupplierShipment {
     pickupLocation?: string;
     deliveryLocation?: string;
     trackingNumber?: string;
+    backorderedQuantity?: number;
+    isPartialShipment?: boolean;
+    actualDeparture?: string;
+    estimatedArrival?: string;
     [key: string]: unknown;
 }
 

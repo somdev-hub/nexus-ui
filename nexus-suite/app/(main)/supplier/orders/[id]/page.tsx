@@ -246,7 +246,9 @@ export default function SupplierOrderDetailPage() {
                                 </Button>
                             )}
                             {(order.status === 'ACKNOWLEDGED' ||
-                                order.status === 'PARTIALLY_RECEIVED') && (
+                                order.status === 'PARTIALLY_RECEIVED' ||
+                                order.status === 'AWAITING_PICKUP' ||
+                                order.status === 'PICKED_UP') && (
                                 <>
                                     <Button
                                         size="sm"

@@ -442,7 +442,7 @@ export default function FleetPage() {
                                 Asset
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="md:max-w-4xl h-[90dvh] *:overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle>New Fleet Asset</DialogTitle>
                                 <DialogDescription>
@@ -452,7 +452,7 @@ export default function FleetPage() {
                                 </DialogDescription>
                             </DialogHeader>
                             {assetStep === 1 ? (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-3 slim-scrollbar">
                                     {ASSET_TYPES.map((t) => (
                                         <button
                                             key={t.value}
@@ -480,7 +480,7 @@ export default function FleetPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="grid gap-6">
+                                <div className="grid gap-6 slim-scrollbar">
                                     {(() => {
                                         const selected =
                                             ASSET_TYPES.find(
