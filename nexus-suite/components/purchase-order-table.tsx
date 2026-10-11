@@ -85,6 +85,37 @@ import {
     cancelPurchaseOrder,
     transitionPurchaseOrder,
 } from '@/lib/services/purchase-orders-service';
+import type { PurchaseOrder as ApiPurchaseOrder } from '@/types/purchase-orders';
+
+// API objects carry the same fields with looser optionality â€” normalize to
+// the table's row shape when merging transition results back in.
+function toLocalRow(po: ApiPurchaseOrder): PurchaseOrder {
+    return {
+        purchaseOrderId: po.purchaseOrderId,
+        purchaseOrderNumber: po.purchaseOrderNumber,
+        retailerOrgId: po.retailerOrgId ?? 0,
+        retailerOrgName: po.retailerOrgName ?? '',
+        supplierOrgId: po.supplierOrgId ?? 0,
+        supplierOrgName:
+            po.supplierOrgName ?? po.supplierName ?? po.buyerOrgName ?? '',
+        orderDate: po.orderDate,
+        expectedDeliveryDate: po.expectedDeliveryDate,
+        status: po.status as PurchaseOrder['status'],
+        totalAmount: po.totalAmount,
+        currency: po.currency,
+        paymentTerms: po.paymentTerms,
+        shippingAddress: po.shippingAddress,
+        billingAddress: po.billingAddress,
+        notes: po.notes,
+        approvedBy: po.approvedBy,
+        approvedAt: po.approvedAt,
+        rejectionReason: po.rejectionReason,
+        createdAt: po.createdAt,
+        updatedAt: po.updatedAt,
+        createdBy: po.createdBy,
+        updatedBy: po.updatedBy,
+    };
+}
 
 interface PurchaseOrder {
     purchaseOrderId: number;
@@ -104,7 +135,16 @@ interface PurchaseOrder {
         | 'SHIPPED'
         | 'DELIVERED'
         | 'CANCELLED'
-        | 'PARTIALLY_DELIVERED';
+        | 'PARTIALLY_DELIVERED'
+        | 'SENT_TO_SUPPLIER'
+        | 'ACKNOWLEDGED'
+        | 'AWAITING_PICKUP'
+        | 'PICKED_UP'
+        | 'PARTIALLY_RECEIVED'
+        | 'RECEIVED'
+        | 'INVOICED'
+        | 'PAID'
+        | 'CLOSED';
     totalAmount: number;
     currency: string;
     paymentTerms: string;
@@ -183,6 +223,16 @@ const statusConfig: Record<
         label: 'Acknowledged',
         variant: 'default',
         icon: <IconCheck className="h-3 w-3" />,
+    },
+    AWAITING_PICKUP: {
+        label: 'Waiting for Pickup',
+        variant: 'outline',
+        icon: <IconTruck className="h-3 w-3" />,
+    },
+    PICKED_UP: {
+        label: 'Picked Up by Logistics',
+        variant: 'default',
+        icon: <IconTruck className="h-3 w-3" />,
     },
     PARTIALLY_RECEIVED: {
         label: 'Partially Received',
@@ -268,7 +318,7 @@ const buildColumns = (
             <div className="text-sm">
                 {row.original.orderDate
                     ? format(new Date(row.original.orderDate), 'MMM dd, yyyy')
-                    : '—'}
+                    : 'â€”'}
             </div>
         ),
     },
@@ -282,7 +332,7 @@ const buildColumns = (
                           new Date(row.original.expectedDeliveryDate),
                           'MMM dd, yyyy'
                       )
-                    : '—'}
+                    : 'â€”'}
             </div>
         ),
     },
@@ -318,7 +368,7 @@ const buildColumns = (
     {
         accessorKey: 'paymentTerms',
         header: 'Payment Terms',
-        cell: ({ row }) => row.original.paymentTerms || '—',
+        cell: ({ row }) => row.original.paymentTerms || 'â€”',
     },
     {
         id: 'actions',
@@ -393,10 +443,6 @@ export function PurchaseOrderTable({
     const [columnFilters, setColumnFilters] =
         React.useState<ColumnFiltersState>([]);
     const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: 10,
-    });
 
     const [confirming, setConfirming] = React.useState<{
         action: 'submit' | 'send' | 'delete';
@@ -411,9 +457,10 @@ export function PurchaseOrderTable({
                 po.purchaseOrderId,
                 'PENDING_APPROVAL'
             );
+            const next = toLocalRow(updated);
             setData((prev) =>
                 prev.map((p) =>
-                    p.purchaseOrderId === po.purchaseOrderId ? updated : p
+                    p.purchaseOrderId === po.purchaseOrderId ? next : p
                 )
             );
             toast.success('Purchase order submitted for approval');
@@ -433,9 +480,10 @@ export function PurchaseOrderTable({
                 po.purchaseOrderId,
                 'SENT_TO_SUPPLIER'
             );
+            const next = toLocalRow(updated);
             setData((prev) =>
                 prev.map((p) =>
-                    p.purchaseOrderId === po.purchaseOrderId ? updated : p
+                    p.purchaseOrderId === po.purchaseOrderId ? next : p
                 )
             );
             toast.success('Purchase order sent to supplier');
@@ -489,7 +537,6 @@ export function PurchaseOrderTable({
             columnVisibility,
             rowSelection,
             columnFilters,
-            pagination,
         },
         getRowId: (row) => row.purchaseOrderId.toString(),
         enableRowSelection: true,
@@ -497,10 +544,8 @@ export function PurchaseOrderTable({
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
-        onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFacetedRowModel: getFacetedRowModel(),
         getFacetedUniqueValues: getFacetedUniqueValues(),
@@ -648,70 +693,6 @@ export function PurchaseOrderTable({
                             )}
                         </TableBody>
                     </Table>
-                </div>
-                <div className="flex items-center justify-between gap-4 px-4">
-                    <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                        {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                        {table.getFilteredRowModel().rows.length} row(s)
-                        selected.
-                    </div>
-                    <div className="flex flex-1 items-center justify-center">
-                        <TablePagination
-                            pageIndex={table.getState().pagination.pageIndex}
-                            pageCount={table.getPageCount()}
-                            canPreviousPage={table.getCanPreviousPage()}
-                            canNextPage={table.getCanNextPage()}
-                            onPageChange={(index) => table.setPageIndex(index)}
-                            onPreviousPage={() => table.previousPage()}
-                            onNextPage={() => table.nextPage()}
-                            onFirstPage={() => table.setPageIndex(0)}
-                            onLastPage={() =>
-                                table.setPageIndex(table.getPageCount() - 1)
-                            }
-                        />
-                    </div>
-                    <div className="flex flex-1 items-center justify-end gap-4">
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="hidden items-center gap-2 lg:flex">
-                            <Label
-                                htmlFor="rows-per-page"
-                                className="shrink-0 text-sm font-medium whitespace-nowrap"
-                            >
-                                Rows per page
-                            </Label>
-                            <Select
-                                value={`${table.getState().pagination.pageSize}`}
-                                onValueChange={(value) => {
-                                    table.setPageSize(Number(value));
-                                }}
-                            >
-                                <SelectTrigger
-                                    size="sm"
-                                    className="w-full"
-                                    id="rows-per-page"
-                                >
-                                    <SelectValue
-                                        placeholder={
-                                            table.getState().pagination.pageSize
-                                        }
-                                    />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                                        <SelectItem
-                                            key={pageSize}
-                                            value={`${pageSize}`}
-                                        >
-                                            {pageSize}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
                 </div>
             </TabsContent>
             <TabsContent value="cards" className="flex flex-col px-4 lg:px-6">

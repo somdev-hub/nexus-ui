@@ -13,6 +13,15 @@ const MAP_STYLE =
     'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const POLL_MS = 5000;
 
+// MapLibre resolves its render worker relative to its own bundle URL
+// (import.meta.url), which Turbopack dev chunks break — hence "Worker
+// failed to load". Point it at the worker files served from /public
+// instead (copies of node_modules/maplibre-gl/dist/*worker*.mjs; refresh
+// them when upgrading maplibre-gl).
+if (typeof window !== 'undefined') {
+    maplibregl.config.WORKER_URL = '/maplibre/maplibre-gl-worker.mjs';
+}
+
 function dot(color: string, size = 14): HTMLElement {
     const el = document.createElement('div');
     el.style.width = `${size}px`;

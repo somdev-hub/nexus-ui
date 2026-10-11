@@ -150,14 +150,6 @@ const SUPPLIER_OPTIONS: QuickCreateOption[] = [
 
 const LOGISTICS_OPTIONS: QuickCreateOption[] = [
 	{
-		key: 'quote',
-		label: 'Shipment Quote',
-		description: 'Rate + surcharges',
-		icon: FileText,
-		href: '/logistics/load-board',
-		intent: 'logistics:quote',
-	},
-	{
 		key: 'asset',
 		label: 'Fleet Asset',
 		description: 'Truck / trailer',

@@ -1,13 +1,18 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
-import { Check, Eye, Pencil, Plus, Trash2, Truck } from 'lucide-react';
+import { Eye, Map as MapIcon, MapPin, Truck } from 'lucide-react';
 import { Info } from 'lucide-react';
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { LoadBoardShipment, ShipmentQuote } from '@/types/logistics-ops';
+import type {
+    Driver,
+    FleetAsset,
+    LoadBoardShipment,
+    ShipmentEta,
+} from '@/types/logistics-ops';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,20 +42,16 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     getLoadBoard,
-    getShipmentQuotes,
-    createShipmentQuote,
-    updateQuote,
-    transitionQuoteStatus,
-    deleteShipmentQuote,
+    getPickedUpLoads,
+    getDeliveredLoads,
     assignBooking,
     getDrivers,
     getFleetAssets,
+    getShipmentEta,
 } from '@/lib/services/logistics-ops-service';
-import type { Driver, FleetAsset } from '@/types/logistics-ops';
 import {
     getShipmentStops,
     getTrackingEvents,
@@ -59,8 +60,8 @@ import {
     type TrackingEvent,
     type ShipmentDocument,
 } from '@/lib/services/shipment-service';
+import ShipmentMap from '@/components/shipment-map';
 import { useToast } from '@/hooks/use-toast';
-import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
@@ -68,16 +69,13 @@ export default function LoadBoardPage() {
     const { toast } = useToast();
     const [loads, setLoads] =
         useState<PaginatedResponse<LoadBoardShipment> | null>(null);
-    const [quotes, setQuotes] =
-        useState<PaginatedResponse<ShipmentQuote> | null>(null);
+    const [pickedUp, setPickedUp] =
+        useState<PaginatedResponse<LoadBoardShipment> | null>(null);
+    const [delivered, setDelivered] =
+        useState<PaginatedResponse<LoadBoardShipment> | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [mode, setMode] = useState('all');
-    const [quoteStatus, setQuoteStatus] = useState('all');
-    const [open, setOpen] = useState(false);
-    // Quote dialog options come straight from the board — no extra fetch.
-    const shipmentOptions: LoadBoardShipment[] = loads?.content ?? [];
-    useQuickCreateIntent('logistics:quote', () => setOpen(true));
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;
@@ -101,6 +99,23 @@ export default function LoadBoardPage() {
     const [detailStops, setDetailStops] = useState<ShipmentStop[]>([]);
     const [detailTracking, setDetailTracking] = useState<TrackingEvent[]>([]);
     const [detailDocs, setDetailDocs] = useState<ShipmentDocument[]>([]);
+    // Trackers live on the Picked Up tab (admin surface).
+    const [eta, setEta] = useState<ShipmentEta | null>(null);
+    const [etaOpen, setEtaOpen] = useState(false);
+    const [mapOpen, setMapOpen] = useState(false);
+    const [mapShipmentId, setMapShipmentId] = useState<number | null>(null);
+
+    const handleEta = async (id: number) => {
+        try {
+            setEta(await getShipmentEta(id));
+            setEtaOpen(true);
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
     // Assign asset + driver straight from the board.
     const [assigning, setAssigning] = useState<LoadBoardShipment | null>(null);
     const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -152,8 +167,8 @@ export default function LoadBoardPage() {
             );
             toast({
                 title: assignStartPickup
-                    ? `Shipment ${assigning.shipmentNumber ?? ''} assigned — pickup started, ETA computed`
-                    : `Shipment ${assigning.shipmentNumber ?? ''} assigned — ready for pickup`,
+                    ? `Shipment ${assigning.shipmentNumber ?? ''} assigned â€” pickup started, ETA computed`
+                    : `Shipment ${assigning.shipmentNumber ?? ''} assigned â€” ready for pickup`,
                 variant: 'success',
             });
             setAssigning(null);
@@ -184,46 +199,35 @@ export default function LoadBoardPage() {
     };
 
     const shortDate = (iso?: string | null): string => {
-        if (!iso) return '—';
+        if (!iso) return 'â€”';
         const d = new Date(iso);
         return Number.isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString();
     };
 
     const routeText = (s: LoadBoardShipment): string => {
         const from =
-            (s.pickupLocation ?? s.pickupAddress ?? '').trim() || '—';
+            (s.pickupLocation ?? s.pickupAddress ?? '').trim() || 'â€”';
         const to =
-            (s.deliveryLocation ?? s.deliveryAddress ?? '').trim() || '—';
-        return `${from} → ${to}`;
+            (s.deliveryLocation ?? s.deliveryAddress ?? '').trim() || 'â€”';
+        return `${from} â†’ ${to}`;
     };
-    const [quoteEdit, setQuoteEdit] = useState<{
-        id: number;
-        baseRate: string;
-        fuelSurcharge: string;
-        accessorialCharges: string;
-        accessorialDetails: string;
-        validUntil: string;
-        notes: string;
-    } | null>(null);
 
     const load = async () => {
         setLoading(true);
         try {
-            const [l, q] = await Promise.all([
+            const [l, p, d] = await Promise.all([
                 getLoadBoard({
                     page: 0,
                     size: 20,
                     search: search || undefined,
                     mode: mode === 'all' ? undefined : mode,
                 }),
-                getShipmentQuotes({
-                    page: 0,
-                    size: 20,
-                    status: quoteStatus === 'all' ? undefined : quoteStatus,
-                }),
+                getPickedUpLoads({ page: 0, size: 50 }),
+                getDeliveredLoads({ page: 0, size: 50 }),
             ]);
             setLoads(l);
-            setQuotes(q);
+            setPickedUp(p);
+            setDelivered(d);
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
@@ -235,235 +239,30 @@ export default function LoadBoardPage() {
     };
     useEffect(() => {
         load();
-    }, [mode, quoteStatus]);
+    }, [mode]);
     useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
     }, [search]);
 
-    const handleCreate = async () => {
-        try {
-            await createShipmentQuote({
-                shipmentId: form.shipmentId
-                    ? Number(form.shipmentId)
-                    : undefined,
-                baseRate: form.baseRate ? Number(form.baseRate) : 0,
-                fuelSurcharge: form.fuelSurcharge
-                    ? Number(form.fuelSurcharge)
-                    : 0,
-                accessorialCharges: form.accessorialCharges
-                    ? Number(form.accessorialCharges)
-                    : 0,
-                accessorialDetails: form.accessorialDetails || undefined,
-                validUntil: form.validUntil || undefined,
-                notes: form.notes || undefined,
-                currency: 'USD',
-            });
-            toast({ title: 'Quote created', variant: 'success' });
-            setOpen(false);
-            setForm({
-                shipmentId: '',
-                baseRate: '',
-                fuelSurcharge: '',
-                accessorialCharges: '',
-                accessorialDetails: '',
-                validUntil: '',
-                notes: '',
-            });
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const transition = async (id: number, newStatus: string) => {
-        try {
-            await transitionQuoteStatus(id, newStatus);
-            toast({
-                title: `Quote ${newStatus.toLowerCase()}`,
-                variant: 'success',
-            });
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const handleQuoteUpdate = async () => {
-        if (!quoteEdit) return;
-        try {
-            await updateQuote(quoteEdit.id, {
-                baseRate: quoteEdit.baseRate ? Number(quoteEdit.baseRate) : undefined,
-                fuelSurcharge: quoteEdit.fuelSurcharge ? Number(quoteEdit.fuelSurcharge) : undefined,
-                accessorialCharges: quoteEdit.accessorialCharges
-                    ? Number(quoteEdit.accessorialCharges)
-                    : undefined,
-                accessorialDetails: quoteEdit.accessorialDetails || undefined,
-                validUntil: quoteEdit.validUntil || undefined,
-                notes: quoteEdit.notes || undefined,
-            });
-            toast({ title: 'Quote updated', variant: 'success' });
-            setQuoteEdit(null);
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const remove = async (id: number) => {
-        try {
-            await deleteShipmentQuote(id);
-            toast({ title: 'Quote deleted', variant: 'success' });
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
-
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-semibold">Load Board</h1>
-                <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            New Quote
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>New Shipment Quote</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label>Shipment</Label>
-                                <Select
-                                    value={form.shipmentId || undefined}
-                                    onValueChange={(v) =>
-                                        setForm({
-                                            ...form,
-                                            shipmentId: v,
-                                        })
-                                    }
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select shipment" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {shipmentOptions.map((s) => (
-                                            <SelectItem
-                                                key={s.shipmentId}
-                                                value={String(s.shipmentId)}
-                                            >
-                                                {s.shipmentNumber} (#
-                                                {s.shipmentId})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="grid gap-2">
-                                    <Label>Base Rate</Label>
-                                    <Input placeholder="e.g. 12000"
-                                        type="number"
-                                        value={form.baseRate}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                baseRate: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Fuel Surcharge</Label>
-                                    <Input placeholder="e.g. 1500"
-                                        type="number"
-                                        value={form.fuelSurcharge}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                fuelSurcharge: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Accessorials</Label>
-                                    <Input placeholder="e.g. 800"
-                                        type="number"
-                                        value={form.accessorialCharges}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                accessorialCharges:
-                                                    e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Accessorial Details</Label>
-                                <Textarea
-                                    value={form.accessorialDetails}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            accessorialDetails: e.target.value,
-                                        })
-                                    }
-                                    placeholder="Liftgate, detention, ..."
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Valid Until (YYYY-MM-DD)</Label>
-                                <Input
-                                    value={form.validUntil}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            validUntil: e.target.value,
-                                        })
-                                    }
-                                    placeholder="2026-12-31"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Notes</Label>
-                                <Textarea placeholder="e.g. Handle with care"
-                                    value={form.notes}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            notes: e.target.value,
-                                        })
-                                    }
-                                />
-                            </div>
-                            <LoadingButton loading={busy === 'quote-create'} onClick={() => withBusy('quote-create', handleCreate)}>Create</LoadingButton>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline">
+                        {(loads?.totalElements ?? 0) +
+                            (pickedUp?.totalElements ?? 0) +
+                            (delivered?.totalElements ?? 0)}{' '}
+                        loads
+                    </Badge>
+                </div>
             </div>
             <Tabs defaultValue="loads">
                 <TabsList>
                     <TabsTrigger value="loads">Available Loads</TabsTrigger>
-                    <TabsTrigger value="quotes">My Quotes</TabsTrigger>
+                    <TabsTrigger value="picked-up">Picked Up</TabsTrigger>
+                    <TabsTrigger value="delivered">Delivered</TabsTrigger>
                 </TabsList>
                 <TabsContent value="loads">
                     <Card className="p-4 gap-2">
@@ -527,7 +326,7 @@ export default function LoadBoardPage() {
                                                             ? `PO ${s.poNumber}`
                                                             : 'No PO'}
                                                         {s.isPartialShipment
-                                                            ? ' · Partial'
+                                                            ? ' Â· Partial'
                                                             : ''}
                                                     </div>
                                                     {s.backorderedQuantity !== undefined &&
@@ -543,7 +342,7 @@ export default function LoadBoardPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="secondary">
-                                                        {s.status ?? '—'}
+                                                        {s.status ?? 'â€”'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -551,7 +350,7 @@ export default function LoadBoardPage() {
                                                         {s.routeMode ??
                                                             s.shipmentMode ??
                                                             s.mode ??
-                                                            '—'}
+                                                            'â€”'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-xs">
@@ -597,14 +396,14 @@ export default function LoadBoardPage() {
                                                 </TableCell>
                                                 <TableCell className="whitespace-nowrap text-xs">
                                                     <div>
-                                                        {s.totalWeight ?? '—'}{' '}
+                                                        {s.totalWeight ?? 'â€”'}{' '}
                                                         kg
                                                     </div>
                                                     <div className="text-muted-foreground">
-                                                        {s.totalVolume ?? '—'}{' '}
-                                                        m³ ·{' '}
+                                                        {s.totalVolume ?? 'â€”'}{' '}
+                                                        mÂ³ Â·{' '}
                                                         {s.totalPackages ??
-                                                            '—'}{' '}
+                                                            'â€”'}{' '}
                                                         pkgs
                                                     </div>
                                                 </TableCell>
@@ -617,20 +416,20 @@ export default function LoadBoardPage() {
                                                             {s.currency ??
                                                                 'USD'}
                                                             {s.freightTerms
-                                                                ? ` · ${s.freightTerms}`
+                                                                ? ` Â· ${s.freightTerms}`
                                                                 : ''}
                                                         </>
                                                     ) : (
-                                                        '—'
+                                                        'â€”'
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
                                                     <div className="max-w-40 truncate">
                                                         {s.supplierOrgName ??
-                                                            '—'}{' '}
-                                                        →{' '}
+                                                            'â€”'}{' '}
+                                                        â†’{' '}
                                                         {s.retailerOrgName ??
-                                                            '—'}
+                                                            'â€”'}
                                                     </div>
                                                     {s.carrierName && (
                                                         <div className="text-muted-foreground">
@@ -682,241 +481,319 @@ export default function LoadBoardPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="quotes">
+                <TabsContent value="picked-up">
                     <Card className="p-4 gap-2">
                         <CardHeader className="p-0">
-                            <CardTitle className="flex gap-2">
-                                <Select
-                                    value={quoteStatus}
-                                    onValueChange={setQuoteStatus}
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            All Status
-                                        </SelectItem>
-                                        <SelectItem value="DRAFT">
-                                            DRAFT
-                                        </SelectItem>
-                                        <SelectItem value="SUBMITTED">
-                                            SUBMITTED
-                                        </SelectItem>
-                                        <SelectItem value="ACCEPTED">
-                                            ACCEPTED
-                                        </SelectItem>
-                                        <SelectItem value="BOOKED">
-                                            BOOKED
-                                        </SelectItem>
-                                        <SelectItem value="REJECTED">
-                                            REJECTED
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <CardTitle>
+                                Picked Up ({pickedUp?.totalElements ?? 0})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
+                            <p className="pb-2 text-sm text-muted-foreground">
+                                Loads collected from suppliers and heading to
+                                delivery.
+                            </p>
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
+                                <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Quote</TableHead>
-                                            <TableHead>Rate Split</TableHead>
-                                            <TableHead>Total</TableHead>
+                                            <TableHead>Shipment</TableHead>
                                             <TableHead>Status</TableHead>
+                                            <TableHead>Mode</TableHead>
+                                            <TableHead>Route</TableHead>
+                                            <TableHead>Picked Up</TableHead>
+                                            <TableHead>ETA</TableHead>
+                                            <TableHead>Driver / Asset</TableHead>
                                             <TableHead>Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {quotes?.content?.map((q) => (
-                                            <TableRow key={q.quoteId}>
+                                        {pickedUp?.content?.map((s) => (
+                                            <TableRow key={s.shipmentId}>
                                                 <TableCell>
-                                                    <div className="font-medium">
-                                                        {q.quoteNumber}
+                                                    <div className="font-medium font-mono text-xs">
+                                                        {s.shipmentNumber ??
+                                                            `#${s.shipmentId}`}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        Shipment #
-                                                        {q.shipmentId ?? '-'}
+                                                        {s.poNumber
+                                                            ? `PO ${s.poNumber}`
+                                                            : 'No PO'}
                                                     </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    base {q.baseRate} + fuel{' '}
-                                                    {q.fuelSurcharge ?? 0} + acc{' '}
-                                                    {q.accessorialCharges ?? 0}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {q.totalAmount != null
-                                                        ? `$${Number(q.totalAmount).toFixed(2)}`
-                                                        : '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
                                                         variant={
-                                                            q.status ===
-                                                                'BOOKED' ||
-                                                            q.status ===
-                                                                'ACCEPTED'
+                                                            s.status ===
+                                                            'IN_TRANSIT'
                                                                 ? 'default'
                                                                 : 'secondary'
                                                         }
                                                     >
-                                                        {q.status}
+                                                        {s.status ?? 'â€”'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex gap-2">
-                                                        {(q.status === 'DRAFT' ||
-                                                            q.status === 'REJECTED' ||
-                                                            q.status === 'EXPIRED') && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Edit quote"
-                                                                onClick={() =>
-                                                                    setQuoteEdit({
-                                                                        id: q.quoteId,
-                                                                        baseRate:
-                                                                            q.baseRate != null
-                                                                                ? String(q.baseRate)
-                                                                                : '',
-                                                                        fuelSurcharge:
-                                                                            q.fuelSurcharge != null
-                                                                                ? String(q.fuelSurcharge)
-                                                                                : '',
-                                                                        accessorialCharges:
-                                                                            q.accessorialCharges != null
-                                                                                ? String(q.accessorialCharges)
-                                                                                : '',
-                                                                        accessorialDetails:
-                                                                            q.accessorialDetails ?? '',
-                                                                        validUntil: q.validUntil ?? '',
-                                                                        notes: q.notes ?? '',
-                                                                    })
-                                                                }
+                                                    <Badge variant="outline">
+                                                        {s.routeMode ??
+                                                            s.shipmentMode ??
+                                                            s.mode ??
+                                                            'â€”'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    <span className="inline-flex max-w-48 items-center gap-1">
+                                                        <span className="truncate">
+                                                            {routeText(s)}
+                                                        </span>
+                                                        <Tooltip>
+                                                            <TooltipTrigger
+                                                                asChild
                                                             >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                        {q.status ===
-                                                            'DRAFT' && (
-                                                            <LoadingButton
-                                                                loading={busy === `quote-${q.quoteId}`}
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    withBusy(`quote-${q.quoteId}`, () =>
-                                                                        transition(
-                                                                            q.quoteId,
-                                                                            'SUBMITTED'
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={`Full route: ${routeText(s)}`}
+                                                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                                                >
+                                                                    <Info className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="top"
+                                                                className="max-w-xs whitespace-pre-wrap"
+                                                            >
+                                                                {routeText(s)}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-xs">
+                                                    {s.actualDeparture
+                                                        ? new Date(
+                                                              s.actualDeparture
+                                                          ).toLocaleString()
+                                                        : shortDate(
+                                                              s.pickupDate
+                                                          )}
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-xs">
+                                                    {s.estimatedArrival
+                                                        ? new Date(
+                                                              s.estimatedArrival
+                                                          ).toLocaleString()
+                                                        : 'â€”'}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    <div>
+                                                        {s.carrierName ?? 'â€”'}
+                                                    </div>
+                                                    <div className="font-mono text-muted-foreground">
+                                                        {s.carrierReference ??
+                                                            ''}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            title="Shipment details"
+                                                            onClick={() =>
+                                                                openDetails(s)
+                                                            }
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                        <LoadingButton
+                                                            loading={
+                                                                busy ===
+                                                                `eta-${s.shipmentId}`
+                                                            }
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            title="Tracking & ETA"
+                                                            onClick={() =>
+                                                                withBusy(
+                                                                    `eta-${s.shipmentId}`,
+                                                                    () =>
+                                                                        handleEta(
+                                                                            s.shipmentId
                                                                         )
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Check className="mr-2 h-4 w-4" />
-                                                                Submit
-                                                            </LoadingButton>
-                                                        )}
-                                                        {q.status ===
-                                                            'ACCEPTED' && (
-                                                            <LoadingButton
-                                                                loading={busy === `quote-${q.quoteId}`}
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    withBusy(`quote-${q.quoteId}`, () =>
-                                                                        transition(
-                                                                            q.quoteId,
-                                                                            'BOOKED'
-                                                                        )
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Check className="mr-2 h-4 w-4" />
-                                                                Book
-                                                            </LoadingButton>
-                                                        )}
-                                                        {(q.status ===
-                                                            'DRAFT' ||
-                                                            q.status ===
-                                                                'REJECTED') && (
-                                                            <LoadingButton
-                                                                loading={busy === `quote-${q.quoteId}`}
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onClick={() =>
-                                                                    withBusy(`quote-${q.quoteId}`, () =>
-                                                                        remove(
-                                                                            q.quoteId
-                                                                        )
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </LoadingButton>
-                                                        )}
+                                                                )
+                                                            }
+                                                        >
+                                                            <MapPin className="mr-1 h-3 w-3" />
+                                                            ETA
+                                                        </LoadingButton>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            title="Live map"
+                                                            onClick={() => {
+                                                                setMapShipmentId(
+                                                                    s.shipmentId
+                                                                );
+                                                                setMapOpen(
+                                                                    true
+                                                                );
+                                                            }}
+                                                        >
+                                                            <MapIcon className="mr-1 h-3 w-3" />
+                                                            Map
+                                                        </Button>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
-                                        {!quotes?.content?.length && (
+                                        {!pickedUp?.content?.length && (
                                             <TableRow>
                                                 <TableCell
-                                                    colSpan={5}
+                                                    colSpan={8}
                                                     className="text-center text-sm text-muted-foreground"
                                                 >
-                                                    No quotes
+                                                    No picked up loads
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="delivered">
+                    <Card className="p-4 gap-2">
+                        <CardHeader className="p-0">
+                            <CardTitle>
+                                Delivered ({delivered?.totalElements ?? 0})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <p className="pb-2 text-sm text-muted-foreground">
+                                Completed deliveries and their proof of
+                                delivery.
+                            </p>
+                            {loading ? (
+                                <TableSkeleton rows={6} />
+                            ) : (
+                                <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Shipment</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Mode</TableHead>
+                                            <TableHead>Route</TableHead>
+                                            <TableHead>Delivered At</TableHead>
+                                            <TableHead>Driver / Asset</TableHead>
+                                            <TableHead>Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {delivered?.content?.map((s) => (
+                                            <TableRow key={s.shipmentId}>
+                                                <TableCell>
+                                                    <div className="font-medium font-mono text-xs">
+                                                        {s.shipmentNumber ??
+                                                            `#${s.shipmentId}`}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {s.poNumber
+                                                            ? `PO ${s.poNumber}`
+                                                            : 'No PO'}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="default">
+                                                        {s.status ?? '—'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {s.routeMode ??
+                                                            s.shipmentMode ??
+                                                            s.mode ??
+                                                            '—'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    <span className="inline-flex max-w-48 items-center gap-1">
+                                                        <span className="truncate">
+                                                            {routeText(s)}
+                                                        </span>
+                                                        <Tooltip>
+                                                            <TooltipTrigger
+                                                                asChild
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={`Full route: ${routeText(s)}`}
+                                                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                                                >
+                                                                    <Info className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="top"
+                                                                className="max-w-xs whitespace-pre-wrap"
+                                                            >
+                                                                {routeText(s)}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-xs">
+                                                    {s.actualArrival
+                                                        ? new Date(
+                                                              s.actualArrival
+                                                          ).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    <div>
+                                                        {s.carrierName ?? '—'}
+                                                    </div>
+                                                    <div className="font-mono text-muted-foreground">
+                                                        {s.carrierReference ??
+                                                            ''}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        title="Shipment details"
+                                                        onClick={() =>
+                                                            openDetails(s)
+                                                        }
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {!delivered?.content?.length && (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={7}
+                                                    className="text-center text-sm text-muted-foreground"
+                                                >
+                                                    No delivered loads
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>
-            <Dialog open={quoteEdit != null} onOpenChange={(v) => { if (!v) setQuoteEdit(null); }}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Shipment Quote</DialogTitle>
-                        <DialogDescription>Only DRAFT, rejected or expired quotes can be edited</DialogDescription>
-                    </DialogHeader>
-                    {quoteEdit && (
-                        <div className="grid gap-6">
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="grid gap-2">
-                                    <Label>Base Rate</Label>
-                                    <Input type="number" value={quoteEdit.baseRate} onChange={(e) => setQuoteEdit({ ...quoteEdit, baseRate: e.target.value })} placeholder="e.g. 12000" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Fuel Surcharge</Label>
-                                    <Input type="number" value={quoteEdit.fuelSurcharge} onChange={(e) => setQuoteEdit({ ...quoteEdit, fuelSurcharge: e.target.value })} placeholder="e.g. 1500" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Accessorials</Label>
-                                    <Input type="number" value={quoteEdit.accessorialCharges} onChange={(e) => setQuoteEdit({ ...quoteEdit, accessorialCharges: e.target.value })} placeholder="e.g. 800" />
-                                </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Accessorial Details</Label>
-                                <Textarea value={quoteEdit.accessorialDetails} onChange={(e) => setQuoteEdit({ ...quoteEdit, accessorialDetails: e.target.value })} placeholder="e.g. Liftgate, detention" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Valid Until (YYYY-MM-DD)</Label>
-                                <Input value={quoteEdit.validUntil} onChange={(e) => setQuoteEdit({ ...quoteEdit, validUntil: e.target.value })} placeholder="e.g. 2026-12-31" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Notes</Label>
-                                <Textarea value={quoteEdit.notes} onChange={(e) => setQuoteEdit({ ...quoteEdit, notes: e.target.value })} placeholder="e.g. Handle with care" />
-                            </div>
-                            <LoadingButton loading={busy === 'quote-update'} onClick={() => withBusy('quote-update', handleQuoteUpdate)}>Save</LoadingButton>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
             <Dialog
                 open={details !== null}
                 onOpenChange={(v) => {
@@ -926,7 +803,7 @@ export default function LoadBoardPage() {
                 <DialogContent className="md:max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>
-                            Shipment {details?.shipmentNumber ?? ''} ·{' '}
+                            Shipment {details?.shipmentNumber ?? ''} Â·{' '}
                             {details?.status ?? ''}
                         </DialogTitle>
                         <DialogDescription>
@@ -939,7 +816,7 @@ export default function LoadBoardPage() {
                                 <div>
                                     <p className="text-muted-foreground">PO</p>
                                     <p className="font-medium">
-                                        {details.poNumber ?? '—'}
+                                        {details.poNumber ?? 'â€”'}
                                         {details.isPartialShipment
                                             ? ' (partial)'
                                             : ''}
@@ -950,7 +827,7 @@ export default function LoadBoardPage() {
                                     <p className="font-medium">
                                         {details.shipmentMode ??
                                             details.mode ??
-                                            '—'}
+                                            'â€”'}
                                     </p>
                                 </div>
                                 <div>
@@ -958,7 +835,7 @@ export default function LoadBoardPage() {
                                         Tracking
                                     </p>
                                     <p className="font-mono text-xs">
-                                        {details.trackingNumber ?? '—'}
+                                        {details.trackingNumber ?? 'â€”'}
                                     </p>
                                 </div>
                                 <div>
@@ -966,7 +843,7 @@ export default function LoadBoardPage() {
                                         Supplier
                                     </p>
                                     <p className="font-medium">
-                                        {details.supplierOrgName ?? '—'}
+                                        {details.supplierOrgName ?? 'â€”'}
                                     </p>
                                 </div>
                                 <div>
@@ -974,7 +851,7 @@ export default function LoadBoardPage() {
                                         Retailer
                                     </p>
                                     <p className="font-medium">
-                                        {details.retailerOrgName ?? '—'}
+                                        {details.retailerOrgName ?? 'â€”'}
                                     </p>
                                 </div>
                                 <div>
@@ -982,7 +859,7 @@ export default function LoadBoardPage() {
                                         Carrier
                                     </p>
                                     <p className="font-medium">
-                                        {details.carrierName ?? '—'}
+                                        {details.carrierName ?? 'â€”'}
                                         {details.carrierReference
                                             ? ` (${details.carrierReference})`
                                             : ''}
@@ -993,9 +870,9 @@ export default function LoadBoardPage() {
                                         Weight / Volume / Packages
                                     </p>
                                     <p className="font-medium">
-                                        {details.totalWeight ?? '—'} kg /{' '}
-                                        {details.totalVolume ?? '—'} m³ /{' '}
-                                        {details.totalPackages ?? '—'}
+                                        {details.totalWeight ?? 'â€”'} kg /{' '}
+                                        {details.totalVolume ?? 'â€”'} mÂ³ /{' '}
+                                        {details.totalPackages ?? 'â€”'}
                                     </p>
                                 </div>
                                 <div>
@@ -1003,10 +880,10 @@ export default function LoadBoardPage() {
                                         Freight
                                     </p>
                                     <p className="font-medium">
-                                        {details.freightCost ?? '—'}{' '}
+                                        {details.freightCost ?? 'â€”'}{' '}
                                         {details.currency ?? ''}
                                         {details.freightTerms
-                                            ? ` · ${details.freightTerms}`
+                                            ? ` Â· ${details.freightTerms}`
                                             : ''}
                                     </p>
                                 </div>
@@ -1015,7 +892,7 @@ export default function LoadBoardPage() {
                                         Pickup / Delivery
                                     </p>
                                     <p className="font-medium">
-                                        {shortDate(details.pickupDate)} →{' '}
+                                        {shortDate(details.pickupDate)} â†’{' '}
                                         {shortDate(
                                             details.deliveryDate ??
                                                 details.estimatedArrival
@@ -1031,7 +908,7 @@ export default function LoadBoardPage() {
                                             ? new Date(
                                                   details.estimatedArrival
                                               ).toLocaleString()
-                                            : '—'}
+                                            : 'â€”'}
                                     </p>
                                 </div>
                                 <div>
@@ -1039,9 +916,9 @@ export default function LoadBoardPage() {
                                         Pickup contact
                                     </p>
                                     <p className="font-medium">
-                                        {details.pickupContactName ?? '—'}
+                                        {details.pickupContactName ?? 'â€”'}
                                         {details.pickupContactPhone
-                                            ? ` · ${details.pickupContactPhone}`
+                                            ? ` Â· ${details.pickupContactPhone}`
                                             : ''}
                                     </p>
                                 </div>
@@ -1050,9 +927,9 @@ export default function LoadBoardPage() {
                                         Delivery contact
                                     </p>
                                     <p className="font-medium">
-                                        {details.deliveryContactName ?? '—'}
+                                        {details.deliveryContactName ?? 'â€”'}
                                         {details.deliveryContactPhone
-                                            ? ` · ${details.deliveryContactPhone}`
+                                            ? ` Â· ${details.deliveryContactPhone}`
                                             : ''}
                                     </p>
                                 </div>
@@ -1070,7 +947,7 @@ export default function LoadBoardPage() {
                                                 : null,
                                         ]
                                             .filter(Boolean)
-                                            .join(', ') || '—'}
+                                            .join(', ') || 'â€”'}
                                     </p>
                                 </div>
                             </div>
@@ -1102,10 +979,10 @@ export default function LoadBoardPage() {
                                             >
                                                 <span>
                                                     #{st.sequenceNumber ?? i + 1}{' '}
-                                                    {st.location ?? st.address ?? '—'}
+                                                    {st.location ?? st.address ?? 'â€”'}
                                                 </span>
                                                 <Badge variant="outline">
-                                                    {st.status ?? '—'}
+                                                    {st.status ?? 'â€”'}
                                                 </Badge>
                                             </div>
                                         ))}
@@ -1133,7 +1010,7 @@ export default function LoadBoardPage() {
                                                 <span>
                                                     {t.eventType ?? 'Event'}
                                                     {t.location
-                                                        ? ` · ${t.location}`
+                                                        ? ` Â· ${t.location}`
                                                         : ''}
                                                 </span>
                                                 <span className="text-xs text-muted-foreground">
@@ -1172,7 +1049,7 @@ export default function LoadBoardPage() {
                                                         'Document'}
                                                 </span>
                                                 <Badge variant="outline">
-                                                    {d.documentType ?? '—'}
+                                                    {d.documentType ?? 'â€”'}
                                                 </Badge>
                                             </div>
                                         ))}
@@ -1210,12 +1087,12 @@ export default function LoadBoardPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            Assign {assigning?.shipmentNumber ?? ''} ·{' '}
+                            Assign {assigning?.shipmentNumber ?? ''} Â·{' '}
                             {assigning ? routeText(assigning) : ''}
                         </DialogTitle>
                         <DialogDescription>
                             Pick an available driver and asset. The shipment
-                            moves BOOKED → ASSIGNED and leaves the load board.
+                            moves BOOKED â†’ ASSIGNED and leaves the load board.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4">
@@ -1263,7 +1140,7 @@ export default function LoadBoardPage() {
                                         >
                                             {a.assetNumber} ({a.assetType}
                                             {a.licensePlate
-                                                ? ` · ${a.licensePlate}`
+                                                ? ` Â· ${a.licensePlate}`
                                                 : ''}
                                             )
                                         </SelectItem>
@@ -1307,6 +1184,73 @@ export default function LoadBoardPage() {
                             Confirm Assignment
                         </LoadingButton>
                     </div>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={etaOpen} onOpenChange={setEtaOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Tracking & ETA — Shipment #{eta?.shipmentId}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {eta && (
+                        <div className="grid gap-3 text-sm">
+                            <div className="flex justify-between">
+                                <span>Status</span>
+                                <Badge
+                                    variant={
+                                        eta.delayed
+                                            ? 'destructive'
+                                            : 'secondary'
+                                    }
+                                >
+                                    {eta.status}
+                                </Badge>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Estimated Arrival</span>
+                                <span className="font-medium">
+                                    {eta.estimatedArrival ?? '-'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Milestones</span>
+                                <span className="font-medium">
+                                    {eta.totalMilestones}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">
+                                    Latest event
+                                </span>
+                                <div className="font-medium">
+                                    {eta.latestEvent?.eventType ??
+                                        'No events yet'}
+                                    {eta.latestEvent?.location
+                                        ? ` • ${eta.latestEvent.location}`
+                                        : ''}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {eta.latestEvent?.description ?? ''}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog open={mapOpen} onOpenChange={setMapOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Live Tracking — Shipment #{mapShipmentId}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {mapShipmentId != null && (
+                        <ShipmentMap
+                            key={mapShipmentId}
+                            shipmentId={mapShipmentId}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

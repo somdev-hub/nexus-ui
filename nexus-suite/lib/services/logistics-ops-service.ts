@@ -301,6 +301,40 @@ export async function getLoadBoard(
     );
     return res.data;
 }
+export async function getPickedUpLoads(
+    filter: {
+        page?: number;
+        size?: number;
+    } = {}
+): Promise<PaginatedResponse<LoadBoardShipment>> {
+    const res = await apiClient.get<PaginatedResponse<LoadBoardShipment>>(
+        `${BASE}/quoting/picked-up${toQuery(filter)}`
+    );
+    return res.data;
+}
+export async function getDeliveredLoads(
+    filter: {
+        page?: number;
+        size?: number;
+    } = {}
+): Promise<PaginatedResponse<LoadBoardShipment>> {
+    const res = await apiClient.get<PaginatedResponse<LoadBoardShipment>>(
+        `${BASE}/quoting/delivered${toQuery(filter)}`
+    );
+    return res.data;
+}
+export async function getMyShipmentBoard(
+    filter: {
+        page?: number;
+        size?: number;
+        search?: string;
+    } = {}
+): Promise<PaginatedResponse<LoadBoardShipment>> {
+    const res = await apiClient.get<PaginatedResponse<LoadBoardShipment>>(
+        `${BASE}/quoting/my-shipments${toQuery(filter)}`
+    );
+    return res.data;
+}
 export async function getShipmentQuotes(
     filter: QuoteFilter = {}
 ): Promise<PaginatedResponse<ShipmentQuote>> {

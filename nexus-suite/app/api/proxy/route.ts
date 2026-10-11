@@ -346,7 +346,9 @@ export async function GET(request: NextRequest) {
         request.headers.get('x-organization-id') ||
         request.headers.get('X-ORGANIZATION-ID');
     const sessionOrgId =
-        (session as any).user?.orgId || (session as any).user?.organizationId;
+        (session as any).user?.orgId ||
+        (session as any).user?.organizationId ||
+        (session as any).user?.org_id;
     const effectiveOrgId =
         orgHeader || (sessionOrgId ? String(sessionOrgId) : undefined);
 

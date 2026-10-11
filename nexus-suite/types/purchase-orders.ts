@@ -23,6 +23,8 @@ export interface PurchaseOrder {
         | 'PARTIALLY_DELIVERED'
         | 'SENT_TO_SUPPLIER'
         | 'ACKNOWLEDGED'
+        | 'AWAITING_PICKUP'
+        | 'PICKED_UP'
         | 'PARTIALLY_RECEIVED'
         | 'RECEIVED'
         | 'INVOICED'
@@ -159,6 +161,9 @@ export interface PurchaseOrderFilter {
     orderDateTo?: string;
     pageNo?: number;
     pageOffset?: number;
+    // Spring pageable dialect (the gateway binds page/size).
+    page?: number;
+    size?: number;
     sortBy?: string;
     sortDirection?: 'asc' | 'desc';
 }

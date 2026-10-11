@@ -374,6 +374,7 @@ export interface LoadBoardShipment {
     pickupDate?: string;
     deliveryDate?: string;
     estimatedArrival?: string;
+    actualDeparture?: string;
     totalWeight?: number;
     totalVolume?: number;
     totalPackages?: number;
@@ -400,5 +401,8 @@ export interface LoadBoardShipment {
     logisticsOrgName?: string;
     purchaseOrderId?: number;
     poNumber?: string;
+    actualArrival?: string;
+    createdAt?: string;
+    updatedAt?: string;
     [key: string]: unknown;
 }

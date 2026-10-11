@@ -3,17 +3,11 @@ import { useEffect, useState } from 'react';
 import {
     AlertTriangle,
     Check,
-    Map as MapIcon,
-    MapPin,
     PackageCheck,
     Pencil,
-    Truck,
 } from 'lucide-react';
 import type {
-    Driver,
-    FleetAsset,
     LoadBoardShipment,
-    ShipmentEta,
     ShipmentIncident,
 } from '@/types/logistics-ops';
 import type { PaginatedResponse } from '@/types/paginated-response';
@@ -48,11 +42,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    getLoadBoard,
-    getDrivers,
-    getFleetAssets,
-    assignBooking,
-    getShipmentEta,
+    getMyShipmentBoard,
     transitionShipmentStatus,
     capturePod,
     getPodByShipment,
@@ -62,24 +52,30 @@ import {
     getShipmentIncidents,
     transitionIncidentStatus,
 } from '@/lib/services/logistics-ops-service';
-import {
-    getShipments,
-    getShipmentDocuments,
-    type Shipment,
-    type ShipmentDocument,
-} from '@/lib/services/shipment-service';
-import ShipmentMap from '@/components/shipment-map';
+import type { ShipmentDocument } from '@/lib/services/shipment-service';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 
-const LIFECYCLE = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
+const LIFECYCLE_NEXT: Record<string, string | null> = {
+    // Driver surface: movement starts at pickup. Booking/assignment
+    // (BOOKED/ASSIGNED) is owned by the admin on the load board.
+    PICKED_UP: 'IN_TRANSIT',
+    IN_TRANSIT: 'OUT_FOR_DELIVERY',
+    OUT_FOR_DELIVERY: 'DELIVERED',
+    EXCEPTION: 'RESOLVED',
+    RESOLVED: 'IN_TRANSIT',
+    BOOKED: null,
+    ASSIGNED: null,
+    DELIVERED: null,
+    PARTIALLY_DELIVERED: null,
+    CANCELLED: null,
+    CLOSED: null,
+};
 
 function nextLifecycleState(status: string): string | null {
-    const idx = LIFECYCLE.indexOf(status);
-    if (idx === -1 || idx === LIFECYCLE.length - 1) return null;
-    return LIFECYCLE[idx + 1];
+    return LIFECYCLE_NEXT[status] ?? null;
 }
 
 export default function LogisticsShipmentsPage() {
@@ -90,10 +86,6 @@ export default function LogisticsShipmentsPage() {
         useState<PaginatedResponse<ShipmentIncident> | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [eta, setEta] = useState<ShipmentEta | null>(null);
-    const [etaOpen, setEtaOpen] = useState(false);
-    const [mapOpen, setMapOpen] = useState(false);
-    const [mapShipmentId, setMapShipmentId] = useState<number | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;
@@ -104,16 +96,6 @@ export default function LogisticsShipmentsPage() {
             setBusy(null);
         }
     };
-    const [assignForm, setAssignForm] = useState({
-        shipmentId: '',
-        driverId: '',
-        assetId: '',
-        bolDocumentId: '',
-        startPickup: false,
-    });
-    const [assignOpen, setAssignOpen] = useState(false);
-    const [bolDocs, setBolDocs] = useState<ShipmentDocument[]>([]);
-    const [bolDocsLoaded, setBolDocsLoaded] = useState(false);
     const [podForm, setPodForm] = useState({
         shipmentId: '',
         receivedBy: '',
@@ -149,9 +131,8 @@ export default function LogisticsShipmentsPage() {
         claimAmount: '',
     });
     const [incidentOpen, setIncidentOpen] = useState(false);
-    const [shipmentOptions, setShipmentOptions] = useState<Shipment[]>([]);
-    const [driverOptions, setDriverOptions] = useState<Driver[]>([]);
-    const [assetOptions, setAssetOptions] = useState<FleetAsset[]>([]);
+    // Shipment dropdown options come straight from the board data.
+    const shipmentOptions: LoadBoardShipment[] = shipments?.content ?? [];
     useQuickCreateIntent('logistics:incident', () => setIncidentOpen(true));
     useQuickCreateIntent('logistics:pod', () => setPodOpen(true));
 
@@ -159,7 +140,7 @@ export default function LogisticsShipmentsPage() {
         setLoading(true);
         try {
             const [s, i] = await Promise.all([
-                getLoadBoard({
+                getMyShipmentBoard({
                     page: 0,
                     size: 20,
                     search: search || undefined,
@@ -181,67 +162,9 @@ export default function LogisticsShipmentsPage() {
         load();
     }, []);
     useEffect(() => {
-        Promise.all([
-            getShipments({ pageNo: 0, pageOffset: 100 }).catch(() => null),
-            getDrivers({ page: 0, size: 100 }).catch(() => null),
-            getFleetAssets({ page: 0, size: 100 }).catch(() => null),
-        ]).then(([s, d, a]) => {
-            if (s?.content) setShipmentOptions(s.content);
-            else if (Array.isArray(s)) setShipmentOptions(s);
-            if (d?.content) setDriverOptions(d.content);
-            if (a?.content) setAssetOptions(a.content);
-        });
-    }, []);
-    useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
     }, [search]);
-
-    const handleAssign = async () => {
-        try {
-            await assignBooking(Number(assignForm.shipmentId), {
-                driverId: assignForm.driverId
-                    ? Number(assignForm.driverId)
-                    : undefined,
-                assetId: assignForm.assetId
-                    ? Number(assignForm.assetId)
-                    : undefined,
-                bolDocumentId: assignForm.bolDocumentId || undefined,
-                startPickup: assignForm.startPickup || undefined,
-            });
-            toast({
-                title: assignForm.startPickup
-                    ? 'Booking assigned — pickup started, ETA computed'
-                    : 'Booking assigned',
-                variant: 'success',
-            });
-            setAssignOpen(false);
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const handleBolDocsLookup = async () => {
-        if (!assignForm.shipmentId) return;
-        try {
-            const docs = await getShipmentDocuments(
-                Number(assignForm.shipmentId)
-            );
-            setBolDocs(docs);
-            setBolDocsLoaded(true);
-        } catch (e: unknown) {
-            setBolDocs([]);
-            setBolDocsLoaded(false);
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
 
     const handleTransition = async (id: number, newStatus: string) => {
         try {
@@ -251,18 +174,6 @@ export default function LogisticsShipmentsPage() {
                 variant: 'success',
             });
             load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const handleEta = async (id: number) => {
-        try {
-            setEta(await getShipmentEta(id));
-            setEtaOpen(true);
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
@@ -415,205 +326,6 @@ export default function LogisticsShipmentsPage() {
                         <PackageCheck className="mr-2 h-4 w-4" />
                         Manage POD
                     </Button>
-                    <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline">
-                                <Truck className="mr-2 h-4 w-4" />
-                                Assign Booking
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    Confirm Booking & Assign
-                                </DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-6">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-2">
-                                        <Label>Shipment</Label>
-                                        <Select
-                                            value={assignForm.shipmentId || undefined}
-                                            onValueChange={(v) =>
-                                                setAssignForm({
-                                                    ...assignForm,
-                                                    shipmentId: v,
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select shipment" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {shipmentOptions.map((s) => (
-                                                    <SelectItem
-                                                        key={s.shipmentId}
-                                                        value={String(s.shipmentId)}
-                                                    >
-                                                        {s.shipmentNumber} (#
-                                                        {s.shipmentId})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label>BOL Doc ID (DMS)</Label>
-                                        <Input
-                                            placeholder="e.g. BOL-4521"
-                                            value={assignForm.bolDocumentId}
-                                            onChange={(e) =>
-                                                setAssignForm({
-                                                    ...assignForm,
-                                                    bolDocumentId:
-                                                        e.target.value,
-                                                })
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="grid gap-2">
-                                        <Label>Driver</Label>
-                                        <Select
-                                            value={assignForm.driverId || undefined}
-                                            onValueChange={(v) =>
-                                                setAssignForm({
-                                                    ...assignForm,
-                                                    driverId: v,
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select driver" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {driverOptions.map((d) => (
-                                                    <SelectItem
-                                                        key={d.driverId}
-                                                        value={String(d.driverId)}
-                                                    >
-                                                        {d.fullName} (#
-                                                        {d.driverId})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label>Asset</Label>
-                                        <Select
-                                            value={assignForm.assetId || undefined}
-                                            onValueChange={(v) =>
-                                                setAssignForm({
-                                                    ...assignForm,
-                                                    assetId: v,
-                                                })
-                                            }
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select asset" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {assetOptions.map((a) => (
-                                                    <SelectItem
-                                                        key={a.assetId}
-                                                        value={String(a.assetId)}
-                                                    >
-                                                        {a.assetNumber} (#
-                                                        {a.assetId})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <LoadingButton
-                                    loading={busy === 'assign'}
-                                    onClick={() =>
-                                        withBusy('assign', handleAssign)
-                                    }
-                                >
-                                    Assign
-                                </LoadingButton>
-                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={assignForm.startPickup}
-                                        onChange={(e) =>
-                                            setAssignForm({
-                                                ...assignForm,
-                                                startPickup: e.target.checked,
-                                            })
-                                        }
-                                    />
-                                    Start pickup now (stamps pickup time and
-                                    computes ETA from the route&apos;s average
-                                    delivery time)
-                                </label>
-                                <div className="grid gap-2 border-t pt-4">
-                                    <div className="flex items-center justify-between">
-                                        <Label>
-                                            Linked documents (BOL view)
-                                        </Label>
-                                        <LoadingButton
-                                            loading={busy === 'bol-docs'}
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                                withBusy(
-                                                    'bol-docs',
-                                                    handleBolDocsLookup
-                                                )
-                                            }
-                                        >
-                                            View
-                                        </LoadingButton>
-                                    </div>
-                                    {bolDocsLoaded && (
-                                        <div className="grid gap-2 text-sm">
-                                            {bolDocs.map((d) => (
-                                                <div
-                                                    key={d.documentId}
-                                                    className="flex items-center justify-between rounded-lg border p-2"
-                                                >
-                                                    <div>
-                                                        <div className="font-medium">
-                                                            {d.documentName}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {d.documentType}
-                                                            {d.dmsDocumentId
-                                                                ? ` • ${d.dmsDocumentId}`
-                                                                : ''}
-                                                        </div>
-                                                    </div>
-                                                    {d.documentUrl && (
-                                                        <a
-                                                            href={d.documentUrl}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="text-xs text-blue-600 hover:underline"
-                                                        >
-                                                            Open
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {!bolDocs.length && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    No documents linked to this
-                                                    shipment yet — paste a DMS
-                                                    document ID above to link
-                                                    the BOL.
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
                     <Dialog open={podOpen} onOpenChange={setPodOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">
@@ -691,7 +403,7 @@ export default function LogisticsShipmentsPage() {
                                                 photoUrls: e.target.value,
                                             })
                                         }
-                                        placeholder="e.g. https://…/pod-12-a.jpg, https://…/pod-12-b.jpg"
+                                        placeholder="e.g. https://Ã¢â‚¬Â¦/pod-12-a.jpg, https://Ã¢â‚¬Â¦/pod-12-b.jpg"
                                     />
                                 </div>
                                 <div className="grid gap-2">
@@ -901,7 +613,8 @@ export default function LogisticsShipmentsPage() {
                                             <TableHead>Route</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead>Lifecycle</TableHead>
-                                            <TableHead>Tracking</TableHead>
+                                            <TableHead>Created</TableHead>
+                                            <TableHead>Updated</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -912,14 +625,21 @@ export default function LogisticsShipmentsPage() {
                                                         {s.shipmentNumber}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        #{s.shipmentId} •{' '}
+                                                        #{s.shipmentId} Ã¢â‚¬Â¢{' '}
                                                         {s.carrierName ??
                                                             'unassigned'}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    {s.pickupAddress ?? '?'} →{' '}
-                                                    {s.deliveryAddress ?? '?'}
+                                                    <span className="inline-block max-w-48 truncate align-bottom">
+                                                        {s.pickupLocation ??
+                                                            s.pickupAddress ??
+                                                            'Ã¢â‚¬â€'}{' '}
+                                                        Ã¢â€ â€™{' '}
+                                                        {s.deliveryLocation ??
+                                                            s.deliveryAddress ??
+                                                            'Ã¢â‚¬â€'}
+                                                    </span>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
@@ -938,6 +658,18 @@ export default function LogisticsShipmentsPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {(() => {
+                                                        if (
+                                                            s.status ===
+                                                                'BOOKED' ||
+                                                            s.status ===
+                                                                'ASSIGNED'
+                                                        )
+                                                            return (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    Assign on
+                                                                    load board
+                                                                </span>
+                                                            );
                                                         const next =
                                                             nextLifecycleState(
                                                                 s.status ?? ''
@@ -975,51 +707,26 @@ export default function LogisticsShipmentsPage() {
                                                         );
                                                     })()}
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex gap-1">
-                                                        <LoadingButton
-                                                            loading={
-                                                                busy ===
-                                                                `eta-${s.shipmentId}`
-                                                            }
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                withBusy(
-                                                                    `eta-${s.shipmentId}`,
-                                                                    () =>
-                                                                        handleEta(
-                                                                            s.shipmentId
-                                                                        )
-                                                                )
-                                                            }
-                                                        >
-                                                            <MapPin className="mr-1 h-3 w-3" />
-                                                            ETA
-                                                        </LoadingButton>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => {
-                                                                setMapShipmentId(
-                                                                    s.shipmentId
-                                                                );
-                                                                setMapOpen(
-                                                                    true
-                                                                );
-                                                            }}
-                                                        >
-                                                            <MapIcon className="mr-1 h-3 w-3" />
-                                                            Map
-                                                        </Button>
-                                                    </div>
+                                                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                                                    {s.createdAt
+                                                        ? new Date(
+                                                              s.createdAt
+                                                          ).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                                                    {s.updatedAt
+                                                        ? new Date(
+                                                              s.updatedAt
+                                                          ).toLocaleString()
+                                                        : '—'}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
                                         {!shipments?.content?.length && (
                                             <TableRow>
                                                 <TableCell
-                                                    colSpan={5}
+                                                    colSpan={6}
                                                     className="text-center text-sm text-muted-foreground"
                                                 >
                                                     No shipments
@@ -1061,7 +768,7 @@ export default function LogisticsShipmentsPage() {
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
                                                         Shipment #{i.shipmentId}{' '}
-                                                        • {i.description ?? '-'}
+                                                        Ã¢â‚¬Â¢ {i.description ?? '-'}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -1158,73 +865,6 @@ export default function LogisticsShipmentsPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
-            <Dialog open={etaOpen} onOpenChange={setEtaOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            Tracking & ETA — Shipment #{eta?.shipmentId}
-                        </DialogTitle>
-                    </DialogHeader>
-                    {eta && (
-                        <div className="grid gap-3 text-sm">
-                            <div className="flex justify-between">
-                                <span>Status</span>
-                                <Badge
-                                    variant={
-                                        eta.delayed
-                                            ? 'destructive'
-                                            : 'secondary'
-                                    }
-                                >
-                                    {eta.status}
-                                </Badge>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Estimated Arrival</span>
-                                <span className="font-medium">
-                                    {eta.estimatedArrival ?? '-'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Milestones</span>
-                                <span className="font-medium">
-                                    {eta.totalMilestones}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">
-                                    Latest event
-                                </span>
-                                <div className="font-medium">
-                                    {eta.latestEvent?.eventType ??
-                                        'No events yet'}
-                                    {eta.latestEvent?.location
-                                        ? ` • ${eta.latestEvent.location}`
-                                        : ''}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {eta.latestEvent?.description ?? ''}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-            <Dialog open={mapOpen} onOpenChange={setMapOpen}>
-                <DialogContent className="max-w-3xl">
-                    <DialogHeader>
-                        <DialogTitle>
-                            Live Tracking — Shipment #{mapShipmentId}
-                        </DialogTitle>
-                    </DialogHeader>
-                    {mapShipmentId != null && (
-                        <ShipmentMap
-                            key={mapShipmentId}
-                            shipmentId={mapShipmentId}
-                        />
-                    )}
-                </DialogContent>
-            </Dialog>
             <Dialog
                 open={incidentEdit != null}
                 onOpenChange={(v) => {
@@ -1377,7 +1017,7 @@ export default function LogisticsShipmentsPage() {
                                                 photoUrls: e.target.value,
                                             })
                                         }
-                                        placeholder="e.g. https://…/pod-12-a.jpg"
+                                        placeholder="e.g. https://Ã¢â‚¬Â¦/pod-12-a.jpg"
                                     />
                                 </div>
                                 <div className="grid gap-2">
@@ -1435,3 +1075,4 @@ export default function LogisticsShipmentsPage() {
         </div>
     );
 }
+
