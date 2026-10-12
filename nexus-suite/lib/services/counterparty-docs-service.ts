@@ -17,8 +17,26 @@ export interface AsnDocument {
     purchaseOrderId?: number;
     poNumber?: string;
     shipmentId?: number;
-    shipmentNumber?: string;
     status?: string;
+    // Dispatch detail: what is physically on this truck (the ASN's own
+    // purpose — the PO stays the commercial order: what was asked for).
+    shipmentNumber?: string;
+    shipmentStatus?: string;
+    trackingNumber?: string;
+    carrierName?: string;
+    logisticsOrgName?: string;
+    pickupLocation?: string;
+    deliveryLocation?: string;
+    pickupDate?: string;
+    deliveryDate?: string;
+    orderedQuantity?: number;
+    shippedQuantity?: number;
+    backorderedQuantity?: number;
+    totalPackages?: number;
+    totalWeight?: number;
+    totalVolume?: number;
+    estimatedArrival?: string;
+    notes?: string;
     [key: string]: unknown;
 }
 
@@ -81,9 +99,81 @@ export async function rejectRetailerQuotation(
     return res.data;
 }
 
+export interface AsnPage {
+    content: AsnDocument[];
+    totalElements: number;
+    totalPages: number;
+    page: number;
+    size: number;
+    first: boolean;
+    last: boolean;
+    empty: boolean;
+}
+
+function toAsnArray(data: unknown): AsnDocument[] {
+    if (Array.isArray(data)) return data as AsnDocument[];
+    if (data && typeof data === 'object') {
+        const rec = data as Record<string, unknown>;
+        if (Array.isArray(rec.content)) return rec.content as AsnDocument[];
+        if (Array.isArray(rec.data)) return rec.data as AsnDocument[];
+        return [data as AsnDocument];
+    }
+    return [];
+}
+
+export async function getRetailerAsns(
+    filter: { page?: number; size?: number; pageNo?: number; pageOffset?: number } = {}
+): Promise<AsnPage> {
+    const page = filter.page ?? filter.pageNo ?? 0;
+    const size = filter.size ?? filter.pageOffset ?? 20;
+    const res = await apiClient.get<unknown>(
+        `/iam/core/retailer/asn/all?page=${page}&size=${size}`
+    );
+    const data = res.data as Record<string, unknown> & {
+        content?: unknown;
+        totalElements?: number;
+        totalPages?: number;
+        first?: boolean;
+        last?: boolean;
+        empty?: boolean;
+        number?: number;
+    };
+    const content = toAsnArray(data);
+    const totalElements =
+        typeof data?.totalElements === 'number' ? data.totalElements : content.length;
+    const totalPages = typeof data?.totalPages === 'number' ? data.totalPages : 1;
+    const currentPage =
+        typeof data?.number === 'number' ? data.number : page;
+    return {
+        content,
+        totalElements,
+        totalPages,
+        page: currentPage,
+        size,
+        first: typeof data?.first === 'boolean' ? data.first : currentPage === 0,
+        last:
+            typeof data?.last === 'boolean'
+                ? data.last
+                : currentPage >= totalPages - 1,
+        empty: typeof data?.empty === 'boolean' ? data.empty : content.length === 0,
+    };
+}
+
 export async function getRetailerAsnByPo(poId: number): Promise<AsnDocument[]> {
     const res = await apiClient.get<AsnDocument[] | AsnDocument>(
         `/iam/core/retailer/asn/purchase-order/${poId}`
+    );
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') return [data as AsnDocument];
+    return [];
+}
+
+export async function getRetailerAsnByPoNumber(
+    poNumber: string
+): Promise<AsnDocument[]> {
+    const res = await apiClient.get<AsnDocument[] | AsnDocument>(
+        `/iam/core/retailer/asn/purchase-order-number/${encodeURIComponent(poNumber)}`
     );
     const data = res.data;
     if (Array.isArray(data)) return data;
@@ -105,6 +195,18 @@ export async function getRetailerPod(
 export async function getSupplierAsnByPo(poId: number): Promise<AsnDocument[]> {
     const res = await apiClient.get<AsnDocument[] | AsnDocument>(
         `/iam/core/supplier/asn/purchase-order/${poId}`
+    );
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') return [data as AsnDocument];
+    return [];
+}
+
+export async function getSupplierAsnByPoNumber(
+    poNumber: string
+): Promise<AsnDocument[]> {
+    const res = await apiClient.get<AsnDocument[] | AsnDocument>(
+        `/iam/core/supplier/asn/purchase-order-number/${encodeURIComponent(poNumber)}`
     );
     const data = res.data;
     if (Array.isArray(data)) return data;

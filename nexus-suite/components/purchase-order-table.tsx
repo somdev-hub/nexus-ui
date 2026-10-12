@@ -87,7 +87,7 @@ import {
 } from '@/lib/services/purchase-orders-service';
 import type { PurchaseOrder as ApiPurchaseOrder } from '@/types/purchase-orders';
 
-// API objects carry the same fields with looser optionality â€” normalize to
+// API objects carry the same fields with looser optionality — normalize to
 // the table's row shape when merging transition results back in.
 function toLocalRow(po: ApiPurchaseOrder): PurchaseOrder {
     return {
@@ -318,7 +318,7 @@ const buildColumns = (
             <div className="text-sm">
                 {row.original.orderDate
                     ? format(new Date(row.original.orderDate), 'MMM dd, yyyy')
-                    : 'â€”'}
+                    : '—'}
             </div>
         ),
     },
@@ -332,7 +332,7 @@ const buildColumns = (
                           new Date(row.original.expectedDeliveryDate),
                           'MMM dd, yyyy'
                       )
-                    : 'â€”'}
+                    : '—'}
             </div>
         ),
     },
@@ -368,7 +368,7 @@ const buildColumns = (
     {
         accessorKey: 'paymentTerms',
         header: 'Payment Terms',
-        cell: ({ row }) => row.original.paymentTerms || 'â€”',
+        cell: ({ row }) => row.original.paymentTerms || '—',
     },
     {
         id: 'actions',

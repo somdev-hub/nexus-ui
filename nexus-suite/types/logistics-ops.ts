@@ -371,6 +371,10 @@ export interface LoadBoardShipment {
     pickupAddress?: string;
     deliveryLocation?: string;
     deliveryAddress?: string;
+    // City names resolved from the matched route capacity lanes
+    // (fall back to the raw location text when no route matches).
+    pickupCity?: string;
+    deliveryCity?: string;
     pickupDate?: string;
     deliveryDate?: string;
     estimatedArrival?: string;

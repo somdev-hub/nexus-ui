@@ -37,10 +37,13 @@ import { Money } from '@/components/money';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function SupplierOrdersPage() {
     const { toast } = useToast();
@@ -54,6 +57,9 @@ export default function SupplierOrdersPage() {
         null
     );
     const [podOpen, setPodOpen] = useState<number | null>(null);
+    const [ackOrder, setAckOrder] = useState<SupplierOrder | null>(null);
+    const [ackNotes, setAckNotes] = useState('');
+    const [ackBusy, setAckBusy] = useState(false);
     // Shipment refs created this session (createPartialShipment returns
     // PartialShipmentResponse: { shipmentId, shipmentNumber, ... }).
     const [shipmentByPo, setShipmentByPo] = useState<
@@ -85,16 +91,27 @@ export default function SupplierOrdersPage() {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
     }, [search]);
-    const ack = async (id: number) => {
+    const ack = async () => {
+        if (!ackOrder || ackBusy) return;
+        setAckBusy(true);
         try {
-            await acknowledgeOrder(id, undefined, 'Acknowledged via portal');
+            const notes = ackNotes.trim();
+            await acknowledgeOrder(
+                ackOrder.purchaseOrderId,
+                undefined,
+                notes ? notes : undefined
+            );
             toast({ title: 'Acknowledged', variant: 'success' });
+            setAckOrder(null);
+            setAckNotes('');
             load();
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
                 variant: 'destructive',
             });
+        } finally {
+            setAckBusy(false);
         }
     };
     const handlePartialCreated = (
@@ -238,6 +255,17 @@ export default function SupplierOrdersPage() {
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">
                                                 {asnNumber}
+                                                {o.remainingQuantity !== undefined && (
+                                                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                                        {(
+                                                            (o.totalShippedQuantity ?? 0)
+                                                        )}{' '}
+                                                        shipped
+                                                        {o.remainingQuantity > 0
+                                                            ? ` · ${o.remainingQuantity} left`
+                                                            : ' · complete'}
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell className="flex gap-2">
                                                 <Button
@@ -255,11 +283,10 @@ export default function SupplierOrdersPage() {
                                                     'SENT_TO_SUPPLIER' && (
                                                     <Button
                                                         size="sm"
-                                                        onClick={() =>
-                                                            ack(
-                                                                o.purchaseOrderId
-                                                            )
-                                                        }
+                                                        onClick={() => {
+                                                            setAckNotes('');
+                                                            setAckOrder(o);
+                                                        }}
                                                     >
                                                         <Check className="mr-2 h-4 w-4" />
                                                         Acknowledge
@@ -271,7 +298,9 @@ export default function SupplierOrdersPage() {
                                                     o.status ===
                                                         'AWAITING_PICKUP' ||
                                                     o.status ===
-                                                        'PICKED_UP') && (
+                                                        'PICKED_UP') &&
+                                                    (o.remainingQuantity === undefined ||
+                                                        o.remainingQuantity > 0) && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
@@ -342,6 +371,57 @@ export default function SupplierOrdersPage() {
                     )}
                 </CardContent>
             </Card>
+            <Dialog
+                open={ackOrder !== null}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setAckOrder(null);
+                        setAckNotes('');
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Acknowledge {ackOrder?.poNumber ?? ''}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Confirm you accept this order. Notes are
+                            optional and visible to the retailer.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label>Supplier notes (optional)</Label>
+                            <Textarea
+                                value={ackNotes}
+                                onChange={(e) =>
+                                    setAckNotes(e.target.value)
+                                }
+                                placeholder="e.g. Confirmed, production starts Monday"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                disabled={ackBusy}
+                                onClick={() => {
+                                    setAckOrder(null);
+                                    setAckNotes('');
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button onClick={ack} disabled={ackBusy}>
+                                <Check className="mr-2 h-4 w-4" />
+                                {ackBusy
+                                    ? 'Acknowledging…'
+                                    : 'Confirm acknowledgement'}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
             <PartialShipmentDialog
                 order={partialOrder}
                 open={partialOrder !== null}

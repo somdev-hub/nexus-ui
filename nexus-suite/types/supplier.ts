@@ -105,6 +105,8 @@ export interface SupplierOrder {
     acknowledgedBy?: string;
     acknowledgedAt?: string;
     sentToSupplierAt?: string;
+    totalShippedQuantity?: number;
+    remainingQuantity?: number;
     approvedBy?: string;
     approvedAt?: string;
     rejectionReason?: string;

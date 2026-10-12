@@ -18,15 +18,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
@@ -38,18 +29,16 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import {
-    getSupplierLogisticsPartnerships,
     getSupplierShipments,
-    handoverShipment,
-    type SupplierLogisticsPartnership,
     type SupplierShipment,
 } from '@/lib/services/supplier-logistics-service';
 
 // ─────────────────────────────────────────────────────────────
-// Supplier-owned delivery: after acknowledgement the supplier
-// prepares shipments here and hands them to a partnered logistics
-// org (DRAFT -> BOOKED). The retailer journey ends at the PO —
-// they only receive and pay.
+// Supplier-owned delivery: shipments are prepared and handed over
+// to a partnered logistics org from an acknowledged order
+// (Partial Ship on the orders page, DRAFT -> BOOKED). This page
+// is read-only: it lists every shipment and shows the full detail
+// captured at creation / handover time.
 // ─────────────────────────────────────────────────────────────
 
 const ADDRESS_PREVIEW_CHARS = 28;
@@ -86,33 +75,56 @@ function AddressCell({ pickup, delivery }: { pickup?: string; delivery?: string 
     );
 }
 
+function fmtDateTime(value?: string | null): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+}
+
+function fmtDate(value?: string | null): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
+}
+
+function fmtNum(value?: number | null): string {
+    if (value === undefined || value === null) return '—';
+    return String(value);
+}
+
+function Detail({ label, value }: { label: string; value?: React.ReactNode }) {
+    return (
+        <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="break-words text-sm font-medium whitespace-normal">
+                {value ?? '—'}
+            </p>
+        </div>
+    );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <div className="grid gap-3 rounded-md border p-3">
+            <p className="text-sm font-semibold">{title}</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {children}
+            </div>
+        </div>
+    );
+}
+
 export default function SupplierShipmentsPage() {
     const { toast } = useToast();
     const [shipments, setShipments] = useState<SupplierShipment[]>([]);
     const [loading, setLoading] = useState(true);
-    const [partnerships, setPartnerships] = useState<
-        SupplierLogisticsPartnership[]
-    >([]);
-    const [handingOver, setHandingOver] = useState<SupplierShipment | null>(
-        null
-    );
-    const [partnershipId, setPartnershipId] = useState('');
-    const [pickupLocation, setPickupLocation] = useState('');
-    const [deliveryLocation, setDeliveryLocation] = useState('');
-    const [notes, setNotes] = useState('');
-    const [submitting, setSubmitting] = useState(false);
+    const [viewing, setViewing] = useState<SupplierShipment | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const [ships, mine] = await Promise.all([
-                getSupplierShipments(),
-                getSupplierLogisticsPartnerships(),
-            ]);
+            const ships = await getSupplierShipments();
             setShipments(ships.content ?? []);
-            setPartnerships(
-                (mine.content ?? []).filter((p) => p.status === 'ACTIVE')
-            );
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
@@ -127,49 +139,18 @@ export default function SupplierShipmentsPage() {
         load();
     }, [load]);
 
-    const submitHandover = async () => {
-        if (!handingOver) return;
-        const partnership = partnerships.find(
-            (p) => String(p.partnershipId) === partnershipId
-        );
-        if (!partnership) {
-            toast({
-                title: 'Select an active logistics partnership',
-                variant: 'destructive',
-            });
-            return;
-        }
-        // Counterparty resolution happens server-side; the client only
-        // selects the partnership.
-        setSubmitting(true);
-        try {
-            // The logistics org is derived server-side as the partnership
-            // counterparty — the client only selects the partnership.
-            const res = await handoverShipment(handingOver.shipmentId, {
-                partnershipId: partnership.partnershipId,
-                pickupLocation: pickupLocation || undefined,
-                deliveryLocation: deliveryLocation || undefined,
-                notes: notes || undefined,
-            });
-            toast({
-                title: `Shipment ${res.shipmentNumber ?? ''} handed over — ${res.status ?? 'BOOKED'}`,
-                variant: 'success',
-            });
-            setHandingOver(null);
-            setPartnershipId('');
-            setPickupLocation('');
-            setDeliveryLocation('');
-            setNotes('');
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        } finally {
-            setSubmitting(false);
-        }
-    };
+    const ordered = viewing?.orderedQuantity;
+    const backordered = viewing?.backorderedQuantity ?? 0;
+    const shipped =
+        ordered !== undefined && ordered !== null
+            ? Math.max(0, ordered - backordered)
+            : undefined;
+    const dims =
+        viewing?.packageLength !== undefined ||
+        viewing?.packageWidth !== undefined ||
+        viewing?.packageHeight !== undefined
+            ? `${viewing?.packageLength ?? '—'} × ${viewing?.packageWidth ?? '—'} × ${viewing?.packageHeight ?? '—'} ${viewing?.packageDimensionUom ?? ''}`.trim()
+            : undefined;
 
     return (
         <div className="p-4 lg:p-6 space-y-4">
@@ -179,8 +160,10 @@ export default function SupplierShipmentsPage() {
                         Delivery Shipments
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Hand prepared shipments to your logistics partners.
-                        Delivery is owned by the supplier.
+                        Every shipment prepared from your orders with the full
+                        detail captured at partial-ship and handover time.
+                        Hand shipments over from an acknowledged order —
+                        delivery is owned by the supplier.
                     </p>
                 </div>
                 <Button variant="outline" asChild>
@@ -259,27 +242,13 @@ export default function SupplierShipmentsPage() {
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            {s.status === 'DRAFT' ? (
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setHandingOver(s)
-                                                    }
-                                                >
-                                                    Hand over to Logistics
-                                                </Button>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">
-                                                    {(
-                                                        s.logisticsOrg as
-                                                            | {
-                                                                  name?: string;
-                                                              }
-                                                            | undefined
-                                                    )?.name ??
-                                                        'With logistics'}
-                                                </span>
-                                            )}
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setViewing(s)}
+                                            >
+                                                View
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -302,84 +271,179 @@ export default function SupplierShipmentsPage() {
             </Card>
 
             <Dialog
-                open={handingOver !== null}
-                onOpenChange={(v) => !v && setHandingOver(null)}
+                open={viewing !== null}
+                onOpenChange={(v) => !v && setViewing(null)}
             >
-                <DialogContent>
+                <DialogContent className="md:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>
-                            Hand over {(handingOver?.shipmentNumber as string) ?? ''} to
-                            logistics
+                            Shipment {viewing?.shipmentNumber ?? viewing?.shipmentId ?? ''}
                         </DialogTitle>
                         <DialogDescription>
-                            The shipment moves DRAFT → BOOKED with the selected
-                            partner. Requires an ACTIVE logistics partnership.
+                            Full detail captured at partial-ship and handover
+                            time.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4">
-                        <div className="grid gap-2">
-                            <Label>Logistics partnership</Label>
-                            <Select
-                                value={partnershipId}
-                                onValueChange={setPartnershipId}
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select partner" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {partnerships.map((p) => (
-                                        <SelectItem
-                                            key={p.partnershipId}
-                                            value={String(p.partnershipId)}
-                                        >
-                                            #{p.partnershipId}{' '}
-                                            {p.secondaryOrgName ??
-                                                p.primaryOrgName ??
-                                                ''}{' '}
-                                            ({(p.partnershipTermType as string) ??
-                                                '—'})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="grid gap-2">
-                                <Label>Pickup location</Label>
-                                <Input
-                                    value={pickupLocation}
-                                    onChange={(e) =>
-                                        setPickupLocation(e.target.value)
+                    {viewing && (
+                        <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1">
+                            <Section title="Shipment">
+                                <Detail label="Status" value={viewing.status} />
+                                <Detail
+                                    label="Tracking number"
+                                    value={
+                                        viewing.trackingNumber ? (
+                                            <span className="font-mono break-all">
+                                                {viewing.trackingNumber}
+                                            </span>
+                                        ) : undefined
                                     }
-                                    placeholder="Warehouse A"
                                 />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Delivery location</Label>
-                                <Input
-                                    value={deliveryLocation}
-                                    onChange={(e) =>
-                                        setDeliveryLocation(e.target.value)
+                                <Detail label="Carrier" value={viewing.carrierName} />
+                                <Detail
+                                    label="Carrier reference"
+                                    value={viewing.carrierReference}
+                                />
+                                <Detail label="Shipment mode" value={viewing.shipmentMode} />
+                                <Detail label="Incoterms" value={viewing.incoterms} />
+                                <Detail
+                                    label="Partial shipment"
+                                    value={
+                                        viewing.isPartialShipment === undefined
+                                            ? undefined
+                                            : viewing.isPartialShipment
+                                              ? 'Yes'
+                                              : 'No'
                                     }
-                                    placeholder="Retailer dock"
                                 />
-                            </div>
+                            </Section>
+
+                            <Section title="Order & handover">
+                                <Detail
+                                    label="Purchase order"
+                                    value={viewing.purchaseOrder?.poNumber}
+                                />
+                                <Detail label="Ordered qty" value={fmtNum(ordered)} />
+                                <Detail label="Shipped qty" value={fmtNum(shipped)} />
+                                <Detail
+                                    label="Backordered qty"
+                                    value={fmtNum(viewing.backorderedQuantity)}
+                                />
+                                <Detail
+                                    label="Logistics partner"
+                                    value={viewing.logisticsOrg?.name}
+                                />
+                                <Detail
+                                    label="Partnership ID"
+                                    value={
+                                        viewing.partnership?.partnershipId !== undefined
+                                            ? String(viewing.partnership.partnershipId)
+                                            : undefined
+                                    }
+                                />
+                            </Section>
+
+                            <Section title="Packages">
+                                <Detail
+                                    label="Total packages"
+                                    value={fmtNum(viewing.totalPackages)}
+                                />
+                                <Detail
+                                    label="Weight each (kg)"
+                                    value={fmtNum(viewing.packageWeight)}
+                                />
+                                <Detail label="Dimensions (L × W × H)" value={dims} />
+                                <Detail
+                                    label="Dimension unit"
+                                    value={viewing.packageDimensionUom}
+                                />
+                                <Detail
+                                    label="Total weight (kg)"
+                                    value={fmtNum(viewing.totalWeight)}
+                                />
+                                <Detail
+                                    label="Total volume (CBM)"
+                                    value={fmtNum(viewing.totalVolume)}
+                                />
+                            </Section>
+
+                            <Section title="Route">
+                                <Detail
+                                    label="Pickup location"
+                                    value={viewing.pickupLocation}
+                                />
+                                <Detail
+                                    label="Pickup address"
+                                    value={viewing.pickupAddress}
+                                />
+                                <Detail
+                                    label="Pickup date"
+                                    value={fmtDate(viewing.pickupDate)}
+                                />
+                                <Detail
+                                    label="Delivery location"
+                                    value={viewing.deliveryLocation}
+                                />
+                                <Detail
+                                    label="Delivery address"
+                                    value={viewing.deliveryAddress}
+                                />
+                                <Detail
+                                    label="Delivery date"
+                                    value={fmtDate(viewing.deliveryDate)}
+                                />
+                            </Section>
+
+                            <Section title="Schedule">
+                                <Detail
+                                    label="Estimated departure"
+                                    value={fmtDateTime(viewing.estimatedDeparture)}
+                                />
+                                <Detail
+                                    label="Actual departure"
+                                    value={fmtDateTime(viewing.actualDeparture)}
+                                />
+                                <Detail
+                                    label="Estimated arrival"
+                                    value={fmtDateTime(viewing.estimatedArrival)}
+                                />
+                                <Detail
+                                    label="Actual arrival"
+                                    value={fmtDateTime(viewing.actualArrival)}
+                                />
+                                <Detail
+                                    label="Created"
+                                    value={fmtDateTime(viewing.createdAt)}
+                                />
+                                <Detail
+                                    label="Last updated"
+                                    value={fmtDateTime(viewing.updatedAt)}
+                                />
+                            </Section>
+
+                            <Section title="Freight & notes">
+                                <Detail
+                                    label="Freight cost"
+                                    value={
+                                        viewing.freightCost !== undefined &&
+                                        viewing.freightCost !== null
+                                            ? `${viewing.freightCost} ${viewing.currency ?? ''}`.trim()
+                                            : undefined
+                                    }
+                                />
+                                <Detail
+                                    label="Actual freight cost"
+                                    value={
+                                        viewing.actualFreightCost !== undefined &&
+                                        viewing.actualFreightCost !== null
+                                            ? `${viewing.actualFreightCost} ${viewing.currency ?? ''}`.trim()
+                                            : undefined
+                                    }
+                                />
+                                <Detail label="Freight terms" value={viewing.freightTerms} />
+                                <Detail label="Notes" value={viewing.notes} />
+                            </Section>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Notes (optional)</Label>
-                            <Input
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Handover notes"
-                            />
-                        </div>
-                        <Button
-                            onClick={submitHandover}
-                            disabled={submitting}
-                        >
-                            {submitting ? 'Handing over…' : 'Confirm Handover'}
-                        </Button>
-                    </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

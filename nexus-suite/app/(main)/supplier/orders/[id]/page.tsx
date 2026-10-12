@@ -20,10 +20,13 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     acknowledgeOrder,
     getSupplierOrderById,
@@ -56,6 +59,8 @@ export default function SupplierOrderDetailPage() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [actionBusy, setActionBusy] = useState(false);
     const [partialOpen, setPartialOpen] = useState(false);
+    const [ackOpen, setAckOpen] = useState(false);
+    const [ackNotes, setAckNotes] = useState('');
     const [podOpen, setPodOpen] = useState(false);
     const [shipmentId, setShipmentId] = useState<number | null>(null);
     const [shipmentNumber, setShipmentNumber] = useState<string | null>(null);
@@ -149,12 +154,15 @@ export default function SupplierOrderDetailPage() {
         if (!order || actionBusy) return;
         setActionBusy(true);
         try {
+            const notes = ackNotes.trim();
             await acknowledgeOrder(
                 order.purchaseOrderId,
                 undefined,
-                'Acknowledged via portal'
+                notes ? notes : undefined
             );
             toast({ title: 'Acknowledged', variant: 'success' });
+            setAckOpen(false);
+            setAckNotes('');
             await reload();
         } catch (e: unknown) {
             toast({
@@ -237,18 +245,21 @@ export default function SupplierOrderDetailPage() {
                                 <Button
                                     size="sm"
                                     disabled={actionBusy}
-                                    onClick={handleAcknowledge}
+                                    onClick={() => {
+                                        setAckNotes('');
+                                        setAckOpen(true);
+                                    }}
                                 >
                                     <Check className="mr-2 h-4 w-4" />
-                                    {actionBusy
-                                        ? 'Acknowledging…'
-                                        : 'Acknowledge'}
+                                    Acknowledge
                                 </Button>
                             )}
                             {(order.status === 'ACKNOWLEDGED' ||
                                 order.status === 'PARTIALLY_RECEIVED' ||
                                 order.status === 'AWAITING_PICKUP' ||
-                                order.status === 'PICKED_UP') && (
+                                order.status === 'PICKED_UP') &&
+                                (order.remainingQuantity === undefined ||
+                                    order.remainingQuantity > 0) && (
                                 <>
                                     <Button
                                         size="sm"
@@ -679,6 +690,60 @@ export default function SupplierOrderDetailPage() {
                     </div>
                 </div>
             </div>
+            <Dialog
+                open={ackOpen}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setAckOpen(false);
+                        setAckNotes('');
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Acknowledge {order.poNumber}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Confirm you accept this order. Notes are
+                            optional and visible to the retailer.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label>Supplier notes (optional)</Label>
+                            <Textarea
+                                value={ackNotes}
+                                onChange={(e) =>
+                                    setAckNotes(e.target.value)
+                                }
+                                placeholder="e.g. Confirmed, production starts Monday"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                disabled={actionBusy}
+                                onClick={() => {
+                                    setAckOpen(false);
+                                    setAckNotes('');
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleAcknowledge}
+                                disabled={actionBusy}
+                            >
+                                <Check className="mr-2 h-4 w-4" />
+                                {actionBusy
+                                    ? 'Acknowledging…'
+                                    : 'Confirm acknowledgement'}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

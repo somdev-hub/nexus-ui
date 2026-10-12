@@ -167,8 +167,8 @@ export default function LoadBoardPage() {
             );
             toast({
                 title: assignStartPickup
-                    ? `Shipment ${assigning.shipmentNumber ?? ''} assigned â€” pickup started, ETA computed`
-                    : `Shipment ${assigning.shipmentNumber ?? ''} assigned â€” ready for pickup`,
+                    ? `Shipment ${assigning.shipmentNumber ?? ''} assigned — pickup started, ETA computed`
+                    : `Shipment ${assigning.shipmentNumber ?? ''} assigned — ready for pickup`,
                 variant: 'success',
             });
             setAssigning(null);
@@ -199,17 +199,17 @@ export default function LoadBoardPage() {
     };
 
     const shortDate = (iso?: string | null): string => {
-        if (!iso) return 'â€”';
+        if (!iso) return '—';
         const d = new Date(iso);
         return Number.isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString();
     };
 
     const routeText = (s: LoadBoardShipment): string => {
         const from =
-            (s.pickupLocation ?? s.pickupAddress ?? '').trim() || 'â€”';
+            (s.pickupLocation ?? s.pickupAddress ?? '').trim() || '—';
         const to =
-            (s.deliveryLocation ?? s.deliveryAddress ?? '').trim() || 'â€”';
-        return `${from} â†’ ${to}`;
+            (s.deliveryLocation ?? s.deliveryAddress ?? '').trim() || '—';
+        return `${from} → ${to}`;
     };
 
     const load = async () => {
@@ -326,7 +326,7 @@ export default function LoadBoardPage() {
                                                             ? `PO ${s.poNumber}`
                                                             : 'No PO'}
                                                         {s.isPartialShipment
-                                                            ? ' Â· Partial'
+                                                            ? ' · Partial'
                                                             : ''}
                                                     </div>
                                                     {s.backorderedQuantity !== undefined &&
@@ -342,7 +342,7 @@ export default function LoadBoardPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="secondary">
-                                                        {s.status ?? 'â€”'}
+                                                        {s.status ?? '—'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -350,7 +350,7 @@ export default function LoadBoardPage() {
                                                         {s.routeMode ??
                                                             s.shipmentMode ??
                                                             s.mode ??
-                                                            'â€”'}
+                                                            '—'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-xs">
@@ -396,14 +396,14 @@ export default function LoadBoardPage() {
                                                 </TableCell>
                                                 <TableCell className="whitespace-nowrap text-xs">
                                                     <div>
-                                                        {s.totalWeight ?? 'â€”'}{' '}
+                                                        {s.totalWeight ?? '—'}{' '}
                                                         kg
                                                     </div>
                                                     <div className="text-muted-foreground">
-                                                        {s.totalVolume ?? 'â€”'}{' '}
-                                                        mÂ³ Â·{' '}
+                                                        {s.totalVolume ?? '—'}{' '}
+                                                        m³ ·{' '}
                                                         {s.totalPackages ??
-                                                            'â€”'}{' '}
+                                                            '—'}{' '}
                                                         pkgs
                                                     </div>
                                                 </TableCell>
@@ -416,20 +416,20 @@ export default function LoadBoardPage() {
                                                             {s.currency ??
                                                                 'USD'}
                                                             {s.freightTerms
-                                                                ? ` Â· ${s.freightTerms}`
+                                                                ? ` · ${s.freightTerms}`
                                                                 : ''}
                                                         </>
                                                     ) : (
-                                                        'â€”'
+                                                        '—'
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
                                                     <div className="max-w-40 truncate">
                                                         {s.supplierOrgName ??
-                                                            'â€”'}{' '}
-                                                        â†’{' '}
+                                                            '—'}{' '}
+                                                        →{' '}
                                                         {s.retailerOrgName ??
-                                                            'â€”'}
+                                                            '—'}
                                                     </div>
                                                     {s.carrierName && (
                                                         <div className="text-muted-foreground">
@@ -533,7 +533,7 @@ export default function LoadBoardPage() {
                                                                 : 'secondary'
                                                         }
                                                     >
-                                                        {s.status ?? 'â€”'}
+                                                        {s.status ?? '—'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -541,7 +541,7 @@ export default function LoadBoardPage() {
                                                         {s.routeMode ??
                                                             s.shipmentMode ??
                                                             s.mode ??
-                                                            'â€”'}
+                                                            '—'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-xs">
@@ -584,11 +584,11 @@ export default function LoadBoardPage() {
                                                         ? new Date(
                                                               s.estimatedArrival
                                                           ).toLocaleString()
-                                                        : 'â€”'}
+                                                        : '—'}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
                                                     <div>
-                                                        {s.carrierName ?? 'â€”'}
+                                                        {s.carrierName ?? '—'}
                                                     </div>
                                                     <div className="font-mono text-muted-foreground">
                                                         {s.carrierReference ??
@@ -803,7 +803,7 @@ export default function LoadBoardPage() {
                 <DialogContent className="md:max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>
-                            Shipment {details?.shipmentNumber ?? ''} Â·{' '}
+                            Shipment {details?.shipmentNumber ?? ''} ·{' '}
                             {details?.status ?? ''}
                         </DialogTitle>
                         <DialogDescription>
@@ -816,7 +816,7 @@ export default function LoadBoardPage() {
                                 <div>
                                     <p className="text-muted-foreground">PO</p>
                                     <p className="font-medium">
-                                        {details.poNumber ?? 'â€”'}
+                                        {details.poNumber ?? '—'}
                                         {details.isPartialShipment
                                             ? ' (partial)'
                                             : ''}
@@ -827,7 +827,7 @@ export default function LoadBoardPage() {
                                     <p className="font-medium">
                                         {details.shipmentMode ??
                                             details.mode ??
-                                            'â€”'}
+                                            '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -835,7 +835,7 @@ export default function LoadBoardPage() {
                                         Tracking
                                     </p>
                                     <p className="font-mono text-xs">
-                                        {details.trackingNumber ?? 'â€”'}
+                                        {details.trackingNumber ?? '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -843,7 +843,7 @@ export default function LoadBoardPage() {
                                         Supplier
                                     </p>
                                     <p className="font-medium">
-                                        {details.supplierOrgName ?? 'â€”'}
+                                        {details.supplierOrgName ?? '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -851,7 +851,7 @@ export default function LoadBoardPage() {
                                         Retailer
                                     </p>
                                     <p className="font-medium">
-                                        {details.retailerOrgName ?? 'â€”'}
+                                        {details.retailerOrgName ?? '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -859,7 +859,7 @@ export default function LoadBoardPage() {
                                         Carrier
                                     </p>
                                     <p className="font-medium">
-                                        {details.carrierName ?? 'â€”'}
+                                        {details.carrierName ?? '—'}
                                         {details.carrierReference
                                             ? ` (${details.carrierReference})`
                                             : ''}
@@ -870,9 +870,9 @@ export default function LoadBoardPage() {
                                         Weight / Volume / Packages
                                     </p>
                                     <p className="font-medium">
-                                        {details.totalWeight ?? 'â€”'} kg /{' '}
-                                        {details.totalVolume ?? 'â€”'} mÂ³ /{' '}
-                                        {details.totalPackages ?? 'â€”'}
+                                        {details.totalWeight ?? '—'} kg /{' '}
+                                        {details.totalVolume ?? '—'} m³ /{' '}
+                                        {details.totalPackages ?? '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -880,10 +880,10 @@ export default function LoadBoardPage() {
                                         Freight
                                     </p>
                                     <p className="font-medium">
-                                        {details.freightCost ?? 'â€”'}{' '}
+                                        {details.freightCost ?? '—'}{' '}
                                         {details.currency ?? ''}
                                         {details.freightTerms
-                                            ? ` Â· ${details.freightTerms}`
+                                            ? ` · ${details.freightTerms}`
                                             : ''}
                                     </p>
                                 </div>
@@ -891,12 +891,14 @@ export default function LoadBoardPage() {
                                     <p className="text-muted-foreground">
                                         Pickup / Delivery
                                     </p>
-                                    <p className="font-medium">
-                                        {shortDate(details.pickupDate)} â†’{' '}
-                                        {shortDate(
-                                            details.deliveryDate ??
-                                                details.estimatedArrival
-                                        )}
+                                    <p className="font-medium break-words whitespace-normal">
+                                        {details.pickupCity ??
+                                            details.pickupLocation ??
+                                            '—'}{' '}
+                                        →{' '}
+                                        {details.deliveryCity ??
+                                            details.deliveryLocation ??
+                                            '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -908,7 +910,7 @@ export default function LoadBoardPage() {
                                             ? new Date(
                                                   details.estimatedArrival
                                               ).toLocaleString()
-                                            : 'â€”'}
+                                            : '—'}
                                     </p>
                                 </div>
                                 <div>
@@ -916,9 +918,9 @@ export default function LoadBoardPage() {
                                         Pickup contact
                                     </p>
                                     <p className="font-medium">
-                                        {details.pickupContactName ?? 'â€”'}
+                                        {details.pickupContactName ?? '—'}
                                         {details.pickupContactPhone
-                                            ? ` Â· ${details.pickupContactPhone}`
+                                            ? ` · ${details.pickupContactPhone}`
                                             : ''}
                                     </p>
                                 </div>
@@ -927,9 +929,9 @@ export default function LoadBoardPage() {
                                         Delivery contact
                                     </p>
                                     <p className="font-medium">
-                                        {details.deliveryContactName ?? 'â€”'}
+                                        {details.deliveryContactName ?? '—'}
                                         {details.deliveryContactPhone
-                                            ? ` Â· ${details.deliveryContactPhone}`
+                                            ? ` · ${details.deliveryContactPhone}`
                                             : ''}
                                     </p>
                                 </div>
@@ -947,7 +949,7 @@ export default function LoadBoardPage() {
                                                 : null,
                                         ]
                                             .filter(Boolean)
-                                            .join(', ') || 'â€”'}
+                                            .join(', ') || '—'}
                                     </p>
                                 </div>
                             </div>
@@ -979,10 +981,10 @@ export default function LoadBoardPage() {
                                             >
                                                 <span>
                                                     #{st.sequenceNumber ?? i + 1}{' '}
-                                                    {st.location ?? st.address ?? 'â€”'}
+                                                    {st.location ?? st.address ?? '—'}
                                                 </span>
                                                 <Badge variant="outline">
-                                                    {st.status ?? 'â€”'}
+                                                    {st.status ?? '—'}
                                                 </Badge>
                                             </div>
                                         ))}
@@ -1010,7 +1012,7 @@ export default function LoadBoardPage() {
                                                 <span>
                                                     {t.eventType ?? 'Event'}
                                                     {t.location
-                                                        ? ` Â· ${t.location}`
+                                                        ? ` · ${t.location}`
                                                         : ''}
                                                 </span>
                                                 <span className="text-xs text-muted-foreground">
@@ -1049,7 +1051,7 @@ export default function LoadBoardPage() {
                                                         'Document'}
                                                 </span>
                                                 <Badge variant="outline">
-                                                    {d.documentType ?? 'â€”'}
+                                                    {d.documentType ?? '—'}
                                                 </Badge>
                                             </div>
                                         ))}
@@ -1087,12 +1089,12 @@ export default function LoadBoardPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            Assign {assigning?.shipmentNumber ?? ''} Â·{' '}
+                            Assign {assigning?.shipmentNumber ?? ''} ·{' '}
                             {assigning ? routeText(assigning) : ''}
                         </DialogTitle>
                         <DialogDescription>
                             Pick an available driver and asset. The shipment
-                            moves BOOKED â†’ ASSIGNED and leaves the load board.
+                            moves BOOKED → ASSIGNED and leaves the load board.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4">
@@ -1140,7 +1142,7 @@ export default function LoadBoardPage() {
                                         >
                                             {a.assetNumber} ({a.assetType}
                                             {a.licensePlate
-                                                ? ` Â· ${a.licensePlate}`
+                                                ? ` · ${a.licensePlate}`
                                                 : ''}
                                             )
                                         </SelectItem>

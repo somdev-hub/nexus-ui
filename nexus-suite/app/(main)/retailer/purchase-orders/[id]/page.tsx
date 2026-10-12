@@ -496,7 +496,9 @@ const Page = () => {
                                 </span>
                                 <span className="font-medium">
                                     {formatDate(purchaseOrder.createdAt)} by{' '}
-                                    {purchaseOrder.createdBy}
+                                    {purchaseOrder.createdBy ||
+                                        purchaseOrder.retailerOrgName ||
+                                        '—'}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
@@ -505,7 +507,9 @@ const Page = () => {
                                 </span>
                                 <span className="font-medium">
                                     {formatDate(purchaseOrder.updatedAt)} by{' '}
-                                    {purchaseOrder.updatedBy}
+                                    {purchaseOrder.updatedBy ||
+                                        purchaseOrder.retailerOrgName ||
+                                        '—'}
                                 </span>
                             </div>
                         </CardContent>

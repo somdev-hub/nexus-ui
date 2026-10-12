@@ -40,13 +40,15 @@ import {
 } from '@/lib/services/purchase-orders-service';
 import {
     getRetailerAsnByPo,
+    getRetailerAsnByPoNumber,
+    getRetailerAsns,
     type AsnDocument,
 } from '@/lib/services/counterparty-docs-service';
 import { getSuppliers } from '@/lib/services/suppliers-service';
 import type { GoodsReceipt } from '@/types/procurement';
 import type { PurchaseOrder } from '@/types/purchase-orders';
 import type { Supplier } from '@/types/suppliers';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface PoLineOption {
@@ -103,7 +105,15 @@ export default function GoodsReceiptsPage() {
     const [saving, setSaving] = useState(false);
     const [asnPoId, setAsnPoId] = useState('');
     const [asns, setAsns] = useState<AsnDocument[] | null>(null);
+    const [expandedAsn, setExpandedAsn] = useState<string | null>(null);
     const [asnLoading, setAsnLoading] = useState(false);
+    const [allAsns, setAllAsns] = useState<AsnDocument[]>([]);
+    const [allAsnsPage, setAllAsnsPage] = useState(0);
+    const [allAsnsTotalPages, setAllAsnsTotalPages] = useState(1);
+    const [allAsnsTotalElements, setAllAsnsTotalElements] = useState(0);
+    const [allAsnsLoading, setAllAsnsLoading] = useState(false);
+    const [expandedAllAsn, setExpandedAllAsn] = useState<string | null>(null);
+    const ASN_PAGE_SIZE = 10;
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [poLines, setPoLines] = useState<PoLineOption[]>([]);
@@ -199,13 +209,17 @@ export default function GoodsReceiptsPage() {
             setForm((f) => ({ ...f, [k]: e.target.value }));
 
     const lookupAsn = async () => {
-        if (!asnPoId) {
-            toast.error('Enter Purchase Order ID');
+        const query = asnPoId.trim();
+        if (!query) {
+            toast.error('Enter a Purchase Order ID or PO number (e.g. PO-634684)');
             return;
         }
         setAsnLoading(true);
         try {
-            const result = await getRetailerAsnByPo(Number(asnPoId));
+            // Numeric input = internal PO id, anything else = PO number.
+            const result = /^\d+$/.test(query)
+                ? await getRetailerAsnByPo(Number(query))
+                : await getRetailerAsnByPoNumber(query);
             setAsns(result);
             if (result.length === 0) toast.info('No ASN found for this PO');
         } catch (e) {
@@ -214,6 +228,25 @@ export default function GoodsReceiptsPage() {
             setAsnLoading(false);
         }
     };
+
+    const loadAllAsns = async (page: number) => {
+        setAllAsnsLoading(true);
+        try {
+            const res = await getRetailerAsns({ page, size: ASN_PAGE_SIZE });
+            setAllAsns(res.content ?? []);
+            setAllAsnsPage(res.page ?? page);
+            setAllAsnsTotalPages(res.totalPages ?? 1);
+            setAllAsnsTotalElements(res.totalElements ?? 0);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to load ASNs');
+        } finally {
+            setAllAsnsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadAllAsns(0);
+    }, []);
 
     const handleCreate = async () => {
         if (!form.purchaseOrderId || !form.supplierId || !form.grNumber) {
@@ -459,9 +492,16 @@ export default function GoodsReceiptsPage() {
                     <CardTitle>Advance Shipping Notices (ASN) by PO</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        Dispatch notices — what is physically on each truck.
+                        The PO stays the commercial order (what was asked
+                        for); each ASN below is one dispatch against it.
+                        Expand a row for carrier, tracking, quantities and
+                        ETA.
+                    </p>
                     <div className="flex gap-4">
                         <Input
-                            placeholder="Purchase Order ID"
+                            placeholder="PO ID or PO number (e.g. PO-634684)"
                             value={asnPoId}
                             onChange={(e) => setAsnPoId(e.target.value)}
                             className="max-w-xs"
@@ -478,42 +518,209 @@ export default function GoodsReceiptsPage() {
                                         <TableHead>ASN Number</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Shipment</TableHead>
+                                        <TableHead>On truck / Ordered</TableHead>
+                                        <TableHead>ETA</TableHead>
+                                        <TableHead></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {asns.map((a, i) => (
-                                        <TableRow
-                                            key={
-                                                a.asnId ??
-                                                a.asnNumber ??
-                                                `asn-${i}`
-                                            }
-                                        >
-                                            <TableCell className="font-mono">
-                                                {String(
-                                                    a.asnNumber ??
-                                                        a.asnId ??
-                                                        '—'
+                                    {asns.map((a, i) => {
+                                        const key =
+                                            a.asnId ??
+                                            a.asnNumber ??
+                                            `asn-${i}`;
+                                        const expanded =
+                                            expandedAsn === String(key);
+                                        const ordered =
+                                            a.orderedQuantity ?? 0;
+                                        const shipped =
+                                            a.shippedQuantity ?? 0;
+                                        const pct =
+                                            ordered > 0
+                                                ? Math.min(
+                                                      100,
+                                                      Math.round(
+                                                          (shipped / ordered) *
+                                                              100
+                                                      )
+                                                  )
+                                                : 0;
+                                        return (
+                                            <Fragment key={String(key)}>
+                                                <TableRow>
+                                                    <TableCell className="font-mono">
+                                                        {String(
+                                                            a.asnNumber ??
+                                                                a.asnId ??
+                                                                '—'
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge>
+                                                            {String(
+                                                                a.status ?? '—'
+                                                            )}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-xs">
+                                                        {String(
+                                                            a.shipmentNumber ??
+                                                                a.shipmentId ??
+                                                                '—'
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs whitespace-nowrap">
+                                                        {shipped} / {ordered}
+                                                        {a.backorderedQuantity !== undefined &&
+                                                        a.backorderedQuantity !== null &&
+                                                        a.backorderedQuantity >
+                                                            0 ? (
+                                                            <span className="text-muted-foreground">
+                                                                {' '}
+                                                                (
+                                                                {
+                                                                    a.backorderedQuantity
+                                                                }{' '}
+                                                                backordered)
+                                                            </span>
+                                                        ) : null}
+                                                    </TableCell>
+                                                    <TableCell className="whitespace-nowrap text-xs">
+                                                        {a.estimatedArrival
+                                                            ? new Date(
+                                                                  a.estimatedArrival
+                                                              ).toLocaleString()
+                                                            : '—'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() =>
+                                                                setExpandedAsn(
+                                                                    expanded
+                                                                        ? null
+                                                                        : String(
+                                                                              key
+                                                                          )
+                                                                )
+                                                            }
+                                                        >
+                                                            {expanded
+                                                                ? 'Hide'
+                                                                : 'Details'}
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                                {expanded && (
+                                                    <TableRow>
+                                                        <TableCell
+                                                            colSpan={6}
+                                                            className="whitespace-normal"
+                                                        >
+                                                            <div className="grid gap-3 rounded-md bg-muted/40 p-3 text-sm md:grid-cols-3">
+                                                                <div className="min-w-0">
+                                                                    <p className="text-muted-foreground">
+                                                                        Carrier
+                                                                    </p>
+                                                                    <p className="font-medium break-words">
+                                                                        {a.carrierName ??
+                                                                            '—'}
+                                                                    </p>
+                                                                    <p className="font-mono text-xs text-muted-foreground break-all">
+                                                                        {a.trackingNumber ??
+                                                                            ''}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-muted-foreground">
+                                                                        Route
+                                                                    </p>
+                                                                    <p className="font-medium break-words whitespace-normal leading-snug">
+                                                                        <span className="block">
+                                                                            {a.pickupLocation ??
+                                                                                '—'}
+                                                                        </span>
+                                                                        <span
+                                                                            aria-hidden="true"
+                                                                            className="my-0.5 block text-muted-foreground"
+                                                                        >
+                                                                            ↓
+                                                                        </span>
+                                                                        <span className="block">
+                                                                            {a.deliveryLocation ??
+                                                                                '—'}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        Shipment
+                                                                        status:{' '}
+                                                                        {a.shipmentStatus ??
+                                                                            '—'}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-muted-foreground">
+                                                                        Load
+                                                                    </p>
+                                                                    <p className="font-medium">
+                                                                        {a.totalPackages ??
+                                                                            '—'}{' '}
+                                                                        pkgs ·{' '}
+                                                                        {a.totalWeight ??
+                                                                            '—'}{' '}
+                                                                        kg ·{' '}
+                                                                        {a.totalVolume ??
+                                                                            '—'}{' '}
+                                                                        m³
+                                                                    </p>
+                                                                    {a.logisticsOrgName && (
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            via{' '}
+                                                                            {
+                                                                                a.logisticsOrgName
+                                                                            }
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-2">
+                                                                <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                                                                    <span>
+                                                                        PO
+                                                                        coverage
+                                                                        by
+                                                                        this
+                                                                        dispatch
+                                                                    </span>
+                                                                    <span>
+                                                                        {pct}%
+                                                                    </span>
+                                                                </div>
+                                                                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                                                    <div
+                                                                        className="h-full rounded-full bg-primary"
+                                                                        style={{
+                                                                            width: `${pct}%`,
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            {a.notes && (
+                                                                <p className="mt-2 text-xs text-muted-foreground break-words whitespace-normal">
+                                                                    {a.notes}
+                                                                </p>
+                                                            )}
+                                                        </TableCell>
+                                                    </TableRow>
                                                 )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>
-                                                    {String(a.status ?? '—')}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {String(
-                                                    a.shipmentNumber ??
-                                                        a.shipmentId ??
-                                                        '—'
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                            </Fragment>
+                                        );
+                                    })}
                                     {asns.length === 0 && (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={3}
+                                                colSpan={6}
                                                 className="text-center py-6 text-muted-foreground"
                                             >
                                                 No ASN for this purchase order
@@ -524,6 +731,242 @@ export default function GoodsReceiptsPage() {
                             </Table>
                         </div>
                     )}
+                </CardContent>
+            </Card>
+            <Card className="p-4 gap-2">
+                <CardHeader className="p-0 flex flex-row items-center justify-between">
+                    <CardTitle>
+                        All Advance Shipping Notices ({allAsnsTotalElements})
+                    </CardTitle>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadAllAsns(allAsnsPage)}
+                        disabled={allAsnsLoading}
+                    >
+                        {allAsnsLoading ? 'Loading...' : 'Refresh'}
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-0 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        Every dispatch visible to your organisation, newest
+                        first. Use the lookup above to narrow to a single PO.
+                    </p>
+                    <div className="rounded-lg border overflow-hidden">
+                        <Table>
+                            <TableHeader className="bg-muted">
+                                <TableRow>
+                                    <TableHead>ASN Number</TableHead>
+                                    <TableHead>PO</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Shipment</TableHead>
+                                    <TableHead>On truck / Ordered</TableHead>
+                                    <TableHead>ETA</TableHead>
+                                    <TableHead></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {allAsns.map((a, i) => {
+                                    const key =
+                                        a.asnId ?? a.asnNumber ?? `all-asn-${i}`;
+                                    const expanded =
+                                        expandedAllAsn === String(key);
+                                    const ordered = a.orderedQuantity ?? 0;
+                                    const shipped = a.shippedQuantity ?? 0;
+                                    return (
+                                        <Fragment key={String(key)}>
+                                            <TableRow>
+                                                <TableCell className="font-mono">
+                                                    {String(
+                                                        a.asnNumber ??
+                                                            a.asnId ??
+                                                            '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="font-mono text-xs">
+                                                    {String(
+                                                        a.poNumber ??
+                                                            a.purchaseOrderId ??
+                                                            '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge>
+                                                        {String(a.status ?? '—')}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-xs">
+                                                    {String(
+                                                        a.shipmentNumber ??
+                                                            a.shipmentId ??
+                                                            '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-xs whitespace-nowrap">
+                                                    {shipped} / {ordered}
+                                                    {a.backorderedQuantity !== undefined &&
+                                                    a.backorderedQuantity !== null &&
+                                                    a.backorderedQuantity > 0 ? (
+                                                        <span className="text-muted-foreground">
+                                                            {' '}
+                                                            (
+                                                            {
+                                                                a.backorderedQuantity
+                                                            }{' '}
+                                                            backordered)
+                                                        </span>
+                                                    ) : null}
+                                                </TableCell>
+                                                <TableCell className="whitespace-nowrap text-xs">
+                                                    {a.estimatedArrival
+                                                        ? new Date(
+                                                              a.estimatedArrival
+                                                          ).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            setExpandedAllAsn(
+                                                                expanded
+                                                                    ? null
+                                                                    : String(key)
+                                                            )
+                                                        }
+                                                    >
+                                                        {expanded
+                                                            ? 'Hide'
+                                                            : 'Details'}
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                            {expanded && (
+                                                <TableRow>
+                                                    <TableCell
+                                                        colSpan={7}
+                                                        className="whitespace-normal"
+                                                    >
+                                                        <div className="grid gap-3 rounded-md bg-muted/40 p-3 text-sm md:grid-cols-3">
+                                                            <div>
+                                                                <p className="text-muted-foreground">
+                                                                    Carrier
+                                                                </p>
+                                                                <p className="font-medium">
+                                                                    {a.carrierName ??
+                                                                        '—'}
+                                                                </p>
+                                                                <p className="font-mono text-xs text-muted-foreground">
+                                                                    {a.trackingNumber ??
+                                                                        ''}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-muted-foreground">
+                                                                    Route
+                                                                </p>
+                                                                <p className="font-medium">
+                                                                    {a.pickupLocation ??
+                                                                        '—'}{' '}
+                                                                    →{' '}
+                                                                    {a.deliveryLocation ??
+                                                                        '—'}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Shipment
+                                                                    status:{' '}
+                                                                    {a.shipmentStatus ??
+                                                                        '—'}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-muted-foreground">
+                                                                    Load
+                                                                </p>
+                                                                <p className="font-medium">
+                                                                    {a.totalPackages ??
+                                                                        '—'}{' '}
+                                                                    pkgs ·{' '}
+                                                                    {a.totalWeight ??
+                                                                        '—'}{' '}
+                                                                    kg ·{' '}
+                                                                    {a.totalVolume ??
+                                                                        '—'}{' '}
+                                                                    m³
+                                                                </p>
+                                                                {a.logisticsOrgName && (
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        via{' '}
+                                                                        {
+                                                                            a.logisticsOrgName
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {a.notes && (
+                                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                                {a.notes}
+                                                            </p>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </Fragment>
+                                    );
+                                })}
+                                {allAsns.length === 0 && !allAsnsLoading && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="text-center py-6 text-muted-foreground"
+                                        >
+                                            No advance shipping notices yet
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {allAsnsLoading && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="text-center py-6 text-muted-foreground"
+                                        >
+                                            Loading ASNs...
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>
+                            Page {allAsnsTotalPages === 0 ? 0 : allAsnsPage + 1} of{' '}
+                            {Math.max(allAsnsTotalPages, 1)} ·{' '}
+                            {allAsnsTotalElements} total
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={allAsnsPage <= 0 || allAsnsLoading}
+                                onClick={() => loadAllAsns(allAsnsPage - 1)}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={
+                                    allAsnsPage >= allAsnsTotalPages - 1 ||
+                                    allAsnsLoading
+                                }
+                                onClick={() => loadAllAsns(allAsnsPage + 1)}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
             <div className="rounded-lg border overflow-hidden">

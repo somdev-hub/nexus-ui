@@ -85,7 +85,7 @@ function CapacityTableRow({
     return (
         <TableRow key={c.forecastId}>
             <TableCell className="text-xs">
-                {c.originLane ?? '?'} â†’ {c.destinationLane ?? '?'}
+                {c.originLane ?? '?'} → {c.destinationLane ?? '?'}
             </TableCell>
             {showPartnership && (
                 <TableCell>
@@ -108,7 +108,7 @@ function CapacityTableRow({
                 )}
             </TableCell>
             <TableCell className="text-xs">
-                {c.periodStart ?? '-'} â†’ {c.periodEnd ?? '-'}
+                {c.periodStart ?? '-'} → {c.periodEnd ?? '-'}
             </TableCell>
             <TableCell className="text-xs">
                 <span>
@@ -117,7 +117,7 @@ function CapacityTableRow({
                 </span>
                 <span className="text-muted-foreground">
                     {' '}
-                    â€¢ booked {c.bookedCapacity ?? 0}
+                    • booked {c.bookedCapacity ?? 0}
                 </span>
                 {formatUnitSpecs(c) && (
                     <span className="block text-muted-foreground">
@@ -1201,7 +1201,7 @@ export default function RoutingPage() {
                                             <div className="grid gap-2">
                                                 <Label>
                                                     Total volume per unit
-                                                    (optional â€” auto from LÃ—WÃ—H)
+                                                    (optional — auto from L×W×H)
                                                 </Label>
                                                 <Input
                                                     type="number"
@@ -1345,8 +1345,8 @@ export default function RoutingPage() {
                                                     ) || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    {g.totalWeight ?? 0} kg â€¢{' '}
-                                                    {g.totalVolume ?? 0} mÂ³
+                                                    {g.totalWeight ?? 0} kg •{' '}
+                                                    {g.totalVolume ?? 0} m³
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
@@ -1535,7 +1535,7 @@ export default function RoutingPage() {
                         <CardContent className="p-0">
                             <p className="pb-2 text-sm text-muted-foreground">
                                 Lanes reserved for one long-term partnership
-                                each â€” hidden from the public marketplace.
+                                each — hidden from the public marketplace.
                             </p>
                             {loading ? (
                                 <TableSkeleton rows={3} />
@@ -2301,7 +2301,7 @@ export default function RoutingPage() {
                                         <div className="grid gap-2">
                                             <Label>
                                                 Total volume per unit
-                                                (optional â€” auto from LÃ—WÃ—H)
+                                                (optional — auto from L×W×H)
                                             </Label>
                                             <Input
                                                 type="number"
@@ -2383,8 +2383,8 @@ export default function RoutingPage() {
                             Extend capacity for LONG_TERM partner
                         </DialogTitle>
                         <DialogDescription>
-                            Current period ends {capExtend?.periodEnd ?? 'â€”'}.
-                            Only LONG_TERM partnerships qualify â€” the partner
+                            Current period ends {capExtend?.periodEnd ?? '—'}.
+                            Only LONG_TERM partnerships qualify — the partner
                             supplier keeps logistics flexibility beyond the
                             current window.
                         </DialogDescription>

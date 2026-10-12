@@ -403,7 +403,7 @@ export default function LogisticsShipmentsPage() {
                                                 photoUrls: e.target.value,
                                             })
                                         }
-                                        placeholder="e.g. https://Ã¢â‚¬Â¦/pod-12-a.jpg, https://Ã¢â‚¬Â¦/pod-12-b.jpg"
+                                        placeholder="e.g. https://…/pod-12-a.jpg, https://…/pod-12-b.jpg"
                                     />
                                 </div>
                                 <div className="grid gap-2">
@@ -625,7 +625,7 @@ export default function LogisticsShipmentsPage() {
                                                         {s.shipmentNumber}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        #{s.shipmentId} Ã¢â‚¬Â¢{' '}
+                                                        #{s.shipmentId} •{' '}
                                                         {s.carrierName ??
                                                             'unassigned'}
                                                     </div>
@@ -634,11 +634,11 @@ export default function LogisticsShipmentsPage() {
                                                     <span className="inline-block max-w-48 truncate align-bottom">
                                                         {s.pickupLocation ??
                                                             s.pickupAddress ??
-                                                            'Ã¢â‚¬â€'}{' '}
-                                                        Ã¢â€ â€™{' '}
+                                                            '—'}{' '}
+                                                        →{' '}
                                                         {s.deliveryLocation ??
                                                             s.deliveryAddress ??
-                                                            'Ã¢â‚¬â€'}
+                                                            '—'}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>
@@ -768,7 +768,7 @@ export default function LogisticsShipmentsPage() {
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
                                                         Shipment #{i.shipmentId}{' '}
-                                                        Ã¢â‚¬Â¢ {i.description ?? '-'}
+                                                        • {i.description ?? '-'}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -1017,7 +1017,7 @@ export default function LogisticsShipmentsPage() {
                                                 photoUrls: e.target.value,
                                             })
                                         }
-                                        placeholder="e.g. https://Ã¢â‚¬Â¦/pod-12-a.jpg"
+                                        placeholder="e.g. https://…/pod-12-a.jpg"
                                     />
                                 </div>
                                 <div className="grid gap-2">
