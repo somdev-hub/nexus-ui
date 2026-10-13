@@ -13,10 +13,7 @@ import {
     getContractDocumentContent,
     uploadContractTextDocument,
 } from '@/lib/services/supplier-contracts-service';
-import {
-    htmlToMarkdown,
-    markdownToHtml,
-} from '@/lib/contract-doc';
+import { htmlToMarkdown, markdownToHtml } from '@/lib/contract-doc';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -132,16 +129,13 @@ const Page = () => {
         setDocSaving(true);
         try {
             await uploadContractTextDocument(contract.contractId, {
-                fileName:
-                    docFileName || `${contract.contractNumber}.md`,
+                fileName: docFileName || `${contract.contractNumber}.md`,
                 content: htmlToMarkdown(docHtml),
             });
             toast.success('Contract document saved');
         } catch (err: unknown) {
             toast.error(
-                err instanceof Error
-                    ? err.message
-                    : 'Failed to save document'
+                err instanceof Error ? err.message : 'Failed to save document'
             );
         } finally {
             setDocSaving(false);
@@ -246,309 +240,310 @@ const Page = () => {
 
     return (
         <>
-        <div className="flex flex-1 flex-col">
-            <div className="@container/main flex flex-1 flex-col gap-2 p-4 md:gap-6 md:p-6">
-                <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href="/retailer/supplier-contracts"
-                            className="text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                            <ArrowLeft className="h-5 w-5" />
-                        </Link>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h2 className="text-2xl font-bold">
-                                    {contract.contractNumber}
-                                </h2>
-                                <Badge variant="outline">
-                                    {contract.status}
-                                </Badge>
+            <div className="flex flex-1 flex-col">
+                <div className="@container/main flex flex-1 flex-col gap-2 p-4 md:gap-6 md:p-6">
+                    <div className="flex w-full items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Link
+                                href="/retailer/supplier-contracts"
+                                className="text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </Link>
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-2xl font-bold">
+                                        {contract.contractNumber}
+                                    </h2>
+                                    <Badge variant="outline">
+                                        {contract.status}
+                                    </Badge>
+                                </div>
+                                <p className="text-muted-foreground mt-1 text-sm">
+                                    {contract.contractName} —{' '}
+                                    {contract.supplierName ?? '—'}
+                                </p>
                             </div>
-                            <p className="text-muted-foreground mt-1 text-sm">
-                                {contract.contractName} —{' '}
-                                {contract.supplierName ?? '—'}
-                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            {documentUrl && (
+                                <Button variant="outline" asChild>
+                                    <a
+                                        href={documentUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        {documentName}
+                                    </a>
+                                </Button>
+                            )}
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/retailer/supplier-contracts/${contract.contractId}/edit`}
+                                >
+                                    Edit
+                                </Link>
+                            </Button>
+                            {contract.status === 'DRAFT' && (
+                                <Button
+                                    onClick={() => setConfirmSubmit(true)}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isSubmitting
+                                        ? 'Submitting...'
+                                        : 'Submit for Approval'}
+                                </Button>
+                            )}
+                            {(contract.status === 'DRAFT' ||
+                                contract.status === 'PENDING_APPROVAL') && (
+                                <>
+                                    <Button
+                                        onClick={() => setConfirmApprove(true)}
+                                        disabled={isDeciding}
+                                    >
+                                        Approve
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => setConfirmReject(true)}
+                                        disabled={isDeciding}
+                                    >
+                                        Reject
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        {documentUrl && (
-                            <Button variant="outline" asChild>
-                                <a
-                                    href={documentUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    {documentName}
-                                </a>
-                            </Button>
-                        )}
-                        <Button variant="outline" asChild>
-                            <Link
-                                href={`/retailer/supplier-contracts/${contract.contractId}/edit`}
-                            >
-                                Edit
-                            </Link>
-                        </Button>
-                        {contract.status === 'DRAFT' && (
-                            <Button
-                                onClick={() => setConfirmSubmit(true)}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="mr-2 h-4 w-4" />
-                                )}
-                                {isSubmitting
-                                    ? 'Submitting...'
-                                    : 'Submit for Approval'}
-                            </Button>
-                        )}
-                        {(contract.status === 'DRAFT' ||
-                            contract.status === 'PENDING_APPROVAL') && (
-                            <>
-                                <Button
-                                    onClick={() => setConfirmApprove(true)}
-                                    disabled={isDeciding}
-                                >
-                                    Approve
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => setConfirmReject(true)}
-                                    disabled={isDeciding}
-                                >
-                                    Reject
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <Card className="gap-2 p-4">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">
-                                Contract Information
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Contract Number
-                                </span>
-                                <span className="font-medium">
-                                    {contract.contractNumber}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Contract Name
-                                </span>
-                                <span className="font-medium">
-                                    {contract.contractName}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Supplier
-                                </span>
-                                <span className="font-medium">
-                                    {contract.supplierName ?? '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Contract Type
-                                </span>
-                                <span className="font-medium">
-                                    {contract.contractType}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Status
-                                </span>
-                                <span className="font-medium">
-                                    {contract.status}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Effective Date
-                                </span>
-                                <span className="font-medium">
-                                    {contract.effectiveDate || '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Expiry Date
-                                </span>
-                                <span className="font-medium">
-                                    {(contract.expiryDate as string) || '—'}
-                                </span>
-                            </div>
-                            <div className="text-sm">
-                                <p className="text-muted-foreground">
-                                    Description
-                                </p>
-                                <p className="font-medium">
-                                    {(contract.description as string) || '—'}
-                                </p>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Supplier Decision
-                                </span>
-                                <Badge
-                                    variant={
-                                        contract.supplierStatus === 'APPROVED'
-                                            ? 'default'
-                                            : 'secondary'
-                                    }
-                                >
-                                    {contract.supplierStatus ?? 'PENDING'}
-                                </Badge>
-                            </div>
-                            {(contract.supplierComments ||
-                                contract.supplierDecidedBy) && (
-                                <div className="text-sm rounded-md border p-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Card className="gap-2 p-4">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">
+                                    Contract Information
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Contract Number
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.contractNumber}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Contract Name
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.contractName}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Supplier
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.supplierName ?? '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Contract Type
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.contractType}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Status
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.status}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Effective Date
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.effectiveDate || '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Expiry Date
+                                    </span>
+                                    <span className="font-medium">
+                                        {(contract.expiryDate as string) || '—'}
+                                    </span>
+                                </div>
+                                <div className="text-sm">
                                     <p className="text-muted-foreground">
-                                        Supplier feedback
-                                        {contract.supplierDecidedAt
-                                            ? ` · ${new Date(contract.supplierDecidedAt).toLocaleString()}`
-                                            : ''}
+                                        Description
                                     </p>
                                     <p className="font-medium">
-                                        {contract.supplierComments || '—'}
+                                        {(contract.description as string) ||
+                                            '—'}
                                     </p>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Supplier Decision
+                                    </span>
+                                    <Badge
+                                        variant={
+                                            contract.supplierStatus ===
+                                            'APPROVED'
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {contract.supplierStatus ?? 'PENDING'}
+                                    </Badge>
+                                </div>
+                                {(contract.supplierComments ||
+                                    contract.supplierDecidedBy) && (
+                                    <div className="text-sm rounded-md border p-3">
+                                        <p className="text-muted-foreground">
+                                            Supplier feedback
+                                            {contract.supplierDecidedAt
+                                                ? ` · ${new Date(contract.supplierDecidedAt).toLocaleString()}`
+                                                : ''}
+                                        </p>
+                                        <p className="font-medium">
+                                            {contract.supplierComments || '—'}
+                                        </p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
-                    <Card className="gap-2 p-4">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">
-                                Commercial Terms
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Base Currency
-                                </span>
-                                <span className="font-medium">
-                                    {(contract.baseCurrency as string) || '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Payment Terms (days)
-                                </span>
-                                <span className="font-medium">
-                                    {contract.paymentTermsDays ?? '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Incoterms
-                                </span>
-                                <span className="font-medium">
-                                    {(contract.incoterms as string) || '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Contract Amount
-                                </span>
-                                <span className="font-medium">
-                                    <Money
-                                        amount={contract.contractAmount}
-                                        currency={contract.baseCurrency}
-                                    />
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Auto Renewal
-                                </span>
-                                <span className="font-medium">
-                                    {contract.autoRenewal
-                                        ? `Yes (${contract.renewalNoticeDays ?? 0} days notice)`
-                                        : 'No'}
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="gap-2 p-4 md:col-span-2">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">Audit</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Created
-                                </span>
-                                <span className="font-medium">
-                                    {(contract.createdAt as string) || '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Updated
-                                </span>
-                                <span className="font-medium">
-                                    {(contract.updatedAt as string) || '—'}
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="gap-2 p-4 md:col-span-2">
-                        <CardHeader className="p-0">
-                            <div className="flex items-center justify-between">
+                        <Card className="gap-2 p-4">
+                            <CardHeader className="p-0">
                                 <CardTitle className="text-lg">
-                                    Contract Document
+                                    Commercial Terms
                                 </CardTitle>
-                                <Button
-                                    size="sm"
-                                    onClick={handleSaveDocument}
-                                    disabled={docSaving || docLoading}
-                                >
-                                    {docSaving
-                                        ? 'Saving…'
-                                        : 'Save Document'}
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {docLoading ? (
-                                <p className="text-sm text-muted-foreground">
-                                    Loading document…
-                                </p>
-                            ) : (
-                                <RichTextEditor
-                                    value={docHtml}
-                                    onChange={setDocHtml}
-                                    placeholder="Contract document…"
-                                />
-                            )}
-                        </CardContent>
-                    </Card>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Base Currency
+                                    </span>
+                                    <span className="font-medium">
+                                        {(contract.baseCurrency as string) ||
+                                            '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Payment Terms (days)
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.paymentTermsDays ?? '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Incoterms
+                                    </span>
+                                    <span className="font-medium">
+                                        {(contract.incoterms as string) || '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Contract Amount
+                                    </span>
+                                    <span className="font-medium">
+                                        <Money
+                                            amount={contract.contractAmount}
+                                            currency={contract.baseCurrency}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Auto Renewal
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.autoRenewal
+                                            ? `Yes (${contract.renewalNoticeDays ?? 0} days notice)`
+                                            : 'No'}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="gap-2 p-4 md:col-span-2">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">Audit</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Created
+                                    </span>
+                                    <span className="font-medium">
+                                        {(contract.createdAt as string) || '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Updated
+                                    </span>
+                                    <span className="font-medium">
+                                        {(contract.updatedAt as string) || '—'}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="gap-2 p-4 md:col-span-2">
+                            <CardHeader className="p-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="text-lg">
+                                        Contract Document
+                                    </CardTitle>
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSaveDocument}
+                                        disabled={docSaving || docLoading}
+                                    >
+                                        {docSaving
+                                            ? 'Saving…'
+                                            : 'Save Document'}
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {docLoading ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Loading document…
+                                    </p>
+                                ) : (
+                                    <RichTextEditor
+                                        value={docHtml}
+                                        onChange={setDocHtml}
+                                        placeholder="Contract document…"
+                                    />
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
-        </div>
             <AlertDialog open={confirmSubmit} onOpenChange={setConfirmSubmit}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Submit contract?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Submit contract?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Submit contract {contract.contractNumber} for
                             approval?
@@ -565,9 +560,7 @@ const Page = () => {
             <AlertDialog open={confirmApprove} onOpenChange={setConfirmApprove}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Approve contract?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Approve contract?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Approve contract {contract.contractNumber}? It will
                             become ACTIVE.
@@ -595,9 +588,7 @@ const Page = () => {
                         <Textarea
                             id="rejection-reason"
                             value={rejectionReason}
-                            onChange={(e) =>
-                                setRejectionReason(e.target.value)
-                            }
+                            onChange={(e) => setRejectionReason(e.target.value)}
                             placeholder="e.g. Terms not acceptable"
                             rows={3}
                         />

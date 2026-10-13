@@ -206,10 +206,7 @@ const Page = () => {
                     'Supplier contract created successfully with document'
                 );
             } catch (docError) {
-                console.error(
-                    'Failed to upload contract document:',
-                    docError
-                );
+                console.error('Failed to upload contract document:', docError);
                 toast.warning(
                     'Contract created, but the document upload failed — you can re-upload it from the contract page.'
                 );
@@ -674,16 +671,12 @@ const Page = () => {
                             <Card className="gap-2 p-4">
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
-                                        <CardTitle>
-                                            Contract Document
-                                        </CardTitle>
+                                        <CardTitle>Contract Document</CardTitle>
                                         <Button
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            onClick={() =>
-                                                setDocTouched(false)
-                                            }
+                                            onClick={() => setDocTouched(false)}
                                         >
                                             Regenerate from fields
                                         </Button>
@@ -694,8 +687,8 @@ const Page = () => {
                                         Generated from the fields above and
                                         saved as an encrypted document on
                                         create. You can edit it freely — once
-                                        edited it will no longer
-                                        auto-update, until regenerated.
+                                        edited it will no longer auto-update,
+                                        until regenerated.
                                     </p>
                                     <RichTextEditor
                                         value={docHtml}

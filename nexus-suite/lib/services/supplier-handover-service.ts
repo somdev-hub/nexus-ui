@@ -88,14 +88,10 @@ function partnershipCounterparty(
         if (
             p.primaryOrgId !== undefined &&
             Number(p.primaryOrgId) !== own &&
-            (p.secondaryOrgId === undefined ||
-                Number(p.secondaryOrgId) === own)
+            (p.secondaryOrgId === undefined || Number(p.secondaryOrgId) === own)
         )
             return Number(p.primaryOrgId);
-        if (
-            p.secondaryOrgId !== undefined &&
-            Number(p.secondaryOrgId) !== own
-        )
+        if (p.secondaryOrgId !== undefined && Number(p.secondaryOrgId) !== own)
             return Number(p.secondaryOrgId);
     }
     return p.secondaryOrgId ?? p.primaryOrgId ?? undefined;
@@ -147,9 +143,7 @@ export function resolveRetailerDelivery(
         ? active.find((a) => formatOrgAddress(a) === poText)
         : undefined;
     const fallback =
-        exact ??
-        active.find((a) => a.isDefaultShipping === true) ??
-        active[0];
+        exact ?? active.find((a) => a.isDefaultShipping === true) ?? active[0];
     return {
         address: fallback,
         addressText: poText || formatOrgAddress(fallback),
@@ -166,20 +160,25 @@ export async function loadHandoverOptions(
             'This order has no buyer organization — cannot determine the delivery address.'
         );
     }
-    const [partnershipsRes, capacitiesRes, privateRes, supplierAddresses, retailerAddresses] =
-        await Promise.all([
-            getSupplierLogisticsPartnerships(),
-            getAvailableLogisticsCapacities({ pageNo: 0, pageOffset: 100 }),
-            getMyPrivateRoutes().catch(
-                () => ({ content: [] }) as { content: PrivateRouteRow[] }
-            ),
-            getOrgAddresses(String(ownOrgId ?? '')).catch(() => [] as OrgAddress[]),
-            getOrgAddresses(buyerOrgId).catch(() => {
-                throw new Error(
-                    'Could not load the retailer delivery addresses. Please try again.'
-                );
-            }),
-        ]);
+    const [
+        partnershipsRes,
+        capacitiesRes,
+        privateRes,
+        supplierAddresses,
+        retailerAddresses,
+    ] = await Promise.all([
+        getSupplierLogisticsPartnerships(),
+        getAvailableLogisticsCapacities({ pageNo: 0, pageOffset: 100 }),
+        getMyPrivateRoutes().catch(
+            () => ({ content: [] }) as { content: PrivateRouteRow[] }
+        ),
+        getOrgAddresses(String(ownOrgId ?? '')).catch(() => [] as OrgAddress[]),
+        getOrgAddresses(buyerOrgId).catch(() => {
+            throw new Error(
+                'Could not load the retailer delivery addresses. Please try again.'
+            );
+        }),
+    ]);
 
     const pickup = resolveSupplierPickup(supplierAddresses);
     const delivery = resolveRetailerDelivery(
@@ -231,9 +230,10 @@ export async function loadHandoverOptions(
                     'Linked route is no longer published by the logistics partner.';
             } else {
                 routeLabel = `${route.originLane ?? '—'} → ${route.destinationLane ?? '—'}`;
-                coveredCities = [route.originLane ?? '', route.destinationLane ?? ''].filter(
-                    (c) => c.trim() !== ''
-                );
+                coveredCities = [
+                    route.originLane ?? '',
+                    route.destinationLane ?? '',
+                ].filter((c) => c.trim() !== '');
             }
         } else {
             // Long-term: dedicated private lanes published for this
@@ -251,7 +251,10 @@ export async function loadHandoverOptions(
                     )
                 );
                 routeLabel = privates
-                    .map((r) => `${r.originLane ?? '—'} → ${r.destinationLane ?? '—'}`)
+                    .map(
+                        (r) =>
+                            `${r.originLane ?? '—'} → ${r.destinationLane ?? '—'}`
+                    )
                     .join('; ');
             } else {
                 const wanted = parseDesiredRoutes(p.desiredRoutesJson);
@@ -270,8 +273,7 @@ export async function loadHandoverOptions(
                         : 'Custom routes';
             }
             if (coveredCities.length === 0) {
-                reason =
-                    'No routes published for this partnership yet.';
+                reason = 'No routes published for this partnership yet.';
             }
         }
 
@@ -306,7 +308,9 @@ export async function loadHandoverOptions(
     }
 
     return {
-        supplierAddresses: supplierAddresses.filter((a) => a.isActive !== false),
+        supplierAddresses: supplierAddresses.filter(
+            (a) => a.isActive !== false
+        ),
         ...pickup,
         supplierCity,
         retailerAddress: delivery.address,

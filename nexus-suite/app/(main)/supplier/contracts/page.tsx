@@ -16,7 +16,8 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from '@/components/ui/table';import {
+} from '@/components/ui/table';
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -54,9 +55,10 @@ export default function SupplierContractsPage() {
     const [contracts, setContracts] = useState<SupplierContract[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [busy, setBusy] = useState(false);
-    const [confirm, setConfirm] = useState<
-        { action: 'approve' | 'reject' | 'amendments'; contract: SupplierContract } | null
-    >(null);
+    const [confirm, setConfirm] = useState<{
+        action: 'approve' | 'reject' | 'amendments';
+        contract: SupplierContract;
+    } | null>(null);
     const [comments, setComments] = useState('');
 
     const load = async () => {
@@ -83,9 +85,7 @@ export default function SupplierContractsPage() {
 
     const refreshContract = (updated: SupplierContract) => {
         setContracts((prev) =>
-            prev.map((c) =>
-                c.contractId === updated.contractId ? updated : c
-            )
+            prev.map((c) => (c.contractId === updated.contractId ? updated : c))
         );
     };
 
@@ -125,9 +125,7 @@ export default function SupplierContractsPage() {
                       : 'Amendments requested'
             );
         } catch (err: unknown) {
-            toast.error(
-                err instanceof Error ? err.message : 'Action failed'
-            );
+            toast.error(err instanceof Error ? err.message : 'Action failed');
         } finally {
             setBusy(false);
             setConfirm(null);
@@ -135,9 +133,8 @@ export default function SupplierContractsPage() {
         }
     };
 
-    const supplierStatusOf = (
-        c: SupplierContract
-    ): SupplierDecisionStatus => c.supplierStatus ?? 'PENDING';
+    const supplierStatusOf = (c: SupplierContract): SupplierDecisionStatus =>
+        c.supplierStatus ?? 'PENDING';
 
     if (isLoading) {
         return (
@@ -171,9 +168,7 @@ export default function SupplierContractsPage() {
                                             <TableHead>Number</TableHead>
                                             <TableHead>Name</TableHead>
                                             <TableHead>Status</TableHead>
-                                            <TableHead>
-                                                Your Decision
-                                            </TableHead>
+                                            <TableHead>Your Decision</TableHead>
                                             <TableHead>Effective</TableHead>
                                             <TableHead>Expiry</TableHead>
                                             <TableHead className="text-right">
@@ -207,7 +202,8 @@ export default function SupplierContractsPage() {
                                                     >
                                                         {SUPPLIER_STATUS_LABEL[
                                                             supplierStatusOf(c)
-                                                        ] ?? supplierStatusOf(c)}
+                                                        ] ??
+                                                            supplierStatusOf(c)}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="whitespace-nowrap">
@@ -240,8 +236,7 @@ export default function SupplierContractsPage() {
                                                         ) &&
                                                             supplierStatusOf(
                                                                 c
-                                                            ) !==
-                                                                'APPROVED' &&
+                                                            ) !== 'APPROVED' &&
                                                             supplierStatusOf(
                                                                 c
                                                             ) !==
@@ -339,9 +334,7 @@ export default function SupplierContractsPage() {
                             <Textarea
                                 id="supplier-comments"
                                 value={comments}
-                                onChange={(e) =>
-                                    setComments(e.target.value)
-                                }
+                                onChange={(e) => setComments(e.target.value)}
                                 placeholder={
                                     confirm?.action === 'reject'
                                         ? 'e.g. Pricing not acceptable'

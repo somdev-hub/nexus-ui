@@ -123,8 +123,7 @@ export default function LogisticsPartnershipsPage() {
     const [quotations, setQuotations] = useState<
         LogisticsPartnershipQuotation[]
     >([]);
-    const [quoting, setQuoting] =
-        useState<PartnershipInvitation | null>(null);
+    const [quoting, setQuoting] = useState<PartnershipInvitation | null>(null);
     const [quoteLines, setQuoteLines] = useState<
         {
             include: boolean;
@@ -150,8 +149,7 @@ export default function LogisticsPartnershipsPage() {
     const [quoteViewing, setQuoteViewing] =
         useState<LogisticsPartnershipQuotation | null>(null);
     // Private routes manager.
-    const [managing, setManaging] =
-        useState<OrgPartnership | null>(null);
+    const [managing, setManaging] = useState<OrgPartnership | null>(null);
     const [privateRoutes, setPrivateRoutes] = useState<PrivateRouteRow[]>([]);
     const [newRoute, setNewRoute] = useState({
         originLane: '',
@@ -180,8 +178,8 @@ export default function LogisticsPartnershipsPage() {
     const [confirmTerminate, setConfirmTerminate] =
         useState<OrgPartnership | null>(null);
     // Org default currency (Organization Settings) for quotation pricing.
-    const [orgCurrency, setOrgCurrency] = useState<string>(
-        () => getDisplayCurrency()
+    const [orgCurrency, setOrgCurrency] = useState<string>(() =>
+        getDisplayCurrency()
     );
 
     useEffect(() => {
@@ -210,8 +208,7 @@ export default function LogisticsPartnershipsPage() {
                             if (!active) return;
                             setOrgCurrency(
                                 normalizeCurrency(
-                                    org.defaultCurrency ??
-                                        getDisplayCurrency()
+                                    org.defaultCurrency ?? getDisplayCurrency()
                                 )
                             );
                         })
@@ -281,11 +278,16 @@ export default function LogisticsPartnershipsPage() {
 
     const refreshAll = async () => {
         try {
-            const [partnershipsRes, receivedRes, quotesRes] = await Promise.all([
-                getLogisticsPartnerships(),
-                getLogisticsReceivedInvitations({ pageNo: 0, pageOffset: 20 }),
-                getPartnershipQuotations().catch(() => null),
-            ]);
+            const [partnershipsRes, receivedRes, quotesRes] = await Promise.all(
+                [
+                    getLogisticsPartnerships(),
+                    getLogisticsReceivedInvitations({
+                        pageNo: 0,
+                        pageOffset: 20,
+                    }),
+                    getPartnershipQuotations().catch(() => null),
+                ]
+            );
             setPartnerships(partnershipsRes.content ?? []);
             setReceived(receivedRes.content ?? []);
             setQuotations(quotesRes?.content ?? []);
@@ -306,8 +308,7 @@ export default function LogisticsPartnershipsPage() {
                       to: w.to ?? '',
                       capacity:
                           w.capacity !== undefined ? String(w.capacity) : '',
-                      capacityUnit:
-                          (inv.desiredCapacityUnit as string) ?? 'KG',
+                      capacityUnit: (inv.desiredCapacityUnit as string) ?? 'KG',
                       unitPrice: '',
                       currency: orgCurrency,
                       unitLength: '',
@@ -359,19 +360,11 @@ export default function LogisticsPartnershipsPage() {
                     capacityUnit: l.capacityUnit || undefined,
                     unitPrice: l.unitPrice ? Number(l.unitPrice) : undefined,
                     currency: l.currency || undefined,
-                    unitLength: l.unitLength
-                        ? Number(l.unitLength)
-                        : undefined,
-                    unitWidth: l.unitWidth
-                        ? Number(l.unitWidth)
-                        : undefined,
-                    unitHeight: l.unitHeight
-                        ? Number(l.unitHeight)
-                        : undefined,
+                    unitLength: l.unitLength ? Number(l.unitLength) : undefined,
+                    unitWidth: l.unitWidth ? Number(l.unitWidth) : undefined,
+                    unitHeight: l.unitHeight ? Number(l.unitHeight) : undefined,
                     dimensionUom: l.dimensionUom || undefined,
-                    unitVolume: l.unitVolume
-                        ? Number(l.unitVolume)
-                        : undefined,
+                    unitVolume: l.unitVolume ? Number(l.unitVolume) : undefined,
                     volumeUom: l.volumeUom || undefined,
                     periodStart: l.periodStart || undefined,
                     periodEnd: l.periodEnd || undefined,
@@ -406,9 +399,7 @@ export default function LogisticsPartnershipsPage() {
     };
 
     // Jump straight from an accepted quotation to its partnership routes.
-    const openRoutesForQuotation = async (
-        q: LogisticsPartnershipQuotation
-    ) => {
+    const openRoutesForQuotation = async (q: LogisticsPartnershipQuotation) => {
         if (!q.partnershipId) {
             toast.error('No partnership linked to this quotation yet');
             return;
@@ -434,7 +425,9 @@ export default function LogisticsPartnershipsPage() {
         }
         if (
             isUnitizedCapacityUnit(newRoute.capacityUnit) &&
-            (!newRoute.unitLength || !newRoute.unitWidth || !newRoute.unitHeight)
+            (!newRoute.unitLength ||
+                !newRoute.unitWidth ||
+                !newRoute.unitHeight)
         ) {
             toast.error(
                 'Container/pallet routes need unit length, width and height'
@@ -446,13 +439,15 @@ export default function LogisticsPartnershipsPage() {
             await createCapacityForecast({
                 originLane: newRoute.originLane.trim() || undefined,
                 destinationLane: newRoute.destinationLane.trim() || undefined,
-                equipmentType: newRoute.equipmentType as CapacityForecast['equipmentType'],
+                equipmentType:
+                    newRoute.equipmentType as CapacityForecast['equipmentType'],
                 periodStart: newRoute.periodStart || undefined,
                 periodEnd: newRoute.periodEnd || undefined,
                 availableCapacity: newRoute.availableCapacity
                     ? Number(newRoute.availableCapacity)
                     : undefined,
-                capacityUnit: newRoute.capacityUnit as CapacityForecast['capacityUnit'],
+                capacityUnit:
+                    newRoute.capacityUnit as CapacityForecast['capacityUnit'],
                 unitPrice: newRoute.unitPrice
                     ? Number(newRoute.unitPrice)
                     : undefined,
@@ -550,7 +545,8 @@ export default function LogisticsPartnershipsPage() {
         setBusyId(p.partnershipId);
         try {
             const res = await terminateLogisticsPartnership(p.partnershipId);
-            const released = (res.releasedShipments as string[] | undefined) ?? [];
+            const released =
+                (res.releasedShipments as string[] | undefined) ?? [];
             toast.success(
                 released.length > 0
                     ? `Terminated — ${released.length} load(s) released back to the supplier`
@@ -580,9 +576,7 @@ export default function LogisticsPartnershipsPage() {
     const laneHit = (lane?: string | null, want?: string | null): boolean => {
         const a = (lane ?? '').trim().toLowerCase();
         const b = (want ?? '').trim().toLowerCase();
-        return (
-            !!a && !!b && (a === b || a.includes(b) || b.includes(a))
-        );
+        return !!a && !!b && (a === b || a.includes(b) || b.includes(a));
     };
     const allRoutesCreated =
         managingWanted.length > 0 &&
@@ -831,7 +825,8 @@ export default function LogisticsPartnershipsPage() {
                                                                     string,
                                                                     unknown
                                                                 >
-                                                            ).partnershipTermType ??
+                                                            )
+                                                                .partnershipTermType ??
                                                                 ''
                                                         ).toUpperCase() ===
                                                             'LONG_TERM' && (
@@ -880,7 +875,8 @@ export default function LogisticsPartnershipsPage() {
                         <Card className="p-4 gap-2">
                             <CardHeader className="p-0">
                                 <CardTitle>
-                                    Long-Term Proposals ({longTermPending.length})
+                                    Long-Term Proposals (
+                                    {longTermPending.length})
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-0">
@@ -1071,11 +1067,13 @@ export default function LogisticsPartnershipsPage() {
                             </CardHeader>
                             <CardContent className="p-0">
                                 {closedPartnerships.length > 0 && (
-                                <Table className="mb-4">
+                                    <Table className="mb-4">
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>ID</TableHead>
-                                                <TableHead>Partner Org</TableHead>
+                                                <TableHead>
+                                                    Partner Org
+                                                </TableHead>
                                                 <TableHead>Term</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead>Start</TableHead>
@@ -1094,13 +1092,15 @@ export default function LogisticsPartnershipsPage() {
                                                     <TableCell>
                                                         {termChipOf(p)}
                                                     </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {p.status}
-                                                    </Badge>
-                                                </TableCell>
                                                     <TableCell>
-                                                        {formatDate(p.startDate)}
+                                                        <Badge variant="outline">
+                                                            {p.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {formatDate(
+                                                            p.startDate
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>
                                                         {formatDate(p.endDate)}
@@ -1144,7 +1144,10 @@ export default function LogisticsPartnershipsPage() {
                     <DialogHeader>
                         <DialogTitle>
                             Proposal ·{' '}
-                            {viewing ? (inviterNameOf(viewing) ?? `Org ${viewing.invitingOrg ?? viewing.inviterOrgId ?? '—'}`) : '—'}
+                            {viewing
+                                ? (inviterNameOf(viewing) ??
+                                  `Org ${viewing.invitingOrg ?? viewing.inviterOrgId ?? '—'}`)
+                                : '—'}
                         </DialogTitle>
                         <DialogDescription>
                             {viewing?.partnershipContext ?? '—'} ·{' '}
@@ -1155,7 +1158,9 @@ export default function LogisticsPartnershipsPage() {
                         <div className="grid gap-4">
                             <div className="grid grid-cols-3 gap-2 text-sm">
                                 <div>
-                                    <p className="text-muted-foreground">Term</p>
+                                    <p className="text-muted-foreground">
+                                        Term
+                                    </p>
                                     <Badge variant="outline">
                                         {viewing.partnershipTermType ?? '—'}
                                     </Badge>
@@ -1207,9 +1212,7 @@ export default function LogisticsPartnershipsPage() {
                                     ) : (
                                         <p className="text-sm text-muted-foreground">
                                             Route #
-                                            {
-                                                viewing.linkedCapacityForecastId
-                                            }{' '}
+                                            {viewing.linkedCapacityForecastId}{' '}
                                             (details unavailable)
                                         </p>
                                     )}
@@ -1219,7 +1222,8 @@ export default function LogisticsPartnershipsPage() {
                                 <div className="grid gap-2">
                                     <p className="text-sm font-medium">
                                         Wanted routes (long-term)
-                                        {viewing.desiredCapacity !== undefined &&
+                                        {viewing.desiredCapacity !==
+                                            undefined &&
                                         viewing.desiredCapacity !== null
                                             ? ` · ${viewing.desiredCapacity} ${capacityUnitLabel(viewing.desiredCapacityUnit)} total`
                                             : ''}
@@ -1524,10 +1528,7 @@ export default function LogisticsPartnershipsPage() {
                                     <div className="grid gap-2 rounded-md border p-2">
                                         <p className="text-xs font-medium">
                                             Unit dimensions (required for{' '}
-                                            {capacityUnitLabel(
-                                                l.capacityUnit
-                                            )}
-                                            )
+                                            {capacityUnitLabel(l.capacityUnit)})
                                         </p>
                                         <div className="grid grid-cols-4 gap-2">
                                             {(
@@ -1706,9 +1707,7 @@ export default function LogisticsPartnershipsPage() {
                             onClick={submitQuotation}
                             disabled={busyId !== null}
                         >
-                            {busyId !== null
-                                ? 'Raising…'
-                                : 'Raise Quotation'}
+                            {busyId !== null ? 'Raising…' : 'Raise Quotation'}
                         </Button>
                     </div>
                 </DialogContent>
@@ -1750,9 +1749,7 @@ export default function LogisticsPartnershipsPage() {
                                                 )}
                                             </span>
                                             <span className="font-mono text-xs">
-                                                {String(
-                                                    l.capacity ?? '—'
-                                                )}{' '}
+                                                {String(l.capacity ?? '—')}{' '}
                                                 {capacityUnitLabel(
                                                     String(
                                                         l.capacityUnit ?? ''
@@ -1803,20 +1800,16 @@ export default function LogisticsPartnershipsPage() {
                 <DialogContent className="md:max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>
-                            Partnership routes · #
-                            {managing?.partnershipId} (
-                            {managing
-                                ? partnerNameOf(managing)
-                                : '—'}
-                            )
+                            Partnership routes · #{managing?.partnershipId} (
+                            {managing ? partnerNameOf(managing) : '—'})
                         </DialogTitle>
                         <DialogDescription>
-                            These lanes belong to this partnership only and
-                            stay hidden from the public marketplace. Add every
-                            agreed route, then activate — the partnership takes
-                            effect only after all routes are added (
-                            {privateRoutes.length}/{managingWanted.length || '—'}{' '}
-                            added).
+                            These lanes belong to this partnership only and stay
+                            hidden from the public marketplace. Add every agreed
+                            route, then activate — the partnership takes effect
+                            only after all routes are added (
+                            {privateRoutes.length}/
+                            {managingWanted.length || '—'} added).
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1">
@@ -1853,8 +1846,8 @@ export default function LogisticsPartnershipsPage() {
                             {allRoutesCreated && (
                                 <p className="rounded-md bg-primary/5 p-2 text-sm text-muted-foreground">
                                     All agreed routes have already been created
-                                    for this partnership ({privateRoutes.length}/
-                                    {managingWanted.length}). The form is
+                                    for this partnership ({privateRoutes.length}
+                                    /{managingWanted.length}). The form is
                                     locked — activate the partnership to bring
                                     it into effect.
                                 </p>
@@ -1863,434 +1856,452 @@ export default function LogisticsPartnershipsPage() {
                                 disabled={allRoutesCreated}
                                 className="grid gap-2 disabled:opacity-60"
                             >
-                            {managingAgreed.length > 0 && (
-                                <div className="grid gap-2">
-                                    <p className="text-xs text-muted-foreground">
-                                        From the accepted quotation — Use fills
-                                        the form below, dimensions included.
-                                    </p>
-                                    {managingAgreed.flatMap((q) =>
-                                        parseQuoteLines(q).map((l, i) => (
-                                            <div
-                                                key={`${q.quotationId}-${i}`}
-                                                className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm"
-                                            >
-                                                <span className="font-medium">
-                                                    {String(
-                                                        l.fromLane ??
-                                                            l.from ??
-                                                            '—'
-                                                    )}{' '}
-                                                    →{' '}
-                                                    {String(
-                                                        l.toLane ??
-                                                            l.to ??
-                                                            '—'
-                                                    )}{' '}
-                                                    <span className="font-normal text-muted-foreground">
-                                                        ({q.quotationNumber ??
-                                                            q.quotationId}
-                                                        )
-                                                    </span>
-                                                </span>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        useAgreedLine(l)
-                                                    }
+                                {managingAgreed.length > 0 && (
+                                    <div className="grid gap-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            From the accepted quotation — Use
+                                            fills the form below, dimensions
+                                            included.
+                                        </p>
+                                        {managingAgreed.flatMap((q) =>
+                                            parseQuoteLines(q).map((l, i) => (
+                                                <div
+                                                    key={`${q.quotationId}-${i}`}
+                                                    className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm"
                                                 >
-                                                    Use
-                                                </Button>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="grid gap-1">
-                                    <Label>Origin</Label>
-                                    <Input
-                                        value={newRoute.originLane}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                originLane: e.target.value,
-                                            })
-                                        }
-                                        placeholder="e.g. Mumbai"
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Destination</Label>
-                                    <Input
-                                        value={newRoute.destinationLane}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                destinationLane: e.target.value,
-                                            })
-                                        }
-                                        placeholder="e.g. Pune"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="grid gap-1">
-                                    <Label>Period start</Label>
-                                    <Input
-                                        type="date"
-                                        value={newRoute.periodStart}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                periodStart: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Period end</Label>
-                                    <Input
-                                        type="date"
-                                        value={newRoute.periodEnd}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                periodEnd: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Equipment</Label>
-                                    <Input
-                                        value={newRoute.equipmentType}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                equipmentType: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                <div className="grid gap-1">
-                                    <Label>Capacity</Label>
-                                    <Input
-                                        type="number"
-                                        value={newRoute.availableCapacity}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                availableCapacity:
-                                                    e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Unit</Label>
-                                    <Select
-                                        value={newRoute.capacityUnit}
-                                        onValueChange={(v) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                capacityUnit: v,
-                                            })
-                                        }
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {CAPACITY_UNITS.map((u) => (
-                                                <SelectItem key={u} value={u}>
-                                                    {capacityUnitLabel(u)}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Price / unit</Label>
-                                    <Input
-                                        type="number"
-                                        value={newRoute.unitPrice}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                unitPrice: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Currency</Label>
-                                    <Input
-                                        value={newRoute.currency}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                currency:
-                                                    e.target.value.toUpperCase(),
-                                            })
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            {isUnitizedCapacityUnit(newRoute.capacityUnit) && (
-                                <div className="grid gap-2 rounded-md border p-2">
-                                    <p className="text-xs font-medium">
-                                        Unit dimensions (required for{' '}
-                                        {capacityUnitLabel(
-                                            newRoute.capacityUnit
+                                                    <span className="font-medium">
+                                                        {String(
+                                                            l.fromLane ??
+                                                                l.from ??
+                                                                '—'
+                                                        )}{' '}
+                                                        →{' '}
+                                                        {String(
+                                                            l.toLane ??
+                                                                l.to ??
+                                                                '—'
+                                                        )}{' '}
+                                                        <span className="font-normal text-muted-foreground">
+                                                            (
+                                                            {q.quotationNumber ??
+                                                                q.quotationId}
+                                                            )
+                                                        </span>
+                                                    </span>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            useAgreedLine(l)
+                                                        }
+                                                    >
+                                                        Use
+                                                    </Button>
+                                                </div>
+                                            ))
                                         )}
-                                        )
-                                    </p>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {(
-                                            [
-                                                ['unitLength', 'Length'],
-                                                ['unitWidth', 'Width'],
-                                                ['unitHeight', 'Height'],
-                                            ] as const
-                                        ).map(([field, label]) => (
-                                            <div
-                                                key={field}
-                                                className="grid gap-1"
-                                            >
-                                                <Label>{label}</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={newRoute[field]}
-                                                    onChange={(e) =>
-                                                        setNewRoute({
-                                                            ...newRoute,
-                                                            [field]:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                            </div>
-                                        ))}
-                                        <div className="grid gap-1">
-                                            <Label>Dim. unit</Label>
-                                            <Select
-                                                value={newRoute.dimensionUom}
-                                                onValueChange={(v) =>
-                                                    setNewRoute({
-                                                        ...newRoute,
-                                                        dimensionUom: v,
-                                                    })
-                                                }
-                                            >
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="M">
-                                                        Meters
-                                                    </SelectItem>
-                                                    <SelectItem value="FT">
-                                                        Feet
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="grid gap-1">
-                                            <Label>
-                                                Volume / unit (auto from L×W×H
-                                                if empty)
-                                            </Label>
-                                            <Input
-                                                type="number"
-                                                value={newRoute.unitVolume}
-                                                onChange={(e) =>
-                                                    setNewRoute({
-                                                        ...newRoute,
-                                                        unitVolume:
-                                                            e.target.value,
-                                                    })
-                                                }
-                                            />
-                                        </div>
-                                        <div className="grid gap-1">
-                                            <Label>Volume unit</Label>
-                                            <Select
-                                                value={newRoute.volumeUom}
-                                                onValueChange={(v) =>
-                                                    setNewRoute({
-                                                        ...newRoute,
-                                                        volumeUom: v,
-                                                    })
-                                                }
-                                            >
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="CBM">
-                                                        CBM
-                                                    </SelectItem>
-                                                    <SelectItem value="CFT">
-                                                        CFT
-                                                    </SelectItem>
-                                                    <SelectItem value="L">
-                                                        Litres
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="grid gap-2 rounded-md border p-2">
-                                <p className="text-xs font-medium">
-                                    Fuel & cost breakup
-                                </p>
-                                <div className="grid grid-cols-3 gap-2">
+                                )}
+                                <div className="grid grid-cols-2 gap-2">
                                     <div className="grid gap-1">
-                                        <Label>Total fuel (L)</Label>
+                                        <Label>Origin</Label>
                                         <Input
-                                            type="number"
-                                            value={newRoute.totalFuelRequired}
+                                            value={newRoute.originLane}
                                             onChange={(e) =>
                                                 setNewRoute({
                                                     ...newRoute,
-                                                    totalFuelRequired:
+                                                    originLane: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. Mumbai"
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Destination</Label>
+                                        <Input
+                                            value={newRoute.destinationLane}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    destinationLane:
+                                                        e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g. Pune"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid gap-1">
+                                        <Label>Period start</Label>
+                                        <Input
+                                            type="date"
+                                            value={newRoute.periodStart}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    periodStart: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Period end</Label>
+                                        <Input
+                                            type="date"
+                                            value={newRoute.periodEnd}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    periodEnd: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Equipment</Label>
+                                        <Input
+                                            value={newRoute.equipmentType}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    equipmentType:
+                                                        e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-4 gap-2">
+                                    <div className="grid gap-1">
+                                        <Label>Capacity</Label>
+                                        <Input
+                                            type="number"
+                                            value={newRoute.availableCapacity}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    availableCapacity:
                                                         e.target.value,
                                                 })
                                             }
                                         />
                                     </div>
                                     <div className="grid gap-1">
-                                        <Label>Fuel price / L</Label>
+                                        <Label>Unit</Label>
+                                        <Select
+                                            value={newRoute.capacityUnit}
+                                            onValueChange={(v) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    capacityUnit: v,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {CAPACITY_UNITS.map((u) => (
+                                                    <SelectItem
+                                                        key={u}
+                                                        value={u}
+                                                    >
+                                                        {capacityUnitLabel(u)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label>Price / unit</Label>
                                         <Input
                                             type="number"
-                                            value={newRoute.fuelPrice}
+                                            value={newRoute.unitPrice}
                                             onChange={(e) =>
                                                 setNewRoute({
                                                     ...newRoute,
-                                                    fuelPrice: e.target.value,
+                                                    unitPrice: e.target.value,
                                                 })
                                             }
                                         />
                                     </div>
                                     <div className="grid gap-1">
-                                        <Label>Surcharge (auto)</Label>
+                                        <Label>Currency</Label>
                                         <Input
-                                            type="number"
-                                            value={String(
-                                                newRoute.totalFuelRequired &&
-                                                    newRoute.fuelPrice
-                                                    ? Math.round(
-                                                          Number(
-                                                              newRoute.totalFuelRequired
-                                                          ) *
-                                                              Number(
-                                                                  newRoute.fuelPrice
-                                                              ) *
-                                                              100
-                                                      ) / 100
-                                                    : ''
+                                            value={newRoute.currency}
+                                            onChange={(e) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    currency:
+                                                        e.target.value.toUpperCase(),
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                {isUnitizedCapacityUnit(
+                                    newRoute.capacityUnit
+                                ) && (
+                                    <div className="grid gap-2 rounded-md border p-2">
+                                        <p className="text-xs font-medium">
+                                            Unit dimensions (required for{' '}
+                                            {capacityUnitLabel(
+                                                newRoute.capacityUnit
                                             )}
-                                            disabled
-                                            readOnly
-                                        />
+                                            )
+                                        </p>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {(
+                                                [
+                                                    ['unitLength', 'Length'],
+                                                    ['unitWidth', 'Width'],
+                                                    ['unitHeight', 'Height'],
+                                                ] as const
+                                            ).map(([field, label]) => (
+                                                <div
+                                                    key={field}
+                                                    className="grid gap-1"
+                                                >
+                                                    <Label>{label}</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={newRoute[field]}
+                                                        onChange={(e) =>
+                                                            setNewRoute({
+                                                                ...newRoute,
+                                                                [field]:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                            ))}
+                                            <div className="grid gap-1">
+                                                <Label>Dim. unit</Label>
+                                                <Select
+                                                    value={
+                                                        newRoute.dimensionUom
+                                                    }
+                                                    onValueChange={(v) =>
+                                                        setNewRoute({
+                                                            ...newRoute,
+                                                            dimensionUom: v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="M">
+                                                            Meters
+                                                        </SelectItem>
+                                                        <SelectItem value="FT">
+                                                            Feet
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid gap-1">
+                                                <Label>
+                                                    Volume / unit (auto from
+                                                    L×W×H if empty)
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    value={newRoute.unitVolume}
+                                                    onChange={(e) =>
+                                                        setNewRoute({
+                                                            ...newRoute,
+                                                            unitVolume:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label>Volume unit</Label>
+                                                <Select
+                                                    value={newRoute.volumeUom}
+                                                    onValueChange={(v) =>
+                                                        setNewRoute({
+                                                            ...newRoute,
+                                                            volumeUom: v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="CBM">
+                                                            CBM
+                                                        </SelectItem>
+                                                        <SelectItem value="CFT">
+                                                            CFT
+                                                        </SelectItem>
+                                                        <SelectItem value="L">
+                                                            Litres
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="grid gap-2 rounded-md border p-2">
+                                    <p className="text-xs font-medium">
+                                        Fuel & cost breakup
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="grid gap-1">
+                                            <Label>Total fuel (L)</Label>
+                                            <Input
+                                                type="number"
+                                                value={
+                                                    newRoute.totalFuelRequired
+                                                }
+                                                onChange={(e) =>
+                                                    setNewRoute({
+                                                        ...newRoute,
+                                                        totalFuelRequired:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <Label>Fuel price / L</Label>
+                                            <Input
+                                                type="number"
+                                                value={newRoute.fuelPrice}
+                                                onChange={(e) =>
+                                                    setNewRoute({
+                                                        ...newRoute,
+                                                        fuelPrice:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <Label>Surcharge (auto)</Label>
+                                            <Input
+                                                type="number"
+                                                value={String(
+                                                    newRoute.totalFuelRequired &&
+                                                        newRoute.fuelPrice
+                                                        ? Math.round(
+                                                              Number(
+                                                                  newRoute.totalFuelRequired
+                                                              ) *
+                                                                  Number(
+                                                                      newRoute.fuelPrice
+                                                                  ) *
+                                                                  100
+                                                          ) / 100
+                                                        : ''
+                                                )}
+                                                disabled
+                                                readOnly
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid gap-1">
+                                            <Label>Driver&apos;s fees</Label>
+                                            <Input
+                                                type="number"
+                                                value={newRoute.driverFees}
+                                                onChange={(e) =>
+                                                    setNewRoute({
+                                                        ...newRoute,
+                                                        driverFees:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <Label>Misc price</Label>
+                                            <Input
+                                                type="number"
+                                                value={newRoute.miscPrice}
+                                                onChange={(e) =>
+                                                    setNewRoute({
+                                                        ...newRoute,
+                                                        miscPrice:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-3 gap-2">
                                     <div className="grid gap-1">
-                                        <Label>Driver&apos;s fees</Label>
+                                        <Label>Distance (km)</Label>
                                         <Input
                                             type="number"
-                                            value={newRoute.driverFees}
+                                            value={newRoute.totalDistance}
                                             onChange={(e) =>
                                                 setNewRoute({
                                                     ...newRoute,
-                                                    driverFees: e.target.value,
+                                                    totalDistance:
+                                                        e.target.value,
                                                 })
                                             }
                                         />
                                     </div>
                                     <div className="grid gap-1">
-                                        <Label>Misc price</Label>
+                                        <Label>Avg. delivery time</Label>
                                         <Input
                                             type="number"
-                                            value={newRoute.miscPrice}
+                                            value={newRoute.averageDeliveryTime}
                                             onChange={(e) =>
                                                 setNewRoute({
                                                     ...newRoute,
-                                                    miscPrice: e.target.value,
+                                                    averageDeliveryTime:
+                                                        e.target.value,
                                                 })
                                             }
                                         />
                                     </div>
+                                    <div className="grid gap-1">
+                                        <Label>Time unit</Label>
+                                        <Select
+                                            value={newRoute.deliveryTimeUom}
+                                            onValueChange={(v) =>
+                                                setNewRoute({
+                                                    ...newRoute,
+                                                    deliveryTimeUom: v,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="HOURS">
+                                                    Hours
+                                                </SelectItem>
+                                                <SelectItem value="DAYS">
+                                                    Days
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="grid gap-1">
-                                    <Label>Distance (km)</Label>
-                                    <Input
-                                        type="number"
-                                        value={newRoute.totalDistance}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                totalDistance: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Avg. delivery time</Label>
-                                    <Input
-                                        type="number"
-                                        value={newRoute.averageDeliveryTime}
-                                        onChange={(e) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                averageDeliveryTime:
-                                                    e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label>Time unit</Label>
-                                    <Select
-                                        value={newRoute.deliveryTimeUom}
-                                        onValueChange={(v) =>
-                                            setNewRoute({
-                                                ...newRoute,
-                                                deliveryTimeUom: v,
-                                            })
-                                        }
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="HOURS">
-                                                Hours
-                                            </SelectItem>
-                                            <SelectItem value="DAYS">
-                                                Days
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <Button
-                                onClick={addPrivateRoute}
-                                disabled={busyId === -1}
-                            >
-                                {busyId === -1 ? 'Adding…' : 'Add Route'}
-                            </Button>
+                                <Button
+                                    onClick={addPrivateRoute}
+                                    disabled={busyId === -1}
+                                >
+                                    {busyId === -1 ? 'Adding…' : 'Add Route'}
+                                </Button>
                             </fieldset>
                         </div>
                         <div className="flex justify-end gap-2">
@@ -2302,7 +2313,9 @@ export default function LogisticsPartnershipsPage() {
                             </Button>
                             {managing?.status !== 'ACTIVE' && (
                                 <Button
-                                    disabled={busyId === managing?.partnershipId}
+                                    disabled={
+                                        busyId === managing?.partnershipId
+                                    }
                                     onClick={() =>
                                         managing && activate(managing)
                                     }
@@ -2333,20 +2346,18 @@ export default function LogisticsPartnershipsPage() {
                             Loads already handed over but not yet shipped
                             (booked or assigned) will be released back to the
                             supplier as prepared shipments. Termination is
-                            blocked while any shipment is already moving.
-                            This action cannot be undone.
+                            blocked while any shipment is already moving. This
+                            action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             disabled={
-                                busyId ===
-                                confirmTerminate?.partnershipId
+                                busyId === confirmTerminate?.partnershipId
                             }
                             onClick={() =>
-                                confirmTerminate &&
-                                terminate(confirmTerminate)
+                                confirmTerminate && terminate(confirmTerminate)
                             }
                         >
                             Terminate

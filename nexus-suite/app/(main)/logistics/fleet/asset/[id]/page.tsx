@@ -409,8 +409,8 @@ export default function AssetDetailPage() {
                                 To Maintenance
                             </LoadingButton>
                         )}
-                        {(asset.status === 'IN_MAINTENANCE' ||
-                            asset.status === 'OUT_OF_SERVICE') && (
+                        {asset.status !== 'AVAILABLE' &&
+                            asset.status !== 'RETIRED' && (
                             <LoadingButton
                                 loading={busy === 'asset-release'}
                                 size="sm"
@@ -1005,9 +1005,7 @@ export default function AssetDetailPage() {
                             <div className="grid gap-2">
                                 <Label>Insurance Expiry</Label>
                                 <DatePicker
-                                    date={parseYmd(
-                                        expiryForm.insuranceExpiry
-                                    )}
+                                    date={parseYmd(expiryForm.insuranceExpiry)}
                                     onDateChange={(d) =>
                                         setExpiryForm({
                                             ...expiryForm,

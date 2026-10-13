@@ -33,7 +33,15 @@ function dot(color: string, size = 14): HTMLElement {
     return el;
 }
 
-export default function ShipmentMap({ shipmentId }: { shipmentId: number }) {
+export default function ShipmentMap({
+    shipmentId,
+    fetchPosition,
+}: {
+    shipmentId: number;
+    // Override the position source (e.g. supplier-scoped tracking).
+    // Defaults to the logistics execution feed.
+    fetchPosition?: (shipmentId: number) => Promise<ShipmentPosition>;
+}) {
     const { toast } = useToast();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -45,7 +53,9 @@ export default function ShipmentMap({ shipmentId }: { shipmentId: number }) {
         let active = true;
         const fetchOnce = async () => {
             try {
-                const pos = await getShipmentPosition(shipmentId);
+                const pos = await (fetchPosition ?? getShipmentPosition)(
+                    shipmentId
+                );
                 if (active) setData(pos);
             } catch (e: unknown) {
                 if (active) {
@@ -62,7 +72,7 @@ export default function ShipmentMap({ shipmentId }: { shipmentId: number }) {
             active = false;
             clearInterval(t);
         };
-    }, [shipmentId]);
+    }, [shipmentId, fetchPosition]);
 
     // Init map once
     useEffect(() => {

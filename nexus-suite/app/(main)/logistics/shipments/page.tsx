@@ -1,11 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import {
-    AlertTriangle,
-    Check,
-    PackageCheck,
-    Pencil,
-} from 'lucide-react';
+import { AlertTriangle, Check, PackageCheck, Pencil } from 'lucide-react';
 import type {
     LoadBoardShipment,
     ShipmentIncident,
@@ -57,6 +52,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 const LIFECYCLE_NEXT: Record<string, string | null> = {
     // Driver surface: movement starts at pickup. Booking/assignment
@@ -86,6 +82,8 @@ export default function LogisticsShipmentsPage() {
         useState<PaginatedResponse<ShipmentIncident> | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [shipmentsPage, setShipmentsPage] = useState(0);
+    const SHIPMENTS_PAGE_SIZE = 10;
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;
@@ -136,13 +134,13 @@ export default function LogisticsShipmentsPage() {
     useQuickCreateIntent('logistics:incident', () => setIncidentOpen(true));
     useQuickCreateIntent('logistics:pod', () => setPodOpen(true));
 
-    const load = async () => {
+    const load = async (shipmentsPageNo: number = shipmentsPage) => {
         setLoading(true);
         try {
             const [s, i] = await Promise.all([
                 getMyShipmentBoard({
-                    page: 0,
-                    size: 20,
+                    page: shipmentsPageNo,
+                    size: SHIPMENTS_PAGE_SIZE,
                     search: search || undefined,
                 }),
                 getShipmentIncidents({ page: 0, size: 20 }),
@@ -160,9 +158,11 @@ export default function LogisticsShipmentsPage() {
     };
     useEffect(() => {
         load();
-    }, []);
+    }, [shipmentsPage]);
     useEffect(() => {
-        const t = setTimeout(load, 400);
+        const t = setTimeout(() => {
+            setShipmentsPage(0);
+        }, 400);
         return () => clearTimeout(t);
     }, [search]);
 
@@ -311,10 +311,10 @@ export default function LogisticsShipmentsPage() {
     };
 
     return (
-        <div className="p-4 lg:p-6 space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="p-4 lg:p-6 space-y-4 min-w-0 max-w-full">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="text-2xl font-semibold">Shipments</h1>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Button
                         variant="outline"
                         onClick={() => {
@@ -342,7 +342,9 @@ export default function LogisticsShipmentsPage() {
                                     <div className="grid gap-2">
                                         <Label>Shipment</Label>
                                         <Select
-                                            value={podForm.shipmentId || undefined}
+                                            value={
+                                                podForm.shipmentId || undefined
+                                            }
                                             onValueChange={(v) =>
                                                 setPodForm({
                                                     ...podForm,
@@ -357,7 +359,9 @@ export default function LogisticsShipmentsPage() {
                                                 {shipmentOptions.map((s) => (
                                                     <SelectItem
                                                         key={s.shipmentId}
-                                                        value={String(s.shipmentId)}
+                                                        value={String(
+                                                            s.shipmentId
+                                                        )}
                                                     >
                                                         {s.shipmentNumber} (#
                                                         {s.shipmentId})
@@ -487,7 +491,10 @@ export default function LogisticsShipmentsPage() {
                                     <div className="grid gap-2">
                                         <Label>Shipment</Label>
                                         <Select
-                                            value={incidentForm.shipmentId || undefined}
+                                            value={
+                                                incidentForm.shipmentId ||
+                                                undefined
+                                            }
                                             onValueChange={(v) =>
                                                 setIncidentForm({
                                                     ...incidentForm,
@@ -502,7 +509,9 @@ export default function LogisticsShipmentsPage() {
                                                 {shipmentOptions.map((s) => (
                                                     <SelectItem
                                                         key={s.shipmentId}
-                                                        value={String(s.shipmentId)}
+                                                        value={String(
+                                                            s.shipmentId
+                                                        )}
                                                     >
                                                         {s.shipmentNumber} (#
                                                         {s.shipmentId})
@@ -590,22 +599,23 @@ export default function LogisticsShipmentsPage() {
                     <TabsTrigger value="shipments">Execution</TabsTrigger>
                     <TabsTrigger value="incidents">Exceptions</TabsTrigger>
                 </TabsList>
-                <TabsContent value="shipments">
-                    <Card className="p-4 gap-2">
+                <TabsContent value="shipments" className="min-w-0">
+                    <Card className="p-4 gap-2 min-w-0">
                         <CardHeader className="p-0">
-                            <CardTitle className="flex gap-2">
+                            <CardTitle className="flex flex-wrap gap-2">
                                 <Input
                                     placeholder="Search shipments"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="max-w-sm"
+                                    className="max-w-sm min-w-0 flex-1"
                                 />
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-0">
+                        <CardContent className="p-0 min-w-0">
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
+                                <div className="max-w-full overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -735,21 +745,55 @@ export default function LogisticsShipmentsPage() {
                                         )}
                                     </TableBody>
                                 </Table>
+                                </div>
+                            )}
+                            {!loading && (
+                                <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
+                                    <span className="text-sm text-muted-foreground">
+                                        {shipments?.totalElements ?? 0}{' '}
+                                        shipment(s)
+                                    </span>
+                                    <TablePagination
+                                        pageIndex={shipmentsPage}
+                                        pageCount={shipments?.totalPages ?? 0}
+                                        canPreviousPage={shipmentsPage > 0}
+                                        canNextPage={
+                                            shipments
+                                                ? !shipments.last
+                                                : false
+                                        }
+                                        onPageChange={setShipmentsPage}
+                                        onPreviousPage={() =>
+                                            setShipmentsPage((p) =>
+                                                Math.max(0, p - 1)
+                                            )
+                                        }
+                                        onNextPage={() =>
+                                            setShipmentsPage((p) => p + 1)
+                                        }
+                                        showFirstLast={false}
+                                    />
+                                    <span className="text-sm text-muted-foreground">
+                                        Page {shipmentsPage + 1} of{' '}
+                                        {shipments?.totalPages ?? 1}
+                                    </span>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="incidents">
-                    <Card className="p-4 gap-2">
+                <TabsContent value="incidents" className="min-w-0">
+                    <Card className="p-4 gap-2 min-w-0">
                         <CardHeader className="p-0">
                             <CardTitle>
                                 Delay / Reroute / Damage / Loss / Claims
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-0">
+                        <CardContent className="p-0 min-w-0">
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
+                                <div className="max-w-full overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -860,6 +904,7 @@ export default function LogisticsShipmentsPage() {
                                         )}
                                     </TableBody>
                                 </Table>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -1075,4 +1120,3 @@ export default function LogisticsShipmentsPage() {
         </div>
     );
 }
-

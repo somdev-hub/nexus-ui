@@ -30,7 +30,9 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
     const [open, setOpen] = React.useState(false);
 
-    const timeValue = value ? `${pad(value.getHours())}:${pad(value.getMinutes())}` : '';
+    const timeValue = value
+        ? `${pad(value.getHours())}:${pad(value.getMinutes())}`
+        : '';
 
     const handleDateSelect = (selected: Date | undefined) => {
         if (!selected) {
@@ -50,7 +52,12 @@ export function DateTimePicker({
         const [h, m] = time.split(':').map(Number);
         const base = value ?? new Date();
         const next = new Date(base);
-        next.setHours(Number.isFinite(h) ? h : 0, Number.isFinite(m) ? m : 0, 0, 0);
+        next.setHours(
+            Number.isFinite(h) ? h : 0,
+            Number.isFinite(m) ? m : 0,
+            0,
+            0
+        );
         onChange?.(next);
     };
 

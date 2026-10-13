@@ -94,9 +94,7 @@ export function RichTextEditor({
                     tooltip="Bold (Ctrl+B)"
                 />
                 <ToolbarButton
-                    onClick={() =>
-                        editor.chain().focus().toggleItalic().run()
-                    }
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
                     isActive={editor.isActive('italic')}
                     icon={<Italic className="h-4 w-4" />}
                     tooltip="Italic (Ctrl+I)"
@@ -161,8 +159,7 @@ export function RichTextEditor({
 
                 <ToolbarButton
                     onClick={() => {
-                        const current =
-                            editor.getAttributes('link').href ?? '';
+                        const current = editor.getAttributes('link').href ?? '';
                         setLinkUrl(current);
                         setLinkOpen((v) => !v);
                     }}

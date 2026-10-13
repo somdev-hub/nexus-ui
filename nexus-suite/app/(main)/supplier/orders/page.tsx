@@ -155,9 +155,7 @@ export default function SupplierOrdersPage() {
                             <SelectItem value="AWAITING_PICKUP">
                                 AWAITING_PICKUP
                             </SelectItem>
-                            <SelectItem value="PICKED_UP">
-                                PICKED_UP
-                            </SelectItem>
+                            <SelectItem value="PICKED_UP">PICKED_UP</SelectItem>
                             <SelectItem value="PARTIALLY_RECEIVED">
                                 PARTIAL
                             </SelectItem>
@@ -195,21 +193,16 @@ export default function SupplierOrdersPage() {
                             </TableHeader>
                             <TableBody>
                                 {data?.content?.map((o: SupplierOrder) => {
-                                    const runtime = o as SupplierOrder & {
-                                        asnNumber?: string;
-                                        shipmentId?: number;
-                                        shipmentNumber?: string;
-                                    };
                                     const sessionShip =
                                         shipmentByPo[o.purchaseOrderId];
                                     const asnNumber =
-                                        runtime.asnNumber ??
+                                        o.asnNumber ??
                                         sessionShip?.shipmentNumber ??
-                                        runtime.shipmentNumber ??
+                                        o.shipmentNumber ??
                                         '—';
                                     const podShipmentId =
                                         sessionShip?.shipmentId ??
-                                        runtime.shipmentId ??
+                                        o.shipmentId ??
                                         null;
                                     return (
                                         <TableRow key={o.purchaseOrderId}>
@@ -255,11 +248,11 @@ export default function SupplierOrdersPage() {
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">
                                                 {asnNumber}
-                                                {o.remainingQuantity !== undefined && (
+                                                {o.remainingQuantity !==
+                                                    undefined && (
                                                     <div className="mt-0.5 text-[11px] text-muted-foreground">
-                                                        {(
-                                                            (o.totalShippedQuantity ?? 0)
-                                                        )}{' '}
+                                                        {o.totalShippedQuantity ??
+                                                            0}{' '}
                                                         shipped
                                                         {o.remainingQuantity > 0
                                                             ? ` · ${o.remainingQuantity} left`
@@ -297,21 +290,24 @@ export default function SupplierOrdersPage() {
                                                         'PARTIALLY_RECEIVED' ||
                                                     o.status ===
                                                         'AWAITING_PICKUP' ||
-                                                    o.status ===
-                                                        'PICKED_UP') &&
-                                                    (o.remainingQuantity === undefined ||
-                                                        o.remainingQuantity > 0) && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            setPartialOrder(o)
-                                                        }
-                                                    >
-                                                        <Truck className="mr-2 h-4 w-4" />
-                                                        Partial Ship
-                                                    </Button>
-                                                )}
+                                                    o.status === 'PICKED_UP') &&
+                                                    (o.remainingQuantity ===
+                                                        undefined ||
+                                                        o.remainingQuantity >
+                                                            0) && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setPartialOrder(
+                                                                    o
+                                                                )
+                                                            }
+                                                        >
+                                                            <Truck className="mr-2 h-4 w-4" />
+                                                            Partial Ship
+                                                        </Button>
+                                                    )}
                                                 {podShipmentId !== null && (
                                                     <Dialog
                                                         open={
@@ -386,8 +382,8 @@ export default function SupplierOrdersPage() {
                             Acknowledge {ackOrder?.poNumber ?? ''}
                         </DialogTitle>
                         <DialogDescription>
-                            Confirm you accept this order. Notes are
-                            optional and visible to the retailer.
+                            Confirm you accept this order. Notes are optional
+                            and visible to the retailer.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4">
@@ -395,9 +391,7 @@ export default function SupplierOrdersPage() {
                             <Label>Supplier notes (optional)</Label>
                             <Textarea
                                 value={ackNotes}
-                                onChange={(e) =>
-                                    setAckNotes(e.target.value)
-                                }
+                                onChange={(e) => setAckNotes(e.target.value)}
                                 placeholder="e.g. Confirmed, production starts Monday"
                             />
                         </div>
@@ -430,10 +424,7 @@ export default function SupplierOrdersPage() {
                 }}
                 onCreated={(res) => {
                     if (partialOrder) {
-                        handlePartialCreated(
-                            partialOrder.purchaseOrderId,
-                            res
-                        );
+                        handlePartialCreated(partialOrder.purchaseOrderId, res);
                     }
                 }}
             />

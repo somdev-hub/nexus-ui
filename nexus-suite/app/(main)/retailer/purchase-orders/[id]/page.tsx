@@ -70,36 +70,38 @@ const Page = () => {
     // source quotation. Never blocks rendering.
     const enrichDetails = useCallback(
         async (po: PurchaseOrder, isActive: () => boolean) => {
-        if (po.supplierOrgId) {
-            try {
-                const res = await browseSupplierCatalog({
-                    supplierOrgId: po.supplierOrgId,
-                    pageNo: 0,
-                    pageOffset: 100,
-                });
-                if (!isActive()) return;
-                const map: Record<number, SupplierBrowseItem> = {};
-                for (const item of res.content ?? []) {
-                    const cid = item.catalogId ?? item.id;
-                    if (cid !== undefined) map[Number(cid)] = item;
+            if (po.supplierOrgId) {
+                try {
+                    const res = await browseSupplierCatalog({
+                        supplierOrgId: po.supplierOrgId,
+                        pageNo: 0,
+                        pageOffset: 100,
+                    });
+                    if (!isActive()) return;
+                    const map: Record<number, SupplierBrowseItem> = {};
+                    for (const item of res.content ?? []) {
+                        const cid = item.catalogId ?? item.id;
+                        if (cid !== undefined) map[Number(cid)] = item;
+                    }
+                    setCatalogById(map);
+                } catch {
+                    // catalog extras are best-effort; lines still render
                 }
-                setCatalogById(map);
-            } catch {
-                // catalog extras are best-effort; lines still render
             }
-        }
-        if (po.sourceQuotationId) {
-            try {
-                const q = await getRetailerQuotationById(
-                    po.sourceQuotationId
-                );
-                if (!isActive()) return;
-                setSourceQuotation(q);
-            } catch {
-                // IDs from the PO still render below
+            if (po.sourceQuotationId) {
+                try {
+                    const q = await getRetailerQuotationById(
+                        po.sourceQuotationId
+                    );
+                    if (!isActive()) return;
+                    setSourceQuotation(q);
+                } catch {
+                    // IDs from the PO still render below
+                }
             }
-        }
-    }, []);
+        },
+        []
+    );
 
     useEffect(() => {
         let active = true;
@@ -213,588 +215,600 @@ const Page = () => {
 
     return (
         <>
-        <div className="flex flex-1 flex-col">
-            <div className="@container/main flex flex-1 flex-col gap-2 p-4 md:gap-6 md:p-6">
-                <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href="/retailer/purchase-orders"
-                            className="text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                            <ArrowLeft className="h-5 w-5" />
-                        </Link>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h2 className="text-2xl font-bold">
-                                    {purchaseOrder.purchaseOrderNumber}
-                                </h2>
-                                <Badge variant="outline">
-                                    {purchaseOrder.status}
-                                </Badge>
+            <div className="flex flex-1 flex-col">
+                <div className="@container/main flex flex-1 flex-col gap-2 p-4 md:gap-6 md:p-6">
+                    <div className="flex w-full items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Link
+                                href="/retailer/purchase-orders"
+                                className="text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </Link>
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-2xl font-bold">
+                                        {purchaseOrder.purchaseOrderNumber}
+                                    </h2>
+                                    <Badge variant="outline">
+                                        {purchaseOrder.status}
+                                    </Badge>
+                                </div>
+                                <p className="text-muted-foreground mt-1 text-sm">
+                                    {purchaseOrder.supplierOrgName}
+                                </p>
                             </div>
-                            <p className="text-muted-foreground mt-1 text-sm">
-                                {purchaseOrder.supplierOrgName}
-                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/retailer/purchase-orders/${purchaseOrder.purchaseOrderId}/edit`}
+                                >
+                                    Edit
+                                </Link>
+                            </Button>
+                            {purchaseOrder.status === 'DRAFT' && (
+                                <Button
+                                    onClick={() => setConfirmSubmit(true)}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isSubmitting
+                                        ? 'Submitting...'
+                                        : 'Submit for Approval'}
+                                </Button>
+                            )}
+                            {purchaseOrder.status === 'APPROVED' && (
+                                <Button
+                                    onClick={() => setConfirmSend(true)}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isSubmitting
+                                        ? 'Sending...'
+                                        : 'Send to Supplier'}
+                                </Button>
+                            )}
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" asChild>
-                            <Link
-                                href={`/retailer/purchase-orders/${purchaseOrder.purchaseOrderId}/edit`}
-                            >
-                                Edit
-                            </Link>
-                        </Button>
-                        {purchaseOrder.status === 'DRAFT' && (
-                            <Button
-                                onClick={() => setConfirmSubmit(true)}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="mr-2 h-4 w-4" />
-                                )}
-                                {isSubmitting
-                                    ? 'Submitting...'
-                                    : 'Submit for Approval'}
-                            </Button>
-                        )}
-                        {purchaseOrder.status === 'APPROVED' && (
-                            <Button
-                                onClick={() => setConfirmSend(true)}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="mr-2 h-4 w-4" />
-                                )}
-                                {isSubmitting
-                                    ? 'Sending...'
-                                    : 'Send to Supplier'}
-                            </Button>
-                        )}
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <Card className="gap-2 p-4">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">
-                                Order Information
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Retailer
-                                </span>
-                                <span className="font-medium">
-                                    {purchaseOrder.retailerOrgName}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Supplier
-                                </span>
-                                <span className="font-medium">
-                                    {purchaseOrder.supplierOrgName}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Order Date
-                                </span>
-                                <span className="font-medium">
-                                    {formatDate(purchaseOrder.orderDate)}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Expected Delivery
-                                </span>
-                                <span className="font-medium">
-                                    {formatDate(
-                                        purchaseOrder.expectedDeliveryDate
-                                    )}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Requested Delivery
-                                </span>
-                                <span className="font-medium">
-                                    {formatDate(
-                                        purchaseOrder.requestedDeliveryDate
-                                    )}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Payment Terms
-                                </span>
-                                <span className="font-medium">
-                                    {purchaseOrder.paymentTerms || '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Incoterms
-                                </span>
-                                <span className="font-medium">
-                                    {purchaseOrder.incoterms || '—'}
-                                </span>
-                            </div>
-                            {(purchaseOrder.revisionNumber ?? 0) > 0 && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Revision
-                                    </span>
-                                    <span className="font-medium">
-                                        Rev {purchaseOrder.revisionNumber}
-                                        {purchaseOrder.parentPoId
-                                            ? ` of PO #${purchaseOrder.parentPoId}`
-                                            : ''}
-                                    </span>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="gap-2 p-4">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">Totals</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Currency
-                                </span>
-                                <span className="font-medium">
-                                    {purchaseOrder.currency}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground text-sm">
-                                    Total Amount
-                                </span>
-                                <span className="font-mono text-lg font-semibold">
-                                    {purchaseOrder.currency}{' '}
-                                    {purchaseOrder.totalAmount.toLocaleString(
-                                        undefined,
-                                        { minimumFractionDigits: 2 }
-                                    )}
-                                </span>
-                            </div>
-                            {purchaseOrder.approvedBy && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Approved By
-                                    </span>
-                                    <span className="font-medium">
-                                        {purchaseOrder.approvedBy}
-                                        {purchaseOrder.approvedAt
-                                            ? ` on ${formatDate(purchaseOrder.approvedAt)}`
-                                            : ''}
-                                    </span>
-                                </div>
-                            )}
-                            {purchaseOrder.rejectionReason && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Rejection Reason
-                                    </span>
-                                    <span className="font-medium">
-                                        {purchaseOrder.rejectionReason}
-                                    </span>
-                                </div>
-                            )}
-                            {purchaseOrder.approvalLevel && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Approval Level
-                                    </span>
-                                    <span className="font-medium">
-                                        {purchaseOrder.approvalLevel}
-                                    </span>
-                                </div>
-                            )}
-                            {purchaseOrder.requiredApproverLevel && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Required Approver
-                                    </span>
-                                    <span className="font-medium">
-                                        {purchaseOrder.requiredApproverLevel}
-                                    </span>
-                                </div>
-                            )}
-                            {purchaseOrder.currentApprover && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Current Approver
-                                    </span>
-                                    <span className="font-medium">
-                                        {purchaseOrder.currentApprover}
-                                    </span>
-                                </div>
-                            )}
-                            {purchaseOrder.approvalDelegatedTo && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        Delegated To
-                                    </span>
-                                    <span className="font-medium">
-                                        {purchaseOrder.approvalDelegatedTo}
-                                    </span>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="gap-2 p-4">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">Addresses</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="text-sm">
-                                <p className="text-muted-foreground">
-                                    Shipping Address
-                                </p>
-                                <p className="font-medium">
-                                    {purchaseOrder.shippingAddress || '—'}
-                                </p>
-                            </div>
-                            <div className="text-sm">
-                                <p className="text-muted-foreground">
-                                    Billing Address
-                                </p>
-                                <p className="font-medium">
-                                    {purchaseOrder.billingAddress || '—'}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="gap-2 p-4">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">
-                                Notes & Audit
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-0">
-                            <div className="text-sm">
-                                <p className="text-muted-foreground">Notes</p>
-                                <p className="font-medium">
-                                    {purchaseOrder.notes || '—'}
-                                </p>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Created
-                                </span>
-                                <span className="font-medium">
-                                    {formatDate(purchaseOrder.createdAt)} by{' '}
-                                    {purchaseOrder.createdBy ||
-                                        purchaseOrder.retailerOrgName ||
-                                        '—'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Updated
-                                </span>
-                                <span className="font-medium">
-                                    {formatDate(purchaseOrder.updatedAt)} by{' '}
-                                    {purchaseOrder.updatedBy ||
-                                        purchaseOrder.retailerOrgName ||
-                                        '—'}
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="gap-2 p-4 md:col-span-2">
-                        <CardHeader className="p-0">
-                            <CardTitle className="text-lg">
-                                Requested Materials (
-                                {purchaseOrder.lineItems?.length ?? 0})
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {purchaseOrder.lineItems?.length ? (
-                                <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>#</TableHead>
-                                            <TableHead>Item</TableHead>
-                                            <TableHead className="text-right">
-                                                Ordered
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                Received
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                Invoiced
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                Unit Price
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                Total
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {purchaseOrder.lineItems.map(
-                                            (li, idx) => {
-                                                const catalog =
-                                                    li.catalogId !==
-                                                    undefined
-                                                        ? catalogById[
-                                                              li.catalogId
-                                                          ]
-                                                        : undefined;
-                                                return (
-                                                    <TableRow
-                                                        key={
-                                                            li.lineItemId ??
-                                                            `${idx}`
-                                                        }
-                                                    >
-                                                        <TableCell>
-                                                            {li.lineNumber ??
-                                                                idx + 1}
-                                                        </TableCell>
-                                                        <TableCell className="max-w-xs">
-                                                            <div className="font-medium">
-                                                                {li.description ||
-                                                                    '—'}
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {[
-                                                                    li.catalogId !==
-                                                                    undefined
-                                                                        ? `Catalog: ${catalog?.name ?? `#${li.catalogId}`}`
-                                                                        : null,
-                                                                    catalog?.sku ??
-                                                                        null,
-                                                                ]
-                                                                    .filter(
-                                                                        Boolean
-                                                                    )
-                                                                    .join(
-                                                                        ' · '
-                                                                    ) || '—'}
-                                                            </div>
-                                                            {(li.unitOfMeasure ||
-                                                                li.deliveryLocation ||
-                                                                li.incoterms) && (
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    {[
-                                                                        li.unitOfMeasure,
-                                                                        li.deliveryLocation,
-                                                                        li.incoterms,
-                                                                    ]
-                                                                        .filter(
-                                                                            Boolean
-                                                                        )
-                                                                        .join(
-                                                                            ' · '
-                                                                        )}
-                                                                </div>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {li.quantityOrdered ??
-                                                                '—'}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {li.quantityReceived ??
-                                                                '—'}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {li.quantityInvoiced ??
-                                                                '—'}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Money
-                                                                amount={
-                                                                    li.unitPrice
-                                                                }
-                                                                currency={
-                                                                    purchaseOrder.currency
-                                                                }
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Money
-                                                                amount={
-                                                                    li.totalPrice
-                                                                }
-                                                                currency={
-                                                                    purchaseOrder.currency
-                                                                }
-                                                            />
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            }
-                                        )}
-                                    </TableBody>
-                                </Table>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No line items.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {(purchaseOrder.sourceQuotationId || sourceQuotation) && (
-                        <Card className="gap-2 p-4 md:col-span-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Card className="gap-2 p-4">
                             <CardHeader className="p-0">
                                 <CardTitle className="text-lg">
-                                    Source Quotation
+                                    Order Information
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3 p-0">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">
-                                        Quotation
+                                        Retailer
                                     </span>
-                                    {purchaseOrder.sourceQuotationId ? (
-                                        <Link
-                                            href={`/retailer/quotations/${purchaseOrder.sourceQuotationId}`}
-                                            className="font-mono font-medium underline underline-offset-2"
-                                        >
-                                            {sourceQuotation?.quotationNumber ??
-                                                purchaseOrder.sourceQuotationNumber ??
-                                                `#${purchaseOrder.sourceQuotationId}`}
-                                        </Link>
-                                    ) : (
-                                        <span className="font-mono font-medium">
-                                            {purchaseOrder.sourceQuotationNumber ??
-                                                '—'}
-                                        </span>
-                                    )}
+                                    <span className="font-medium">
+                                        {purchaseOrder.retailerOrgName}
+                                    </span>
                                 </div>
-                                {sourceQuotation && (
-                                    <>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">
-                                                Status
-                                            </span>
-                                            <Badge variant="outline">
-                                                {sourceQuotation.status}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">
-                                                Supplier
-                                            </span>
-                                            <span className="font-medium">
-                                                {sourceQuotation.supplierOrgName ||
-                                                    (sourceQuotation.supplierOrgId !==
-                                                    undefined
-                                                        ? `Org #${sourceQuotation.supplierOrgId}`
-                                                        : '—')}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">
-                                                Validity
-                                            </span>
-                                            <span className="font-medium">
-                                                {sourceQuotation.validFrom
-                                                    ? new Date(
-                                                          sourceQuotation.validFrom
-                                                      ).toLocaleDateString()
-                                                    : '—'}{' '}
-                                                →{' '}
-                                                {sourceQuotation.validTo
-                                                    ? new Date(
-                                                          sourceQuotation.validTo
-                                                      ).toLocaleDateString()
-                                                    : '—'}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">
-                                                Quotation Total
-                                            </span>
-                                            <span className="font-medium">
-                                                <Money
-                                                    amount={
-                                                        sourceQuotation.totalAmount
-                                                    }
-                                                    currency={
-                                                        sourceQuotation.currency
-                                                    }
-                                                />
-                                            </span>
-                                        </div>
-                                        {sourceQuotation.terms && (
-                                            <div className="text-sm">
-                                                <p className="text-muted-foreground">
-                                                    Quotation Terms
-                                                </p>
-                                                <p className="font-medium">
-                                                    {sourceQuotation.terms}
-                                                </p>
-                                            </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Supplier
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.supplierOrgName}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Order Date
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(purchaseOrder.orderDate)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Expected Delivery
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(
+                                            purchaseOrder.expectedDeliveryDate
                                         )}
-                                    </>
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Requested Delivery
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(
+                                            purchaseOrder.requestedDeliveryDate
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Payment Terms
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.paymentTerms || '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Incoterms
+                                    </span>
+                                    <span className="font-medium">
+                                        {purchaseOrder.incoterms || '—'}
+                                    </span>
+                                </div>
+                                {(purchaseOrder.revisionNumber ?? 0) > 0 && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Revision
+                                        </span>
+                                        <span className="font-medium">
+                                            Rev {purchaseOrder.revisionNumber}
+                                            {purchaseOrder.parentPoId
+                                                ? ` of PO #${purchaseOrder.parentPoId}`
+                                                : ''}
+                                        </span>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
-                    )}
 
-                    {purchaseOrder.isBlanketOrder && (
-                        <Card className="gap-2 p-4 md:col-span-2">
+                        <Card className="gap-2 p-4">
                             <CardHeader className="p-0">
                                 <CardTitle className="text-lg">
-                                    Blanket Schedule
+                                    Totals
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3 p-0">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">
-                                        Start Date
+                                        Currency
                                     </span>
                                     <span className="font-medium">
-                                        {formatDate(
-                                            purchaseOrder.blanketStartDate
+                                        {purchaseOrder.currency}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground text-sm">
+                                        Total Amount
+                                    </span>
+                                    <span className="font-mono text-lg font-semibold">
+                                        {purchaseOrder.currency}{' '}
+                                        {purchaseOrder.totalAmount.toLocaleString(
+                                            undefined,
+                                            { minimumFractionDigits: 2 }
                                         )}
                                     </span>
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                        End Date
-                                    </span>
-                                    <span className="font-medium">
-                                        {formatDate(
-                                            purchaseOrder.blanketEndDate
-                                        )}
-                                    </span>
+                                {purchaseOrder.approvedBy && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Approved By
+                                        </span>
+                                        <span className="font-medium">
+                                            {purchaseOrder.approvedBy}
+                                            {purchaseOrder.approvedAt
+                                                ? ` on ${formatDate(purchaseOrder.approvedAt)}`
+                                                : ''}
+                                        </span>
+                                    </div>
+                                )}
+                                {purchaseOrder.rejectionReason && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Rejection Reason
+                                        </span>
+                                        <span className="font-medium">
+                                            {purchaseOrder.rejectionReason}
+                                        </span>
+                                    </div>
+                                )}
+                                {purchaseOrder.approvalLevel && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Approval Level
+                                        </span>
+                                        <span className="font-medium">
+                                            {purchaseOrder.approvalLevel}
+                                        </span>
+                                    </div>
+                                )}
+                                {purchaseOrder.requiredApproverLevel && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Required Approver
+                                        </span>
+                                        <span className="font-medium">
+                                            {
+                                                purchaseOrder.requiredApproverLevel
+                                            }
+                                        </span>
+                                    </div>
+                                )}
+                                {purchaseOrder.currentApprover && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Current Approver
+                                        </span>
+                                        <span className="font-medium">
+                                            {purchaseOrder.currentApprover}
+                                        </span>
+                                    </div>
+                                )}
+                                {purchaseOrder.approvalDelegatedTo && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Delegated To
+                                        </span>
+                                        <span className="font-medium">
+                                            {purchaseOrder.approvalDelegatedTo}
+                                        </span>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card className="gap-2 p-4">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">
+                                    Addresses
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="text-sm">
+                                    <p className="text-muted-foreground">
+                                        Shipping Address
+                                    </p>
+                                    <p className="font-medium">
+                                        {purchaseOrder.shippingAddress || '—'}
+                                    </p>
                                 </div>
                                 <div className="text-sm">
                                     <p className="text-muted-foreground">
-                                        Release Schedule
+                                        Billing Address
                                     </p>
                                     <p className="font-medium">
-                                        {purchaseOrder.releaseSchedule || '—'}
+                                        {purchaseOrder.billingAddress || '—'}
                                     </p>
                                 </div>
                             </CardContent>
                         </Card>
-                    )}
+
+                        <Card className="gap-2 p-4">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">
+                                    Notes & Audit
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 p-0">
+                                <div className="text-sm">
+                                    <p className="text-muted-foreground">
+                                        Notes
+                                    </p>
+                                    <p className="font-medium">
+                                        {purchaseOrder.notes || '—'}
+                                    </p>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Created
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(purchaseOrder.createdAt)} by{' '}
+                                        {purchaseOrder.createdBy ||
+                                            purchaseOrder.retailerOrgName ||
+                                            '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Updated
+                                    </span>
+                                    <span className="font-medium">
+                                        {formatDate(purchaseOrder.updatedAt)} by{' '}
+                                        {purchaseOrder.updatedBy ||
+                                            purchaseOrder.retailerOrgName ||
+                                            '—'}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="gap-2 p-4 md:col-span-2">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg">
+                                    Requested Materials (
+                                    {purchaseOrder.lineItems?.length ?? 0})
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {purchaseOrder.lineItems?.length ? (
+                                    <div className="overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>#</TableHead>
+                                                    <TableHead>Item</TableHead>
+                                                    <TableHead className="text-right">
+                                                        Ordered
+                                                    </TableHead>
+                                                    <TableHead className="text-right">
+                                                        Received
+                                                    </TableHead>
+                                                    <TableHead className="text-right">
+                                                        Invoiced
+                                                    </TableHead>
+                                                    <TableHead className="text-right">
+                                                        Unit Price
+                                                    </TableHead>
+                                                    <TableHead className="text-right">
+                                                        Total
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {purchaseOrder.lineItems.map(
+                                                    (li, idx) => {
+                                                        const catalog =
+                                                            li.catalogId !==
+                                                            undefined
+                                                                ? catalogById[
+                                                                      li
+                                                                          .catalogId
+                                                                  ]
+                                                                : undefined;
+                                                        return (
+                                                            <TableRow
+                                                                key={
+                                                                    li.lineItemId ??
+                                                                    `${idx}`
+                                                                }
+                                                            >
+                                                                <TableCell>
+                                                                    {li.lineNumber ??
+                                                                        idx + 1}
+                                                                </TableCell>
+                                                                <TableCell className="max-w-xs">
+                                                                    <div className="font-medium">
+                                                                        {li.description ||
+                                                                            '—'}
+                                                                    </div>
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {[
+                                                                            li.catalogId !==
+                                                                            undefined
+                                                                                ? `Catalog: ${catalog?.name ?? `#${li.catalogId}`}`
+                                                                                : null,
+                                                                            catalog?.sku ??
+                                                                                null,
+                                                                        ]
+                                                                            .filter(
+                                                                                Boolean
+                                                                            )
+                                                                            .join(
+                                                                                ' · '
+                                                                            ) ||
+                                                                            '—'}
+                                                                    </div>
+                                                                    {(li.unitOfMeasure ||
+                                                                        li.deliveryLocation ||
+                                                                        li.incoterms) && (
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            {[
+                                                                                li.unitOfMeasure,
+                                                                                li.deliveryLocation,
+                                                                                li.incoterms,
+                                                                            ]
+                                                                                .filter(
+                                                                                    Boolean
+                                                                                )
+                                                                                .join(
+                                                                                    ' · '
+                                                                                )}
+                                                                        </div>
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    {li.quantityOrdered ??
+                                                                        '—'}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    {li.quantityReceived ??
+                                                                        '—'}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    {li.quantityInvoiced ??
+                                                                        '—'}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Money
+                                                                        amount={
+                                                                            li.unitPrice
+                                                                        }
+                                                                        currency={
+                                                                            purchaseOrder.currency
+                                                                        }
+                                                                    />
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Money
+                                                                        amount={
+                                                                            li.totalPrice
+                                                                        }
+                                                                        currency={
+                                                                            purchaseOrder.currency
+                                                                        }
+                                                                    />
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        );
+                                                    }
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No line items.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {(purchaseOrder.sourceQuotationId ||
+                            sourceQuotation) && (
+                            <Card className="gap-2 p-4 md:col-span-2">
+                                <CardHeader className="p-0">
+                                    <CardTitle className="text-lg">
+                                        Source Quotation
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3 p-0">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Quotation
+                                        </span>
+                                        {purchaseOrder.sourceQuotationId ? (
+                                            <Link
+                                                href={`/retailer/quotations/${purchaseOrder.sourceQuotationId}`}
+                                                className="font-mono font-medium underline underline-offset-2"
+                                            >
+                                                {sourceQuotation?.quotationNumber ??
+                                                    purchaseOrder.sourceQuotationNumber ??
+                                                    `#${purchaseOrder.sourceQuotationId}`}
+                                            </Link>
+                                        ) : (
+                                            <span className="font-mono font-medium">
+                                                {purchaseOrder.sourceQuotationNumber ??
+                                                    '—'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {sourceQuotation && (
+                                        <>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">
+                                                    Status
+                                                </span>
+                                                <Badge variant="outline">
+                                                    {sourceQuotation.status}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">
+                                                    Supplier
+                                                </span>
+                                                <span className="font-medium">
+                                                    {sourceQuotation.supplierOrgName ||
+                                                        (sourceQuotation.supplierOrgId !==
+                                                        undefined
+                                                            ? `Org #${sourceQuotation.supplierOrgId}`
+                                                            : '—')}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">
+                                                    Validity
+                                                </span>
+                                                <span className="font-medium">
+                                                    {sourceQuotation.validFrom
+                                                        ? new Date(
+                                                              sourceQuotation.validFrom
+                                                          ).toLocaleDateString()
+                                                        : '—'}{' '}
+                                                    →{' '}
+                                                    {sourceQuotation.validTo
+                                                        ? new Date(
+                                                              sourceQuotation.validTo
+                                                          ).toLocaleDateString()
+                                                        : '—'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">
+                                                    Quotation Total
+                                                </span>
+                                                <span className="font-medium">
+                                                    <Money
+                                                        amount={
+                                                            sourceQuotation.totalAmount
+                                                        }
+                                                        currency={
+                                                            sourceQuotation.currency
+                                                        }
+                                                    />
+                                                </span>
+                                            </div>
+                                            {sourceQuotation.terms && (
+                                                <div className="text-sm">
+                                                    <p className="text-muted-foreground">
+                                                        Quotation Terms
+                                                    </p>
+                                                    <p className="font-medium">
+                                                        {sourceQuotation.terms}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {purchaseOrder.isBlanketOrder && (
+                            <Card className="gap-2 p-4 md:col-span-2">
+                                <CardHeader className="p-0">
+                                    <CardTitle className="text-lg">
+                                        Blanket Schedule
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3 p-0">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Start Date
+                                        </span>
+                                        <span className="font-medium">
+                                            {formatDate(
+                                                purchaseOrder.blanketStartDate
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            End Date
+                                        </span>
+                                        <span className="font-medium">
+                                            {formatDate(
+                                                purchaseOrder.blanketEndDate
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm">
+                                        <p className="text-muted-foreground">
+                                            Release Schedule
+                                        </p>
+                                        <p className="font-medium">
+                                            {purchaseOrder.releaseSchedule ||
+                                                '—'}
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
             <AlertDialog open={confirmSubmit} onOpenChange={setConfirmSubmit}>
                 <AlertDialogContent>
                     <AlertDialogHeader>

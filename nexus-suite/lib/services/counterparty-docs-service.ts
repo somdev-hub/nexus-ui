@@ -122,7 +122,12 @@ function toAsnArray(data: unknown): AsnDocument[] {
 }
 
 export async function getRetailerAsns(
-    filter: { page?: number; size?: number; pageNo?: number; pageOffset?: number } = {}
+    filter: {
+        page?: number;
+        size?: number;
+        pageNo?: number;
+        pageOffset?: number;
+    } = {}
 ): Promise<AsnPage> {
     const page = filter.page ?? filter.pageNo ?? 0;
     const size = filter.size ?? filter.pageOffset ?? 20;
@@ -140,22 +145,28 @@ export async function getRetailerAsns(
     };
     const content = toAsnArray(data);
     const totalElements =
-        typeof data?.totalElements === 'number' ? data.totalElements : content.length;
-    const totalPages = typeof data?.totalPages === 'number' ? data.totalPages : 1;
-    const currentPage =
-        typeof data?.number === 'number' ? data.number : page;
+        typeof data?.totalElements === 'number'
+            ? data.totalElements
+            : content.length;
+    const totalPages =
+        typeof data?.totalPages === 'number' ? data.totalPages : 1;
+    const currentPage = typeof data?.number === 'number' ? data.number : page;
     return {
         content,
         totalElements,
         totalPages,
         page: currentPage,
         size,
-        first: typeof data?.first === 'boolean' ? data.first : currentPage === 0,
+        first:
+            typeof data?.first === 'boolean' ? data.first : currentPage === 0,
         last:
             typeof data?.last === 'boolean'
                 ? data.last
                 : currentPage >= totalPages - 1,
-        empty: typeof data?.empty === 'boolean' ? data.empty : content.length === 0,
+        empty:
+            typeof data?.empty === 'boolean'
+                ? data.empty
+                : content.length === 0,
     };
 }
 

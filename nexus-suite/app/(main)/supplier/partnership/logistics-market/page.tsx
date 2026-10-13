@@ -154,9 +154,8 @@ export default function SupplierLogisticsMarketPage() {
             const now = Date.now();
             const terms = new Map<number, 'SHORT_TERM' | 'LONG_TERM'>();
             for (const p of mine?.content ??
-                [] as SupplierLogisticsPartnership[]) {
-                if (String(p.status ?? '').toUpperCase() !== 'ACTIVE')
-                    continue;
+                ([] as SupplierLogisticsPartnership[])) {
+                if (String(p.status ?? '').toUpperCase() !== 'ACTIVE') continue;
                 if (p.validityEnd) {
                     const end = new Date(p.validityEnd).getTime();
                     if (Number.isFinite(end) && end < now) continue;
@@ -164,7 +163,8 @@ export default function SupplierLogisticsMarketPage() {
                 const counter =
                     Number.isFinite(own) && Number(p.primaryOrgId) === own
                         ? p.secondaryOrgId
-                        : Number.isFinite(own) && Number(p.secondaryOrgId) === own
+                        : Number.isFinite(own) &&
+                            Number(p.secondaryOrgId) === own
                           ? p.primaryOrgId
                           : (p.secondaryOrgId ?? p.primaryOrgId);
                 if (counter === undefined || counter === null) continue;
@@ -193,7 +193,9 @@ export default function SupplierLogisticsMarketPage() {
         return () => clearTimeout(t);
     }, [load]);
 
-    const dirEntryOf = (id?: number | null): SupplierDirectoryEntry | undefined => {
+    const dirEntryOf = (
+        id?: number | null
+    ): SupplierDirectoryEntry | undefined => {
         if (id === undefined || id === null) return undefined;
         return directory.find((d) => Number(d.id) === Number(id));
     };
@@ -229,10 +231,7 @@ export default function SupplierLogisticsMarketPage() {
                 mapped.push({ orgId, routes });
                 continue;
             }
-            const nameHit = orgDisplayName(
-                orgId,
-                routes[0]?.logisticsOrgName
-            )
+            const nameHit = orgDisplayName(orgId, routes[0]?.logisticsOrgName)
                 .toLowerCase()
                 .includes(q);
             if (nameHit) {
@@ -248,7 +247,10 @@ export default function SupplierLogisticsMarketPage() {
             if (laneHit) mapped.push({ orgId, routes });
         }
         mapped.sort((a, b) =>
-            orgDisplayName(a.orgId, a.routes[0]?.logisticsOrgName).localeCompare(
+            orgDisplayName(
+                a.orgId,
+                a.routes[0]?.logisticsOrgName
+            ).localeCompare(
                 orgDisplayName(b.orgId, b.routes[0]?.logisticsOrgName)
             )
         );
@@ -261,7 +263,10 @@ export default function SupplierLogisticsMarketPage() {
         [groups, routesOpenFor]
     );
     const routesDialogPages = routesDialogGroup
-        ? Math.max(1, Math.ceil(routesDialogGroup.routes.length / ROUTES_PAGE_SIZE))
+        ? Math.max(
+              1,
+              Math.ceil(routesDialogGroup.routes.length / ROUTES_PAGE_SIZE)
+          )
         : 1;
     const routesDialogRows = routesDialogGroup
         ? routesDialogGroup.routes.slice(
@@ -291,8 +296,7 @@ export default function SupplierLogisticsMarketPage() {
         setProposingOrg(orgId);
     };
 
-    const proposingGroup =
-        groups.find((g) => g.orgId === proposingOrg) ?? null;
+    const proposingGroup = groups.find((g) => g.orgId === proposingOrg) ?? null;
     const selectedRoute =
         proposingGroup?.routes.find(
             (r) => String(r.forecastId) === selectedForecastId
@@ -300,7 +304,10 @@ export default function SupplierLogisticsMarketPage() {
 
     const submitProposal = async () => {
         if (!proposingGroup) {
-            toast({ title: 'No logistics org selected', variant: 'destructive' });
+            toast({
+                title: 'No logistics org selected',
+                variant: 'destructive',
+            });
             return;
         }
         const base = {
@@ -326,8 +333,13 @@ export default function SupplierLogisticsMarketPage() {
                     validityEnd: selectedRoute.periodEnd,
                     linkedCapacityForecastId: selectedRoute.forecastId,
                 });
-                toast({ title: 'Partnership proposal sent', variant: 'success' });
-                setPendingOrgIds((prev) => new Set(prev).add(proposingGroup.orgId));
+                toast({
+                    title: 'Partnership proposal sent',
+                    variant: 'success',
+                });
+                setPendingOrgIds((prev) =>
+                    new Set(prev).add(proposingGroup.orgId)
+                );
                 setProposingOrg(null);
                 setProposedTerms('');
             } catch (e: unknown) {
@@ -363,7 +375,9 @@ export default function SupplierLogisticsMarketPage() {
             return;
         }
         const total = cleaned.reduce(
-            (sum, r) => sum + (Number.isFinite(r.capacity) ? (r.capacity as number) : 0),
+            (sum, r) =>
+                sum +
+                (Number.isFinite(r.capacity) ? (r.capacity as number) : 0),
             0
         );
         const summary = `Wanted routes: ${cleaned
@@ -423,9 +437,9 @@ export default function SupplierLogisticsMarketPage() {
                                     Logistics Marketplace
                                 </h1>
                                 <p className="text-muted-foreground mt-1">
-                                    Browse logistics partners and their
-                                    routing capacities — propose short-term
-                                    or long-term, no manual org-ID typing.
+                                    Browse logistics partners and their routing
+                                    capacities — propose short-term or
+                                    long-term, no manual org-ID typing.
                                 </p>
                             </div>
                             <div className="relative">
@@ -685,8 +699,7 @@ export default function SupplierLogisticsMarketPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline">
-                                                        {r.equipmentType ??
-                                                            '—'}
+                                                        {r.equipmentType ?? '—'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="whitespace-nowrap text-xs">
@@ -694,14 +707,15 @@ export default function SupplierLogisticsMarketPage() {
                                                     {r.periodEnd ?? '—'}
                                                 </TableCell>
                                                 <TableCell className="text-xs">
-                                                    {r.availableCapacity ??
-                                                        0}{' '}
+                                                    {r.availableCapacity ?? 0}{' '}
                                                     {capacityUnitLabel(
                                                         r.capacityUnit
                                                     )}{' '}
                                                     / {r.bookedCapacity ?? 0}
-                                                    {r.unitPrice !== undefined &&
-                                                        r.unitPrice !== null && (
+                                                    {r.unitPrice !==
+                                                        undefined &&
+                                                        r.unitPrice !==
+                                                            null && (
                                                             <span className="block font-medium">
                                                                 {r.unitPrice}{' '}
                                                                 {r.currency ??
@@ -742,17 +756,17 @@ export default function SupplierLogisticsMarketPage() {
                                                             Partnered
                                                         </Button>
                                                     ) : (
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    openPropose(
-                                                                        routesDialogGroup.orgId,
-                                                                        r.forecastId
-                                                                    )
-                                                                }
-                                                            >
-                                                                Propose
-                                                            </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                openPropose(
+                                                                    routesDialogGroup.orgId,
+                                                                    r.forecastId
+                                                                )
+                                                            }
+                                                        >
+                                                            Propose
+                                                        </Button>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
@@ -772,8 +786,7 @@ export default function SupplierLogisticsMarketPage() {
                                     Previous
                                 </Button>
                                 <span className="text-sm text-muted-foreground">
-                                    Page {routesPage + 1} of{' '}
-                                    {routesDialogPages}
+                                    Page {routesPage + 1} of {routesDialogPages}
                                 </span>
                                 <Button
                                     size="sm"
@@ -818,8 +831,8 @@ export default function SupplierLogisticsMarketPage() {
                         </DialogTitle>
                         <DialogDescription>
                             Short-term proposals pick a published route with
-                            fixed dates. Long-term proposals let you define
-                            the routes, capacity and dates you want.
+                            fixed dates. Long-term proposals let you define the
+                            routes, capacity and dates you want.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4">
@@ -828,9 +841,7 @@ export default function SupplierLogisticsMarketPage() {
                             <Select
                                 value={termType}
                                 onValueChange={(v) =>
-                                    setTermType(
-                                        v as 'SHORT_TERM' | 'LONG_TERM'
-                                    )
+                                    setTermType(v as 'SHORT_TERM' | 'LONG_TERM')
                                 }
                             >
                                 <SelectTrigger className="w-full">
@@ -879,8 +890,8 @@ export default function SupplierLogisticsMarketPage() {
                                                     value={String(r.forecastId)}
                                                 >
                                                     {r.originLane ?? '—'} →{' '}
-                                                    {r.destinationLane ?? '—'}{' '}
-                                                    · {r.periodStart ?? '—'} →{' '}
+                                                    {r.destinationLane ?? '—'} ·{' '}
+                                                    {r.periodStart ?? '—'} →{' '}
                                                     {r.periodEnd ?? '—'} ·{' '}
                                                     {r.availableCapacity ?? 0}{' '}
                                                     {capacityUnitLabel(
@@ -1092,10 +1103,7 @@ export default function SupplierLogisticsMarketPage() {
                                 placeholder="e.g. Weekly pickup, SLA 98% OTIF"
                             />
                         </div>
-                        <Button
-                            onClick={submitProposal}
-                            disabled={submitting}
-                        >
+                        <Button onClick={submitProposal} disabled={submitting}>
                             {submitting ? 'Sending…' : 'Send Proposal'}
                         </Button>
                     </div>

@@ -281,6 +281,11 @@ const supplierSections = [
                 icon: IconTruck,
             },
             {
+                title: 'Invoices',
+                url: '/supplier/invoices',
+                icon: IconFileWord,
+            },
+            {
                 title: 'Quality Certs',
                 url: '/supplier/quality-certificates',
                 icon: IconFileWord,

@@ -353,10 +353,7 @@ const page = () => {
                     </div>
                 </div>
             </div>
-            <AlertDialog
-                open={confirmDelete}
-                onOpenChange={setConfirmDelete}
-            >
+            <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete product?</AlertDialogTitle>

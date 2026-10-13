@@ -1,17 +1,10 @@
 import { PaginatedResponse } from './paginated-response';
 
 export type SupplierContractType =
-    | 'STANDARD'
-    | 'BLANKET'
-    | 'FRAMEWORK'
-    | 'CONSIGNMENT'
-    | 'VMI';
+    'STANDARD' | 'BLANKET' | 'FRAMEWORK' | 'CONSIGNMENT' | 'VMI';
 
 export type SupplierDecisionStatus =
-    | 'PENDING'
-    | 'APPROVED'
-    | 'REJECTED'
-    | 'AMENDMENTS_REQUESTED';
+    'PENDING' | 'APPROVED' | 'REJECTED' | 'AMENDMENTS_REQUESTED';
 
 export type SupplierContractStatus =
     | 'DRAFT'

@@ -49,8 +49,7 @@ export function Money({
 
     if (amount === null || amount === undefined || amount === '') return <>—</>;
     const raw = formatMoney(amount, from);
-    const shown =
-        converted && converted.key === key ? converted.text : raw;
+    const shown = converted && converted.key === key ? converted.text : raw;
     return (
         <span
             className={className}

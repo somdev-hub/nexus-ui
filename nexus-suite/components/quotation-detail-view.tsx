@@ -258,183 +258,190 @@ export function QuotationDetailView({
                 <CardContent className="p-0">
                     {q.lineItems?.length ? (
                         <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Catalog Item</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">
-                                        Qty
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        Unit Price
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        Total
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {q.lineItems.map((li, idx) => {
-                                    const catalog =
-                                        li.catalogId !== undefined
-                                            ? catalogById[li.catalogId]
-                                            : undefined;
-                                    const assets = resolveLineAssets(
-                                        li,
-                                        assetsById
-                                    );
-                                    return (
-                                        <TableRow
-                                            key={li.lineId ?? `${idx}`}
-                                        >
-                                            <TableCell>
-                                                <div className="font-medium">
-                                                    {li.catalogName ||
-                                                        catalog?.name ||
-                                                        (li.catalogId !==
-                                                        undefined
-                                                            ? `Catalog #${li.catalogId}`
-                                                            : '—')}
-                                                </div>
-                                                {(catalog?.sku ||
-                                                    catalog?.unitOfMeasure ||
-                                                    catalog?.category) && (
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {[
-                                                            catalog?.sku,
-                                                            catalog?.unitOfMeasure,
-                                                            catalog?.category,
-                                                        ]
-                                                            .filter(Boolean)
-                                                            .join(' · ')}
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Catalog Item</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead className="text-right">
+                                            Qty
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Unit Price
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Total
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {q.lineItems.map((li, idx) => {
+                                        const catalog =
+                                            li.catalogId !== undefined
+                                                ? catalogById[li.catalogId]
+                                                : undefined;
+                                        const assets = resolveLineAssets(
+                                            li,
+                                            assetsById
+                                        );
+                                        return (
+                                            <TableRow
+                                                key={li.lineId ?? `${idx}`}
+                                            >
+                                                <TableCell>
+                                                    <div className="font-medium">
+                                                        {li.catalogName ||
+                                                            catalog?.name ||
+                                                            (li.catalogId !==
+                                                            undefined
+                                                                ? `Catalog #${li.catalogId}`
+                                                                : '—')}
                                                     </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="max-w-xs">
-                                                {li.description || '—'}
-                                                {li.notes && (
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {li.notes}
-                                                    </div>
-                                                )}
-                                                {showPriceTier &&
-                                                    li.priceTierId !==
-                                                        undefined &&
-                                                    li.priceTierId !== null && (
-                                                        <div className="mt-1 text-xs text-muted-foreground">
-                                                            Price tier:{' '}
-                                                            <span className="font-medium text-foreground">
-                                                                {li.priceTierName ??
-                                                                    `#${li.priceTierId}`}
-                                                            </span>
+                                                    {(catalog?.sku ||
+                                                        catalog?.unitOfMeasure ||
+                                                        catalog?.category) && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {[
+                                                                catalog?.sku,
+                                                                catalog?.unitOfMeasure,
+                                                                catalog?.category,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(' · ')}
                                                         </div>
                                                     )}
-                                                {showVariant &&
-                                                    li.variantId !== undefined &&
-                                                    li.variantId !== null && (
-                                                        <div className="mt-1 text-xs text-muted-foreground">
-                                                            Variant:{' '}
-                                                            <span className="font-medium text-foreground">
-                                                                {li.variantName ??
-                                                                    `#${li.variantId}`}
-                                                            </span>
+                                                </TableCell>
+                                                <TableCell className="max-w-xs">
+                                                    {li.description || '—'}
+                                                    {li.notes && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {li.notes}
                                                         </div>
                                                     )}
-                                                {assets.length > 0 && (
-                                                    <div className="mt-2 space-y-1">
-                                                        {assets.map((a) =>
-                                                            a.url ? (
-                                                                <div
-                                                                    key={
-                                                                        a.assetId
-                                                                    }
-                                                                    className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-xs"
-                                                                >
-                                                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                                                    <span className="font-medium">
-                                                                        {a.name}
-                                                                    </span>
-                                                                    {a.type && (
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className="text-[10px]"
-                                                                        >
-                                                                            {
-                                                                                a.type
-                                                                            }
-                                                                        </Badge>
-                                                                    )}
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="ml-auto h-7 gap-1 text-xs"
-                                                                        onClick={() =>
-                                                                            setPreview(
-                                                                                a
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <Eye className="h-3.5 w-3.5" />
-                                                                        Preview
-                                                                    </Button>
-                                                                </div>
-                                                            ) : (
-                                                                <div
-                                                                    key={
-                                                                        a.assetId
-                                                                    }
-                                                                    className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-xs"
-                                                                >
-                                                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                                                    <span className="font-medium">
-                                                                        {a.name}
-                                                                    </span>
-                                                                    {a.type && (
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className="text-[10px]"
-                                                                        >
-                                                                            {
-                                                                                a.type
-                                                                            }
-                                                                        </Badge>
-                                                                    )}
-                                                                    <span className="ml-auto text-muted-foreground">
-                                                                        #
-                                                                        {
-                                                                            a.assetId
-                                                                        }{' '}
-                                                                        · no
-                                                                        file
-                                                                        link
-                                                                    </span>
-                                                                </div>
-                                                            )
+                                                    {showPriceTier &&
+                                                        li.priceTierId !==
+                                                            undefined &&
+                                                        li.priceTierId !==
+                                                            null && (
+                                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                                Price tier:{' '}
+                                                                <span className="font-medium text-foreground">
+                                                                    {li.priceTierName ??
+                                                                        `#${li.priceTierId}`}
+                                                                </span>
+                                                            </div>
                                                         )}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {li.quantity ?? '—'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Money
-                                                    amount={li.unitPrice}
-                                                    currency={q.currency}
-                                                />
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Money
-                                                    amount={li.totalPrice}
-                                                    currency={q.currency}
-                                                />
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                                                    {showVariant &&
+                                                        li.variantId !==
+                                                            undefined &&
+                                                        li.variantId !==
+                                                            null && (
+                                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                                Variant:{' '}
+                                                                <span className="font-medium text-foreground">
+                                                                    {li.variantName ??
+                                                                        `#${li.variantId}`}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    {assets.length > 0 && (
+                                                        <div className="mt-2 space-y-1">
+                                                            {assets.map((a) =>
+                                                                a.url ? (
+                                                                    <div
+                                                                        key={
+                                                                            a.assetId
+                                                                        }
+                                                                        className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-xs"
+                                                                    >
+                                                                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                        <span className="font-medium">
+                                                                            {
+                                                                                a.name
+                                                                            }
+                                                                        </span>
+                                                                        {a.type && (
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                className="text-[10px]"
+                                                                            >
+                                                                                {
+                                                                                    a.type
+                                                                                }
+                                                                            </Badge>
+                                                                        )}
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="ml-auto h-7 gap-1 text-xs"
+                                                                            onClick={() =>
+                                                                                setPreview(
+                                                                                    a
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <Eye className="h-3.5 w-3.5" />
+                                                                            Preview
+                                                                        </Button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div
+                                                                        key={
+                                                                            a.assetId
+                                                                        }
+                                                                        className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-xs"
+                                                                    >
+                                                                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                        <span className="font-medium">
+                                                                            {
+                                                                                a.name
+                                                                            }
+                                                                        </span>
+                                                                        {a.type && (
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                className="text-[10px]"
+                                                                            >
+                                                                                {
+                                                                                    a.type
+                                                                                }
+                                                                            </Badge>
+                                                                        )}
+                                                                        <span className="ml-auto text-muted-foreground">
+                                                                            #
+                                                                            {
+                                                                                a.assetId
+                                                                            }{' '}
+                                                                            · no
+                                                                            file
+                                                                            link
+                                                                        </span>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {li.quantity ?? '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Money
+                                                        amount={li.unitPrice}
+                                                        currency={q.currency}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Money
+                                                        amount={li.totalPrice}
+                                                        currency={q.currency}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">

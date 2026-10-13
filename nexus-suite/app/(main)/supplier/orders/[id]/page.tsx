@@ -210,9 +210,7 @@ export default function SupplierOrderDetailPage() {
     const buyerName =
         order.buyerOrgName ||
         order.buyerOrg?.name ||
-        (order.buyerOrgId !== undefined
-            ? `Org #${order.buyerOrgId}`
-            : '—');
+        (order.buyerOrgId !== undefined ? `Org #${order.buyerOrgId}` : '—');
 
     return (
         <>
@@ -260,23 +258,23 @@ export default function SupplierOrderDetailPage() {
                                 order.status === 'PICKED_UP') &&
                                 (order.remainingQuantity === undefined ||
                                     order.remainingQuantity > 0) && (
-                                <>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setPartialOpen(true)}
-                                    >
-                                        <Truck className="mr-2 h-4 w-4" />
-                                        Partial Ship
-                                    </Button>
-                                    <PartialShipmentDialog
-                                        order={order}
-                                        open={partialOpen}
-                                        onOpenChange={setPartialOpen}
-                                        onCreated={handlePartialCreated}
-                                    />
-                                </>
-                            )}
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setPartialOpen(true)}
+                                        >
+                                            <Truck className="mr-2 h-4 w-4" />
+                                            Partial Ship
+                                        </Button>
+                                        <PartialShipmentDialog
+                                            order={order}
+                                            open={partialOpen}
+                                            onOpenChange={setPartialOpen}
+                                            onCreated={handlePartialCreated}
+                                        />
+                                    </>
+                                )}
                             {shipmentId !== null && (
                                 <Dialog
                                     open={podOpen}
@@ -346,9 +344,7 @@ export default function SupplierOrderDetailPage() {
                                         Expected Delivery
                                     </span>
                                     <span className="font-medium">
-                                        {formatDate(
-                                            order.expectedDeliveryDate
-                                        )}
+                                        {formatDate(order.expectedDeliveryDate)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
@@ -547,8 +543,7 @@ export default function SupplierOrderDetailPage() {
                                                             >
                                                                 <TableCell>
                                                                     {li.lineNumber ??
-                                                                        idx +
-                                                                            1}
+                                                                        idx + 1}
                                                                 </TableCell>
                                                                 <TableCell className="max-w-xs">
                                                                     <div className="font-medium">
@@ -558,8 +553,7 @@ export default function SupplierOrderDetailPage() {
                                                                     </div>
                                                                     <div className="text-xs text-muted-foreground">
                                                                         {[
-                                                                            catalog
-                                                                                ?.sku ??
+                                                                            catalog?.sku ??
                                                                                 null,
                                                                             catalog?.unitOfMeasure ??
                                                                                 li.unitOfMeasure ??
@@ -576,7 +570,8 @@ export default function SupplierOrderDetailPage() {
                                                                             )
                                                                             .join(
                                                                                 ' · '
-                                                                            ) || '—'}
+                                                                            ) ||
+                                                                            '—'}
                                                                     </div>
                                                                 </TableCell>
                                                                 <TableCell className="text-right">
@@ -663,9 +658,7 @@ export default function SupplierOrderDetailPage() {
                                             Start Date
                                         </span>
                                         <span className="font-medium">
-                                            {formatDate(
-                                                order.blanketStartDate
-                                            )}
+                                            {formatDate(order.blanketStartDate)}
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-sm">
@@ -701,12 +694,10 @@ export default function SupplierOrderDetailPage() {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>
-                            Acknowledge {order.poNumber}
-                        </DialogTitle>
+                        <DialogTitle>Acknowledge {order.poNumber}</DialogTitle>
                         <DialogDescription>
-                            Confirm you accept this order. Notes are
-                            optional and visible to the retailer.
+                            Confirm you accept this order. Notes are optional
+                            and visible to the retailer.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4">
@@ -714,9 +705,7 @@ export default function SupplierOrderDetailPage() {
                             <Label>Supplier notes (optional)</Label>
                             <Textarea
                                 value={ackNotes}
-                                onChange={(e) =>
-                                    setAckNotes(e.target.value)
-                                }
+                                onChange={(e) => setAckNotes(e.target.value)}
                                 placeholder="e.g. Confirmed, production starts Monday"
                             />
                         </div>

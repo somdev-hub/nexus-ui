@@ -193,7 +193,8 @@ const Page = () => {
                 return;
             }
             const supplier = supList.find(
-                (s) => Number(s.supplierOrgAccountId) === Number(q.supplierOrgId)
+                (s) =>
+                    Number(s.supplierOrgAccountId) === Number(q.supplierOrgId)
             );
             if (!supplier) {
                 toast.error(
@@ -220,8 +221,7 @@ const Page = () => {
             }
             const lines = (q.lineItems ?? []).map((li) => ({
                 catalogId: li.catalogId,
-                description:
-                    li.description || li.catalogName || 'Quoted item',
+                description: li.description || li.catalogName || 'Quoted item',
                 quantityOrdered: li.quantity ?? 1,
                 unitOfMeasure:
                     (li.catalogId !== undefined
@@ -250,9 +250,7 @@ const Page = () => {
             });
             setSourceQuotationId(q.quotationId);
             setSourceQuotationNumber(q.quotationNumber);
-            toast.success(
-                `Pre-filled from quotation ${q.quotationNumber}`
-            );
+            toast.success(`Pre-filled from quotation ${q.quotationNumber}`);
         } catch (e) {
             toast.error(
                 e instanceof Error ? e.message : 'Failed to load quotation'
@@ -273,10 +271,7 @@ const Page = () => {
                 const list = await getOrgAddresses(orgId);
                 if (!active) return;
                 setOrgAddresses(list);
-                const pickDefault = (
-                    current: string,
-                    flagged?: OrgAddress
-                ) => {
+                const pickDefault = (current: string, flagged?: OrgAddress) => {
                     if (current) return current;
                     const one = list.length === 1 ? list[0] : undefined;
                     const pick = flagged ?? one;
@@ -291,7 +286,10 @@ const Page = () => {
                     )
                 );
                 setBillingId((cur) =>
-                    pickDefault(cur, list.find((a) => a.isDefaultBilling))
+                    pickDefault(
+                        cur,
+                        list.find((a) => a.isDefaultBilling)
+                    )
                 );
             } catch {
                 // selecting stays optional; backend fills defaults
@@ -514,15 +512,12 @@ const Page = () => {
                                                     Creating from accepted
                                                     quotation{' '}
                                                     <span className="font-mono font-medium">
-                                                        {
-                                                            sourceQuotationNumber
-                                                        }
+                                                        {sourceQuotationNumber}
                                                     </span>
                                                     {' — '}supplier, currency
-                                                    and line items
-                                                    pre-filled. The quotation
-                                                    will be marked CONVERTED
-                                                    on creation.
+                                                    and line items pre-filled.
+                                                    The quotation will be marked
+                                                    CONVERTED on creation.
                                                 </span>
                                                 <Button
                                                     type="button"
@@ -575,69 +570,69 @@ const Page = () => {
                                                         <FormLabel>
                                                             Supplier *
                                                         </FormLabel>
-                                                        {suppliers.length === 0 ? (
+                                                        {suppliers.length ===
+                                                        0 ? (
                                                             <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
                                                                 There is no
                                                                 established
-                                                                partnership
-                                                                with any
-                                                                supplier yet.
-                                                                Accept a
+                                                                partnership with
+                                                                any supplier
+                                                                yet. Accept a
                                                                 supplier
-                                                                invitation
-                                                                first to raise
-                                                                a purchase
-                                                                order.
+                                                                invitation first
+                                                                to raise a
+                                                                purchase order.
                                                             </p>
                                                         ) : (
                                                             <FormControl>
                                                                 <Select
-                                                                onValueChange={(
-                                                                    v
-                                                                ) => {
-                                                                    const id =
-                                                                        Number(
-                                                                            v
+                                                                    onValueChange={(
+                                                                        v
+                                                                    ) => {
+                                                                        const id =
+                                                                            Number(
+                                                                                v
+                                                                            );
+                                                                        field.onChange(
+                                                                            id
                                                                         );
-                                                                    field.onChange(
-                                                                        id
-                                                                    );
-                                                                    loadCatalogForSupplier(
-                                                                        id
-                                                                    );
-                                                                }
-                                                                }
-                                                                value={
-                                                                    field.value
-                                                                        ? String(
-                                                                              field.value
-                                                                          )
-                                                                        : ''
-                                                                }
-                                                            >
-                                                                <SelectTrigger className="w-full">
-                                                                    <SelectValue placeholder="Select supplier" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {suppliers.map(
-                                                                        (s) => (
-                                                                            <SelectItem
-                                                                                key={
-                                                                                    s.supplierId
-                                                                                }
-                                                                                value={String(
-                                                                                    s.supplierId
-                                                                                )}
-                                                                            >
-                                                                                {
-                                                                                    s.businessName
-                                                                                }
-                                                                            </SelectItem>
-                                                                        )
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormControl>
+                                                                        loadCatalogForSupplier(
+                                                                            id
+                                                                        );
+                                                                    }}
+                                                                    value={
+                                                                        field.value
+                                                                            ? String(
+                                                                                  field.value
+                                                                              )
+                                                                            : ''
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger className="w-full">
+                                                                        <SelectValue placeholder="Select supplier" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {suppliers.map(
+                                                                            (
+                                                                                s
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        s.supplierId
+                                                                                    }
+                                                                                    value={String(
+                                                                                        s.supplierId
+                                                                                    )}
+                                                                                >
+                                                                                    {
+                                                                                        s.businessName
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            )
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </FormControl>
                                                         )}
                                                         <FormMessage />
                                                     </FormItem>
@@ -827,12 +822,11 @@ const Page = () => {
                                     <CardContent className="space-y-4 p-0">
                                         {orgAddresses.length === 0 ? (
                                             <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
-                                                No organization addresses
-                                                saved yet — add them under HR
-                                                → Organization → Org Profile.
-                                                If left empty, the backend
-                                                applies the defaults when
-                                                available.
+                                                No organization addresses saved
+                                                yet — add them under HR →
+                                                Organization → Org Profile. If
+                                                left empty, the backend applies
+                                                the defaults when available.
                                             </p>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -877,7 +871,9 @@ const Page = () => {
                                                     </Select>
                                                 </div>
                                                 <div className="grid gap-2">
-                                                    <Label>Billing Address</Label>
+                                                    <Label>
+                                                        Billing Address
+                                                    </Label>
                                                     <Select
                                                         value={billingId}
                                                         onValueChange={(v) =>
@@ -1046,283 +1042,310 @@ const Page = () => {
                                     <Card className="gap-2 p-4">
                                         <CardHeader>
                                             <div className="flex items-center justify-between">
-                                                <CardTitle>Line Items</CardTitle>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    append({
-                                                        catalogId: undefined,
-                                                        description: '',
-                                                        quantityOrdered: 1,
-                                                        unitOfMeasure: '',
-                                                        unitPrice: 0,
-                                                    })
-                                                }
-                                            >
-                                                <Plus className="mr-2 h-4 w-4" />
-                                                Add Item
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4 p-0">
-                                        {!catalogLoading &&
-                                            catalogItems.length === 0 && (
-                                                <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
-                                                    The selected supplier has
-                                                    no published catalog
-                                                    items. You can still add
-                                                    line items manually below.
+                                                <CardTitle>
+                                                    Line Items
+                                                </CardTitle>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        append({
+                                                            catalogId:
+                                                                undefined,
+                                                            description: '',
+                                                            quantityOrdered: 1,
+                                                            unitOfMeasure: '',
+                                                            unitPrice: 0,
+                                                        })
+                                                    }
+                                                >
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                    Add Item
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4 p-0">
+                                            {!catalogLoading &&
+                                                catalogItems.length === 0 && (
+                                                    <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                                                        The selected supplier
+                                                        has no published catalog
+                                                        items. You can still add
+                                                        line items manually
+                                                        below.
+                                                    </p>
+                                                )}
+                                            {fields.map((item, index) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-12"
+                                                >
+                                                    <div className="md:col-span-3">
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name={`lineItems.${index}.catalogId`}
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Material
+                                                                        (from
+                                                                        supplier
+                                                                        catalog)
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Select
+                                                                            onValueChange={(
+                                                                                v
+                                                                            ) =>
+                                                                                applyCatalogItemToLine(
+                                                                                    index,
+                                                                                    Number(
+                                                                                        v
+                                                                                    )
+                                                                                )
+                                                                            }
+                                                                            value={
+                                                                                field.value
+                                                                                    ? String(
+                                                                                          field.value
+                                                                                      )
+                                                                                    : ''
+                                                                            }
+                                                                        >
+                                                                            <SelectTrigger className="w-full">
+                                                                                <SelectValue
+                                                                                    placeholder={
+                                                                                        catalogLoading
+                                                                                            ? 'Loading catalog…'
+                                                                                            : catalogItems.length
+                                                                                              ? 'Select material'
+                                                                                              : 'Select a supplier first'
+                                                                                    }
+                                                                                />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {catalogItems.map(
+                                                                                    (
+                                                                                        c
+                                                                                    ) => {
+                                                                                        const id =
+                                                                                            c.catalogId ??
+                                                                                            c.id ??
+                                                                                            0;
+                                                                                        return (
+                                                                                            <SelectItem
+                                                                                                key={
+                                                                                                    id
+                                                                                                }
+                                                                                                value={String(
+                                                                                                    id
+                                                                                                )}
+                                                                                            >
+                                                                                                {
+                                                                                                    c.name
+                                                                                                }
+                                                                                                {c.basePrice
+                                                                                                    ? ` — ${c.basePrice}`
+                                                                                                    : ''}
+                                                                                            </SelectItem>
+                                                                                        );
+                                                                                    }
+                                                                                )}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-3">
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name={`lineItems.${index}.description`}
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Description
+                                                                        *
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            placeholder="e.g. Hydraulic Pump X200"
+                                                                            {...field}
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name={`lineItems.${index}.unitOfMeasure`}
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        UoM
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            placeholder="e.g. KG"
+                                                                            {...field}
+                                                                            value={
+                                                                                field.value ??
+                                                                                ''
+                                                                            }
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-1">
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name={`lineItems.${index}.quantityOrdered`}
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Qty *
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            placeholder="1"
+                                                                            value={
+                                                                                field.value?.toString() ??
+                                                                                ''
+                                                                            }
+                                                                            onChange={(
+                                                                                e
+                                                                            ) =>
+                                                                                field.onChange(
+                                                                                    parseOptionalFloat(
+                                                                                        e
+                                                                                            .target
+                                                                                            .value
+                                                                                    ) ??
+                                                                                        0
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name={`lineItems.${index}.unitPrice`}
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Unit
+                                                                        Price *
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            placeholder="0.00"
+                                                                            value={
+                                                                                field.value?.toString() ??
+                                                                                ''
+                                                                            }
+                                                                            onChange={(
+                                                                                e
+                                                                            ) =>
+                                                                                field.onChange(
+                                                                                    parseOptionalFloat(
+                                                                                        e
+                                                                                            .target
+                                                                                            .value
+                                                                                    ) ??
+                                                                                        0
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-end md:col-span-1">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            disabled={
+                                                                fields.length <=
+                                                                1
+                                                            }
+                                                            onClick={() =>
+                                                                remove(index)
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {form.formState.errors.lineItems
+                                                ?.root && (
+                                                <p className="text-sm text-destructive">
+                                                    {
+                                                        form.formState.errors
+                                                            .lineItems.root
+                                                            .message
+                                                    }
                                                 </p>
                                             )}
-                                        {fields.map((item, index) => (
-                                            <div
-                                                key={item.id}
-                                                className="grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-12"
-                                            >
-                                                <div className="md:col-span-3">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`lineItems.${index}.catalogId`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>
-                                                                    Material
-                                                                    (from
-                                                                    supplier
-                                                                    catalog)
-                                                                </FormLabel>
-                                                                <FormControl>
-                                                                    <Select
-                                                                        onValueChange={(
-                                                                            v
-                                                                        ) =>
-                                                                            applyCatalogItemToLine(
-                                                                                index,
-                                                                                Number(
-                                                                                    v
-                                                                                )
-                                                                            )
-                                                                        }
-                                                                        value={
-                                                                            field.value
-                                                                                ? String(
-                                                                                      field.value
-                                                                                  )
-                                                                                : ''
-                                                                        }
-                                                                    >
-                                                                        <SelectTrigger className="w-full">
-                                                                            <SelectValue
-                                                                                placeholder={
-                                                                                    catalogLoading
-                                                                                        ? 'Loading catalog…'
-                                                                                        : catalogItems.length
-                                                                                          ? 'Select material'
-                                                                                          : 'Select a supplier first'
-                                                                                }
-                                                                            />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {catalogItems.map(
-                                                                                (
-                                                                                    c
-                                                                                ) => {
-                                                                                    const id =
-                                                                                        c.catalogId ??
-                                                                                        c.id ??
-                                                                                        0;
-                                                                                    return (
-                                                                                        <SelectItem
-                                                                                            key={
-                                                                                                id
-                                                                                            }
-                                                                                            value={String(
-                                                                                                id
-                                                                                            )}
-                                                                                        >
-                                                                                            {
-                                                                                                c.name
-                                                                                            }
-                                                                                            {c.basePrice
-                                                                                                ? ` — ${c.basePrice}`
-                                                                                                : ''}
-                                                                                        </SelectItem>
-                                                                                    );
-                                                                                }
-                                                                            )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
+                                            <div className="flex justify-end">
+                                                <p className="text-sm">
+                                                    <span className="text-muted-foreground">
+                                                        Estimated total:{' '}
+                                                    </span>
+                                                    <span className="font-mono font-semibold">
+                                                        {total.toLocaleString(
+                                                            undefined,
+                                                            {
+                                                                minimumFractionDigits: 2,
+                                                                maximumFractionDigits: 2,
+                                                            }
                                                         )}
-                                                    />
-                                                </div>
-                                                <div className="md:col-span-3">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`lineItems.${index}.description`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>
-                                                                    Description
-                                                                    *
-                                                                </FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        placeholder="e.g. Hydraulic Pump X200"
-                                                                        {...field}
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`lineItems.${index}.unitOfMeasure`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>
-                                                                    UoM
-                                                                </FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        placeholder="e.g. KG"
-                                                                        {...field}
-                                                                        value={
-                                                                            field.value ??
-                                                                            ''
-                                                                        }
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="md:col-span-1">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`lineItems.${index}.quantityOrdered`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>
-                                                                    Qty *
-                                                                </FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        placeholder="1"
-                                                                        value={
-                                                                            field.value?.toString() ??
-                                                                            ''
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            field.onChange(
-                                                                                parseOptionalFloat(
-                                                                                    e
-                                                                                        .target
-                                                                                        .value
-                                                                                ) ??
-                                                                                    0
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`lineItems.${index}.unitPrice`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>
-                                                                    Unit Price *
-                                                                </FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        placeholder="0.00"
-                                                                        value={
-                                                                            field.value?.toString() ??
-                                                                            ''
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            field.onChange(
-                                                                                parseOptionalFloat(
-                                                                                    e
-                                                                                        .target
-                                                                                        .value
-                                                                                ) ??
-                                                                                    0
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="flex items-end md:col-span-1">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled={
-                                                            fields.length <= 1
-                                                        }
-                                                        onClick={() =>
-                                                            remove(index)
-                                                        }
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
+                                                    </span>
+                                                </p>
                                             </div>
-                                        ))}
-                                        {form.formState.errors.lineItems
-                                            ?.root && (
-                                            <p className="text-sm text-destructive">
-                                                {
-                                                    form.formState.errors
-                                                        .lineItems.root.message
-                                                }
-                                            </p>
-                                        )}
-                                        <div className="flex justify-end">
-                                            <p className="text-sm">
-                                                <span className="text-muted-foreground">
-                                                    Estimated total:{' '}
-                                                </span>
-                                                <span className="font-mono font-semibold">
-                                                    {total.toLocaleString(
-                                                        undefined,
-                                                        {
-                                                            minimumFractionDigits: 2,
-                                                            maximumFractionDigits: 2,
-                                                        }
-                                                    )}
-                                                </span>
-                                            </p>
-                                        </div>
                                         </CardContent>
                                     </Card>
                                 )}

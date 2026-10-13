@@ -17,7 +17,9 @@ export interface PreviewableAsset {
     type?: string | null;
 }
 
-export function assetPreviewKind(a: PreviewableAsset): 'image' | 'pdf' | 'other' {
+export function assetPreviewKind(
+    a: PreviewableAsset
+): 'image' | 'pdf' | 'other' {
     const src = `${a.url ?? ''} ${a.name ?? ''}`.toLowerCase().split('?')[0];
     if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(src)) return 'image';
     if (/\.pdf$/.test(src)) return 'pdf';

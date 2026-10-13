@@ -411,9 +411,7 @@ const buildColumns = (
                         </DropdownMenuItem>
                     )}
                     {row.original.status === 'APPROVED' && (
-                        <DropdownMenuItem
-                            onClick={() => onSend(row.original)}
-                        >
+                        <DropdownMenuItem onClick={() => onSend(row.original)}>
                             <IconSend className="mr-2 h-4 w-4" />
                             Send to Supplier
                         </DropdownMenuItem>

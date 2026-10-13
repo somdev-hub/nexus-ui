@@ -14,7 +14,7 @@ import {
     IconPlus,
     IconRefresh,
     IconTrendingUp,
-    IconX
+    IconX,
 } from '@tabler/icons-react';
 import {
     flexRender,
@@ -28,7 +28,7 @@ import {
     type ColumnDef,
     type ColumnFiltersState,
     type SortingState,
-    type VisibilityState
+    type VisibilityState,
 } from '@tanstack/react-table';
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -211,7 +211,10 @@ const buildColumns = (
         cell: ({ row }) => (
             <div className="text-sm">
                 {row.original.effectiveDate
-                    ? format(new Date(row.original.effectiveDate), 'MMM dd, yyyy')
+                    ? format(
+                          new Date(row.original.effectiveDate),
+                          'MMM dd, yyyy'
+                      )
                     : '—'}
             </div>
         ),
@@ -223,9 +226,7 @@ const buildColumns = (
             const expiry = row.original.expiryDate as string | undefined;
             return (
                 <div className="text-sm">
-                    {expiry
-                        ? format(new Date(expiry), 'MMM dd, yyyy')
-                        : '—'}
+                    {expiry ? format(new Date(expiry), 'MMM dd, yyyy') : '—'}
                 </div>
             );
         },
@@ -587,9 +588,7 @@ export function SupplierContractTable({
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Submit contract?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Submit contract?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Submit contract {confirming?.contractNumber} for
                             approval?

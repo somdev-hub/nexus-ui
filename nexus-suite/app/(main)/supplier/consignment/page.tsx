@@ -115,10 +115,7 @@ export default function ConsignmentPage() {
                     const name = isPrimary
                         ? p.secondaryOrgName
                         : p.primaryOrgName;
-                    seen.set(
-                        id,
-                        name ? `${name} (#${id})` : `Org #${id}`
-                    );
+                    seen.set(id, name ? `${name} (#${id})` : `Org #${id}`);
                 }
                 setRetailers(
                     [...seen.entries()].map(([orgId, label]) => ({
@@ -240,10 +237,10 @@ export default function ConsignmentPage() {
                                 <Label>Retailer</Label>
                                 {retailers.length === 0 ? (
                                     <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
-                                        There is no established partnership
-                                        with any retailer yet. Accept a
-                                        retailer invitation first to add
-                                        consignment stock.
+                                        There is no established partnership with
+                                        any retailer yet. Accept a retailer
+                                        invitation first to add consignment
+                                        stock.
                                     </p>
                                 ) : (
                                     <Select

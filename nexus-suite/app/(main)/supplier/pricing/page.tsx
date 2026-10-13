@@ -352,8 +352,7 @@ export default function SupplierPricingPage() {
                                     onValueChange={(v) =>
                                         setForm({
                                             ...form,
-                                            contractId:
-                                                v === 'none' ? '' : v,
+                                            contractId: v === 'none' ? '' : v,
                                         })
                                     }
                                 >
@@ -531,8 +530,7 @@ export default function SupplierPricingPage() {
                                     onValueChange={(v) => {
                                         setEditForm({
                                             ...editForm,
-                                            contractId:
-                                                v === 'none' ? '' : v,
+                                            contractId: v === 'none' ? '' : v,
                                         });
                                         setEditContractTouched(true);
                                     }}
@@ -663,9 +661,7 @@ export default function SupplierPricingPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    onClick={() =>
-                                                        openEdit(t)
-                                                    }
+                                                    onClick={() => openEdit(t)}
                                                 >
                                                     Edit
                                                 </Button>

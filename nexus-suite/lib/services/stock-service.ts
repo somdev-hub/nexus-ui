@@ -25,9 +25,7 @@ export interface Warehouse {
 export async function getWarehouses(): Promise<Warehouse[]> {
     const res = await apiClient.get<unknown>(`${WAREHOUSE_BASE}/all`);
     const data = res.data as
-        | Warehouse[]
-        | { content?: Warehouse[] }
-        | undefined;
+        Warehouse[] | { content?: Warehouse[] } | undefined;
     if (Array.isArray(data)) return data;
     return data?.content ?? [];
 }

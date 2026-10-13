@@ -35,8 +35,9 @@ const STATUSES = [
 const PAGE_SIZE = 20;
 
 export default function Page() {
-    const [data, setData] =
-        useState<PaginatedResponse<PurchaseOrder> | null>(null);
+    const [data, setData] = useState<PaginatedResponse<PurchaseOrder> | null>(
+        null
+    );
     const [isLoading, setIsLoading] = useState(true);
     const [status, setStatus] = useState('all');
     const [pageNo, setPageNo] = useState(0);

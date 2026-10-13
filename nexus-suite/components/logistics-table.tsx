@@ -259,9 +259,8 @@ export function LogisticsTable({
         [data, removedIds]
     );
 
-    const [terminating, setTerminating] = React.useState<LogisticsPartner | null>(
-        null
-    );
+    const [terminating, setTerminating] =
+        React.useState<LogisticsPartner | null>(null);
 
     const handleTerminate = React.useCallback(async () => {
         if (!terminating) return;

@@ -46,21 +46,24 @@ export default function RetailerQuotationsPage() {
     const [rejectingId, setRejectingId] = useState<number | null>(null);
     const [status, setStatus] = useState<string>('SENT');
 
-    const load = useCallback(async (statusFilter: string = status) => {
-        setIsLoading(true);
-        try {
-            const res = await getRetailerQuotations({
-                page: 0,
-                size: 20,
-                status: statusFilter || undefined,
-            });
-            setData(res.content ?? []);
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to load');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [status]);
+    const load = useCallback(
+        async (statusFilter: string = status) => {
+            setIsLoading(true);
+            try {
+                const res = await getRetailerQuotations({
+                    page: 0,
+                    size: 20,
+                    status: statusFilter || undefined,
+                });
+                setData(res.content ?? []);
+            } catch (e) {
+                toast.error(e instanceof Error ? e.message : 'Failed to load');
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [status]
+    );
 
     useEffect(() => {
         load(status);

@@ -86,7 +86,9 @@ const UNIT_LABELS: Record<string, string> = {
 
 export function capacityUnitLabel(unit?: string | null): string {
     if (!unit) return 'kg';
-    return UNIT_LABELS[String(unit).toUpperCase()] ?? String(unit).toLowerCase();
+    return (
+        UNIT_LABELS[String(unit).toUpperCase()] ?? String(unit).toLowerCase()
+    );
 }
 
 export interface UnitSpecs {
@@ -190,13 +192,17 @@ export async function getAssetShipments(
     );
     return res.data;
 }
-export async function getAssetDrivers(assetId: number): Promise<AssetDriverHistory[]> {
+export async function getAssetDrivers(
+    assetId: number
+): Promise<AssetDriverHistory[]> {
     const res = await apiClient.get<AssetDriverHistory[]>(
         `${BASE}/fleet/assets/${assetId}/drivers`
     );
     return res.data;
 }
-export async function getAssetCurrentShipment(assetId: number): Promise<AssetCurrentShipment> {
+export async function getAssetCurrentShipment(
+    assetId: number
+): Promise<AssetCurrentShipment> {
     const res = await apiClient.get<AssetCurrentShipment>(
         `${BASE}/fleet/assets/${assetId}/current-shipment`
     );
@@ -400,7 +406,12 @@ export async function deleteFreightRate(id: number): Promise<void> {
 // Execution
 export async function assignBooking(
     shipmentId: number,
-    body: { driverId?: number; assetId?: number; bolDocumentId?: string; startPickup?: boolean }
+    body: {
+        driverId?: number;
+        assetId?: number;
+        bolDocumentId?: string;
+        startPickup?: boolean;
+    }
 ): Promise<unknown> {
     const res = await apiClient.put(
         `${BASE}/execution/shipments/${shipmentId}/assign`,
@@ -652,7 +663,11 @@ export async function updateCapacity(
 }
 export async function extendCapacityForPartnership(
     id: number,
-    data: { partnershipId: number; newPeriodEnd: string; availableCapacity?: number }
+    data: {
+        partnershipId: number;
+        newPeriodEnd: string;
+        availableCapacity?: number;
+    }
 ): Promise<CapacityForecast> {
     const res = await apiClient.put<CapacityForecast>(
         `${BASE}/operations/capacity/${id}/extend-for-partnership`,

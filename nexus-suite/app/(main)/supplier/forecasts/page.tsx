@@ -126,10 +126,7 @@ export default function ForecastsPage() {
                     const name = isPrimary
                         ? p.secondaryOrgName
                         : p.primaryOrgName;
-                    seen.set(
-                        id,
-                        name ? `${name} (#${id})` : `Org #${id}`
-                    );
+                    seen.set(id, name ? `${name} (#${id})` : `Org #${id}`);
                 }
                 setRetailers(
                     [...seen.entries()].map(([orgId, label]) => ({
@@ -279,9 +276,7 @@ export default function ForecastsPage() {
                     <Label>Catalog Item</Label>
                     <CatalogSelect
                         value={value.catalogId}
-                        onChange={(v) =>
-                            setValue({ ...value, catalogId: v })
-                        }
+                        onChange={(v) => setValue({ ...value, catalogId: v })}
                     />
                 </div>
             </div>

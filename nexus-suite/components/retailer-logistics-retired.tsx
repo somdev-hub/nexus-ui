@@ -20,12 +20,12 @@ export default function RetailerLogisticsRetired({ from }: { from: string }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        {from} is no longer managed by the retailer. Delivery
-                        is now a supplier responsibility: suppliers partner
-                        with logistics providers from their own marketplace
-                        and hand shipments over after acknowledgement. Your
-                        part ends when the purchase order is raised — you
-                        receive the goods and pay on receipt.
+                        {from} is no longer managed by the retailer. Delivery is
+                        now a supplier responsibility: suppliers partner with
+                        logistics providers from their own marketplace and hand
+                        shipments over after acknowledgement. Your part ends
+                        when the purchase order is raised — you receive the
+                        goods and pay on receipt.
                     </p>
                     <div className="flex gap-2">
                         <Button asChild>

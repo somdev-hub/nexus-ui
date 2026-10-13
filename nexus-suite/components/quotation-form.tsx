@@ -118,8 +118,7 @@ export function quotationToFormValues(
         currency: q.currency ?? 'USD',
         lines: lines.map((li, i) => ({
             key: i,
-            catalogId:
-                li?.catalogId !== undefined ? String(li.catalogId) : '',
+            catalogId: li?.catalogId !== undefined ? String(li.catalogId) : '',
             variantId:
                 li?.variantId !== undefined && li.variantId !== null
                     ? String(li.variantId)
@@ -200,18 +199,17 @@ export function QuotationForm({
     >({});
 
     const initialCatalogIds = useMemo(
-        () =>
-            [
-                ...new Set(
-                    initial.lines
-                        .map((l) => Number(l.catalogId))
-                        .filter(
-                            (n, i) =>
-                                Number.isFinite(n) &&
-                                initial.lines[i].catalogId !== ''
-                        )
-                ),
-            ],
+        () => [
+            ...new Set(
+                initial.lines
+                    .map((l) => Number(l.catalogId))
+                    .filter(
+                        (n, i) =>
+                            Number.isFinite(n) &&
+                            initial.lines[i].catalogId !== ''
+                    )
+            ),
+        ],
         [initial]
     );
 
@@ -285,8 +283,7 @@ export function QuotationForm({
             assetIds: [],
             description: catalog?.name ?? '',
             unitPrice:
-                catalog?.basePrice !== undefined &&
-                catalog?.basePrice !== null
+                catalog?.basePrice !== undefined && catalog?.basePrice !== null
                     ? String(catalog.basePrice)
                     : '',
         });
@@ -375,9 +372,7 @@ export function QuotationForm({
                     </p>
                 ) : (
                     <Select
-                        value={
-                            form.buyerOrgId ? String(form.buyerOrgId) : ''
-                        }
+                        value={form.buyerOrgId ? String(form.buyerOrgId) : ''}
                         onValueChange={(v) =>
                             setForm({
                                 ...form,
@@ -483,8 +478,7 @@ export function QuotationForm({
                 {lines.map((line, index) => {
                     const catalogIdNum = Number(line.catalogId);
                     const related =
-                        Number.isFinite(catalogIdNum) &&
-                        line.catalogId !== ''
+                        Number.isFinite(catalogIdNum) && line.catalogId !== ''
                             ? relatedByCatalog[catalogIdNum]
                             : undefined;
                     const selectedVariant = related?.variants.find(
@@ -569,8 +563,7 @@ export function QuotationForm({
                                                         ? ` (${v.skuSuffix})`
                                                         : ''}{' '}
                                                     — stock{' '}
-                                                    {v.quantityAvailable ??
-                                                        '-'}
+                                                    {v.quantityAvailable ?? '-'}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -630,9 +623,7 @@ export function QuotationForm({
                                             <button
                                                 type="button"
                                                 className="underline underline-offset-2 hover:text-foreground"
-                                                onClick={() =>
-                                                    clearTier(index)
-                                                }
+                                                onClick={() => clearTier(index)}
                                             >
                                                 Clear
                                             </button>
@@ -732,34 +723,26 @@ export function QuotationForm({
                                         );
                                     const toggleAsset = (id: string) =>
                                         updateLine(index, {
-                                            assetIds:
-                                                line.assetIds.includes(id)
-                                                    ? line.assetIds.filter(
-                                                          (x) => x !== id
-                                                      )
-                                                    : [
-                                                          ...line.assetIds,
-                                                          id,
-                                                      ],
+                                            assetIds: line.assetIds.includes(id)
+                                                ? line.assetIds.filter(
+                                                      (x) => x !== id
+                                                  )
+                                                : [...line.assetIds, id],
                                         });
                                     return (
                                         <div className="grid gap-2">
                                             <Label>
                                                 Digital assets (
-                                                {line.assetIds.length}{' '}
-                                                selected)
+                                                {line.assetIds.length} selected)
                                             </Label>
                                             <div className="flex items-center gap-2 rounded-md border px-3 py-2">
                                                 <Checkbox
                                                     checked={allChecked}
                                                     onCheckedChange={() =>
                                                         updateLine(index, {
-                                                            assetIds:
-                                                                allChecked
-                                                                    ? []
-                                                                    : [
-                                                                          ...allIds,
-                                                                      ],
+                                                            assetIds: allChecked
+                                                                ? []
+                                                                : [...allIds],
                                                         })
                                                     }
                                                 />

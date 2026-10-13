@@ -107,6 +107,9 @@ export interface SupplierOrder {
     sentToSupplierAt?: string;
     totalShippedQuantity?: number;
     remainingQuantity?: number;
+    asnNumber?: string;
+    shipmentId?: number;
+    shipmentNumber?: string;
     approvedBy?: string;
     approvedAt?: string;
     rejectionReason?: string;
@@ -373,6 +376,10 @@ export interface PartialShipmentRequest {
     packageDimensionUom?: string;
     totalWeight?: number;
     totalVolume?: number;
+    // Supplier-quoted freight costing + handover notes (optional).
+    freightCost?: number;
+    currency?: string;
+    freightTerms?: string;
 }
 
 export interface PartialShipmentResponse {

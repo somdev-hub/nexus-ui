@@ -295,9 +295,7 @@ export function ProductTable({
         const { productId } = confirmingDelete;
         try {
             await deleteProduct(productId);
-            setData((prev) =>
-                prev.filter((p) => p.productId !== productId)
-            );
+            setData((prev) => prev.filter((p) => p.productId !== productId));
             toast.success('Product deleted');
         } catch {
             toast.error('Failed to delete product. Please try again.');

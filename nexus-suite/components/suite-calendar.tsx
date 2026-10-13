@@ -1,6 +1,12 @@
 'use client';
 
-import { forwardRef, useEffect, useRef, type ElementRef, type Ref } from 'react';
+import {
+    forwardRef,
+    useEffect,
+    useRef,
+    type ElementRef,
+    type Ref,
+} from 'react';
 import FullCalendar from '@fullcalendar/react';
 import type { EventClickArg } from '@fullcalendar/core';
 import type { DatesSetArg } from '@fullcalendar/core';
@@ -33,7 +39,10 @@ type CalendarApi = ElementRef<typeof FullCalendar>;
 const EMPTY_EVENTS: EventInput[] = [];
 
 const SuiteCalendar = forwardRef<CalendarApi, SuiteCalendarProps>(
-    function SuiteCalendar({ events, onDatesSet, onEventClick, onDateClick }, ref) {
+    function SuiteCalendar(
+        { events, onDatesSet, onEventClick, onDateClick },
+        ref
+    ) {
         const innerRef = useRef<CalendarApi>(null);
 
         // Merge the forwarded ref (page uses getApi() for day drill-down)
@@ -44,7 +53,8 @@ const SuiteCalendar = forwardRef<CalendarApi, SuiteCalendarProps>(
             if (typeof forwarded === 'function') {
                 forwarded(instance);
             } else if (forwarded && typeof forwarded === 'object') {
-                (forwarded as { current: CalendarApi | null }).current = instance;
+                (forwarded as { current: CalendarApi | null }).current =
+                    instance;
             }
         };
 
@@ -62,7 +72,12 @@ const SuiteCalendar = forwardRef<CalendarApi, SuiteCalendarProps>(
             <div className="suite-calendar rounded-lg border bg-card p-2 sm:p-4 h-full">
                 <FullCalendar
                     ref={setRefs}
-                    plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+                    plugins={[
+                        dayGridPlugin,
+                        timeGridPlugin,
+                        listPlugin,
+                        interactionPlugin,
+                    ]}
                     initialView="dayGridMonth"
                     headerToolbar={{
                         left: 'prev,today,next',
@@ -85,8 +100,9 @@ const SuiteCalendar = forwardRef<CalendarApi, SuiteCalendarProps>(
                     eventClick={onEventClick}
                     dateClick={onDateClick}
                     eventDidMount={(arg) => {
-                        const kind = (arg.event.extendedProps as { kind?: string })
-                            ?.kind;
+                        const kind = (
+                            arg.event.extendedProps as { kind?: string }
+                        )?.kind;
                         if (kind) arg.el.setAttribute('data-kind', kind);
                     }}
                     navLinks

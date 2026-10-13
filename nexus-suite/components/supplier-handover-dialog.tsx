@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
@@ -28,18 +29,13 @@ import {
     orgAddressOptionLabel,
     type OrgAddress,
 } from '@/lib/services/org-profile-service';
-import {
-    createPartialShipment,
-} from '@/lib/services/supplier-orders-service';
+import { createPartialShipment } from '@/lib/services/supplier-orders-service';
 import {
     loadHandoverOptions,
     type HandoverOption,
     type HandoverOptionsData,
 } from '@/lib/services/supplier-handover-service';
-import type {
-    PartialShipmentResponse,
-    SupplierOrder,
-} from '@/types/supplier';
+import type { PartialShipmentResponse, SupplierOrder } from '@/types/supplier';
 
 // ─────────────────────────────────────────────────────────────
 // Partial-ship + supplier-owned handover dialog.
@@ -123,6 +119,10 @@ export function PartialShipmentDialog({
     const [packageWidth, setPackageWidth] = useState('');
     const [packageHeight, setPackageHeight] = useState('');
     const [packageDimensionUom, setPackageDimensionUom] = useState('M');
+    const [freightCost, setFreightCost] = useState('');
+    const [freightCurrency, setFreightCurrency] = useState('USD');
+    const [freightTerms, setFreightTerms] = useState('');
+    const [shipmentNotes, setShipmentNotes] = useState('');
     const [options, setOptions] = useState<HandoverOptionsData | null>(null);
     const [optionsError, setOptionsError] = useState<string | null>(null);
     const [optionsLoading, setOptionsLoading] = useState(false);
@@ -146,6 +146,10 @@ export function PartialShipmentDialog({
         setPackageWidth('');
         setPackageHeight('');
         setPackageDimensionUom('M');
+        setFreightCost('');
+        setFreightCurrency(order.currency || 'USD');
+        setFreightTerms('');
+        setShipmentNotes('');
         setOptions(null);
         setOptionsError(null);
         setSelectedPartnershipId('');
@@ -156,9 +160,7 @@ export function PartialShipmentDialog({
             .then((data) => {
                 if (!active) return;
                 setOptions(data);
-                if (
-                    data.autoSupplierAddress?.orgAddressId !== undefined
-                ) {
+                if (data.autoSupplierAddress?.orgAddressId !== undefined) {
                     setSupplierAddressId(
                         String(data.autoSupplierAddress.orgAddressId)
                     );
@@ -166,8 +168,7 @@ export function PartialShipmentDialog({
             })
             .catch((e: unknown) => {
                 if (!active) return;
-                const message =
-                    e instanceof Error ? e.message : String(e);
+                const message = e instanceof Error ? e.message : String(e);
                 setOptionsError(message);
                 toast({ title: message, variant: 'destructive' });
             })
@@ -207,7 +208,14 @@ export function PartialShipmentDialog({
         dimW !== undefined &&
         dimH !== undefined
             ? Math.round(
-                  pkgCount * dimL * toMeters * dimW * toMeters * dimH * toMeters * 100
+                  pkgCount *
+                      dimL *
+                      toMeters *
+                      dimW *
+                      toMeters *
+                      dimH *
+                      toMeters *
+                      100
               ) / 100
             : undefined;
 
@@ -256,9 +264,15 @@ export function PartialShipmentDialog({
         }
         setSubmitting(true);
         try {
+            const freight = num(freightCost);
+            const notes = shipmentNotes.trim();
             const res = await createPartialShipment(order.purchaseOrderId, {
                 shippedQuantity: qty,
                 trackingNumber: 'TRK-' + Date.now(),
+                freightCost: freight,
+                currency: freightCurrency.trim() || undefined,
+                freightTerms: freightTerms || undefined,
+                notes: notes ? notes : undefined,
                 totalPackages: pkgCount,
                 packageWeight: pkgWeight,
                 packageLength: dimL,
@@ -306,8 +320,8 @@ export function PartialShipmentDialog({
                         Partial Shipment for {order?.poNumber ?? ''}
                     </DialogTitle>
                     <DialogDescription>
-                        Choose a partnered logistics provider. The shipment
-                        is booked straight to their load board.
+                        Choose a partnered logistics provider. The shipment is
+                        booked straight to their load board.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1">
@@ -420,9 +434,7 @@ export function PartialShipmentDialog({
                                         <SelectItem value="M">
                                             Meters
                                         </SelectItem>
-                                        <SelectItem value="FT">
-                                            Feet
-                                        </SelectItem>
+                                        <SelectItem value="FT">Feet</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -437,6 +449,71 @@ export function PartialShipmentDialog({
                                 ? `${autoTotalVolume} CBM`
                                 : '—'}
                         </p>
+                    </div>
+
+                    <div className="grid gap-2 rounded-md border p-3">
+                        <p className="text-sm font-medium">
+                            Freight costing & notes{' '}
+                            <span className="font-normal text-muted-foreground">
+                                (optional — shown on the shipment)
+                            </span>
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="grid gap-2">
+                                <Label>Freight cost</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 450"
+                                    value={freightCost}
+                                    onChange={(e) =>
+                                        setFreightCost(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Currency</Label>
+                                <Input
+                                    placeholder="USD"
+                                    value={freightCurrency}
+                                    onChange={(e) =>
+                                        setFreightCurrency(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Freight terms</Label>
+                                <Select
+                                    value={freightTerms}
+                                    onValueChange={setFreightTerms}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="PREPAID">
+                                            Prepaid
+                                        </SelectItem>
+                                        <SelectItem value="COLLECT">
+                                            Collect
+                                        </SelectItem>
+                                        <SelectItem value="THIRD_PARTY">
+                                            Third party
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Handover notes</Label>
+                            <Textarea
+                                placeholder="e.g. Fragile cartons on top, call dock on arrival"
+                                value={shipmentNotes}
+                                onChange={(e) =>
+                                    setShipmentNotes(e.target.value)
+                                }
+                            />
+                        </div>
                     </div>
 
                     {optionsLoading ? (
@@ -458,9 +535,7 @@ export function PartialShipmentDialog({
                                     {options.needsSupplierChoice ? (
                                         <Select
                                             value={supplierAddressId}
-                                            onValueChange={
-                                                setSupplierAddressId
-                                            }
+                                            onValueChange={setSupplierAddressId}
                                         >
                                             <SelectTrigger className="mt-1 w-full">
                                                 <SelectValue placeholder="Select pickup address" />
@@ -469,9 +544,7 @@ export function PartialShipmentDialog({
                                                 {options.supplierAddresses.map(
                                                     (a) => (
                                                         <SelectItem
-                                                            key={
-                                                                a.orgAddressId
-                                                            }
+                                                            key={a.orgAddressId}
                                                             value={String(
                                                                 a.orgAddressId
                                                             )}
@@ -572,9 +645,7 @@ export function PartialShipmentDialog({
                             Create without handover
                         </Button>
                         <Button
-                            disabled={
-                                submitting || !selectedOption?.matches
-                            }
+                            disabled={submitting || !selectedOption?.matches}
                             onClick={() => doCreate(true)}
                         >
                             <Check className="mr-2 h-4 w-4" />

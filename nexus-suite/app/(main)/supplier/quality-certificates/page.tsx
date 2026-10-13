@@ -207,16 +207,11 @@ export default function QualityCertsPage() {
                                     }
                                 />
                             </div>
-                            <Button
-                                onClick={handleCreate}
-                                disabled={saving}
-                            >
+                            <Button onClick={handleCreate} disabled={saving}>
                                 {saving && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
-                                {saving
-                                    ? 'Creating…'
-                                    : 'Create (DMS mocked)'}
+                                {saving ? 'Creating…' : 'Create (DMS mocked)'}
                             </Button>
                         </div>
                     </DialogContent>

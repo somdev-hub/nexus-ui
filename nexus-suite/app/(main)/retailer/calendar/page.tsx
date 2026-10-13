@@ -16,7 +16,10 @@ export default function RetailerCalendarRoutePage() {
             fetchActivities={getRetailerCalendarActivities}
             links={[
                 { label: 'Purchase Orders', href: '/retailer/purchase-orders' },
-                { label: 'Goods Receipts', href: '/retailer/procurement/goods-receipts' },
+                {
+                    label: 'Goods Receipts',
+                    href: '/retailer/procurement/goods-receipts',
+                },
                 { label: 'Invoices', href: '/retailer/procurement/invoices' },
             ]}
         />

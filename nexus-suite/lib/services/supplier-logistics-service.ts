@@ -1,6 +1,10 @@
 import apiClient from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import type { PartnershipInvitationCreateRequest } from '@/types/partnership-invitations';
+import type {
+    ShipmentEta,
+    ShipmentPosition,
+} from '@/types/logistics-ops';
 
 // ─────────────────────────────────────────────────────────────
 // Supplier-owned delivery: logistics marketplace + shipment handover.
@@ -104,6 +108,20 @@ export interface SupplierShipment {
     currency?: string;
     freightTerms?: string;
     notes?: string;
+    // Pricing of the matched logistics route capacity (the freight cost
+    // lives on the lane, not on the shipment).
+    laneCost?: {
+        forecastId?: number;
+        originLane?: string;
+        destinationLane?: string;
+        unitPrice?: number;
+        currency?: string;
+        capacityUnit?: string;
+        fuelSurcharge?: number;
+        driverFees?: number;
+        miscPrice?: number;
+        totalDistance?: number;
+    };
     backorderedQuantity?: number;
     isPartialShipment?: boolean;
     estimatedDeparture?: string;
@@ -165,18 +183,19 @@ export async function createLogisticsProposal(
     data: PartnershipInvitationCreateRequest
 ): Promise<unknown> {
     const { invitedOrgId, ...rest } = data;
-    const res = await apiClient.post(
-        `${BASE}/proposals`,
-        { ...rest, invitedOrg: invitedOrgId, partnershipContext: 'SUPPLIER_LOGISTICS' }
-    );
+    const res = await apiClient.post(`${BASE}/proposals`, {
+        ...rest,
+        invitedOrg: invitedOrgId,
+        partnershipContext: 'SUPPLIER_LOGISTICS',
+    });
     return res.data;
 }
 
 export async function getSupplierShipments(
-    status?: string
+    filter: { status?: string; page?: number; size?: number } = {}
 ): Promise<PaginatedResponse<SupplierShipment>> {
     const res = await apiClient.get<PaginatedResponse<SupplierShipment>>(
-        `${BASE}/shipments${toQuery({ status, page: 0, size: 50 })}`
+        `${BASE}/shipments${toQuery({ status: filter.status, page: filter.page ?? 0, size: filter.size ?? 10 })}`
     );
     return res.data;
 }
@@ -192,9 +211,33 @@ export async function handoverShipment(
     return res.data;
 }
 
+// Live tracking for a supplier-owned shipment (same simulation as the
+// logistics board, supplier-scoped on the backend).
+export async function getSupplierShipmentPosition(
+    shipmentId: number
+): Promise<ShipmentPosition> {
+    const res = await apiClient.get<ShipmentPosition>(
+        `${BASE}/shipments/${shipmentId}/position`
+    );
+    return res.data;
+}
+
+export async function getSupplierShipmentEta(
+    shipmentId: number
+): Promise<ShipmentEta> {
+    const res = await apiClient.get<ShipmentEta>(
+        `${BASE}/shipments/${shipmentId}/eta`
+    );
+    return res.data;
+}
+
 export async function extendCapacityForPartnership(
     forecastId: number,
-    data: { partnershipId: number; newPeriodEnd: string; availableCapacity?: number }
+    data: {
+        partnershipId: number;
+        newPeriodEnd: string;
+        availableCapacity?: number;
+    }
 ): Promise<unknown> {
     const res = await apiClient.put(
         `/iam/core/logistics/operations/capacity/${forecastId}/extend-for-partnership`,

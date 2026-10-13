@@ -1,6 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Archive, Check, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import {
+    Archive,
+    Check,
+    Loader2,
+    Pencil,
+    Plus,
+    RotateCcw,
+    Trash2,
+} from 'lucide-react';
 import type { SupplierCatalog } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -104,17 +104,22 @@ export default function SupplierPartnershipsPage() {
         const load = async () => {
             setIsLoading(true);
             try {
-                const [partnershipsRes, receivedRes, logisticsRes, dirRes, quotesRes] =
-                    await Promise.all([
-                        getSupplierPartnerships(),
-                        getSupplierReceivedInvitations({
-                            pageNo: 0,
-                            pageOffset: 20,
-                        }),
-                        getSupplierLogisticsPartnerships().catch(() => null),
-                        getOrganizationDirectory('LOGISTICS').catch(() => []),
-                        getSupplierQuotations().catch(() => null),
-                    ]);
+                const [
+                    partnershipsRes,
+                    receivedRes,
+                    logisticsRes,
+                    dirRes,
+                    quotesRes,
+                ] = await Promise.all([
+                    getSupplierPartnerships(),
+                    getSupplierReceivedInvitations({
+                        pageNo: 0,
+                        pageOffset: 20,
+                    }),
+                    getSupplierLogisticsPartnerships().catch(() => null),
+                    getOrganizationDirectory('LOGISTICS').catch(() => []),
+                    getSupplierQuotations().catch(() => null),
+                ]);
                 if (!active) return;
                 setPartnerships(partnershipsRes.content ?? []);
                 setReceived(receivedRes.content ?? []);
@@ -131,7 +136,7 @@ export default function SupplierPartnershipsPage() {
             } finally {
                 if (active) setIsLoading(false);
             }
-    };
+        };
         load();
         return () => {
             active = false;
@@ -155,15 +160,20 @@ export default function SupplierPartnershipsPage() {
                     ? 'Invitation accepted'
                     : 'Invitation rejected'
             );
-            const [partnershipsRes, receivedRes, logisticsRes, quotesRes] = await Promise.all([
-                getSupplierPartnerships(),
-                getSupplierReceivedInvitations({ pageNo: 0, pageOffset: 20 }),
-                getSupplierLogisticsPartnerships().catch(() => null),
-                getSupplierQuotations().catch(() => null),
-            ]);
+            const [partnershipsRes, receivedRes, logisticsRes, quotesRes] =
+                await Promise.all([
+                    getSupplierPartnerships(),
+                    getSupplierReceivedInvitations({
+                        pageNo: 0,
+                        pageOffset: 20,
+                    }),
+                    getSupplierLogisticsPartnerships().catch(() => null),
+                    getSupplierQuotations().catch(() => null),
+                ]);
             setPartnerships(partnershipsRes.content ?? []);
             setReceived(receivedRes.content ?? []);
-            if (logisticsRes) setLogisticsPartnerships(logisticsRes.content ?? []);
+            if (logisticsRes)
+                setLogisticsPartnerships(logisticsRes.content ?? []);
             if (quotesRes) setQuotations(quotesRes.content ?? []);
         } catch (err: unknown) {
             toast.error(
@@ -259,9 +269,7 @@ export default function SupplierPartnershipsPage() {
         return text ? text : undefined;
     };
 
-    const logisticsPartnerName = (
-        p: SupplierLogisticsPartnership
-    ): string => {
+    const logisticsPartnerName = (p: SupplierLogisticsPartnership): string => {
         const own = Number(orgId);
         const counterparty =
             Number.isFinite(own) && Number(p.primaryOrgId) === own
@@ -304,9 +312,7 @@ export default function SupplierPartnershipsPage() {
         );
     };
 
-    const [terminating, setTerminating] = useState<OrgPartnership | null>(
-        null
-    );
+    const [terminating, setTerminating] = useState<OrgPartnership | null>(null);
 
     const handleTerminate = async () => {
         if (!terminating) return;
@@ -320,7 +326,11 @@ export default function SupplierPartnershipsPage() {
             setPartnerships((prev) =>
                 prev.map((x) =>
                     x.partnershipId === p.partnershipId
-                        ? { ...x, ...updated, status: updated.status || 'TERMINATED' }
+                        ? {
+                              ...x,
+                              ...updated,
+                              status: updated.status || 'TERMINATED',
+                          }
                         : x
                 )
             );
@@ -410,8 +420,10 @@ export default function SupplierPartnershipsPage() {
                                                             size="sm"
                                                             variant="outline"
                                                             disabled={
-                                                                busyId === p.partnershipId ||
-                                                                p.status === 'TERMINATED'
+                                                                busyId ===
+                                                                    p.partnershipId ||
+                                                                p.status ===
+                                                                    'TERMINATED'
                                                             }
                                                             onClick={() =>
                                                                 openEdit(p)
@@ -423,11 +435,15 @@ export default function SupplierPartnershipsPage() {
                                                             size="sm"
                                                             variant="destructive"
                                                             disabled={
-                                                                busyId === p.partnershipId ||
-                                                                p.status === 'TERMINATED'
+                                                                busyId ===
+                                                                    p.partnershipId ||
+                                                                p.status ===
+                                                                    'TERMINATED'
                                                             }
                                                             onClick={() =>
-                                                                setTerminating(p)
+                                                                setTerminating(
+                                                                    p
+                                                                )
                                                             }
                                                         >
                                                             Terminate
@@ -470,9 +486,7 @@ export default function SupplierPartnershipsPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {logisticsPartnerships.map((p) => (
-                                            <TableRow
-                                                key={p.partnershipId}
-                                            >
+                                            <TableRow key={p.partnershipId}>
                                                 <TableCell>
                                                     {p.partnershipId}
                                                 </TableCell>
@@ -486,8 +500,7 @@ export default function SupplierPartnershipsPage() {
                                                                 ''
                                                         ).toUpperCase();
                                                         if (
-                                                            term ===
-                                                            'LONG_TERM'
+                                                            term === 'LONG_TERM'
                                                         )
                                                             return (
                                                                 <Badge>
@@ -550,9 +563,7 @@ export default function SupplierPartnershipsPage() {
                                                                     p.partnershipId
                                                                 }
                                                                 onClick={() =>
-                                                                    terminate(
-                                                                        p
-                                                                    )
+                                                                    terminate(p)
                                                                 }
                                                             >
                                                                 Confirm?
@@ -589,9 +600,8 @@ export default function SupplierPartnershipsPage() {
                             {quotations.length === 0 ? (
                                 <p className="p-4 text-sm text-muted-foreground">
                                     No quotations from logistics partners yet.
-                                    They appear here when a partner answers
-                                    your long-term proposal with their own
-                                    terms.
+                                    They appear here when a partner answers your
+                                    long-term proposal with their own terms.
                                 </p>
                             ) : (
                                 <Table>
@@ -698,49 +708,56 @@ export default function SupplierPartnershipsPage() {
                         </Card>
                         <Card className="p-4 gap-2">
                             <CardHeader className="p-0">
-                            <CardTitle>Closed Partnerships</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0 space-y-4">
-                            {closedPartnerships.length > 0 && (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>ID</TableHead>
-                                            <TableHead>Partner Org</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Start</TableHead>
-                                            <TableHead>End</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {closedPartnerships.map((p) => (
-                                            <TableRow key={p.partnershipId}>
-                                                <TableCell>
-                                                    {p.partnershipId}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {counterpartyLabelOf(p, orgId)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {p.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {formatDate(p.startDate)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {formatDate(p.endDate)}
-                                                </TableCell>
+                                <CardTitle>Closed Partnerships</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0 space-y-4">
+                                {closedPartnerships.length > 0 && (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>
+                                                    Partner Org
+                                                </TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Start</TableHead>
+                                                <TableHead>End</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
-                            <PartnershipInvitationList
-                                invitations={receivedHistory}
-                                emptyText="No accepted or rejected invitations yet."
-                            />
+                                        </TableHeader>
+                                        <TableBody>
+                                            {closedPartnerships.map((p) => (
+                                                <TableRow key={p.partnershipId}>
+                                                    <TableCell>
+                                                        {p.partnershipId}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {counterpartyLabelOf(
+                                                            p,
+                                                            orgId
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline">
+                                                            {p.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {formatDate(
+                                                            p.startDate
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {formatDate(p.endDate)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                                <PartnershipInvitationList
+                                    invitations={receivedHistory}
+                                    emptyText="No accepted or rejected invitations yet."
+                                />
                             </CardContent>
                         </Card>
                     </div>
@@ -808,15 +825,13 @@ export default function SupplierPartnershipsPage() {
                                             {String(
                                                 l.fromLane ?? l.from ?? '—'
                                             )}{' '}
-                                            →{' '}
-                                            {String(l.toLane ?? l.to ?? '—')}
+                                            → {String(l.toLane ?? l.to ?? '—')}
                                         </span>
                                         <span className="font-mono text-xs">
                                             {(l.capacity as number) ?? '—'}{' '}
                                             {capacityUnitLabel(
-                                                String(
-                                                    l.capacityUnit ?? ''
-                                                ) || undefined
+                                                String(l.capacityUnit ?? '') ||
+                                                    undefined
                                             )}
                                             {l.unitPrice !== undefined &&
                                             l.unitPrice !== null
@@ -825,8 +840,7 @@ export default function SupplierPartnershipsPage() {
                                         </span>
                                     </div>
                                 ))}
-                                {parseQuoteLines(quoteViewing).length ===
-                                    0 && (
+                                {parseQuoteLines(quoteViewing).length === 0 && (
                                     <p className="px-3 py-4 text-center text-sm text-muted-foreground">
                                         No route lines.
                                     </p>

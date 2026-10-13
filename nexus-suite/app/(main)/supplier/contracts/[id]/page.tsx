@@ -75,9 +75,8 @@ export default function SupplierContractDetailPage() {
                 if (!active) return;
                 setContract(data);
                 try {
-                    const doc = await getSupplierContractDocumentContent(
-                        numericId
-                    );
+                    const doc =
+                        await getSupplierContractDocumentContent(numericId);
                     if (!active) return;
                     if (doc.content) setDocHtml(markdownToHtml(doc.content));
                 } catch {
@@ -143,9 +142,7 @@ export default function SupplierContractDetailPage() {
                       : 'Amendments requested'
             );
         } catch (err: unknown) {
-            toast.error(
-                err instanceof Error ? err.message : 'Action failed'
-            );
+            toast.error(err instanceof Error ? err.message : 'Action failed');
         } finally {
             setBusy(false);
             setConfirm(null);
@@ -286,7 +283,8 @@ export default function SupplierContractDetailPage() {
                                             ? new Date(
                                                   contract.expiryDate
                                               ).toLocaleDateString()
-                                            : '—'}
+                                            : '—'
+                                    }
                                 />
                                 {contract.description && (
                                     <div className="text-sm">
@@ -417,9 +415,7 @@ export default function SupplierContractDetailPage() {
                             <Textarea
                                 id="supplier-comments"
                                 value={comments}
-                                onChange={(e) =>
-                                    setComments(e.target.value)
-                                }
+                                onChange={(e) => setComments(e.target.value)}
                                 placeholder={
                                     confirm === 'reject'
                                         ? 'e.g. Pricing not acceptable'

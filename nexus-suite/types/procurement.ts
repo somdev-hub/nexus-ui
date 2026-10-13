@@ -10,6 +10,18 @@ export type InvoiceStatus =
     | 'PAID'
     | 'CANCELLED';
 
+export interface GoodsReceiptLineItem {
+    grLineItemId?: number;
+    poLineItemId?: number;
+    lineNumber?: number;
+    quantityReceived?: number;
+    quantityAccepted?: number;
+    quantityRejected?: number;
+    unitOfMeasure?: string;
+    notes?: string;
+    description?: string;
+}
+
 export interface GoodsReceipt {
     goodsReceiptId: number;
     grNumber: string;
@@ -20,7 +32,13 @@ export interface GoodsReceipt {
     status: GoodsReceiptStatus;
     receivedDate?: string;
     deliveryNoteNumber?: string;
+    carrier?: string;
+    trackingNumber?: string;
     notes?: string;
+    lineItems?: GoodsReceiptLineItem[];
+    receivedAt?: string;
+    returnedAt?: string;
+    cancelledAt?: string;
     totalQuantity?: number;
     createdAt: string;
     updatedAt: string;
@@ -34,6 +52,19 @@ export interface GoodsReceiptFilter {
     pageOffset?: number;
 }
 
+export interface InvoiceLineItem {
+    invoiceLineItemId?: number;
+    poLineItemId?: number;
+    grLineItemId?: number;
+    lineNumber?: number;
+    quantityInvoiced?: number;
+    unitPrice?: number;
+    lineTotal?: number;
+    unitOfMeasure?: string;
+    notes?: string;
+    description?: string;
+}
+
 export interface Invoice {
     invoiceId: number;
     invoiceNumber: string;
@@ -45,8 +76,18 @@ export interface Invoice {
     invoiceDate?: string;
     dueDate?: string;
     totalAmount: number;
+    taxAmount?: number;
+    otherCharges?: number;
     currency: string;
     paymentTerms?: string;
+    supplierInvoiceNumber?: string;
+    notes?: string;
+    lineItems?: InvoiceLineItem[];
+    approvedBy?: string;
+    approvedAt?: string;
+    rejectionReason?: string;
+    submittedAt?: string;
+    paidAt?: string;
     createdAt: string;
     updatedAt: string;
 }

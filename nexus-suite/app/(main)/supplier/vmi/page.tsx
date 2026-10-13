@@ -130,10 +130,7 @@ export default function VmiPage() {
                     const name = isPrimary
                         ? p.secondaryOrgName
                         : p.primaryOrgName;
-                    seen.set(
-                        id,
-                        name ? `${name} (#${id})` : `Org #${id}`
-                    );
+                    seen.set(id, name ? `${name} (#${id})` : `Org #${id}`);
                 }
                 setRetailers(
                     [...seen.entries()].map(([orgId, label]) => ({
@@ -314,9 +311,7 @@ export default function VmiPage() {
                 <Label>Material</Label>
                 <Select
                     value={value.materialId ? String(value.materialId) : ''}
-                    onValueChange={(v) =>
-                        setValue({ ...value, materialId: v })
-                    }
+                    onValueChange={(v) => setValue({ ...value, materialId: v })}
                 >
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select material" />

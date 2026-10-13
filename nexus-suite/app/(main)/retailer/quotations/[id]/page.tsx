@@ -178,10 +178,7 @@ export default function RetailerQuotationDetailPage() {
                     </div>
                     <div className="flex gap-2">
                         {quotation.status === 'SENT' && (
-                            <Button
-                                onClick={handleAccept}
-                                disabled={accepting}
-                            >
+                            <Button onClick={handleAccept} disabled={accepting}>
                                 {accepting ? 'Accepting…' : 'Accept'}
                             </Button>
                         )}

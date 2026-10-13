@@ -930,7 +930,9 @@ export default function FleetPage() {
                                     <div className="grid gap-2">
                                         <Label>Asset</Label>
                                         <Select
-                                            value={maintForm.assetId || undefined}
+                                            value={
+                                                maintForm.assetId || undefined
+                                            }
                                             onValueChange={(v) =>
                                                 setMaintForm({
                                                     ...maintForm,
@@ -945,7 +947,9 @@ export default function FleetPage() {
                                                 {assets?.content?.map((a) => (
                                                     <SelectItem
                                                         key={a.assetId}
-                                                        value={String(a.assetId)}
+                                                        value={String(
+                                                            a.assetId
+                                                        )}
                                                     >
                                                         {a.assetNumber} (#
                                                         {a.assetId})
@@ -1192,8 +1196,10 @@ export default function FleetPage() {
                                                                 To Maintenance
                                                             </LoadingButton>
                                                         )}
-                                                        {a.status ===
-                                                            'IN_MAINTENANCE' && (
+                                                        {a.status !==
+                                                            'AVAILABLE' &&
+                                                            a.status !==
+                                                                'RETIRED' && (
                                                             <LoadingButton
                                                                 loading={
                                                                     busy ===

@@ -68,9 +68,7 @@ export default function DigitalAssetsPage() {
         fileName: '',
     });
     const [file, setFile] = useState<File | null>(null);
-    const [deleting, setDeleting] = useState<SupplierDigitalAsset | null>(
-        null
-    );
+    const [deleting, setDeleting] = useState<SupplierDigitalAsset | null>(null);
     const [deleteBusy, setDeleteBusy] = useState(false);
     const load = async () => {
         setLoading(true);
@@ -134,10 +132,7 @@ export default function DigitalAssetsPage() {
                 await uploadDigitalAssetFile(created.assetId, file);
                 toast({ title: 'Asset created', variant: 'success' });
             } catch (uploadError) {
-                console.error(
-                    'Failed to upload asset file:',
-                    uploadError
-                );
+                console.error('Failed to upload asset file:', uploadError);
                 const serverMessage = (
                     uploadError as {
                         response?: { data?: { message?: string } };
@@ -382,12 +377,10 @@ export default function DigitalAssetsPage() {
                         <AlertDialogDescription>
                             This will permanently delete &ldquo;
                             {deleting?.fileName ??
-                                (deleting
-                                    ? `Asset #${deleting.assetId}`
-                                    : '')}
-                            &rdquo;. Quotations referencing this asset will
-                            keep their saved file links, but the asset
-                            itself cannot be recovered.
+                                (deleting ? `Asset #${deleting.assetId}` : '')}
+                            &rdquo;. Quotations referencing this asset will keep
+                            their saved file links, but the asset itself cannot
+                            be recovered.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

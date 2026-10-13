@@ -224,8 +224,7 @@ function notifyServerError(error: AxiosError) {
     const status = error.response?.status;
     if (status === undefined || status < 500) return;
     const data = error.response?.data as
-        | { message?: unknown; error?: unknown }
-        | undefined;
+        { message?: unknown; error?: unknown } | undefined;
     let message =
         typeof data?.message === 'string' && data.message.trim()
             ? data.message

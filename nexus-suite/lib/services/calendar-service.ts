@@ -122,7 +122,8 @@ async function getShipmentActivities(
                 title: `Pickup ${s.shipmentNumber}`,
                 start: s.pickupDate,
                 location: s.pickupAddress ?? s.pickupLocation,
-                description: `${s.pickupAddress ?? s.pickupLocation ?? ''} → ${s.deliveryAddress ?? s.deliveryLocation ?? ''}`.trim(),
+                description:
+                    `${s.pickupAddress ?? s.pickupLocation ?? ''} → ${s.deliveryAddress ?? s.deliveryLocation ?? ''}`.trim(),
             });
         }
         if (s.deliveryDate && inRange(s.deliveryDate, startMs, endMs)) {
@@ -133,7 +134,8 @@ async function getShipmentActivities(
                 title: `Delivery ${s.shipmentNumber}`,
                 start: s.deliveryDate,
                 location: s.deliveryAddress ?? s.deliveryLocation,
-                description: `${s.pickupAddress ?? s.pickupLocation ?? ''} → ${s.deliveryAddress ?? s.deliveryLocation ?? ''}`.trim(),
+                description:
+                    `${s.pickupAddress ?? s.pickupLocation ?? ''} → ${s.deliveryAddress ?? s.deliveryLocation ?? ''}`.trim(),
             });
         }
         if (
@@ -161,7 +163,10 @@ async function getShipmentActivities(
             if (r.status !== 'fulfilled') return;
             const shipment = shipments[i];
             for (const stop of r.value ?? []) {
-                if (!stop.scheduledDate || !inRange(stop.scheduledDate, startMs, endMs))
+                if (
+                    !stop.scheduledDate ||
+                    !inRange(stop.scheduledDate, startMs, endMs)
+                )
                     continue;
                 activities.push({
                     id: `stop-${stop.stopId}`,
@@ -191,19 +196,30 @@ export async function getLogisticsCalendarActivities(
     const startDate = toISODate(rangeStart);
     const endDate = toISODate(rangeEnd);
 
-    const [shipmentActs, appointmentsRes, maintenanceRes, incidentsRes, capacityRes] =
-        await Promise.all([
-            getShipmentActivities(rangeStart, rangeEnd, '/logistics/shipments', true, '/logistics/routing'),
-            getDeliveryAppointments({
-                fromDate: startDate,
-                toDate: endDate,
-                pageNo: 0,
-                pageOffset: 100,
-            }).catch(() => null),
-            getMaintenanceRecords({ page: 0, size: 100 }).catch(() => null),
-            getShipmentIncidents({ page: 0, size: 100 }).catch(() => null),
-            getCapacityForecasts({ page: 0, size: 100 }).catch(() => null),
-        ]);
+    const [
+        shipmentActs,
+        appointmentsRes,
+        maintenanceRes,
+        incidentsRes,
+        capacityRes,
+    ] = await Promise.all([
+        getShipmentActivities(
+            rangeStart,
+            rangeEnd,
+            '/logistics/shipments',
+            true,
+            '/logistics/routing'
+        ),
+        getDeliveryAppointments({
+            fromDate: startDate,
+            toDate: endDate,
+            pageNo: 0,
+            pageOffset: 100,
+        }).catch(() => null),
+        getMaintenanceRecords({ page: 0, size: 100 }).catch(() => null),
+        getShipmentIncidents({ page: 0, size: 100 }).catch(() => null),
+        getCapacityForecasts({ page: 0, size: 100 }).catch(() => null),
+    ]);
 
     const activities: CalendarActivity[] = [...shipmentActs];
 
@@ -224,7 +240,8 @@ export async function getLogisticsCalendarActivities(
     }
 
     for (const m of maintenanceRes?.content ?? []) {
-        if (!m.scheduledDate || !inRange(m.scheduledDate, startMs, endMs)) continue;
+        if (!m.scheduledDate || !inRange(m.scheduledDate, startMs, endMs))
+            continue;
         activities.push({
             id: `maint-${m.maintenanceId}`,
             kind: 'maintenance',
@@ -238,7 +255,8 @@ export async function getLogisticsCalendarActivities(
     }
 
     for (const inc of incidentsRes?.content ?? []) {
-        if (!inc.reportedAt || !inRange(inc.reportedAt, startMs, endMs)) continue;
+        if (!inc.reportedAt || !inRange(inc.reportedAt, startMs, endMs))
+            continue;
         activities.push({
             id: `incident-${inc.incidentId}`,
             kind: 'incident',
@@ -297,14 +315,29 @@ export async function getSupplierCalendarActivities(
     const [ordersRes, quotesRes, capacityRes, forecastsRes, certsRes] =
         await Promise.all([
             getSupplierOrders({ page: 0, size: 100 }).catch(() => null),
-            getQuotations({ validFrom: startDate, validTo: endDate, page: 0, size: 100 }).catch(
-                () => getQuotations({ page: 0, size: 100 }).catch(() => null)
+            getQuotations({
+                validFrom: startDate,
+                validTo: endDate,
+                page: 0,
+                size: 100,
+            }).catch(() =>
+                getQuotations({ page: 0, size: 100 }).catch(() => null)
             ),
-            getCapacities({ periodStart: startDate, periodEnd: endDate, page: 0, size: 100 }).catch(
-                () => getCapacities({ page: 0, size: 100 }).catch(() => null)
+            getCapacities({
+                periodStart: startDate,
+                periodEnd: endDate,
+                page: 0,
+                size: 100,
+            }).catch(() =>
+                getCapacities({ page: 0, size: 100 }).catch(() => null)
             ),
-            getForecasts({ periodStart: startDate, periodEnd: endDate, page: 0, size: 100 }).catch(
-                () => getForecasts({ page: 0, size: 100 }).catch(() => null)
+            getForecasts({
+                periodStart: startDate,
+                periodEnd: endDate,
+                page: 0,
+                size: 100,
+            }).catch(() =>
+                getForecasts({ page: 0, size: 100 }).catch(() => null)
             ),
             getQualityCerts({ page: 0, size: 100 }).catch(() => null),
         ]);
@@ -352,7 +385,10 @@ export async function getSupplierCalendarActivities(
                 start: q.validTo,
                 status: q.status,
                 location: q.buyerOrgName,
-                description: q.totalAmount != null ? `Total ${q.totalAmount} ${q.currency ?? ''}`.trim() : undefined,
+                description:
+                    q.totalAmount != null
+                        ? `Total ${q.totalAmount} ${q.currency ?? ''}`.trim()
+                        : undefined,
                 href: '/supplier/quotations',
             });
         }
@@ -363,7 +399,9 @@ export async function getSupplierCalendarActivities(
         activities.push({
             id: `sup-cap-${c.capacityId}`,
             kind: 'capacity',
-            title: `Capacity ${c.productLine ?? ''} ${c.shift ?? ''}`.trim() || 'Production capacity',
+            title:
+                `Capacity ${c.productLine ?? ''} ${c.shift ?? ''}`.trim() ||
+                'Production capacity',
             start: c.periodStart,
             end: c.periodEnd,
             allDay: true,
@@ -392,7 +430,8 @@ export async function getSupplierCalendarActivities(
     }
 
     for (const cert of certsRes?.content ?? []) {
-        if (!cert.expiryDate || !inRange(cert.expiryDate, startMs, endMs)) continue;
+        if (!cert.expiryDate || !inRange(cert.expiryDate, startMs, endMs))
+            continue;
         activities.push({
             id: `cert-${cert.certificateId}`,
             kind: 'cert',
@@ -428,17 +467,18 @@ export async function getRetailerCalendarActivities(
     const startDate = toISODate(rangeStart);
     const endDate = toISODate(rangeEnd);
 
-    const [posRes, invoicesRes, receiptsRes] =
-        await Promise.all([
-            getPurchaseOrders({
-                orderDateFrom: startDate,
-                orderDateTo: endDate,
-                pageNo: 0,
-                pageOffset: 100,
-            }).catch(() => getPurchaseOrders({ pageNo: 0, pageOffset: 100 }).catch(() => null)),
-            getInvoices({ pageNo: 0, pageOffset: 100 }).catch(() => null),
-            getGoodsReceipts({ pageNo: 0, pageOffset: 100 }).catch(() => null),
-        ]);
+    const [posRes, invoicesRes, receiptsRes] = await Promise.all([
+        getPurchaseOrders({
+            orderDateFrom: startDate,
+            orderDateTo: endDate,
+            pageNo: 0,
+            pageOffset: 100,
+        }).catch(() =>
+            getPurchaseOrders({ pageNo: 0, pageOffset: 100 }).catch(() => null)
+        ),
+        getInvoices({ pageNo: 0, pageOffset: 100 }).catch(() => null),
+        getGoodsReceipts({ pageNo: 0, pageOffset: 100 }).catch(() => null),
+    ]);
 
     const activities: CalendarActivity[] = [];
 
@@ -454,7 +494,10 @@ export async function getRetailerCalendarActivities(
                 href: '/retailer/purchase-orders',
             });
         }
-        if (po.expectedDeliveryDate && inRange(po.expectedDeliveryDate, startMs, endMs)) {
+        if (
+            po.expectedDeliveryDate &&
+            inRange(po.expectedDeliveryDate, startMs, endMs)
+        ) {
             activities.push({
                 id: `po-exp-${po.purchaseOrderId}`,
                 kind: 'purchase',
@@ -495,7 +538,8 @@ export async function getRetailerCalendarActivities(
     }
 
     for (const gr of receiptsRes?.content ?? []) {
-        if (!gr.receivedDate || !inRange(gr.receivedDate, startMs, endMs)) continue;
+        if (!gr.receivedDate || !inRange(gr.receivedDate, startMs, endMs))
+            continue;
         activities.push({
             id: `gr-${gr.goodsReceiptId}`,
             kind: 'receipt',

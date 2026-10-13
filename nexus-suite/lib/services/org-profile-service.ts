@@ -36,9 +36,7 @@ function toAddressList(data: unknown): OrgAddress[] {
 export async function getOrgAddresses(
     orgId: number | string
 ): Promise<OrgAddress[]> {
-    const res = await apiClient.get<unknown>(
-        `/iam/hr/orgs/${orgId}/addresses`
-    );
+    const res = await apiClient.get<unknown>(`/iam/hr/orgs/${orgId}/addresses`);
     return toAddressList(res.data);
 }
 
@@ -70,7 +68,10 @@ export function formatOrgAddress(a: OrgAddress): string {
 /** Short label for dropdown options. */
 export function orgAddressOptionLabel(a: OrgAddress): string {
     const main = (a.label ?? '').trim() || `Address #${a.orgAddressId ?? ''}`;
-    const city = [a.city, a.pincode].map((v) => (v ?? '').trim()).filter(Boolean).join(', ');
+    const city = [a.city, a.pincode]
+        .map((v) => (v ?? '').trim())
+        .filter(Boolean)
+        .join(', ');
     const kind = (a.addressType ?? '').trim();
     return [main, city, kind].filter(Boolean).join(' · ');
 }

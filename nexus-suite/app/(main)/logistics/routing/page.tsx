@@ -93,9 +93,7 @@ function CapacityTableRow({
                         href="/logistics/partnership/management"
                         title="Open partnership management"
                     >
-                        <Badge variant="secondary">
-                            #{c.partnershipId}
-                        </Badge>
+                        <Badge variant="secondary">#{c.partnershipId}</Badge>
                     </Link>
                 </TableCell>
             )}
@@ -139,12 +137,10 @@ function CapacityTableRow({
                             c.fuelSurcharge !== null
                                 ? `fuel +${c.fuelSurcharge}`
                                 : null,
-                            c.driverFees !== undefined &&
-                            c.driverFees !== null
+                            c.driverFees !== undefined && c.driverFees !== null
                                 ? `driver +${c.driverFees}`
                                 : null,
-                            c.miscPrice !== undefined &&
-                            c.miscPrice !== null
+                            c.miscPrice !== undefined && c.miscPrice !== null
                                 ? `misc +${c.miscPrice}`
                                 : null,
                         ]
@@ -401,7 +397,8 @@ export default function RoutingPage() {
                 availableCapacity: capForm.availableCapacity
                     ? Number(capForm.availableCapacity)
                     : undefined,
-                capacityUnit: capForm.capacityUnit as CapacityForecast['capacityUnit'],
+                capacityUnit:
+                    capForm.capacityUnit as CapacityForecast['capacityUnit'],
                 unitPrice: capForm.unitPrice
                     ? Number(capForm.unitPrice)
                     : undefined,
@@ -582,7 +579,8 @@ export default function RoutingPage() {
                 bookedCapacity: capEdit.bookedCapacity
                     ? Number(capEdit.bookedCapacity)
                     : undefined,
-                capacityUnit: capEdit.capacityUnit as CapacityForecast['capacityUnit'],
+                capacityUnit:
+                    capEdit.capacityUnit as CapacityForecast['capacityUnit'],
                 unitPrice: capEdit.unitPrice
                     ? Number(capEdit.unitPrice)
                     : undefined,
@@ -659,9 +657,7 @@ export default function RoutingPage() {
             periodStart: c.periodStart ?? '',
             periodEnd: c.periodEnd ?? '',
             availableCapacity:
-                c.availableCapacity != null
-                    ? String(c.availableCapacity)
-                    : '',
+                c.availableCapacity != null ? String(c.availableCapacity) : '',
             bookedCapacity:
                 c.bookedCapacity != null ? String(c.bookedCapacity) : '',
             capacityUnit: c.capacityUnit ?? 'KG',
@@ -954,7 +950,8 @@ export default function RoutingPage() {
                                             onChange={(e) =>
                                                 setCapForm({
                                                     ...capForm,
-                                                    currency: e.target.value.toUpperCase(),
+                                                    currency:
+                                                        e.target.value.toUpperCase(),
                                                 })
                                             }
                                         />
@@ -1173,9 +1170,7 @@ export default function RoutingPage() {
                                             <div className="grid gap-2">
                                                 <Label>Dim. unit</Label>
                                                 <Select
-                                                    value={
-                                                        capForm.dimensionUom
-                                                    }
+                                                    value={capForm.dimensionUom}
                                                     onValueChange={(v) =>
                                                         setCapForm({
                                                             ...capForm,
@@ -2104,8 +2099,7 @@ export default function RoutingPage() {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>
-                                            Fuel surcharge (auto = fuel ×
-                                            price)
+                                            Fuel surcharge (auto = fuel × price)
                                         </Label>
                                         <Input
                                             type="number"
@@ -2215,9 +2209,7 @@ export default function RoutingPage() {
                                     </Select>
                                 </div>
                             </div>
-                            {isUnitizedCapacityUnit(
-                                capEdit.capacityUnit
-                            ) && (
+                            {isUnitizedCapacityUnit(capEdit.capacityUnit) && (
                                 <div className="grid gap-3 rounded-md border p-3">
                                     <p className="text-sm font-medium">
                                         Unit specifications (per{' '}
@@ -2300,8 +2292,8 @@ export default function RoutingPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="grid gap-2">
                                             <Label>
-                                                Total volume per unit
-                                                (optional — auto from L×W×H)
+                                                Total volume per unit (optional
+                                                — auto from L×W×H)
                                             </Label>
                                             <Input
                                                 type="number"

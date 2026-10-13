@@ -50,10 +50,7 @@ import {
     getSupplierCatalogs,
 } from '@/lib/services/supplier-catalog-service';
 import type { SupplierBrowseItem } from '@/lib/services/supplier-market-service';
-import type {
-    SupplierCatalog,
-    SupplierQuotation,
-} from '@/types/supplier';
+import type { SupplierCatalog, SupplierQuotation } from '@/types/supplier';
 
 export default function SupplierQuotationDetailPage() {
     const params = useParams();
@@ -107,17 +104,14 @@ export default function SupplierQuotationDetailPage() {
                     setCatalogs(catalogs.content ?? []);
                     const cmap: Record<number, SupplierBrowseItem> = {};
                     for (const c of catalogs.content ?? []) {
-                        cmap[c.catalogId] =
-                            c as unknown as SupplierBrowseItem;
+                        cmap[c.catalogId] = c as unknown as SupplierBrowseItem;
                     }
                     setCatalogById(cmap);
                     const catalogIds = [
                         ...new Set(
                             (q.lineItems ?? [])
                                 .map((li) => li.catalogId)
-                                .filter(
-                                    (v): v is number => v !== undefined
-                                )
+                                .filter((v): v is number => v !== undefined)
                         ),
                     ];
                     const assetMap: Record<number, QuotationAssetInfo> = {};
@@ -132,8 +126,7 @@ export default function SupplierQuotationDetailPage() {
                                 for (const a of res.content ?? []) {
                                     assetMap[a.assetId] = {
                                         name:
-                                            a.fileName ??
-                                            `Asset #${a.assetId}`,
+                                            a.fileName ?? `Asset #${a.assetId}`,
                                         url: a.dmsDocumentUrl ?? null,
                                         type: a.assetType ?? null,
                                     };
