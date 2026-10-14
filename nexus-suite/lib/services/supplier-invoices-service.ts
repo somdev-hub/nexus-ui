@@ -38,6 +38,7 @@ export interface SupplierInvoice {
     totalAmount: number;
     taxAmount?: number;
     otherCharges?: number;
+    otherChargesBreakdown?: string;
     currency: string;
     paymentTerms?: string;
     supplierInvoiceNumber?: string;
@@ -50,6 +51,37 @@ export interface SupplierInvoice {
     paidAt?: string;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface OtherCharge {
+    amount: string;
+    description: string;
+}
+
+export function parseChargesBreakdown(value?: string | null): OtherCharge[] {
+    if (!value) return [];
+    try {
+        const parsed: unknown = JSON.parse(value);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter(
+                (r): r is { amount?: unknown; description?: unknown } =>
+                    typeof r === 'object' && r !== null
+            )
+            .map((r) => ({
+                amount:
+                    typeof r.amount === 'number'
+                        ? String(r.amount)
+                        : typeof r.amount === 'string'
+                          ? r.amount
+                          : '',
+                description:
+                    typeof r.description === 'string' ? r.description : '',
+            }))
+            .filter((r) => r.amount.trim() !== '' || r.description.trim() !== '');
+    } catch {
+        return [];
+    }
 }
 
 function toQuery(params: Record<string, unknown> = {}): string {

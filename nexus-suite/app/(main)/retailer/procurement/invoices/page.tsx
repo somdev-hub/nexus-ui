@@ -21,12 +21,20 @@ import {
 } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
 import {
+    createSuiteIntent,
+    listSuiteIntents,
+    suiteIdempotencyKey,
+} from '@/lib/services/payments-service';
+import type { SuiteIntent } from '@/types/payments';
+import {
     getInvoiceById,
     getInvoices,
     transitionInvoice,
 } from '@/lib/services/procurement-extended-service';
 import type { Invoice } from '@/types/procurement';
+import { parseChargesBreakdown } from '@/lib/services/supplier-invoices-service';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -35,7 +43,7 @@ import { toast } from 'sonner';
 // from the shared goods receipt (charges + taxes included) and
 // submitted for approval. The retailer reviews, approves (gated
 // by three-way matching on the backend) or rejects with a reason,
-// then pays. Payment rails land later — Pay stays disabled.
+// then pays via the standalone mock PMS gateway.
 // ─────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
@@ -61,6 +69,7 @@ function fmtMoney(amount?: number | null, currency?: string): string {
 }
 
 export default function InvoicesPage() {
+    const router = useRouter();
     const { email, name } = useUserMetadata();
     const [data, setData] = useState<Invoice[]>([]);
     const [page, setPage] = useState(0);
@@ -73,6 +82,9 @@ export default function InvoicesPage() {
     const [busy, setBusy] = useState(false);
     const [rejectFor, setRejectFor] = useState<Invoice | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [payBusyId, setPayBusyId] = useState<number | null>(null);
+    // invoiceId -> in-flight session (INITIATED / PROCESSING / FAILED)
+    const [inflight, setInflight] = useState<Record<number, SuiteIntent>>({});
     const [confirm, setConfirm] = useState<{
         invoice: Invoice;
         status: 'APPROVED';
@@ -87,6 +99,26 @@ export default function InvoicesPage() {
             setTotalPages(r.totalPages ?? 1);
             setTotalElements(r.totalElements ?? 0);
             setLast(r.last ?? pageNo >= (r.totalPages ?? 1) - 1);
+            // Best-effort: map in-flight payment sessions so APPROVED rows
+            // show Continue instead of starting a duplicate session.
+            try {
+                const s = await listSuiteIntents({ page: 0, size: 100 });
+                const map: Record<number, SuiteIntent> = {};
+                for (const it of s.content ?? []) {
+                    if (
+                        it.invoiceId !== undefined &&
+                        it.invoiceId !== null &&
+                        (it.status === 'INITIATED' ||
+                            it.status === 'PROCESSING' ||
+                            it.status === 'FAILED')
+                    ) {
+                        map[it.invoiceId] = it;
+                    }
+                }
+                setInflight(map);
+            } catch {
+                // sessions are optional — Pay still works via idempotent create
+            }
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Failed');
         } finally {
@@ -151,6 +183,43 @@ export default function InvoicesPage() {
         }
     };
 
+    // Capture invoice snapshot into t_suite_payments, then hand off to
+    // the standalone (checkout) gateway with an encrypted ref param.
+    // Intent key is deterministic per invoice → double-clicks replay
+    // the same session (idempotent by nature).
+    const continueCheckout = (inv: Invoice) => {
+        const it = inflight[inv.invoiceId];
+        if (!it) {
+            startCheckout(inv);
+            return;
+        }
+        setViewing(null);
+        router.push(`/checkout?ref=${encodeURIComponent(it.ref)}`);
+    };
+
+    const startCheckout = async (inv: Invoice) => {
+        setPayBusyId(inv.invoiceId);
+        try {
+            const intent = await createSuiteIntent({
+                amount: inv.totalAmount,
+                currency: inv.currency,
+                description: `Invoice ${inv.supplierInvoiceNumber ?? inv.invoiceNumber}`,
+                invoiceId: inv.invoiceId,
+                invoiceNumber:
+                    inv.supplierInvoiceNumber ?? inv.invoiceNumber,
+                purchaseOrderId: inv.purchaseOrderId,
+                payerRole: 'RETAILER',
+                idempotencyKey: suiteIdempotencyKey(inv.invoiceId),
+            });
+            setViewing(null);
+            router.push(`/checkout?ref=${encodeURIComponent(intent.ref)}`);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Could not start checkout');
+        } finally {
+            setPayBusyId(null);
+        }
+    };
+
     if (isLoading && data.length === 0)
         return (
             <div className="p-6">
@@ -186,16 +255,8 @@ export default function InvoicesPage() {
                     <TableBody>
                         {data.map((i) => (
                             <TableRow key={i.invoiceId}>
-                                <TableCell>
-                                    <div className="font-mono">
-                                        {i.supplierInvoiceNumber ??
-                                            i.invoiceNumber}
-                                    </div>
-                                    {i.supplierInvoiceNumber && (
-                                        <div className="font-mono text-xs text-muted-foreground">
-                                            {i.invoiceNumber}
-                                        </div>
-                                    )}
+                                <TableCell className="font-mono">
+                                    {i.supplierInvoiceNumber ?? i.invoiceNumber}
                                 </TableCell>
                                 <TableCell>
                                     {i.poNumber || i.purchaseOrderId}
@@ -252,10 +313,19 @@ export default function InvoicesPage() {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                disabled
-                                                title="Payment rails land later"
+                                                disabled={
+                                                    viewLoading ||
+                                                    payBusyId === i.invoiceId
+                                                }
+                                                onClick={() =>
+                                                    continueCheckout(i)
+                                                }
                                             >
-                                                Pay
+                                                {payBusyId === i.invoiceId
+                                                    ? 'Starting…'
+                                                    : inflight[i.invoiceId]
+                                                      ? 'Continue'
+                                                      : 'Pay'}
                                             </Button>
                                         )}
                                     </div>
@@ -343,14 +413,6 @@ export default function InvoicesPage() {
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">
-                                        Internal reference
-                                    </p>
-                                    <p className="font-mono">
-                                        {viewing.invoiceNumber}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground">
                                         Invoice date
                                     </p>
                                     <p className="font-medium">
@@ -378,11 +440,25 @@ export default function InvoicesPage() {
                                     <p className="text-muted-foreground">
                                         Other charges
                                     </p>
-                                    <p className="font-medium">
+                                    <p className="font-medium break-words whitespace-normal">
                                         {fmtMoney(
                                             viewing.otherCharges,
                                             viewing.currency
                                         )}
+                                        {parseChargesBreakdown(
+                                            viewing.otherChargesBreakdown
+                                        ).map((c, i) => (
+                                            <span
+                                                key={i}
+                                                className="block text-xs text-muted-foreground"
+                                            >
+                                                {(
+                                                    Number(c.amount) || 0
+                                                ).toLocaleString()}{' '}
+                                                —{' '}
+                                                {c.description || 'Charge'}
+                                            </span>
+                                        ))}
                                     </p>
                                 </div>
                                 <div>
@@ -508,10 +584,18 @@ export default function InvoicesPage() {
                                 {viewing.status === 'APPROVED' && (
                                     <Button
                                         variant="outline"
-                                        disabled
-                                        title="Payment rails land later"
+                                        disabled={
+                                            payBusyId === viewing.invoiceId
+                                        }
+                                        onClick={() =>
+                                            continueCheckout(viewing)
+                                        }
                                     >
-                                        Pay
+                                        {payBusyId === viewing.invoiceId
+                                            ? 'Starting…'
+                                            : inflight[viewing.invoiceId]
+                                              ? 'Continue'
+                                              : 'Pay'}
                                     </Button>
                                 )}
                             </div>

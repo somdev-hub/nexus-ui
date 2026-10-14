@@ -111,7 +111,7 @@ function Detail({ label, value }: { label: string; value?: React.ReactNode }) {
     return (
         <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="break-words text-sm font-medium whitespace-normal">
+            <p className="wrap-break-word text-sm font-medium whitespace-normal">
                 {value ?? '—'}
             </p>
         </div>

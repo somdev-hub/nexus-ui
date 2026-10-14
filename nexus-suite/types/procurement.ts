@@ -78,6 +78,7 @@ export interface Invoice {
     totalAmount: number;
     taxAmount?: number;
     otherCharges?: number;
+    otherChargesBreakdown?: string;
     currency: string;
     paymentTerms?: string;
     supplierInvoiceNumber?: string;

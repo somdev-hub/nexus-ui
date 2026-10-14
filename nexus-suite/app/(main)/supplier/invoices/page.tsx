@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Plus, X } from 'lucide-react';
+import { CURRENCIES } from '@/lib/currency';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,8 +44,10 @@ import {
     getSupplierGoodsReceipts,
     getSupplierInvoice,
     getSupplierInvoices,
+    parseChargesBreakdown,
     transitionSupplierInvoice,
     updateSupplierInvoice,
+    type OtherCharge,
     type SupplierInvoice,
 } from '@/lib/services/supplier-invoices-service';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +59,9 @@ import { useToast } from '@/hooks/use-toast';
 // ─────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
+
+// Fixed tax: 18% of the base (lines) amount, non-editable.
+const TAX_RATE = 0.18;
 
 const STATUS_COLOR: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -99,7 +106,12 @@ export default function SupplierInvoicesPage() {
         useState<PaginatedResponse<SupplierInvoice> | null>(null);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [grData, setGrData] =
+        useState<PaginatedResponse<GoodsReceipt> | null>(null);
+    const [grPage, setGrPage] = useState(0);
+    const [grLoading, setGrLoading] = useState(true);
     const [orders, setOrders] = useState<SupplierOrder[]>([]);
+    const [viewingGr, setViewingGr] = useState<GoodsReceipt | null>(null);
     const [viewing, setViewing] = useState<SupplierInvoice | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<SupplierInvoice | null>(null);
@@ -115,14 +127,12 @@ export default function SupplierInvoicesPage() {
     const [poId, setPoId] = useState('');
     const [grs, setGrs] = useState<GoodsReceipt[]>([]);
     const [grsLoading, setGrsLoading] = useState(false);
-    const [supplierInvNo, setSupplierInvNo] = useState('');
     const [invNo, setInvNo] = useState(newInvNumber());
     const [invoiceDate, setInvoiceDate] = useState(today());
     const [dueDate, setDueDate] = useState('');
     const [currency, setCurrency] = useState('USD');
     const [paymentTerms, setPaymentTerms] = useState('');
-    const [taxAmount, setTaxAmount] = useState('');
-    const [otherCharges, setOtherCharges] = useState('');
+    const [charges, setCharges] = useState<OtherCharge[]>([]);
     const [notes, setNotes] = useState('');
     const [lines, setLines] = useState<PendingLine[]>([]);
 
@@ -150,6 +160,37 @@ export default function SupplierInvoicesPage() {
     useEffect(() => {
         load();
     }, [load]);
+
+    const loadGrs = useCallback(
+        async (pageNo: number = grPage) => {
+            setGrLoading(true);
+            try {
+                const res = await getSupplierGoodsReceipts({
+                    page: pageNo,
+                    size: PAGE_SIZE,
+                });
+                setGrData(res);
+            } catch (e: unknown) {
+                toast({
+                    title: e instanceof Error ? e.message : String(e),
+                    variant: 'destructive',
+                });
+            } finally {
+                setGrLoading(false);
+            }
+        },
+        [toast, grPage]
+    );
+
+    useEffect(() => {
+        loadGrs();
+    }, [loadGrs]);
+
+    const poNumberOf = (purchaseOrderId?: number): string => {
+        if (purchaseOrderId === undefined) return '—';
+        const order = orders.find((o) => o.purchaseOrderId === purchaseOrderId);
+        return order?.poNumber ?? `#${purchaseOrderId}`;
+    };
 
     useEffect(() => {
         let active = true;
@@ -251,25 +292,23 @@ export default function SupplierInvoicesPage() {
         return Math.round(q * p * 100) / 100;
     };
     const linesTotal = lines.reduce((s, l) => s + lineTotal(l), 0);
-    const grandTotal =
+    const computedTax = Math.round(linesTotal * TAX_RATE * 100) / 100;
+    const chargesTotal =
         Math.round(
-            (linesTotal +
-                (Number(taxAmount) || 0) +
-                (Number(otherCharges) || 0)) *
-                100
+            charges.reduce((s, c) => s + (Number(c.amount) || 0), 0) * 100
         ) / 100;
+    const grandTotal =
+        Math.round((linesTotal + computedTax + chargesTotal) * 100) / 100;
 
     const resetForm = () => {
         setPoId('');
         setGrs([]);
-        setSupplierInvNo('');
         setInvNo(newInvNumber());
         setInvoiceDate(today());
         setDueDate('');
         setCurrency('USD');
         setPaymentTerms('');
-        setTaxAmount('');
-        setOtherCharges('');
+        setCharges([]);
         setNotes('');
         setLines([]);
         setEditing(null);
@@ -280,26 +319,44 @@ export default function SupplierInvoicesPage() {
         setDialogOpen(true);
     };
 
+    // Jump from a shared GR straight into invoicing for its PO — the
+    // form's PO effect pulls the GR lines and seeds quantities.
+    const createFromGr = (g: GoodsReceipt) => {
+        resetForm();
+        setPoId(String(g.purchaseOrderId));
+        setDialogOpen(true);
+    };
+
     const openEdit = async (inv: SupplierInvoice) => {
         try {
             const full = await getSupplierInvoice(inv.invoiceId);
             setEditing(full);
             setPoId(String(full.purchaseOrderId));
-            setSupplierInvNo(full.supplierInvoiceNumber ?? '');
-            setInvNo(full.invoiceNumber ?? newInvNumber());
+            setInvNo(
+                full.supplierInvoiceNumber ??
+                    full.invoiceNumber ??
+                    newInvNumber()
+            );
             setInvoiceDate(full.invoiceDate ?? today());
             setDueDate(full.dueDate ?? '');
             setCurrency(full.currency ?? 'USD');
             setPaymentTerms('');
-            setTaxAmount(
-                full.taxAmount !== undefined && full.taxAmount !== null
-                    ? String(full.taxAmount)
-                    : ''
+            const breakdown = parseChargesBreakdown(
+                full.otherChargesBreakdown
             );
-            setOtherCharges(
-                full.otherCharges !== undefined && full.otherCharges !== null
-                    ? String(full.otherCharges)
-                    : ''
+            setCharges(
+                breakdown.length > 0
+                    ? breakdown
+                    : full.otherCharges !== undefined &&
+                        full.otherCharges !== null &&
+                        Number(full.otherCharges) !== 0
+                      ? [
+                            {
+                                amount: String(full.otherCharges),
+                                description: '',
+                            },
+                        ]
+                      : []
             );
             setNotes(full.notes ?? '');
             setLines(
@@ -330,33 +387,48 @@ export default function SupplierInvoicesPage() {
         }
     };
 
-    const buildPayload = () => ({
-        purchaseOrderId: Number(poId),
-        invoiceNumber: invNo.trim() || undefined,
-        supplierInvoiceNumber: supplierInvNo.trim(),
-        invoiceDate,
-        dueDate: dueDate || undefined,
-        currency: currency.trim() || 'USD',
-        paymentTerms: paymentTerms.trim() || undefined,
-        taxAmount: taxAmount.trim() ? Number(taxAmount) : undefined,
-        otherCharges: otherCharges.trim() ? Number(otherCharges) : undefined,
-        notes: notes.trim() || undefined,
-        lineItems: lines.map((l, idx) => ({
-            poLineItemId: l.poLineItemId,
-            lineNumber: l.lineNumber ?? idx + 1,
-            quantityInvoiced: Number(l.quantity),
-            unitPrice: Number(l.unitPrice),
-        })),
-    });
+    const buildPayload = () => {
+        const keptCharges = charges
+            .map((c) => ({
+                amount: Number(c.amount),
+                description: c.description.trim(),
+            }))
+            .filter((c) => Number.isFinite(c.amount) && c.amount > 0);
+        // One invoice number: the supplier's number, auto-generated and
+        // editable. It doubles as the internal reference server-side.
+        const invNumber = invNo.trim();
+        return {
+            purchaseOrderId: Number(poId),
+            invoiceNumber: invNumber || undefined,
+            supplierInvoiceNumber: invNumber,
+            invoiceDate,
+            dueDate: dueDate || undefined,
+            currency: currency.trim() || 'USD',
+            paymentTerms: paymentTerms.trim() || undefined,
+            taxAmount: computedTax,
+            otherCharges: chargesTotal > 0 ? chargesTotal : undefined,
+            otherChargesBreakdown:
+                keptCharges.length > 0
+                    ? JSON.stringify(keptCharges)
+                    : undefined,
+            notes: notes.trim() || undefined,
+            lineItems: lines.map((l, idx) => ({
+                poLineItemId: l.poLineItemId,
+                lineNumber: l.lineNumber ?? idx + 1,
+                quantityInvoiced: Number(l.quantity),
+                unitPrice: Number(l.unitPrice),
+            })),
+        };
+    };
 
     const validateForm = (): boolean => {
         if (!poId) {
             toast({ title: 'Select a purchase order', variant: 'destructive' });
             return false;
         }
-        if (!supplierInvNo.trim()) {
+        if (!invNo.trim()) {
             toast({
-                title: 'Your invoice number is required',
+                title: 'Invoice number is required',
                 variant: 'destructive',
             });
             return false;
@@ -480,6 +552,126 @@ export default function SupplierInvoicesPage() {
             </div>
 
             <Card className="p-4 gap-2 min-w-0">
+                <CardHeader className="flex flex-row items-center justify-between p-0">
+                    <CardTitle>
+                        Received Goods Receipts (
+                        {grData?.totalElements ?? 0})
+                    </CardTitle>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadGrs()}
+                    >
+                        Refresh
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-0 min-w-0">
+                    <p className="pb-2 text-sm text-muted-foreground">
+                        Receipts the retailer shared for validation — check
+                        the received quantities before invoicing.
+                    </p>
+                    {grLoading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : (
+                        <div className="max-w-full overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>GR Number</TableHead>
+                                        <TableHead>PO</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Received</TableHead>
+                                        <TableHead>Delivery Note</TableHead>
+                                        <TableHead>Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {(grData?.content ?? []).map((g) => (
+                                        <TableRow key={g.goodsReceiptId}>
+                                            <TableCell className="font-mono">
+                                                {g.grNumber}
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">
+                                                {poNumberOf(g.purchaseOrderId)}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge>{g.status ?? '—'}</Badge>
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap text-xs">
+                                                {fmtDate(g.receivedDate)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {g.deliveryNoteNumber ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            setViewingGr(g)
+                                                        }
+                                                    >
+                                                        View
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            createFromGr(g)
+                                                        }
+                                                    >
+                                                        Create Invoice
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {(grData?.content ?? []).length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="text-center text-sm text-muted-foreground"
+                                            >
+                                                No shared receipts yet
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                    {!grLoading && (
+                        <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
+                            <span className="text-sm text-muted-foreground">
+                                {grData?.totalElements ?? 0} receipt(s)
+                            </span>
+                            <TablePagination
+                                pageIndex={grPage}
+                                pageCount={grData?.totalPages ?? 0}
+                                canPreviousPage={grPage > 0}
+                                canNextPage={
+                                    grData ? !grData.last : false
+                                }
+                                onPageChange={setGrPage}
+                                onPreviousPage={() =>
+                                    setGrPage((p) => Math.max(0, p - 1))
+                                }
+                                onNextPage={() => setGrPage((p) => p + 1)}
+                                showFirstLast={false}
+                            />
+                            <span className="text-sm text-muted-foreground">
+                                Page {grPage + 1} of {grData?.totalPages ?? 1}
+                            </span>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card className="p-4 gap-2 min-w-0">
                 <CardHeader className="p-0">
                     <CardTitle>
                         My Invoices ({data?.totalElements ?? 0})
@@ -510,17 +702,10 @@ export default function SupplierInvoicesPage() {
                                 <TableBody>
                                     {invoices.map((inv) => (
                                         <TableRow key={inv.invoiceId}>
-                                            <TableCell>
-                                                <div className="font-mono">
-                                                    {inv.supplierInvoiceNumber ??
-                                                        inv.invoiceNumber}
-                                                </div>
-                                                {inv.supplierInvoiceNumber && (
-                                                    <div className="font-mono text-xs text-muted-foreground">
-                                                        {inv.invoiceNumber}
-                                                    </div>
-                                                )}
-                                            </TableCell>
+                                        <TableCell className="font-mono">
+                                            {inv.supplierInvoiceNumber ??
+                                                inv.invoiceNumber}
+                                        </TableCell>
                                             <TableCell>
                                                 {inv.poNumber ??
                                                     inv.purchaseOrderId}
@@ -744,24 +929,36 @@ export default function SupplierInvoicesPage() {
                         )}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
-                                <Label>Your invoice number *</Label>
+                                <Label>Invoice number *</Label>
                                 <Input
-                                    placeholder="e.g. SUP-INV-1042"
-                                    value={supplierInvNo}
-                                    onChange={(e) =>
-                                        setSupplierInvNo(e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Internal reference</Label>
-                                <Input
+                                    placeholder="e.g. INV-2026-482913"
                                     value={invNo}
                                     onChange={(e) => setInvNo(e.target.value)}
                                 />
                             </div>
+                            <div className="grid gap-2">
+                                <Label>Currency</Label>
+                                <Select
+                                    value={currency}
+                                    onValueChange={setCurrency}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {CURRENCIES.map((c) => (
+                                            <SelectItem
+                                                key={c.code}
+                                                value={c.code}
+                                            >
+                                                {c.code} · {c.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
                                 <Label>Invoice date</Label>
                                 <DatePicker
@@ -780,15 +977,6 @@ export default function SupplierInvoicesPage() {
                                         setDueDate(formatYmd(d))
                                     }
                                     placeholder="Pick date"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Currency</Label>
-                                <Input
-                                    value={currency}
-                                    onChange={(e) =>
-                                        setCurrency(e.target.value)
-                                    }
                                 />
                             </div>
                         </div>
@@ -865,30 +1053,113 @@ export default function SupplierInvoicesPage() {
                                 </div>
                             ))}
                         </div>
+                        <div className="grid gap-2 rounded-md border p-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium">
+                                    Other charges
+                                </p>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        setCharges((arr) => [
+                                            ...arr,
+                                            { amount: '', description: '' },
+                                        ])
+                                    }
+                                >
+                                    <Plus className="mr-1 h-3 w-3" />
+                                    Add charge
+                                </Button>
+                            </div>
+                            {charges.length === 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    No extra charges — add freight, handling,
+                                    etc. as needed.
+                                </p>
+                            )}
+                            {charges.map((c, i) => (
+                                <div
+                                    key={`charge-${i}`}
+                                    className="grid grid-cols-[110px_1fr_auto] items-end gap-2"
+                                >
+                                    <div className="grid gap-1">
+                                        <Label className="text-xs">
+                                            Amount
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            placeholder="0"
+                                            value={c.amount}
+                                            onChange={(e) =>
+                                                setCharges((arr) =>
+                                                    arr.map((x, j) =>
+                                                        j === i
+                                                            ? {
+                                                                  ...x,
+                                                                  amount: e
+                                                                      .target
+                                                                      .value,
+                                                              }
+                                                            : x
+                                                    )
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label className="text-xs">
+                                            Description
+                                        </Label>
+                                        <Input
+                                            placeholder="e.g. Freight"
+                                            value={c.description}
+                                            onChange={(e) =>
+                                                setCharges((arr) =>
+                                                    arr.map((x, j) =>
+                                                        j === i
+                                                            ? {
+                                                                  ...x,
+                                                                  description:
+                                                                      e.target
+                                                                          .value,
+                                                              }
+                                                            : x
+                                                    )
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        aria-label="Remove charge"
+                                        onClick={() =>
+                                            setCharges((arr) =>
+                                                arr.filter((_, j) => j !== i)
+                                            )
+                                        }
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
                         <div className="grid grid-cols-3 gap-3">
                             <div className="grid gap-2">
-                                <Label>Tax amount</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    placeholder="0"
-                                    value={taxAmount}
-                                    onChange={(e) =>
-                                        setTaxAmount(e.target.value)
-                                    }
-                                />
+                                <Label>Base amount</Label>
+                                <p className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm">
+                                    {linesTotal.toLocaleString()} {currency}
+                                </p>
                             </div>
                             <div className="grid gap-2">
-                                <Label>Other charges</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    placeholder="0"
-                                    value={otherCharges}
-                                    onChange={(e) =>
-                                        setOtherCharges(e.target.value)
-                                    }
-                                />
+                                <Label>Tax (18% fixed)</Label>
+                                <p className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm">
+                                    {computedTax.toLocaleString()} {currency}
+                                </p>
                             </div>
                             <div className="grid gap-2">
                                 <Label>Total</Label>
@@ -979,14 +1250,6 @@ export default function SupplierInvoicesPage() {
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">
-                                        Internal reference
-                                    </p>
-                                    <p className="font-mono">
-                                        {viewing.invoiceNumber}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground">
                                         Invoice date
                                     </p>
                                     <p className="font-medium">
@@ -1014,11 +1277,25 @@ export default function SupplierInvoicesPage() {
                                     <p className="text-muted-foreground">
                                         Other charges
                                     </p>
-                                    <p className="font-medium">
+                                    <p className="font-medium break-words whitespace-normal">
                                         {fmtMoney(
                                             viewing.otherCharges,
                                             viewing.currency
                                         )}
+                                        {parseChargesBreakdown(
+                                            viewing.otherChargesBreakdown
+                                        ).map((c, i) => (
+                                            <span
+                                                key={i}
+                                                className="block text-xs text-muted-foreground"
+                                            >
+                                                {(
+                                                    Number(c.amount) || 0
+                                                ).toLocaleString()}{' '}
+                                                —{' '}
+                                                {c.description || 'Charge'}
+                                            </span>
+                                        ))}
                                     </p>
                                 </div>
                                 <div>
@@ -1166,6 +1443,131 @@ export default function SupplierInvoicesPage() {
                             {confirmBusy ? 'Working…' : 'Confirm'}
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={viewingGr !== null}
+                onOpenChange={(v) => !v && setViewingGr(null)}
+            >
+                <DialogContent className="md:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Goods Receipt {viewingGr?.grNumber ?? ''}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {viewingGr
+                                ? `PO ${poNumberOf(viewingGr.purchaseOrderId)} · ${viewingGr.status ?? ''}`
+                                : ''}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {viewingGr && (
+                        <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1 text-sm">
+                            <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Received date
+                                    </p>
+                                    <p className="font-medium">
+                                        {fmtDate(viewingGr.receivedDate)}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Delivery note
+                                    </p>
+                                    <p className="font-medium">
+                                        {viewingGr.deliveryNoteNumber ?? '—'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Carrier
+                                    </p>
+                                    <p className="font-medium">
+                                        {viewingGr.carrier ?? '—'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Tracking
+                                    </p>
+                                    <p className="font-mono text-xs">
+                                        {viewingGr.trackingNumber ?? '—'}
+                                    </p>
+                                </div>
+                            </div>
+                            {viewingGr.notes && (
+                                <p className="rounded-md border p-3 text-sm">
+                                    <span className="font-medium">
+                                        Notes:{' '}
+                                    </span>
+                                    {viewingGr.notes}
+                                </p>
+                            )}
+                            <div className="grid gap-2">
+                                <p className="text-sm font-medium">
+                                    Lines (
+                                    {viewingGr.lineItems?.length ?? 0})
+                                </p>
+                                <div className="max-w-full overflow-x-auto rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>#</TableHead>
+                                                <TableHead className="text-right">
+                                                    Received
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Accepted
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Rejected
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {(viewingGr.lineItems ?? []).map(
+                                                (li, i) => (
+                                                    <TableRow
+                                                        key={
+                                                            li.grLineItemId ??
+                                                            `${viewingGr.goodsReceiptId}-${i}`
+                                                        }
+                                                    >
+                                                        <TableCell>
+                                                            {li.lineNumber ??
+                                                                i + 1}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {li.quantityReceived ??
+                                                                '—'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {li.quantityAccepted ??
+                                                                '—'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {li.quantityRejected ??
+                                                                '—'}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                            <div className="flex justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setViewingGr(null)}
+                                >
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>
