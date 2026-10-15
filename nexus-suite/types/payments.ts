@@ -89,6 +89,10 @@ export interface SuiteIntent {
     amount: number;
     currency: string;
     description?: string;
+    // Logistics settlement linkage (core LQ-* quote ref).
+    quoteRef?: string;
+    partnershipId?: number;
+    intentKind?: string;
     mockPaymentId?: number | null;
     mockPayment?: MockPayment | null;
     receipt?: MockReceipt | null;

@@ -27,6 +27,8 @@ export interface PartnershipInvitation {
     desiredCapacityUnit?: string;
     retailerSupplierId?: number;
     partnershipId?: number;
+    // LONG_TERM settlement frequency (trip-wise SHORT_TERM leaves it empty).
+    paymentFrequency?: 'WEEKLY' | 'MONTHLY' | string;
     status?: PartnershipInvitationStatus | string;
     invitedAt?: string;
     expiresAt?: string;
@@ -51,6 +53,9 @@ export interface PartnershipInvitationCreateRequest {
     desiredRoutesJson?: string;
     desiredCapacity?: number;
     desiredCapacityUnit?: string;
+    // LONG_TERM settlement frequency chosen by the supplier.
+    // Omitted → backend defaults MONTHLY for multi-month validity.
+    paymentFrequency?: 'WEEKLY' | 'MONTHLY';
 }
 
 export interface PartnershipInvitationRespondRequest {

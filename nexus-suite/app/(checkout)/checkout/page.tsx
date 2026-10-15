@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SuiteCheckout } from '@/components/payments/suite-checkout';
+import { markBillingQuotePaid } from '@/lib/services/billing-service';
 import { transitionInvoice } from '@/lib/services/procurement-extended-service';
 import type { SuiteIntent } from '@/types/payments';
 import { useSearchParams } from 'next/navigation';
@@ -13,11 +14,26 @@ function CheckoutContent() {
     const params = useSearchParams();
     const ref = params.get('ref');
 
-    // Record PAID in the core ledger but stay on the success screen —
-    // the checkout handles the delayed return itself.
+    // Record settlement in the core ledger but stay on the success
+    // screen — the checkout handles the delayed return itself.
     const markPaid = async (intent: SuiteIntent) => {
-        if (!intent.invoiceId) return;
         try {
+            if (intent.quoteRef) {
+                const r = await markBillingQuotePaid({
+                    quoteRef: intent.quoteRef,
+                    amountPaid: Number(intent.amount),
+                    intentRef:
+                        intent.mockPayment?.transactionReference ??
+                        `SUITE-${intent.intentId}`,
+                });
+                toast.success(
+                    r.fullyCovered
+                        ? 'Settlement recorded — quote fully covered'
+                        : 'Settlement recorded — partial payment applied oldest-first'
+                );
+                return;
+            }
+            if (!intent.invoiceId) return;
             await transitionInvoice(intent.invoiceId, 'PAID', {
                 paymentReferenceId:
                     intent.mockPayment?.transactionReference ??

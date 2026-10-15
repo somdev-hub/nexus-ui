@@ -355,9 +355,7 @@ export default function LoadBoardPage() {
                                                                 `#${s.shipmentId}`}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber
-                                                                ? `PO ${s.poNumber}`
-                                                                : 'No PO'}
+                                                            {s.poNumber || 'No PO'}
                                                             {s.isPartialShipment
                                                                 ? ' · Partial'
                                                                 : ''}
@@ -597,9 +595,7 @@ export default function LoadBoardPage() {
                                                                 `#${s.shipmentId}`}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber
-                                                                ? `PO ${s.poNumber}`
-                                                                : 'No PO'}
+                                                            {s.poNumber || 'No PO'}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
@@ -821,9 +817,7 @@ export default function LoadBoardPage() {
                                                                 `#${s.shipmentId}`}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber
-                                                                ? `PO ${s.poNumber}`
-                                                                : 'No PO'}
+                                                            {s.poNumber || 'No PO'}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>

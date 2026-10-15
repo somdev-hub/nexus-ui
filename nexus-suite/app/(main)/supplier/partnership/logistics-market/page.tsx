@@ -116,8 +116,27 @@ export default function SupplierLogisticsMarketPage() {
     const [wantedUnit, setWantedUnit] = useState<string>('KG');
     const [validityStart, setValidityStart] = useState('');
     const [validityEnd, setValidityEnd] = useState('');
+    // LONG_TERM settlement frequency. Auto-defaults from the validity span
+    // (multi-month → MONTHLY) until the supplier picks explicitly.
+    const [paymentFrequency, setPaymentFrequency] = useState<
+        'WEEKLY' | 'MONTHLY'
+    >('MONTHLY');
+    const [freqTouched, setFreqTouched] = useState(false);
     const [proposedTerms, setProposedTerms] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    const defaultFrequencyFor = (
+        start: string,
+        end: string
+    ): 'WEEKLY' | 'MONTHLY' => {
+        const s = new Date(start).getTime();
+        const e = new Date(end).getTime();
+        if (Number.isFinite(s) && Number.isFinite(e) && e > s) {
+            const days = (e - s) / 86_400_000;
+            if (days >= 60) return 'MONTHLY';
+        }
+        return 'WEEKLY';
+    };
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -291,6 +310,13 @@ export default function SupplierLogisticsMarketPage() {
         setValidityEnd(first?.periodEnd ?? '');
         setWantedRoutes([{ from: '', to: '', capacity: '' }]);
         setWantedUnit('KG');
+        setFreqTouched(false);
+        setPaymentFrequency(
+            defaultFrequencyFor(
+                first?.periodStart ?? '',
+                first?.periodEnd ?? ''
+            )
+        );
         setProposedTerms('');
         setRoutesOpenFor(null);
         setProposingOrg(orgId);
@@ -398,6 +424,7 @@ export default function SupplierLogisticsMarketPage() {
                 desiredRoutesJson: JSON.stringify(cleaned),
                 desiredCapacity: total > 0 ? total : undefined,
                 desiredCapacityUnit: wantedUnit,
+                paymentFrequency,
             });
             toast({ title: 'Partnership proposal sent', variant: 'success' });
             setPendingOrgIds((prev) => new Set(prev).add(proposingGroup.orgId));
@@ -840,9 +867,20 @@ export default function SupplierLogisticsMarketPage() {
                             <Label>Partnership term</Label>
                             <Select
                                 value={termType}
-                                onValueChange={(v) =>
-                                    setTermType(v as 'SHORT_TERM' | 'LONG_TERM')
-                                }
+                                onValueChange={(v) => {
+                                    const next = v as
+                                        | 'SHORT_TERM'
+                                        | 'LONG_TERM';
+                                    setTermType(next);
+                                    if (next === 'LONG_TERM' && !freqTouched) {
+                                        setPaymentFrequency(
+                                            defaultFrequencyFor(
+                                                validityStart,
+                                                validityEnd
+                                            )
+                                        );
+                                    }
+                                }}
                             >
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
@@ -1074,9 +1112,18 @@ export default function SupplierLogisticsMarketPage() {
                                         <Input
                                             type="date"
                                             value={validityStart}
-                                            onChange={(e) =>
-                                                setValidityStart(e.target.value)
-                                            }
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                setValidityStart(v);
+                                                if (!freqTouched) {
+                                                    setPaymentFrequency(
+                                                        defaultFrequencyFor(
+                                                            v,
+                                                            validityEnd
+                                                        )
+                                                    );
+                                                }
+                                            }}
                                         />
                                     </div>
                                     <div className="grid gap-2">
@@ -1084,11 +1131,51 @@ export default function SupplierLogisticsMarketPage() {
                                         <Input
                                             type="date"
                                             value={validityEnd}
-                                            onChange={(e) =>
-                                                setValidityEnd(e.target.value)
-                                            }
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                setValidityEnd(v);
+                                                if (!freqTouched) {
+                                                    setPaymentFrequency(
+                                                        defaultFrequencyFor(
+                                                            validityStart,
+                                                            v
+                                                        )
+                                                    );
+                                                }
+                                            }}
                                         />
                                     </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Settlement frequency</Label>
+                                    <Select
+                                        value={paymentFrequency}
+                                        onValueChange={(v) => {
+                                            setPaymentFrequency(
+                                                v as 'WEEKLY' | 'MONTHLY'
+                                            );
+                                            setFreqTouched(true);
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="WEEKLY">
+                                                Weekly — billed every week
+                                            </SelectItem>
+                                            <SelectItem value="MONTHLY">
+                                                Monthly — billed every month
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Multi-month partnerships default to
+                                        monthly billing; shorter ones to
+                                        weekly. Missed statements add a 2% of
+                                        previous payment penalty to the next
+                                        one.
+                                    </p>
                                 </div>
                             </>
                         )}

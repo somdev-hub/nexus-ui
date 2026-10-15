@@ -22,6 +22,7 @@ import {
     IconTruck,
     IconLink,
     IconEye,
+    IconWallet,
     type Icon,
 } from '@tabler/icons-react';
 
@@ -68,6 +69,11 @@ const retailerSections = [
                 title: 'Analytics',
                 url: '/retailer/analytics',
                 icon: IconChartBar,
+            },
+            {
+                title: 'Finances',
+                url: '/retailer/finances',
+                icon: IconWallet,
             },
             {
                 title: 'Calendar',
@@ -222,6 +228,11 @@ const supplierSections = [
                 title: 'Analytics',
                 url: '/supplier/analytics',
                 icon: IconChartBar,
+            },
+            {
+                title: 'Finances',
+                url: '/supplier/finances',
+                icon: IconWallet,
             },
             {
                 title: 'Calendar',
@@ -431,6 +442,11 @@ const logisticsSections = [
         showHeader: false,
         showActions: true,
         items: [
+            {
+                title: 'Finances',
+                url: '/logistics/finances',
+                icon: IconWallet,
+            },
             {
                 title: 'Financials',
                 url: '/logistics/financials',

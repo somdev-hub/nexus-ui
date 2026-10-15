@@ -96,8 +96,14 @@ export async function createSuiteIntent(input: {
     purchaseOrderId?: number;
     payerRole: string;
     idempotencyKey?: string;
+    quoteRef?: string;
+    partnershipId?: number;
 }): Promise<SuiteIntent> {
-    const key = input.idempotencyKey ?? suiteIdempotencyKey(input.invoiceId ?? 'adhoc');
+    const key =
+        input.idempotencyKey ??
+        (input.quoteRef
+            ? `suite-quote-${input.quoteRef}`
+            : suiteIdempotencyKey(input.invoiceId ?? 'adhoc'));
     const res = await apiClient.post<SuiteIntent>(
         `${SUITE}/intents`,
         {
@@ -109,6 +115,8 @@ export async function createSuiteIntent(input: {
             purchaseOrderId: input.purchaseOrderId,
             orgId: orgId(),
             payerRole: input.payerRole,
+            quoteRef: input.quoteRef,
+            partnershipId: input.partnershipId,
         },
         { headers: { 'Idempotency-Key': key } }
     );

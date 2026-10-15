@@ -392,7 +392,7 @@ export default function InvoicesPage() {
                         <DialogDescription>
                             {viewing?.status ?? ''}
                             {viewing?.poNumber
-                                ? ` · PO ${viewing.poNumber}`
+                                ? ` · ${viewing.poNumber}`
                                 : ''}
                         </DialogDescription>
                     </DialogHeader>
@@ -452,9 +452,10 @@ export default function InvoicesPage() {
                                                 key={i}
                                                 className="block text-xs text-muted-foreground"
                                             >
-                                                {(
-                                                    Number(c.amount) || 0
-                                                ).toLocaleString()}{' '}
+                                                {fmtMoney(
+                                                    Number(c.amount) || 0,
+                                                    viewing.currency
+                                                )}{' '}
                                                 —{' '}
                                                 {c.description || 'Charge'}
                                             </span>
@@ -535,12 +536,16 @@ export default function InvoicesPage() {
                                                                 '—'}
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            {li.unitPrice ??
-                                                                '—'}
+                                                            {fmtMoney(
+                                                                li.unitPrice,
+                                                                viewing.currency
+                                                            )}
                                                         </TableCell>
                                                         <TableCell className="text-right font-mono">
-                                                            {li.lineTotal ??
-                                                                '—'}
+                                                            {fmtMoney(
+                                                                li.lineTotal,
+                                                                viewing.currency
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                 )

@@ -36,11 +36,13 @@ import {
     getSuiteIntentByRef,
     paySuiteIntent,
 } from '@/lib/services/payments-service';
+import { getBillingQuote } from '@/lib/services/billing-service';
 import type {
     MockPaymentMethod,
     MockReceipt,
     SuiteIntent,
 } from '@/types/payments';
+import type { PayQuote } from '@/types/finances';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
     ArrowLeft,
@@ -193,6 +195,7 @@ export function SuiteCheckout({
     const [progress, setProgress] = useState(0);
     const [receipt, setReceipt] = useState<MockReceipt | null>(null);
     const [showReceipt, setShowReceipt] = useState(false);
+    const [quote, setQuote] = useState<PayQuote | null>(null);
     const [now, setNow] = useState(() => Date.now());
     const [cancelCountdown, setCancelCountdown] = useState<number | null>(null);
     const [backCountdown, setBackCountdown] = useState<number | null>(null);
@@ -245,6 +248,16 @@ export function SuiteCheckout({
         try {
             const it = await getSuiteIntentByRef(payRef);
             setIntent(it);
+            if (
+                it.intentKind === 'LOGISTICS_SETTLEMENT' ||
+                it.quoteRef
+            ) {
+                try {
+                    setQuote(await getBillingQuote(it.quoteRef as string));
+                } catch {
+                    // quote load best-effort; intent amount stays locked
+                }
+            }
             if (it.status === 'COMPLETED' && it.mockPaymentId) {
                 beginBackCountdown();
                 try {
@@ -386,8 +399,8 @@ export function SuiteCheckout({
     if (loading)
         return (
             <div className="grid gap-6 lg:grid-cols-5">
-                <Skeleton className="h-[380px] lg:col-span-2" />
-                <Skeleton className="h-[380px] lg:col-span-3" />
+                <Skeleton className="h-95 lg:col-span-2" />
+                <Skeleton className="h-95 lg:col-span-3" />
             </div>
         );
 
@@ -436,9 +449,11 @@ export function SuiteCheckout({
                 <div>
                     <h1 className="text-2xl font-bold">Checkout</h1>
                     <p className="text-muted-foreground">
-                        {intent.invoiceNumber
-                            ? `Invoice ${intent.invoiceNumber}`
-                            : `Payment session #${intent.intentId}`}{' '}
+                        {quote
+                            ? `Settlement ${quote.quoteRef}`
+                            : intent.invoiceNumber
+                              ? `Invoice ${intent.invoiceNumber}`
+                              : `Payment session #${intent.intentId}`}{' '}
                         · {intent.payerRole ?? 'buyer'}
                     </p>
                 </div>
@@ -506,15 +521,70 @@ export function SuiteCheckout({
                             </p>
                         </div>
                         <div className="mt-2 grid gap-1">
-                            <SummaryRow
-                                icon={<FileText className="h-3.5 w-3.5" />}
-                                k="Invoice"
-                                v={String(intent.invoiceNumber ?? intent.invoiceId ?? '—')}
-                            />
-                            <SummaryRow
-                                k="Purchase order"
-                                v={String(intent.purchaseOrderId ?? '—')}
-                            />
+                            {quote ? (
+                                <>
+                                    <SummaryRow
+                                        icon={<FileText className="h-3.5 w-3.5" />}
+                                        k="Quote"
+                                        v={quote.quoteRef}
+                                        mono
+                                    />
+                                    <SummaryRow
+                                        k="Type"
+                                        v={
+                                            quote.kind === 'STATEMENT'
+                                                ? 'Cycle statement'
+                                                : 'Trip batch'
+                                        }
+                                    />
+                                    <div className="mt-1 grid max-h-40 gap-0.5 overflow-y-auto rounded-md border p-2">
+                                        {(quote.lines ?? []).map((l, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex items-center justify-between py-0.5 text-xs"
+                                            >
+                                                <span className="text-muted-foreground">
+                                                    {l.kind === 'BASE_TRIP'
+                                                        ? `Trip ${l.shipmentId ?? ''}`
+                                                        : l.kind === 'LATE_FEE'
+                                                          ? `Late fee · trip ${l.shipmentId ?? ''}`
+                                                          : 'Cycle penalty'}
+                                                </span>
+                                                <span className="font-mono">
+                                                    {Number(l.quoted).toLocaleString(
+                                                        undefined,
+                                                        { minimumFractionDigits: 2 }
+                                                    )}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <SummaryRow
+                                        k="Base"
+                                        v={money(quote.baseTotal, intent.currency)}
+                                    />
+                                    <SummaryRow
+                                        k="Late fees"
+                                        v={money(quote.feeTotal, intent.currency)}
+                                    />
+                                    <SummaryRow
+                                        k="Penalties"
+                                        v={money(quote.penaltyTotal, intent.currency)}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <SummaryRow
+                                        icon={<FileText className="h-3.5 w-3.5" />}
+                                        k="Invoice"
+                                        v={String(intent.invoiceNumber ?? intent.invoiceId ?? '—')}
+                                    />
+                                    <SummaryRow
+                                        k="Purchase order"
+                                        v={String(intent.purchaseOrderId ?? '—')}
+                                    />
+                                </>
+                            )}
                             <SummaryRow k="Role" v={intent.payerRole ?? '—'} />
                             {intent.mockPayment && (
                                 <SummaryRow

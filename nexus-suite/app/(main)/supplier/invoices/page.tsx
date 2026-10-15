@@ -1048,7 +1048,7 @@ export default function SupplierInvoicesPage() {
                                         />
                                     </div>
                                     <div className="text-right font-mono text-xs">
-                                        {lineTotal(l).toLocaleString()}
+                                        {fmtMoney(lineTotal(l), currency)}
                                     </div>
                                 </div>
                             ))}
@@ -1226,7 +1226,7 @@ export default function SupplierInvoicesPage() {
                         <DialogDescription>
                             {viewing?.status ?? ''}
                             {viewing?.poNumber
-                                ? ` · PO ${viewing.poNumber}`
+                                ? ` · ${viewing.poNumber}`
                                 : ''}
                         </DialogDescription>
                     </DialogHeader>
@@ -1289,9 +1289,10 @@ export default function SupplierInvoicesPage() {
                                                 key={i}
                                                 className="block text-xs text-muted-foreground"
                                             >
-                                                {(
-                                                    Number(c.amount) || 0
-                                                ).toLocaleString()}{' '}
+                                                {fmtMoney(
+                                                    Number(c.amount) || 0,
+                                                    viewing.currency
+                                                )}{' '}
                                                 —{' '}
                                                 {c.description || 'Charge'}
                                             </span>
@@ -1372,12 +1373,16 @@ export default function SupplierInvoicesPage() {
                                                                 '—'}
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            {li.unitPrice ??
-                                                                '—'}
+                                                            {fmtMoney(
+                                                                li.unitPrice,
+                                                                viewing.currency
+                                                            )}
                                                         </TableCell>
                                                         <TableCell className="text-right font-mono">
-                                                            {li.lineTotal ??
-                                                                '—'}
+                                                            {fmtMoney(
+                                                                li.lineTotal,
+                                                                viewing.currency
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                 )
@@ -1457,7 +1462,7 @@ export default function SupplierInvoicesPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {viewingGr
-                                ? `PO ${poNumberOf(viewingGr.purchaseOrderId)} · ${viewingGr.status ?? ''}`
+                                ? `${poNumberOf(viewingGr.purchaseOrderId)} · ${viewingGr.status ?? ''}`
                                 : ''}
                         </DialogDescription>
                     </DialogHeader>
