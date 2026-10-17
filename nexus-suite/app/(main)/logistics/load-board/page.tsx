@@ -1,6 +1,7 @@
 ﻿'use client';
 import { useEffect, useState } from 'react';
-import { Eye, Map as MapIcon, MapPin, Truck } from 'lucide-react';
+import { Eye, ExternalLink, Map as MapIcon, MapPin, Truck } from 'lucide-react';
+import Link from 'next/link';
 import { Info } from 'lucide-react';
 import {
     Tooltip,
@@ -1055,14 +1056,55 @@ export default function LoadBoardPage() {
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">
-                                        Expected delivery (ETA)
+                                        ETA
                                     </p>
                                     <p className="font-medium">
-                                        {details.estimatedArrival
-                                            ? new Date(
-                                                  details.estimatedArrival
-                                              ).toLocaleString()
-                                            : '—'}
+                                        {details.estimatedArrival ? (
+                                            new Date(
+                                                details.estimatedArrival
+                                            ).toLocaleString()
+                                        ) : details.poExpectedDeliveryDate ? (
+                                            <>
+                                                {shortDate(
+                                                    details.poExpectedDeliveryDate
+                                                )}
+                                                <span className="text-xs text-muted-foreground">
+                                                    {' '}
+                                                    (per PO)
+                                                </span>
+                                            </>
+                                        ) : (
+                                            '—'
+                                        )}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Delivery contract
+                                    </p>
+                                    <p className="font-medium">
+                                        {details.deliveryContractId ? (
+                                            <span className="inline-flex items-center gap-1">
+                                                Contract #
+                                                {details.deliveryContractId}
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Link
+                                                            href={`/logistics/partnership/management?contract=${details.deliveryContractId}`}
+                                                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                                                            title="View the supplier–logistics contract"
+                                                        >
+                                                            <ExternalLink className="h-3.5 w-3.5" />
+                                                        </Link>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        Open contract details
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </span>
+                                        ) : (
+                                            '—'
+                                        )}
                                     </p>
                                 </div>
                                 <div>

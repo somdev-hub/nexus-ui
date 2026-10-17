@@ -63,6 +63,7 @@ import {
 } from '@/components/ui/table';
 import { TablePagination } from './ui/table-pagination';
 import { Order } from '@/types/orders';
+import { Money } from '@/components/finances/money';
 
 interface OrderTableProps {
     orders: Order[];
@@ -181,8 +182,10 @@ export function OrderTable({ orders }: OrderTableProps) {
                 header: 'Total Amount',
                 cell: ({ row }) => (
                     <div className="font-mono tabular-nums">
-                        ${(row.getValue('totalAmount') as number).toFixed(2)}{' '}
-                        {row.original.currency}
+                        <Money
+                            amount={row.getValue('totalAmount')}
+                            currency={row.original.currency}
+                        />{' '}
                     </div>
                 ),
             },

@@ -551,10 +551,7 @@ export function SuiteCheckout({
                                                           : 'Cycle penalty'}
                                                 </span>
                                                 <span className="font-mono">
-                                                    {Number(l.quoted).toLocaleString(
-                                                        undefined,
-                                                        { minimumFractionDigits: 2 }
-                                                    )}
+                                                    {money(l.quoted, intent.currency)}
                                                 </span>
                                             </div>
                                         ))}

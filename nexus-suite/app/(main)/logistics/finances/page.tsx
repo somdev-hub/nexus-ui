@@ -145,19 +145,22 @@ export default function LogisticsFinancesPage() {
         loadBilling();
     }, [loadBilling]);
 
+    const src = summary?.currency ?? 'USD';
     const lanes = useConvertedPoints(
         Object.entries(summary?.revenuePerLane ?? {}).map(([name, amount]) => ({
             name,
             amount: Number(amount),
-        }))
+        })),
+        src
     );
     const customers = useConvertedPoints(
         Object.entries(summary?.revenuePerCustomer ?? {}).map(([name, amount]) => ({
             name,
             amount: Number(amount),
-        }))
+        })),
+        src
     );
-    const trend = useConvertedPoints(summary?.trend ?? []);
+    const trend = useConvertedPoints(summary?.trend ?? [], src);
 
     const exportCsv = () => {
         const rows = txns?.content ?? [];
@@ -197,21 +200,21 @@ export default function LogisticsFinancesPage() {
                 items={[
                     {
                         title: 'Freight revenue',
-                        value: fmt(summary?.totalRevenue),
+                        value: fmt(summary?.totalRevenue, summary?.currency),
                         sub: `${summary?.deliveredShipments ?? 0} delivered trips`,
                         icon: Banknote,
                     },
                     {
                         title: 'Receivable open',
-                        value: fmt(summary?.receivableOpen),
+                        value: fmt(summary?.receivableOpen, summary?.currency),
                         sub: 'Unpaid trip + penalty lines',
                         icon: Wallet,
                         tone: 'warn',
                     },
                     {
                         title: 'Receivable overdue',
-                        value: fmt(summary?.receivableOverdue),
-                        sub: `Penalties levied ${fmt(summary?.penaltiesLevied)}`,
+                        value: fmt(summary?.receivableOverdue, summary?.currency),
+                        sub: `Penalties levied ${fmt(summary?.penaltiesLevied, summary?.currency)}`,
                         icon: AlertTriangle,
                         tone: 'bad',
                     },
@@ -358,9 +361,9 @@ export default function LogisticsFinancesPage() {
                                                     </span>
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Base {fmt(t.outstandingBase)}{' '}
+                                                    Base {fmt(t.outstandingBase, t.currency)}{' '}
                                                     · accrued fee{' '}
-                                                    {fmt(t.lateFeeAccrued ?? 0)}
+                                                    {fmt(t.lateFeeAccrued ?? 0, t.currency)}
                                                 </p>
                                             </div>
                                             <Badge variant="outline">
@@ -392,11 +395,11 @@ export default function LogisticsFinancesPage() {
                                                         </span>
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        Base {fmt(s.baseTotal)}{' '}
+                                                        Base {fmt(s.baseTotal, s.currency)}{' '}
                                                         · paid{' '}
-                                                        {fmt(s.basePaid ?? 0)}{' '}
+                                                        {fmt(s.basePaid ?? 0, s.currency)}{' '}
                                                         · penalty{' '}
-                                                        {fmt(s.penaltyTotal ?? 0)}
+                                                        {fmt(s.penaltyTotal ?? 0, s.currency)}
                                                     </p>
                                                 </div>
                                                 <Badge

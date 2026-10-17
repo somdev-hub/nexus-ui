@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Money } from '@/components/finances/money';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
@@ -666,9 +667,23 @@ export default function AssetDetailPage() {
                                                             <div className="text-xs text-muted-foreground">
                                                                 #{s.shipmentId}
                                                                 {s.freightCost !=
-                                                                null
-                                                                    ? ` • $${Number(s.freightCost).toFixed(2)}`
-                                                                    : ''}
+                                                                null ? (
+                                                                    <>
+                                                                        {' '}
+                                                                        •{' '}
+                                                                        <Money
+                                                                            amount={
+                                                                                s.freightCost
+                                                                            }
+                                                                            currency={
+                                                                                (s as any)
+                                                                                    .currency
+                                                                            }
+                                                                        />
+                                                                    </>
+                                                                ) : (
+                                                                    ''
+                                                                )}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-xs">
@@ -857,9 +872,21 @@ export default function AssetDetailPage() {
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">
                                                     {m.scheduledDate ?? '-'}
-                                                    {m.cost != null
-                                                        ? ` • $${Number(m.cost).toFixed(2)}`
-                                                        : ''}
+                                                    {m.cost != null ? (
+                                                        <>
+                                                            {' '}
+                                                            •{' '}
+                                                            <Money
+                                                                amount={m.cost}
+                                                                currency={
+                                                                    (m as any)
+                                                                        .currency
+                                                                }
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        ''
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell>

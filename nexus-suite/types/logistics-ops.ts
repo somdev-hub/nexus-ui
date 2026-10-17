@@ -405,6 +405,12 @@ export interface LoadBoardShipment {
     logisticsOrgName?: string;
     purchaseOrderId?: number;
     poNumber?: string;
+    // Retailer's expected delivery date from the PO — used as the ETA
+    // until the carrier computes one after pickup.
+    poExpectedDeliveryDate?: string;
+    // Supplier↔logistics agreement (partnership) this shipment was
+    // handed over under — shown as the delivery contract.
+    deliveryContractId?: number;
     actualArrival?: string;
     createdAt?: string;
     updatedAt?: string;

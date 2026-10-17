@@ -9,6 +9,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Money } from '@/components/finances/money';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { getLogisticsDashboard } from '@/lib/services/logistics-ops-service';
@@ -76,9 +77,9 @@ export default function LogisticsDashboardPage() {
         },
         {
             title: 'Total Revenue',
-            value: dashboard?.totalRevenue
-                ? `$${Number(dashboard.totalRevenue).toFixed(2)}`
-                : '$0.00',
+            value: (
+                <Money amount={dashboard?.totalRevenue ?? 0} />
+            ),
             desc: 'from completed shipments',
             icon: IconChartBar,
             href: '/logistics/analytics',
@@ -208,10 +209,7 @@ export default function LogisticsDashboardPage() {
                         <div className="flex justify-between">
                             <span className="text-sm">Total Revenue</span>
                             <span className="text-sm font-medium">
-                                $
-                                {dashboard?.totalRevenue != null
-                                    ? Number(dashboard.totalRevenue).toFixed(2)
-                                    : '0.00'}
+                                <Money amount={dashboard?.totalRevenue ?? 0} />
                             </span>
                         </div>
                         <div className="flex justify-between">

@@ -7,6 +7,7 @@ import { getLogisticsDashboard } from '@/lib/services/logistics-ops-service';
 import type { LogisticsDashboard } from '@/types/logistics-ops';
 import { useToast } from '@/hooks/use-toast';
 import { IconChartBar, IconTruck, IconDatabase } from '@tabler/icons-react';
+import { Money } from '@/components/finances/money';
 
 export default function LogisticsAnalyticsPage() {
     const { toast } = useToast();
@@ -78,10 +79,7 @@ export default function LogisticsAnalyticsPage() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="text-2xl font-bold">
-                            $
-                            {dashboard?.totalRevenue != null
-                                ? Number(dashboard.totalRevenue).toFixed(2)
-                                : '0.00'}
+                            <Money amount={dashboard?.totalRevenue ?? 0} />
                         </div>
                         <p className="text-xs text-muted-foreground">
                             {dashboard?.deliveredShipments ?? 0} of{' '}
@@ -140,7 +138,7 @@ export default function LogisticsAnalyticsPage() {
                                         {lane}
                                     </div>
                                     <Badge variant="outline">
-                                        ${Number(revenue).toFixed(2)}
+                                        <Money amount={revenue} />
                                     </Badge>
                                 </div>
                             ))}
@@ -167,7 +165,7 @@ export default function LogisticsAnalyticsPage() {
                                         Org #{customer}
                                     </div>
                                     <Badge variant="outline">
-                                        ${Number(revenue).toFixed(2)}
+                                        <Money amount={revenue} />
                                     </Badge>
                                 </div>
                             ))}

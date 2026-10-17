@@ -1,0 +1,204 @@
+'use client';
+
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useSyncExternalStore,
+} from 'react';
+
+import {
+    DEFAULT_THEME_STATE,
+    FONTS,
+    isDefaultTheme,
+    themeToCss,
+    type ThemeState,
+} from './theme';
+import {
+    THEME_CSS_STORAGE_KEY,
+    THEME_STORAGE_KEY,
+    THEME_STYLE_ID,
+} from './storage';
+
+type ThemeConfigContextValue = {
+    /** Current theme configuration. */
+    state: ThemeState;
+    /** Merge a partial update into the current configuration. */
+    update: (patch: Partial<ThemeState>) => void;
+    /** Replace the whole configuration (used by presets / imports). */
+    setState: (next: ThemeState) => void;
+    /** Restore the default theme. */
+    reset: () => void;
+};
+
+// ---------------------------------------------------------------------------
+// External store (localStorage-backed) so React can read it via
+// useSyncExternalStore without a hydration mismatch or setState-in-effect.
+// ---------------------------------------------------------------------------
+
+let currentState: ThemeState = DEFAULT_THEME_STATE;
+let hydrated = false;
+const listeners = new Set<() => void>();
+
+function readStoredState(): ThemeState {
+    if (typeof window === 'undefined') return DEFAULT_THEME_STATE;
+    try {
+        const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+        if (!raw) return DEFAULT_THEME_STATE;
+        const parsed = JSON.parse(raw) as Partial<ThemeState>;
+        return { ...DEFAULT_THEME_STATE, ...parsed };
+    } catch {
+        return DEFAULT_THEME_STATE;
+    }
+}
+
+function getSnapshot(): ThemeState {
+    if (!hydrated) {
+        currentState = readStoredState();
+        hydrated = true;
+    }
+    return currentState;
+}
+
+function getServerSnapshot(): ThemeState {
+    return DEFAULT_THEME_STATE;
+}
+
+function subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+}
+
+function writeState(next: ThemeState) {
+    currentState = next;
+    hydrated = true;
+    listeners.forEach((listener) => listener());
+}
+
+// ---------------------------------------------------------------------------
+// DOM side effects
+// ---------------------------------------------------------------------------
+
+function applyStyleElement(css: string) {
+    if (typeof document === 'undefined') return;
+    let el = document.getElementById(THEME_STYLE_ID) as HTMLStyleElement | null;
+    if (!css) {
+        if (el) el.remove();
+        return;
+    }
+    if (!el) {
+        el = document.createElement('style');
+        el.id = THEME_STYLE_ID;
+        document.head.appendChild(el);
+    }
+    el.textContent = css;
+}
+
+function applyFont(fontId: ThemeState['font']) {
+    if (typeof document === 'undefined') return;
+    const font = FONTS.find((f) => f.id === fontId) ?? FONTS[0];
+    const root = document.documentElement;
+    const body = document.body;
+    const keys = [
+        '--font-sans',
+        '--font-mono',
+        '--default-font-family',
+        '--default-mono-font-family',
+        '--font-geist-sans',
+        '--font-geist-mono',
+    ];
+
+    if (!font.sans) {
+        keys.forEach((key) => {
+            root.style.removeProperty(key);
+            body.style.removeProperty(key);
+        });
+        return;
+    }
+
+    root.style.setProperty('--font-sans', font.sans);
+    root.style.setProperty('--default-font-family', font.sans);
+    root.style.setProperty('--font-mono', font.mono);
+    root.style.setProperty('--font-geist-sans', font.sans);
+    root.style.setProperty('--font-geist-mono', font.mono);
+    // next/font sets these on <body>; override there too for `font-sans` users.
+    body.style.setProperty('--font-geist-sans', font.sans);
+    body.style.setProperty('--font-geist-mono', font.mono);
+}
+
+function persist(state: ThemeState, css: string) {
+    try {
+        if (!css) {
+            window.localStorage.removeItem(THEME_STORAGE_KEY);
+            window.localStorage.removeItem(THEME_CSS_STORAGE_KEY);
+        } else {
+            window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(state));
+            window.localStorage.setItem(THEME_CSS_STORAGE_KEY, css);
+        }
+    } catch {
+        // Storage unavailable (private mode) — the in-memory theme still works.
+    }
+}
+
+const ThemeConfigContext = createContext<ThemeConfigContextValue | null>(null);
+
+export function ThemeConfigProvider({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    const state = useSyncExternalStore(
+        subscribe,
+        getSnapshot,
+        getServerSnapshot
+    );
+
+    const css = useMemo(
+        () => (isDefaultTheme(state) ? '' : themeToCss(state)),
+        [state]
+    );
+
+    // Synchronize the DOM + storage with the current theme (external system).
+    useEffect(() => {
+        applyStyleElement(css);
+        applyFont(state.font);
+        persist(state, css);
+    }, [state, css]);
+
+    const update = useCallback((patch: Partial<ThemeState>) => {
+        writeState({ ...getSnapshot(), ...patch });
+    }, []);
+
+    const setState = useCallback((next: ThemeState) => {
+        writeState({ ...DEFAULT_THEME_STATE, ...next });
+    }, []);
+
+    const reset = useCallback(() => {
+        writeState(DEFAULT_THEME_STATE);
+    }, []);
+
+    const value = useMemo(
+        () => ({ state, update, setState, reset }),
+        [state, update, setState, reset]
+    );
+
+    return (
+        <ThemeConfigContext.Provider value={value}>
+            {children}
+        </ThemeConfigContext.Provider>
+    );
+}
+
+export function useThemeConfig(): ThemeConfigContextValue {
+    const ctx = useContext(ThemeConfigContext);
+    if (!ctx) {
+        throw new Error(
+            'useThemeConfig must be used within a ThemeConfigProvider'
+        );
+    }
+    return ctx;
+}

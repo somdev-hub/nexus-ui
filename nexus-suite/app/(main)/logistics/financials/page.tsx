@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Money } from '@/components/finances/money';
 import type { CarrierPayable, FreightRate } from '@/types/logistics-ops';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -707,9 +708,19 @@ export default function FinancialsPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {p.payableAmount != null
-                                                        ? `$${Number(p.payableAmount).toFixed(2)}`
-                                                        : '-'}
+                                                    {p.payableAmount != null ? (
+                                                        <Money
+                                                            amount={
+                                                                p.payableAmount
+                                                            }
+                                                            currency={
+                                                                (p as any)
+                                                                    .currency
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        '-'
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge

@@ -441,7 +441,15 @@ export default function SupplierOrderDetailPage() {
                                         Supplier Notes
                                     </p>
                                     <p className="font-medium">
-                                        {order.supplierNotes || '—'}
+                                        {(() => {
+                                            try {
+                                                return decodeURIComponent(
+                                                    order.supplierNotes || ''
+                                                ) || '—';
+                                            } catch {
+                                                return order.supplierNotes || '—';
+                                            }
+                                        })()}
                                     </p>
                                 </div>
                                 <div className="flex justify-between text-sm">

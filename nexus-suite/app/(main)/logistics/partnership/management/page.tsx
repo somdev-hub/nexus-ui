@@ -231,6 +231,19 @@ export default function LogisticsPartnershipsPage() {
         };
     }, []);
 
+    // Deep-link highlight: the load board's shipment dialog links here with
+    // ?contract=<partnershipId> so the referenced contract is easy to spot.
+    const [highlightContractId, setHighlightContractId] = useState<
+        number | null
+    >(null);
+    useEffect(() => {
+        const raw = new URLSearchParams(window.location.search).get('contract');
+        const id = raw ? Number(raw) : NaN;
+        setHighlightContractId(
+            Number.isFinite(id) && id > 0 ? id : null
+        );
+    }, []);
+
     const respond = async (
         inv: PartnershipInvitation,
         action: 'ACCEPT' | 'REJECT'
@@ -793,9 +806,26 @@ export default function LogisticsPartnershipsPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {activePartnerships.map((p) => (
-                                            <TableRow key={p.partnershipId}>
+                                            <TableRow
+                                                key={p.partnershipId}
+                                                className={
+                                                    p.partnershipId ===
+                                                    highlightContractId
+                                                        ? 'bg-amber-50 ring-1 ring-inset ring-amber-300 dark:bg-amber-950/40'
+                                                        : undefined
+                                                }
+                                            >
                                                 <TableCell>
                                                     {p.partnershipId}
+                                                    {p.partnershipId ===
+                                                        highlightContractId && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="ml-2"
+                                                        >
+                                                            From shipment
+                                                        </Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {partnerNameOf(p)}

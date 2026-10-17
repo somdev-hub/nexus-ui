@@ -33,6 +33,8 @@ export interface SupplierFinanceSummary {
     overdue: number;
     logisticsOpen: number;
     logisticsOverdue: number;
+    /** Currency of the logistics settlement KPIs (lane currency). */
+    logisticsCurrency?: string;
     openOrderCount: number;
     aging: AgingBucket[];
     trend: TrendPoint[];
@@ -50,6 +52,8 @@ export interface LogisticsFinanceSummary {
     receivableOpen: number;
     receivableOverdue: number;
     penaltiesLevied: number;
+    /** Currency of the revenue/receivable/trend figures (dominant trip currency). */
+    currency?: string;
     trend: TrendPoint[];
 }
 
@@ -90,6 +94,30 @@ export interface OpenTrip {
     outstandingBase: number;
     lateFeeAccrued: number;
     status: string;
+    /** Denomination of the amounts on this row (lane currency when capacity-priced). */
+    currency?: string;
+    /** Itemized what-is-being-charged breakdown for this trip. */
+    pricing?: TripPricing;
+}
+
+export interface TripPricing {
+    /** Where the fare came from: the matched lane, the shipment's own cost, or nothing. */
+    source: 'CAPACITY' | 'SHIPMENT' | 'UNPRICED';
+    total: number;
+    currency?: string;
+    lane?: string;
+    transportMode?: string;
+    equipmentType?: string;
+    capacityUnit?: string;
+    unitPrice?: number;
+    billedQuantity?: number;
+    basePrice?: number;
+    fuelSurcharge?: number;
+    driverFees?: number;
+    miscPrice?: number;
+    subtotal?: number;
+    discountRate?: number;
+    discount?: number;
 }
 
 export interface BillingStatement {
@@ -104,6 +132,8 @@ export interface BillingStatement {
     penaltyPaid: number;
     lateFeesAccrued: number;
     lineCount: number;
+    /** Denomination of the statement's amounts. */
+    currency?: string;
 }
 
 export interface QuoteLine {

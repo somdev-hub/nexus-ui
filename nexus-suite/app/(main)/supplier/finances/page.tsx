@@ -52,10 +52,12 @@ import type {
     OpenTrip,
     SupplierFinanceSummary,
 } from '@/types/finances';
+import { getDisplayCurrency } from '@/lib/currency';
 import {
     AlertTriangle,
     ArrowUpCircle,
     CheckCircle2,
+    ChevronDown,
     Landmark,
     Truck,
 } from 'lucide-react';
@@ -168,12 +170,17 @@ export default function SupplierFinancesPage() {
     const payQuote = async (quote: {
         quoteRef: string;
         grandTotal: number;
-    }) => {
+    }, currency?: string) => {
         setQuoting(true);
         try {
             const intent = await createSuiteIntent({
                 amount: Number(quote.grandTotal),
-                currency: 'INR',
+                // The quote is denominated in the trips' lane currency;
+                // fall back to the org display currency, never a hardcoded one.
+                currency:
+                    currency ??
+                    tripCurrency ??
+                    getDisplayCurrency(),
                 description: `Logistics settlement ${quote.quoteRef}`,
                 payerRole: 'SUPPLIER',
                 quoteRef: quote.quoteRef,
@@ -204,7 +211,7 @@ export default function SupplierFinancesPage() {
                     `trips-${ids.sort().join('-')}`
                 ),
             });
-            await payQuote(quote);
+            await payQuote(quote, tripCurrency);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Quote failed');
         } finally {
@@ -212,7 +219,7 @@ export default function SupplierFinancesPage() {
         }
     };
 
-    const quoteStatement = async (cycleId: string) => {
+    const quoteStatement = async (cycleId: string, currency?: string) => {
         setQuoting(true);
         try {
             const quote = await createBillingQuote({
@@ -224,7 +231,7 @@ export default function SupplierFinancesPage() {
                     `stmt-${cycleId}`
                 ),
             });
-            await payQuote(quote);
+            await payQuote(quote, currency);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Quote failed');
         } finally {
@@ -241,6 +248,9 @@ export default function SupplierFinancesPage() {
                 Number(t.lateFeeAccrued ?? 0),
             0
         );
+    // Currency of the selected trips' amounts (lanes price in their own currency).
+    const tripCurrency = trips.find((t) => selected.has(t.shipmentId))
+        ?.currency;
 
     const trend = useConvertedPoints(summary?.trend ?? []);
     const buyers = useConvertedPoints(summary?.topBuyers ?? []);
@@ -310,8 +320,8 @@ export default function SupplierFinancesPage() {
                     },
                     {
                         title: 'Logistics due',
-                        value: fmt(summary?.logisticsOpen),
-                        sub: `Overdue ${fmt(summary?.logisticsOverdue)} — open Logistics tab`,
+                        value: fmt(summary?.logisticsOpen, summary?.logisticsCurrency),
+                        sub: `Overdue ${fmt(summary?.logisticsOverdue, summary?.logisticsCurrency)} — open Logistics tab`,
                         icon: Truck,
                         tone:
                             Number(summary?.logisticsOverdue ?? 0) > 0
@@ -454,7 +464,7 @@ export default function SupplierFinancesPage() {
                                     >
                                         {quoting
                                             ? 'Quoting…'
-                                            : `Pay ${selected.size} trip(s) · ${fmt(selectedTotal)}`}
+                                            : `Pay ${selected.size} trip(s) · ${fmt(selectedTotal, tripCurrency)}`}
                                     </Button>
                                 </CardHeader>
                                 <CardContent className="grid gap-2 p-0">
@@ -465,62 +475,30 @@ export default function SupplierFinancesPage() {
                                         </p>
                                     )}
                                     {trips.map((t) => (
-                                        <label
+                                        <TripRow
                                             key={t.lineId}
-                                            className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:border-muted-foreground/30"
-                                        >
-                                            <Checkbox
-                                                checked={selected.has(
-                                                    t.shipmentId
-                                                )}
-                                                onCheckedChange={(v) =>
-                                                    setSelected((prev) => {
-                                                        const next = new Set(
-                                                            prev
+                                            trip={t}
+                                            fmt={fmt}
+                                            checked={selected.has(
+                                                t.shipmentId
+                                            )}
+                                            onToggle={(v) =>
+                                                setSelected((prev) => {
+                                                    const next = new Set(
+                                                        prev
+                                                    );
+                                                    if (v)
+                                                        next.add(
+                                                            t.shipmentId
                                                         );
-                                                        if (v)
-                                                            next.add(
-                                                                t.shipmentId
-                                                            );
-                                                        else
-                                                            next.delete(
-                                                                t.shipmentId
-                                                            );
-                                                        return next;
-                                                    })
-                                                }
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium">
-                                                    {t.shipmentNumber ??
-                                                        `Trip ${t.shipmentId}`}{' '}
-                                                    <span className="text-muted-foreground">
-                                                        · {t.lane ?? ''}
-                                                    </span>
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Delivered{' '}
-                                                    {t.deliveredAt
-                                                        ? new Date(
-                                                              t.deliveredAt
-                                                          ).toLocaleDateString()
-                                                        : '—'}{' '}
-                                                    · base{' '}
-                                                    {fmt(t.outstandingBase)}{' '}
-                                                    · late fee{' '}
-                                                    {fmt(t.lateFeeAccrued ?? 0)}
-                                                </p>
-                                            </div>
-                                            <Badge
-                                                variant={
-                                                    t.status === 'PARTIAL'
-                                                        ? 'secondary'
-                                                        : 'outline'
-                                                }
-                                            >
-                                                {t.status}
-                                            </Badge>
-                                        </label>
+                                                    else
+                                                        next.delete(
+                                                            t.shipmentId
+                                                        );
+                                                    return next;
+                                                })
+                                            }
+                                        />
                                     ))}
                                 </CardContent>
                             </Card>
@@ -558,18 +536,20 @@ export default function SupplierFinancesPage() {
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
                                                             Base{' '}
-                                                            {fmt(s.baseTotal)}{' '}
+                                                            {fmt(s.baseTotal, s.currency)}{' '}
                                                             · paid{' '}
-                                                            {fmt(s.basePaid ?? 0)}{' '}
+                                                            {fmt(s.basePaid ?? 0, s.currency)}{' '}
                                                             · penalty{' '}
                                                             {fmt(
                                                                 s.penaltyTotal ??
-                                                                    0
+                                                                    0,
+                                                                s.currency
                                                             )}{' '}
                                                             · live late fees{' '}
                                                             {fmt(
                                                                 s.lateFeesAccrued ??
-                                                                    0
+                                                                    0,
+                                                                s.currency
                                                             )}
                                                         </p>
                                                     </div>
@@ -592,11 +572,12 @@ export default function SupplierFinancesPage() {
                                                                 disabled={quoting}
                                                                 onClick={() =>
                                                                     quoteStatement(
-                                                                        s.cycleId
+                                                                        s.cycleId,
+                                                                        s.currency
                                                                     )
                                                                 }
                                                             >
-                                                                Pay {fmt(due)}
+                                                                Pay {fmt(due, s.currency)}
                                                             </Button>
                                                         )}
                                                 </div>
@@ -609,6 +590,153 @@ export default function SupplierFinancesPage() {
                     )}
                 </TabsContent>
             </Tabs>
+        </div>
+    );
+}
+
+// ── open-trip dropdown row ────────────────────────────────
+type MoneyFmt = (
+    amount: number | string | null | undefined,
+    currency?: string | null
+) => string;
+
+/**
+ * One open trip: checkbox + summary, and clicking the row opens the
+ * itemized price breakdown (what the logistics lane charges: unit price ×
+ * billed cargo, fuel surcharge, driver fees, misc, partnership discount).
+ */
+function TripRow({
+    trip,
+    fmt,
+    checked,
+    onToggle,
+}: {
+    trip: OpenTrip;
+    fmt: MoneyFmt;
+    checked: boolean;
+    onToggle: (v: boolean) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const p = trip.pricing;
+    const breakdown: { label: string; value: string; strong?: boolean }[] = [];
+    if (p?.source === 'CAPACITY') {
+        breakdown.push({
+            label: `Base price${p.billedQuantity != null ? ` · ${p.billedQuantity} ${p.capacityUnit ?? 'KG'} × ${fmt(p.unitPrice, p.currency ?? trip.currency)}` : ''}`,
+            value: fmt(p.basePrice, p.currency ?? trip.currency),
+        });
+        if (p.fuelSurcharge != null && p.fuelSurcharge > 0)
+            breakdown.push({
+                label: 'Fuel surcharge',
+                value: fmt(p.fuelSurcharge, p.currency ?? trip.currency),
+            });
+        if (p.driverFees != null && p.driverFees > 0)
+            breakdown.push({
+                label: 'Driver fees',
+                value: fmt(p.driverFees, p.currency ?? trip.currency),
+            });
+        if (p.miscPrice != null && p.miscPrice > 0)
+            breakdown.push({
+                label: 'Misc charges',
+                value: fmt(p.miscPrice, p.currency ?? trip.currency),
+            });
+        if (p.discountRate != null && p.discountRate > 0)
+            breakdown.push({
+                label: `Partnership discount · ${p.discountRate}%`,
+                value: `− ${fmt(p.discount, p.currency ?? trip.currency)}`,
+            });
+        breakdown.push({
+            label: 'Total charged',
+            value: fmt(p.total, p.currency ?? trip.currency),
+            strong: true,
+        });
+    }
+
+    return (
+        <div className="rounded-lg border hover:border-muted-foreground/30">
+            <div
+                className="flex cursor-pointer items-center gap-3 p-3"
+                onClick={() => setOpen((o) => !o)}
+            >
+                <span
+                    onClick={(e) => e.stopPropagation()}
+                    className="shrink-0"
+                >
+                    <Checkbox checked={checked} onCheckedChange={onToggle} />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">
+                        {trip.shipmentNumber ?? `Trip ${trip.shipmentId}`}{' '}
+                        <span className="text-muted-foreground">
+                            · {trip.lane ?? ''}
+                        </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        Delivered{' '}
+                        {trip.deliveredAt
+                            ? new Date(trip.deliveredAt).toLocaleDateString()
+                            : '—'}{' '}
+                        · base{' '}
+                        {fmt(trip.outstandingBase, trip.currency)} · late fee{' '}
+                        {fmt(trip.lateFeeAccrued ?? 0, trip.currency)}
+                    </p>
+                </div>
+                <Badge
+                    variant={
+                        trip.status === 'PARTIAL' ? 'secondary' : 'outline'
+                    }
+                >
+                    {trip.status}
+                </Badge>
+                <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+                />
+            </div>
+            {open && (
+                <div className="border-t px-3 py-2">
+                    {p?.source === 'CAPACITY' && (
+                        <p className="mb-1 text-xs text-muted-foreground">
+                            Priced from logistics capacity{' '}
+                            {p.lane ?? ''}
+                            {p.transportMode ? ` · ${p.transportMode}` : ''}
+                            {p.equipmentType ? ` · ${p.equipmentType}` : ''}
+                        </p>
+                    )}
+                    {p?.source === 'SHIPMENT' && (
+                        <p className="mb-1 text-xs text-muted-foreground">
+                            Priced from the shipment's recorded freight cost.
+                        </p>
+                    )}
+                    {p?.source === 'UNPRICED' && (
+                        <p className="text-xs text-muted-foreground">
+                            No route-capacity price matched this lane yet.
+                        </p>
+                    )}
+                    {!p && (
+                        <p className="text-xs text-muted-foreground">
+                            No pricing breakdown available.
+                        </p>
+                    )}
+                    {breakdown.length > 0 && (
+                        <div className="grid gap-0.5">
+                            {breakdown.map((row, i) => (
+                                <div
+                                    key={i}
+                                    className={`flex items-center justify-between text-xs ${
+                                        row.strong
+                                            ? 'border-t pt-1 font-medium'
+                                            : 'py-0.5 text-muted-foreground'
+                                    }`}
+                                >
+                                    <span>{row.label}</span>
+                                    <span className="font-mono">
+                                        {row.value}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

@@ -21,6 +21,7 @@ import { getAbcAnalysis } from '@/lib/services/stock-service';
 import type { AbcAnalysis } from '@/types/stock';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { Money } from '@/components/finances/money';
 
 export default function AbcPage() {
     const [data, setData] = useState<AbcAnalysis | null>(null);
@@ -191,10 +192,16 @@ export default function AbcPage() {
                                     {(it.quantityOnHand ?? 0).toString()}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    ${Number(it.unitCost ?? 0).toFixed(2)}
+                                    <Money
+                                        amount={it.unitCost ?? 0}
+                                        currency={(it as any).currency}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-right font-medium">
-                                    ${(it.annualValue ?? 0).toLocaleString()}
+                                    <Money
+                                        amount={it.annualValue ?? 0}
+                                        currency={(it as any).currency}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-right">
                                     {it.cumulativePercentage ?? 0}%

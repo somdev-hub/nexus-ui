@@ -78,6 +78,7 @@ import {
 import { TablePagination } from './ui/table-pagination';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Material } from '@/types/materials';
+import { Money } from '@/components/finances/money';
 
 interface MaterialTableProps {
     materials: Material[];
@@ -166,7 +167,10 @@ export function MaterialTable({ materials }: MaterialTableProps) {
                 header: 'Unit Price',
                 cell: ({ row }) => (
                     <div className="font-mono tabular-nums">
-                        ${(row.getValue('unitPrice') as number).toFixed(2)}
+                        <Money
+                            amount={row.getValue('unitPrice')}
+                            currency={(row.original as any).currency}
+                        />
                     </div>
                 ),
             },

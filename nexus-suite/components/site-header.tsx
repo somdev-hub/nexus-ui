@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import AttendenceTrigger from '@/components/attendence-trigger';
+import { ModeToggle } from '@/components/mode-toggle';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 
 export function SiteHeader({ name }: { name?: string }) {
@@ -24,6 +25,7 @@ export function SiteHeader({ name }: { name?: string }) {
                 />
                 <h1 className="text-base font-medium">{resolvedName}</h1>
                 <div className="ml-auto flex items-center gap-2">
+                    <ModeToggle />
                     <AttendenceTrigger />
                     <Button
                         variant="ghost"
