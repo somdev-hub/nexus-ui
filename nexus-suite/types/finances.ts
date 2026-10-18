@@ -69,6 +69,18 @@ export interface FinanceTxn {
     dueDate?: string;
     paidAt?: string | null;
     partnershipId?: number;
+    /** detail-dialog extras (logistics ledger rows) */
+    shipmentId?: number;
+    shipmentNumber?: string;
+    lane?: string;
+    paidAmount?: number;
+    freightCost?: number;
+    fuelSurcharge?: number;
+    accessorialCharges?: number;
+    taxAmount?: number;
+    pmsStatus?: string;
+    pmsReferenceId?: string;
+    notes?: string;
 }
 
 export interface FinanceTxnPage {
@@ -144,6 +156,22 @@ export interface QuoteLine {
     quoted: number;
 }
 
+/** Trip facts attached to a quote (pickup/delivery addresses, dates, logistics org). */
+export interface QuoteShipment {
+    shipmentId: number;
+    shipmentNumber?: string;
+    lane?: string;
+    pickupLocation?: string;
+    pickupAddress?: string;
+    pickupDate?: string;
+    deliveryLocation?: string;
+    deliveryAddress?: string;
+    deliveryDate?: string;
+    deliveredAt?: string;
+    status?: string;
+    logisticsOrg?: string;
+}
+
 export interface PayQuote {
     quoteRef: string;
     idempotencyKey: string;
@@ -156,6 +184,8 @@ export interface PayQuote {
     status: string;
     expiresAt?: string;
     lines: QuoteLine[];
+    /** Shipment facts keyed by shipmentId (enriched backend response). */
+    shipments?: Record<string, QuoteShipment>;
 }
 
 export interface MarkPaidResult {

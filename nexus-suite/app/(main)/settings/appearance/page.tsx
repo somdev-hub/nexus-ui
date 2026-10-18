@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import {
     ChartColumn,
@@ -45,7 +45,6 @@ import {
 import {
     BASE_COLOR_OPTIONS,
     CHART_COLOR_OPTIONS,
-    DEFAULT_THEME_STATE,
     FONTS,
     MAX_RADIUS,
     MIN_RADIUS,
@@ -53,7 +52,6 @@ import {
     THEME_COLOR_OPTIONS,
     baseSwatch,
     chartSwatch,
-    coerceThemeState,
     themeEquals,
     themeStateToPreferences,
     themeSwatch,
@@ -64,10 +62,9 @@ import {
 import { useThemeConfig } from '@/lib/theme/theme-provider';
 import {
     APPEARANCE_SETTING,
-    getUserPreferences,
     saveUserPreferences,
 } from '@/lib/services/user-preferences-service';
-import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
 const MODE_OPTIONS = [
@@ -181,61 +178,31 @@ function ChartSwatchGrid({
 }
 
 export default function AppearanceSettingsPage() {
-    const { state, update, setState, reset } = useThemeConfig();
+    const { state, update, reset, preferencesResolved } = useThemeConfig();
     const { theme, setTheme } = useTheme();
-    const { userId } = useUserMetadata();
+    const { user } = useAuth();
 
-    // IAM stores preferences per numeric user id.
+    // IAM keys preferences by the numeric user id.
     const persistUserId =
-        userId && /^\d+$/.test(userId) ? userId : undefined;
+        user?.id && /^\d+$/.test(user.id) ? user.id : undefined;
 
+    // Baseline used for the dirty indicator. Captured once the app has resolved
+    // which preferences to use (local cache or backend), so a late-arriving
+    // backend theme doesn't look like an unsaved user change.
     const [savedState, setSavedState] = useState<ThemeState | null>(null);
     const [savedMode, setSavedMode] = useState<string | null>(null);
-    const [loadingPreferences, setLoadingPreferences] = useState(false);
     const [saving, setSaving] = useState(false);
-    const loadedRef = useRef(false);
 
     const activeMode = theme ?? '';
 
-    // Load the user's saved preferences once we know who they are. Every option
-    // that is missing from the database falls back to the shipped default.
     useEffect(() => {
-        if (loadedRef.current) return;
-
-        let active = true;
-        const load = async () => {
-            if (!persistUserId) return;
-            loadedRef.current = true;
-            setLoadingPreferences(true);
-            try {
-                const preferences = await getUserPreferences(
-                    APPEARANCE_SETTING,
-                    persistUserId
-                );
-                if (!active) return;
-                const next = coerceThemeState(preferences);
-                setState(next);
-                const mode =
-                    typeof preferences.mode === 'string'
-                        ? preferences.mode
-                        : null;
-                if (mode) setTheme(mode);
-                setSavedState(next);
-                setSavedMode(mode ?? theme ?? 'system');
-            } catch {
-                if (!active) return;
-                setSavedState(DEFAULT_THEME_STATE);
-                setSavedMode(theme ?? 'system');
-            } finally {
-                if (active) setLoadingPreferences(false);
-            }
+        if (!preferencesResolved || savedState !== null) return;
+        const snapshot = async () => {
+            setSavedState(state);
+            setSavedMode(theme ?? 'system');
         };
-        load();
-
-        return () => {
-            active = false;
-        };
-    }, [persistUserId, setState, setTheme, theme]);
+        snapshot();
+    }, [preferencesResolved, savedState, state, theme]);
 
     const currentMode = theme ?? 'system';
     const dirty =
@@ -300,19 +267,12 @@ export default function AppearanceSettingsPage() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {loadingPreferences ? (
+                        {persistUserId && savedState !== null && (
                             <span className="hidden text-xs text-muted-foreground sm:inline">
-                                Loading saved preferences…
+                                {dirty
+                                    ? 'Unsaved changes'
+                                    : 'All changes saved'}
                             </span>
-                        ) : (
-                            persistUserId &&
-                            savedState !== null && (
-                                <span className="hidden text-xs text-muted-foreground sm:inline">
-                                    {dirty
-                                        ? 'Unsaved changes'
-                                        : 'All changes saved'}
-                                </span>
-                            )
                         )}
                         <Button
                             variant="outline"
@@ -325,7 +285,9 @@ export default function AppearanceSettingsPage() {
                         <Button
                             size="sm"
                             onClick={handleSave}
-                            disabled={saving || loadingPreferences || !dirty}
+                            disabled={
+                                saving || !preferencesResolved || !dirty
+                            }
                         >
                             {saving ? (
                                 <Loader2 className="size-4 animate-spin" />

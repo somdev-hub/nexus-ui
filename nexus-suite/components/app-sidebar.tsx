@@ -447,16 +447,6 @@ const logisticsSections = [
                 url: '/logistics/finances',
                 icon: IconWallet,
             },
-            {
-                title: 'Financials',
-                url: '/logistics/financials',
-                icon: IconFileWord,
-            },
-            {
-                title: 'Freight Invoices',
-                url: '/logistics/freight-invoices',
-                icon: IconFileWord,
-            },
         ],
     },
 ];

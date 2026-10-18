@@ -21,7 +21,6 @@ import {
     TrendingUp,
     Truck,
     User,
-    Wallet,
     Wrench,
     type LucideIcon,
 } from 'lucide-react';
@@ -206,20 +205,12 @@ const LOGISTICS_OPTIONS: QuickCreateOption[] = [
         intent: 'logistics:capacity',
     },
     {
-        key: 'rate',
-        label: 'Freight Rate',
-        description: 'Contract / spot',
+        key: 'capacity',
+        label: 'Capacity Forecast',
+        description: 'Bulk + per-unit specs',
         icon: BadgeDollarSign,
-        href: '/logistics/financials',
-        intent: 'logistics:rate',
-    },
-    {
-        key: 'payable',
-        label: 'Carrier Payable',
-        description: 'Sub-carrier settlement',
-        icon: Wallet,
-        href: '/logistics/financials',
-        intent: 'logistics:payable',
+        href: '/logistics/routing',
+        intent: 'logistics:capacity',
     },
 ];
 

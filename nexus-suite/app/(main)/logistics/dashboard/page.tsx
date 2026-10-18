@@ -21,7 +21,6 @@ import {
     IconPackage,
     IconChartBar,
     IconDatabase,
-    IconFileWord,
 } from '@tabler/icons-react';
 
 export default function LogisticsDashboardPage() {
@@ -90,13 +89,6 @@ export default function LogisticsDashboardPage() {
             desc: `${dashboard?.availableAssets ?? 0} available`,
             icon: IconDatabase,
             href: '/logistics/fleet',
-        },
-        {
-            title: 'Open Payables',
-            value: dashboard?.openPayables ?? 0,
-            desc: 'pending carrier settlement',
-            icon: IconFileWord,
-            href: '/logistics/financials',
         },
     ];
 
@@ -201,9 +193,7 @@ export default function LogisticsDashboardPage() {
                 <Card className="p-4 gap-2">
                     <CardHeader className="p-0">
                         <CardTitle>Settlement</CardTitle>
-                        <CardDescription>
-                            Revenue and carrier payables
-                        </CardDescription>
+                        <CardDescription>Revenue</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2 p-0">
                         <div className="flex justify-between">
@@ -212,22 +202,6 @@ export default function LogisticsDashboardPage() {
                                 <Money amount={dashboard?.totalRevenue ?? 0} />
                             </span>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-sm">Open Payables</span>
-                            <Badge variant="secondary">
-                                {dashboard?.openPayables ?? 0}
-                            </Badge>
-                        </div>
-                        <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="w-full mt-2"
-                        >
-                            <Link href="/logistics/financials">
-                                Go to Financials
-                            </Link>
-                        </Button>
                     </CardContent>
                 </Card>
             </div>
@@ -249,14 +223,6 @@ export default function LogisticsDashboardPage() {
                         </Button>
                         <Button asChild variant="outline" size="sm">
                             <Link href="/logistics/routing">Routing</Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href="/logistics/financials">Financials</Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href="/logistics/freight-invoices">
-                                Freight Invoices
-                            </Link>
                         </Button>
                         <Button asChild variant="outline" size="sm">
                             <Link href="/logistics/analytics">Analytics</Link>

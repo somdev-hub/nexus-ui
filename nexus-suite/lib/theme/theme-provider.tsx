@@ -6,20 +6,33 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
+    useState,
     useSyncExternalStore,
 } from 'react';
+import { useTheme } from 'next-themes';
+
+import { useAuth } from '@/lib/auth-context';
+import {
+    APPEARANCE_SETTING,
+    getUserPreferences,
+} from '@/lib/services/user-preferences-service';
 
 import {
     DEFAULT_THEME_STATE,
     FONTS,
+    coerceThemeState,
     isDefaultTheme,
     themeToCss,
     type ThemeState,
 } from './theme';
 import {
+    hasStoredThemeState,
+    readResolvedThemeOwner,
     THEME_CSS_STORAGE_KEY,
     THEME_STORAGE_KEY,
     THEME_STYLE_ID,
+    writeResolvedThemeOwner,
 } from './storage';
 
 type ThemeConfigContextValue = {
@@ -31,6 +44,12 @@ type ThemeConfigContextValue = {
     setState: (next: ThemeState) => void;
     /** Restore the default theme. */
     reset: () => void;
+    /**
+     * True once the app has picked which preferences to use for the current
+     * user (local cache or backend). The appearance page uses this to snapshot
+     * the "saved" baseline for its dirty indicator.
+     */
+    preferencesResolved: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -156,18 +175,14 @@ export function ThemeConfigProvider({
         getSnapshot,
         getServerSnapshot
     );
+    const { user } = useAuth();
+    const { setTheme } = useTheme();
 
-    const css = useMemo(
-        () => (isDefaultTheme(state) ? '' : themeToCss(state)),
-        [state]
-    );
+    const [preferencesResolved, setPreferencesResolved] = useState(false);
+    const resolvedForRef = useRef<string | null>(null);
 
-    // Synchronize the DOM + storage with the current theme (external system).
-    useEffect(() => {
-        applyStyleElement(css);
-        applyFont(state.font);
-        persist(state, css);
-    }, [state, css]);
+    // IAM keys preferences by the numeric user id.
+    const userId = user?.id && /^\d+$/.test(user.id) ? user.id : undefined;
 
     const update = useCallback((patch: Partial<ThemeState>) => {
         writeState({ ...getSnapshot(), ...patch });
@@ -181,9 +196,78 @@ export function ThemeConfigProvider({
         writeState(DEFAULT_THEME_STATE);
     }, []);
 
+    /**
+     * Resolve appearance preferences once per user:
+     *
+     * 1. A theme cached in this browser always wins — no backend call. This is
+     *    what makes the app instant and keeps preference traffic off the API.
+     * 2. Only when nothing is cached locally, the user is signed in, and we have
+     *    not already resolved for them, do we fetch once from the backend,
+     *    apply the result and cache it locally (including the "default" result,
+     *    via the owner marker, so we never re-fetch for it).
+     */
+    useEffect(() => {
+        const key = userId ?? '';
+        // Already resolved (or in flight) for this user.
+        if (resolvedForRef.current === key) return;
+        resolvedForRef.current = key;
+
+        const resolve = async () => {
+            setPreferencesResolved(false);
+            try {
+                const owner = readResolvedThemeOwner();
+                const hasLocalTheme = hasStoredThemeState();
+                // Local data is trusted when it is anonymous or belongs to the
+                // current user; another user's cached theme is not.
+                const localBelongsToUser =
+                    !userId || owner === null || owner === userId;
+
+                if (hasLocalTheme && localBelongsToUser) {
+                    if (userId) writeResolvedThemeOwner(userId);
+                    return;
+                }
+                if (!userId) return;
+                if (owner === userId) return;
+
+                const preferences = await getUserPreferences(
+                    APPEARANCE_SETTING,
+                    userId
+                );
+                // Superseded by a different user while fetching.
+                if (resolvedForRef.current !== key) return;
+                setState(coerceThemeState(preferences));
+                const mode =
+                    typeof preferences.mode === 'string'
+                        ? preferences.mode
+                        : null;
+                if (mode) setTheme(mode);
+                writeResolvedThemeOwner(userId);
+            } catch {
+                // Backend unavailable — keep the local/default theme.
+            } finally {
+                if (resolvedForRef.current === key) {
+                    setPreferencesResolved(true);
+                }
+            }
+        };
+        resolve();
+    }, [userId, setState, setTheme]);
+
+    const css = useMemo(
+        () => (isDefaultTheme(state) ? '' : themeToCss(state)),
+        [state]
+    );
+
+    // Synchronize the DOM + storage with the current theme (external system).
+    useEffect(() => {
+        applyStyleElement(css);
+        applyFont(state.font);
+        persist(state, css);
+    }, [state, css]);
+
     const value = useMemo(
-        () => ({ state, update, setState, reset }),
-        [state, update, setState, reset]
+        () => ({ state, update, setState, reset, preferencesResolved }),
+        [state, update, setState, reset, preferencesResolved]
     );
 
     return (

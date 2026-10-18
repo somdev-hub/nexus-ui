@@ -173,10 +173,11 @@ export default function RetailerFinancesPage() {
                 <div className="lg:col-span-3">
                     <TrendChart
                         title="Spend trend"
-                        description="Invoiced amounts per month"
+                        description="Invoiced amounts by period"
                         data={trend}
                         period={period}
                         onPeriodChange={setPeriod}
+                        loading={loading}
                     />
                 </div>
                 <div className="lg:col-span-2">

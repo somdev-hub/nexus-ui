@@ -28,6 +28,7 @@ import {
     TransactionsTable,
     type TxnFilter,
 } from '@/components/finances/transactions-table';
+import { LogisticsLedgerActions } from '@/components/finances/logistics-ledger-actions';
 import {
     getStatements,
     getOpenTrips,
@@ -70,7 +71,10 @@ export default function LogisticsFinancesPage() {
     const [trips, setTrips] = useState<OpenTrip[]>([]);
     const [statements, setStatements] = useState<BillingStatement[]>([]);
     const [billingLoading, setBillingLoading] = useState(false);
-    const [knownPartnerships, setKnownPartnerships] = useState<number[]>([]);
+    // id → partner org display name (from ledger partner rows)
+    const [partnerships, setPartnerships] = useState<
+        { id: number; name: string }[]
+    >([]);
 
     const loadSummary = useCallback(async () => {
         try {
@@ -110,14 +114,20 @@ export default function LogisticsFinancesPage() {
         loadTxns();
     }, [loadTxns]);
 
-    // Collect partnership ids seen in settlement rows for the lookup box.
+    // Collect partnership ids + partner org names seen in ledger rows.
     useEffect(() => {
-        const ids = new Set<number>(knownPartnerships);
+        const map = new Map<number, string>(
+            partnerships.map((p) => [p.id, p.name])
+        );
         for (const r of txns?.content ?? []) {
-            if (r.partnershipId) ids.add(r.partnershipId);
+            if (r.partnershipId && r.party) {
+                map.set(r.partnershipId, r.party);
+            }
         }
-        if (ids.size !== knownPartnerships.length) {
-            setKnownPartnerships([...ids]);
+        if (map.size !== partnerships.length) {
+            setPartnerships(
+                [...map.entries()].map(([id, name]) => ({ id, name }))
+            );
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [txns]);
@@ -246,10 +256,11 @@ export default function LogisticsFinancesPage() {
                         <div className="lg:col-span-3">
                             <TrendChart
                                 title="Revenue trend"
-                                description="Delivered freight per month"
+                                description="Delivered freight by period"
                                 data={trend}
                                 period={period}
                                 onPeriodChange={setPeriod}
+                                loading={loading}
                             />
                         </div>
                         <div className="lg:col-span-2">
@@ -294,6 +305,7 @@ export default function LogisticsFinancesPage() {
                         onFilterChange={setFilter}
                         onPage={(p) => setFilter((f) => ({ ...f, page: p }))}
                         onExport={exportCsv}
+                        action={(r) => <LogisticsLedgerActions row={r} />}
                     />
                 </TabsContent>
 
@@ -309,9 +321,9 @@ export default function LogisticsFinancesPage() {
                                     <SelectValue placeholder="Select partnership (see ledger rows)" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {knownPartnerships.map((id) => (
-                                        <SelectItem key={id} value={String(id)}>
-                                            Partnership #{id}
+                                    {partnerships.map((p) => (
+                                        <SelectItem key={p.id} value={String(p.id)}>
+                                            {p.name || `Partnership #${p.id}`}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

@@ -21,9 +21,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
+import { DatePicker } from '@/components/ui/date-picker';
 import type { FinanceTxn } from '@/types/finances';
 import { Money } from '@/components/finances/money';
-import { Download, Search } from 'lucide-react';
+import { Download, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export interface TxnFilter {
@@ -33,6 +34,21 @@ export interface TxnFilter {
     from?: string;
     to?: string;
     page: number;
+}
+
+/** yyyy-MM-dd ⇆ Date helpers for the filter date pickers. */
+function toDateStr(d?: Date): string | undefined {
+    if (!d) return undefined;
+    const m = `${d.getMonth() + 1}`.padStart(2, '0');
+    const day = `${d.getDate()}`.padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function parseDateStr(s?: string): Date | undefined {
+    if (!s) return undefined;
+    const [y, m, d] = s.split('-').map(Number);
+    if (!y || !m || !d) return undefined;
+    return new Date(y, m - 1, d);
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -164,30 +180,58 @@ export function TransactionsTable({
                         ))}
                     </SelectContent>
                 </Select>
-                <Input
-                    type="date"
-                    className="w-[150px]"
-                    value={filter.from ?? ''}
-                    onChange={(e) =>
-                        onFilterChange({
-                            ...filter,
-                            from: e.target.value || undefined,
-                            page: 0,
-                        })
-                    }
-                />
-                <Input
-                    type="date"
-                    className="w-[150px]"
-                    value={filter.to ?? ''}
-                    onChange={(e) =>
-                        onFilterChange({
-                            ...filter,
-                            to: e.target.value || undefined,
-                            page: 0,
-                        })
-                    }
-                />
+                <div className="flex items-center gap-1">
+                    <DatePicker
+                        date={parseDateStr(filter.from)}
+                        placeholder="From date"
+                        onDateChange={(d) =>
+                            onFilterChange({
+                                ...filter,
+                                from: toDateStr(d),
+                                page: 0,
+                            })
+                        }
+                    />
+                    {filter.from && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            title="Clear from date"
+                            onClick={() =>
+                                onFilterChange({ ...filter, from: undefined, page: 0 })
+                            }
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </Button>
+                    )}
+                </div>
+                <div className="flex items-center gap-1">
+                    <DatePicker
+                        date={parseDateStr(filter.to)}
+                        placeholder="To date"
+                        onDateChange={(d) =>
+                            onFilterChange({
+                                ...filter,
+                                to: toDateStr(d),
+                                page: 0,
+                            })
+                        }
+                    />
+                    {filter.to && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            title="Clear to date"
+                            onClick={() =>
+                                onFilterChange({ ...filter, to: undefined, page: 0 })
+                            }
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </Button>
+                    )}
+                </div>
                 {onExport && (
                     <Button
                         variant="outline"

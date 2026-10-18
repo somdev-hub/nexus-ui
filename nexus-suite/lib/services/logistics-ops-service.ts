@@ -9,8 +9,6 @@ import type {
     MaintenanceFilter,
     ShipmentQuote,
     QuoteFilter,
-    FreightRate,
-    FreightRateFilter,
     ShipmentIncident,
     IncidentFilter,
     ProofOfDelivery,
@@ -24,8 +22,6 @@ import type {
     ConsolidationFilter,
     CapacityForecast,
     CapacityFilter,
-    CarrierPayable,
-    PayableFilter,
     LogisticsDashboard,
     LoadBoardShipment,
 } from '@/types/logistics-ops';
@@ -372,36 +368,6 @@ export async function transitionQuoteStatus(
 export async function deleteShipmentQuote(id: number): Promise<void> {
     await apiClient.delete(`${BASE}/quoting/quotes/${id}`);
 }
-export async function getFreightRates(
-    filter: FreightRateFilter = {}
-): Promise<PaginatedResponse<FreightRate>> {
-    const res = await apiClient.get<PaginatedResponse<FreightRate>>(
-        `${BASE}/quoting/rates/all${toQuery(filter)}`
-    );
-    return res.data;
-}
-export async function createFreightRate(
-    data: Partial<FreightRate>
-): Promise<FreightRate> {
-    const res = await apiClient.post<FreightRate>(
-        `${BASE}/quoting/rates/create`,
-        data
-    );
-    return res.data;
-}
-export async function updateFreightRate(
-    id: number,
-    data: Partial<FreightRate>
-): Promise<FreightRate> {
-    const res = await apiClient.put<FreightRate>(
-        `${BASE}/quoting/rates/${id}/update`,
-        data
-    );
-    return res.data;
-}
-export async function deleteFreightRate(id: number): Promise<void> {
-    await apiClient.delete(`${BASE}/quoting/rates/${id}`);
-}
 
 // Execution
 export async function assignBooking(
@@ -575,34 +541,6 @@ export async function createCapacityForecast(
 export async function deleteCapacityForecast(id: number): Promise<void> {
     await apiClient.delete(`${BASE}/operations/capacity/${id}`);
 }
-export async function getCarrierPayables(
-    filter: PayableFilter = {}
-): Promise<PaginatedResponse<CarrierPayable>> {
-    const res = await apiClient.get<PaginatedResponse<CarrierPayable>>(
-        `${BASE}/operations/payables/all${toQuery(filter)}`
-    );
-    return res.data;
-}
-export async function createCarrierPayable(
-    data: Partial<CarrierPayable>
-): Promise<CarrierPayable> {
-    const res = await apiClient.post<CarrierPayable>(
-        `${BASE}/operations/payables/create`,
-        data
-    );
-    return res.data;
-}
-export async function transitionPayableStatus(
-    id: number,
-    newStatus: string,
-    params?: Record<string, unknown>
-): Promise<CarrierPayable> {
-    const res = await apiClient.put<CarrierPayable>(
-        `${BASE}/operations/payables/${id}/status?newStatus=${newStatus}`,
-        params || {}
-    );
-    return res.data;
-}
 export async function getLogisticsDashboard(): Promise<LogisticsDashboard> {
     const res = await apiClient.get<LogisticsDashboard>(
         `${BASE}/operations/analytics/dashboard`
@@ -671,16 +609,6 @@ export async function extendCapacityForPartnership(
 ): Promise<CapacityForecast> {
     const res = await apiClient.put<CapacityForecast>(
         `${BASE}/operations/capacity/${id}/extend-for-partnership`,
-        data
-    );
-    return res.data;
-}
-export async function updatePayable(
-    id: number,
-    data: Partial<CarrierPayable>
-): Promise<CarrierPayable> {
-    const res = await apiClient.put<CarrierPayable>(
-        `${BASE}/operations/payables/${id}/update`,
         data
     );
     return res.data;

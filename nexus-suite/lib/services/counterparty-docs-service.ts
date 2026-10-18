@@ -1,7 +1,7 @@
 import apiClient from '@/lib/api-client';
 import { PaginatedResponse } from '@/types/paginated-response';
 import type { SupplierQuotation } from '@/types/supplier';
-import type { FreightInvoice } from '@/types/freight-invoice';
+
 import type { ProofOfDelivery } from '@/types/logistics-ops';
 
 // ─────────────────────────────────────────────────────────────
@@ -235,30 +235,4 @@ export async function getSupplierPod(
 }
 
 // ── Logistics (freight invoices issued against shipments) ──
-
-export async function getLogisticsFreightInvoices(
-    filter: { page?: number; size?: number; status?: string } = {}
-): Promise<PaginatedResponse<FreightInvoice>> {
-    const p = new URLSearchParams();
-    Object.entries(filter).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== '') p.append(k, String(v));
-    });
-    const q = p.toString();
-    const url = q
-        ? `/iam/core/logistics/freight-invoices/all?${q}`
-        : '/iam/core/logistics/freight-invoices/all';
-    const res = await apiClient.get<PaginatedResponse<FreightInvoice>>(url);
-    return res.data;
-}
-
-export async function getLogisticsFreightByShipment(
-    shipmentId: number
-): Promise<FreightInvoice[]> {
-    const res = await apiClient.get<FreightInvoice[] | FreightInvoice>(
-        `/iam/core/logistics/freight-invoices/shipment/${shipmentId}`
-    );
-    const data = res.data;
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object') return [data as FreightInvoice];
-    return [];
-}
+// (page removed — freight invoice visibility now lives on /logistics/finances)

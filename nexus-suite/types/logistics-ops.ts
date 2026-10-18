@@ -119,34 +119,6 @@ export interface QuoteFilter {
     search?: string;
 }
 
-export interface FreightRate {
-    rateId: number;
-    rateCode: string;
-    rateType: 'CONTRACT' | 'SPOT';
-    originLane?: string;
-    destinationLane?: string;
-    equipmentType?: string;
-    shipmentMode?: string;
-    baseRate?: number;
-    fuelSurchargeFormula?: string;
-    fuelSurchargePct?: number;
-    accessorialTable?: string;
-    currency?: string;
-    effectiveFrom?: string;
-    effectiveTo?: string;
-    isActiveRate?: boolean;
-    notes?: string;
-}
-
-export interface FreightRateFilter {
-    page?: number;
-    size?: number;
-    sort?: string;
-    rateType?: string;
-    equipmentType?: string;
-    search?: string;
-}
-
 export interface ShipmentIncident {
     incidentId: number;
     incidentNumber: string;
@@ -269,29 +241,6 @@ export interface CapacityFilter {
     search?: string;
 }
 
-export interface CarrierPayable {
-    payableId: number;
-    payableNumber: string;
-    shipmentId?: number;
-    carrierName?: string;
-    status: 'PENDING' | 'APPROVED' | 'PAID' | 'DISPUTED' | 'CANCELLED';
-    payableAmount?: number;
-    paidAmount?: number;
-    currency?: string;
-    dueDate?: string;
-    pmsReferenceId?: string;
-    notes?: string;
-}
-
-export interface PayableFilter {
-    page?: number;
-    size?: number;
-    sort?: string;
-    shipmentId?: number;
-    status?: string;
-    search?: string;
-}
-
 export interface LogisticsDashboard {
     totalShipments: number;
     deliveredShipments: number;
@@ -301,7 +250,6 @@ export interface LogisticsDashboard {
     totalAssets: number;
     availableAssets: number;
     equipmentUtilization: number;
-    openPayables: number;
 }
 
 export interface ShipmentPosition {

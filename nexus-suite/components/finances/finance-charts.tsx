@@ -25,7 +25,44 @@ import {
     YAxis,
 } from 'recharts';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { AgingBucket, NameAmount, TrendPoint } from '@/types/finances';
+
+const MONTHS_SHORT = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+];
+
+/**
+ * Trend keys come from the backend as "MM-dd" (daily buckets, e.g. 10-24)
+ * or "yyyy-MM" (monthly buckets). Render them as month names + day:
+ * "Oct 24" / "Oct 2025".
+ */
+export function fmtTrendKey(key: string | number): string {
+    const k = String(key);
+    const [a, b] = k.split('-');
+    const monthOf = (m: string) =>
+        MONTHS_SHORT[Number(m) - 1] ?? undefined;
+    if (a?.length === 2 && b) {
+        const m = monthOf(a);
+        return m ? `${m} ${Number(b)}` : k; // daily: "10-24" → "Oct 24"
+    }
+    if (a?.length === 4 && b) {
+        const m = monthOf(b);
+        return m ? `${m} ${a}` : k; // monthly: "2025-10" → "Oct 2025"
+    }
+    return k;
+}
 
 // ── trend (area→bars; bar keeps single-series crisp) ──────────
 export function TrendChart({
@@ -34,12 +71,15 @@ export function TrendChart({
     data,
     period,
     onPeriodChange,
+    loading = false,
 }: {
     title: string;
     description?: string;
     data: TrendPoint[];
     period: FinancePeriod;
     onPeriodChange: (p: FinancePeriod) => void;
+    /** Blocks the period buttons + skeletons the chart while a refetch runs. */
+    loading?: boolean;
 }) {
     const config: ChartConfig = {
         amount: { label: 'Amount', color: 'var(--chart-1)' },
@@ -57,7 +97,13 @@ export function TrendChart({
                     type="single"
                     size="sm"
                     value={period}
-                    onValueChange={(v) => v && onPeriodChange(v as FinancePeriod)}
+                    // Ignore same-value clicks and lock everything while the
+                    // summary is refetching — no double requests, no races.
+                    disabled={loading}
+                    onValueChange={(v) => {
+                        if (!v || v === period || loading) return;
+                        onPeriodChange(v as FinancePeriod);
+                    }}
                 >
                     {(['7d', '30d', '90d', '12m'] as FinancePeriod[]).map(
                         (p) => (
@@ -69,7 +115,11 @@ export function TrendChart({
                 </ToggleGroup>
             </CardHeader>
             <CardContent className="p-0">
-                {data.length === 0 ? (
+                {loading ? (
+                    <div className="space-y-2 py-2">
+                        <Skeleton className="h-[220px] w-full" />
+                    </div>
+                ) : data.length === 0 ? (
                     <p className="py-10 text-center text-sm text-muted-foreground">
                         No data in this period.
                     </p>
@@ -83,6 +133,7 @@ export function TrendChart({
                                 axisLine={false}
                                 tickMargin={8}
                                 minTickGap={24}
+                                tickFormatter={fmtTrendKey}
                             />
                             <YAxis
                                 tickLine={false}
@@ -91,7 +142,15 @@ export function TrendChart({
                                     v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`
                                 }
                             />
-                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <ChartTooltip
+                                content={
+                                    <ChartTooltipContent
+                                        labelFormatter={(label) =>
+                                            fmtTrendKey(String(label))
+                                        }
+                                    />
+                                }
+                            />
                             <Bar
                                 dataKey="amount"
                                 fill="var(--color-amount)"
@@ -121,7 +180,7 @@ export function SplitBar({
         amount: { label: 'Amount', color: 'var(--chart-2)' },
     };
     return (
-        <Card className="p-4 gap-2">
+        <Card className="p-4 gap-2 h-full">
             <CardHeader className="p-0">
                 <CardTitle className="text-base">{title}</CardTitle>
                 {description && <CardDescription>{description}</CardDescription>}
@@ -251,7 +310,7 @@ export function AgingBars({
         amount: { label: 'Overdue amount', color: 'var(--chart-4)' },
     };
     return (
-        <Card className="p-4 gap-2">
+        <Card className="p-4 gap-2 h-full">
             <CardHeader className="p-0">
                 <CardTitle className="text-base">{title}</CardTitle>
                 {description && <CardDescription>{description}</CardDescription>}

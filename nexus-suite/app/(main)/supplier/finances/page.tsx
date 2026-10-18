@@ -30,6 +30,7 @@ import {
     TransactionsTable,
     type TxnFilter,
 } from '@/components/finances/transactions-table';
+import { LogisticsPaymentsTable } from '@/components/finances/logistics-payments-table';
 import {
     billingIdempotencyKey,
     createBillingQuote,
@@ -41,7 +42,7 @@ import {
     getSupplierTransactions,
     type FinancePeriod,
 } from '@/lib/services/finances-service';
-import { createSuiteIntent } from '@/lib/services/payments-service';
+import { createSuiteIntent, listSuiteIntents } from '@/lib/services/payments-service';
 import {
     getSupplierLogisticsPartnerships,
     type SupplierLogisticsPartnership,
@@ -53,6 +54,7 @@ import type {
     SupplierFinanceSummary,
 } from '@/types/finances';
 import { getDisplayCurrency } from '@/lib/currency';
+import type { SuiteIntent } from '@/types/payments';
 import {
     AlertTriangle,
     ArrowUpCircle,
@@ -88,6 +90,27 @@ export default function SupplierFinancesPage() {
     const [billingLoading, setBillingLoading] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [quoting, setQuoting] = useState(false);
+    // Settlement payment history (checkout intents, LOGISTICS_SETTLEMENT kind).
+    const [settlePayments, setSettlePayments] = useState<SuiteIntent[]>([]);
+    const [paymentsLoading, setPaymentsLoading] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        setPaymentsLoading(true);
+        listSuiteIntents({ page: 0, size: 100 })
+            .then((r) => {
+                if (!active) return;
+                const all = (r.content ?? []).filter(
+                    (it) => it.intentKind === 'LOGISTICS_SETTLEMENT'
+                );
+                setSettlePayments(all);
+            })
+            .catch(() => null)
+            .finally(() => active && setPaymentsLoading(false));
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const loadSummary = useCallback(async () => {
         try {
@@ -343,16 +366,17 @@ export default function SupplierFinancesPage() {
 
                 <TabsContent value="overview" className="grid gap-6 pt-4">
                     <div className="grid gap-6 lg:grid-cols-5">
-                        <div className="lg:col-span-3">
+                        <div className="lg:col-span-3 h-full">
                             <TrendChart
                                 title="Sales trend"
-                                description="Invoiced amounts per month"
+                                description="Invoiced amounts by period"
                                 data={trend}
                                 period={period}
                                 onPeriodChange={setPeriod}
+                                loading={loading}
                             />
                         </div>
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-2 h-full">
                             <AgingBars
                                 title="Receivables aging"
                                 description="Approved invoices by days overdue"
@@ -586,6 +610,20 @@ export default function SupplierFinancesPage() {
                                     </CardContent>
                                 </Card>
                             )}
+                            <LogisticsPaymentsTable
+                                payments={
+                                    partnershipId
+                                        ? settlePayments.filter(
+                                              (it) =>
+                                                  String(
+                                                      it.partnershipId ?? ''
+                                                  ) ===
+                                                  String(partnershipId)
+                                          )
+                                        : settlePayments
+                                }
+                                loading={paymentsLoading}
+                            />
                         </>
                     )}
                 </TabsContent>
@@ -703,7 +741,7 @@ function TripRow({
                     )}
                     {p?.source === 'SHIPMENT' && (
                         <p className="mb-1 text-xs text-muted-foreground">
-                            Priced from the shipment's recorded freight cost.
+                            Priced from the shipment&apos;s recorded freight cost.
                         </p>
                     )}
                     {p?.source === 'UNPRICED' && (

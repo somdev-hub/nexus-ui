@@ -35,12 +35,12 @@ export default function RootLayout({
                 <script
                     dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
                 />
-                <ThemeProvider>
-                    <AuthProvider>
+                <AuthProvider>
+                    <ThemeProvider>
                         <CurrencySync />
                         {children}
-                    </AuthProvider>
-                </ThemeProvider>
+                    </ThemeProvider>
+                </AuthProvider>
                 <Toaster position="top-right" richColors />
             </body>
         </html>
