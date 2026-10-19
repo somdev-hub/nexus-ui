@@ -27,12 +27,12 @@ import {
     type ThemeState,
 } from './theme';
 import {
-    hasStoredThemeState,
-    readResolvedThemeOwner,
-    THEME_CSS_STORAGE_KEY,
-    THEME_STORAGE_KEY,
+    ANONYMOUS_OWNER,
+    readActiveThemeOwner,
+    readStoredTheme,
     THEME_STYLE_ID,
-    writeResolvedThemeOwner,
+    themeStorageKeys,
+    writeActiveThemeOwner,
 } from './storage';
 
 type ThemeConfigContextValue = {
@@ -58,25 +58,18 @@ type ThemeConfigContextValue = {
 // ---------------------------------------------------------------------------
 
 let currentState: ThemeState = DEFAULT_THEME_STATE;
-let hydrated = false;
+/**
+ * Owner whose cached state is currently loaded. `null` until the first client
+ * read, which mirrors the pre-paint script (the last active owner).
+ */
+let currentOwner: string | null = null;
 const listeners = new Set<() => void>();
 
-function readStoredState(): ThemeState {
-    if (typeof window === 'undefined') return DEFAULT_THEME_STATE;
-    try {
-        const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
-        if (!raw) return DEFAULT_THEME_STATE;
-        const parsed = JSON.parse(raw) as Partial<ThemeState>;
-        return { ...DEFAULT_THEME_STATE, ...parsed };
-    } catch {
-        return DEFAULT_THEME_STATE;
-    }
-}
-
 function getSnapshot(): ThemeState {
-    if (!hydrated) {
-        currentState = readStoredState();
-        hydrated = true;
+    if (currentOwner === null) {
+        currentOwner = readActiveThemeOwner();
+        currentState =
+            readStoredTheme(currentOwner) ?? DEFAULT_THEME_STATE;
     }
     return currentState;
 }
@@ -94,8 +87,22 @@ function subscribe(listener: () => void) {
 
 function writeState(next: ThemeState) {
     currentState = next;
-    hydrated = true;
     listeners.forEach((listener) => listener());
+}
+
+/**
+ * Point the cache at `owner` and return that owner's cached state (`null` when
+ * they have nothing cached yet).
+ */
+function activateOwner(owner: string): ThemeState | null {
+    currentOwner = owner;
+    writeActiveThemeOwner(owner);
+    return readStoredTheme(owner);
+}
+
+/** The owner whose cache writes should target. */
+function activeOwner(): string {
+    return currentOwner ?? readActiveThemeOwner();
 }
 
 // ---------------------------------------------------------------------------
@@ -150,13 +157,15 @@ function applyFont(fontId: ThemeState['font']) {
 }
 
 function persist(state: ThemeState, css: string) {
+    const keys = themeStorageKeys(activeOwner());
     try {
-        if (!css) {
-            window.localStorage.removeItem(THEME_STORAGE_KEY);
-            window.localStorage.removeItem(THEME_CSS_STORAGE_KEY);
+        // Always keep the state (even the defaults) so we know this owner has
+        // already been resolved locally and can skip the backend call.
+        window.localStorage.setItem(keys.state, JSON.stringify(state));
+        if (css) {
+            window.localStorage.setItem(keys.css, css);
         } else {
-            window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(state));
-            window.localStorage.setItem(THEME_CSS_STORAGE_KEY, css);
+            window.localStorage.removeItem(keys.css);
         }
     } catch {
         // Storage unavailable (private mode) — the in-memory theme still works.
@@ -197,61 +206,58 @@ export function ThemeConfigProvider({
     }, []);
 
     /**
-     * Resolve appearance preferences once per user:
+     * Resolve appearance preferences whenever the signed-in user changes.
      *
-     * 1. A theme cached in this browser always wins — no backend call. This is
-     *    what makes the app instant and keeps preference traffic off the API.
-     * 2. Only when nothing is cached locally, the user is signed in, and we have
-     *    not already resolved for them, do we fetch once from the backend,
-     *    apply the result and cache it locally (including the "default" result,
-     *    via the owner marker, so we never re-fetch for it).
+     * Each user (and the anonymous bucket) has its own local cache, so:
+     * 1. The current owner's cached theme always wins — no backend call.
+     * 2. Only when that owner has no cache yet, a signed-in user is fetched
+     *    once from the backend; the result (including "defaults") is then
+     *    cached locally, so repeated loads never hit the backend.
+     * 3. Switching/losing the user switches the cache bucket, so another
+     *    account never inherits the previous user's theme.
      */
     useEffect(() => {
-        const key = userId ?? '';
-        // Already resolved (or in flight) for this user.
-        if (resolvedForRef.current === key) return;
-        resolvedForRef.current = key;
+        const owner = userId ?? ANONYMOUS_OWNER;
+        if (resolvedForRef.current === owner) return;
+        resolvedForRef.current = owner;
 
         const resolve = async () => {
             setPreferencesResolved(false);
             try {
-                const owner = readResolvedThemeOwner();
-                const hasLocalTheme = hasStoredThemeState();
-                // Local data is trusted when it is anonymous or belongs to the
-                // current user; another user's cached theme is not.
-                const localBelongsToUser =
-                    !userId || owner === null || owner === userId;
-
-                if (hasLocalTheme && localBelongsToUser) {
-                    if (userId) writeResolvedThemeOwner(userId);
+                const cached = activateOwner(owner);
+                if (cached) {
+                    // Local cache wins for this user — no backend call.
+                    writeState(cached);
                     return;
                 }
+
+                // No cache for this owner: drop whatever the previous owner
+                // had applied before we know this user's preferences.
+                writeState(DEFAULT_THEME_STATE);
                 if (!userId) return;
-                if (owner === userId) return;
 
                 const preferences = await getUserPreferences(
                     APPEARANCE_SETTING,
                     userId
                 );
                 // Superseded by a different user while fetching.
-                if (resolvedForRef.current !== key) return;
-                setState(coerceThemeState(preferences));
+                if (resolvedForRef.current !== owner) return;
+                writeState(coerceThemeState(preferences));
                 const mode =
                     typeof preferences.mode === 'string'
                         ? preferences.mode
                         : null;
                 if (mode) setTheme(mode);
-                writeResolvedThemeOwner(userId);
             } catch {
                 // Backend unavailable — keep the local/default theme.
             } finally {
-                if (resolvedForRef.current === key) {
+                if (resolvedForRef.current === owner) {
                     setPreferencesResolved(true);
                 }
             }
         };
         resolve();
-    }, [userId, setState, setTheme]);
+    }, [userId, setTheme]);
 
     const css = useMemo(
         () => (isDefaultTheme(state) ? '' : themeToCss(state)),

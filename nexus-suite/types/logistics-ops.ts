@@ -48,10 +48,88 @@ export interface Driver {
     licenseExpiry?: string;
     status: 'AVAILABLE' | 'ASSIGNED' | 'ON_LEAVE' | 'SUSPENDED' | 'INACTIVE';
     hrEmployeeId?: string;
+    iamUserId?: number | null;
     onTimeRate?: number;
     safetyScore?: number;
     totalTrips?: number;
     notes?: string;
+}
+
+// Driver employee-onboarding (IAM + HR, mirrors the HR app's add-employee flow)
+export interface DriverBankRecord {
+    bankName: string;
+    accountHolderName: string;
+    accountNumber: string;
+    ifscCode: string;
+    accountType: 'SAVINGS' | 'CURRENT';
+    branchAddress: string;
+}
+
+export interface DriverOnboardPayload {
+    driverCode: string;
+    fullName: string;
+    phone?: string;
+    email: string;
+    licenseNumber: string;
+    licenseClass?: string;
+    licenseExpiry?: string;
+    status?: string;
+    safetyScore?: number;
+    notes?: string;
+    hrEmployeeId?: string;
+    personalEmail?: string;
+    address?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    age?: number;
+    dateOfBirth?: string;
+    title?: string;
+    compensation: {
+        basePay: number;
+        hra: number;
+        pf: number;
+        gratuity: number;
+        insurancePremium: number;
+        grossPay: number;
+        netPay: number;
+        annualPackage: string;
+        bonuses: unknown[];
+        deductions: unknown[];
+        bankRecords: DriverBankRecord[];
+    };
+    bankRecords: DriverBankRecord[];
+}
+
+export interface DriverOnboardResult extends Partial<Driver> {
+    userId?: string;
+    email?: string;
+    password?: string;
+    hrId?: number;
+    joiningLetterUrl?: string;
+    letterOfIntentUrl?: string;
+    compensationCardUrl?: string;
+    message?: string;
+    error?: string;
+}
+
+/** A driver's linked IAM user profile (lazy-loaded for the edit dialog). */
+export interface DriverIamUser {
+    userId?: number;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    personalEmail?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+    age?: number | null;
+    dateOfBirth?: string | null;
+}
+
+export interface DriverOnboardDetails {
+    driver: Driver;
+    iamUser?: DriverIamUser;
+    department?: string;
+    bankRecords?: DriverBankRecord[];
+    error?: string;
 }
 
 export interface DriverFilter {

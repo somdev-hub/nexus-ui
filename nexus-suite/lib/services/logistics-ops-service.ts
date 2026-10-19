@@ -1,10 +1,14 @@
 import apiClient from '@/lib/api-client';
+import axios from 'axios';
 import { PaginatedResponse } from '@/types/paginated-response';
 import type {
     FleetAsset,
     FleetAssetFilter,
     Driver,
     DriverFilter,
+    DriverOnboardPayload,
+    DriverOnboardResult,
+    DriverOnboardDetails,
     MaintenanceRecord,
     MaintenanceFilter,
     ShipmentQuote,
@@ -244,6 +248,60 @@ export async function transitionDriverStatus(
 }
 export async function deleteDriver(id: number): Promise<void> {
     await apiClient.delete(`${BASE}/fleet/drivers/${id}`);
+}
+
+// Driver employee-onboarding (IAM user + HR record + linked core driver)
+
+/** Rethrows axios errors with the server's `error` message when present. */
+function onboardError(e: unknown, fallback: string): never {
+    if (axios.isAxiosError(e)) {
+        const body = e.response?.data as { error?: string } | undefined;
+        throw new Error(body?.error || e.message || fallback);
+    }
+    throw e instanceof Error ? e : new Error(fallback);
+}
+
+export async function onboardDriver(
+    data: DriverOnboardPayload
+): Promise<DriverOnboardResult> {
+    try {
+        const res = await apiClient.post<DriverOnboardResult>(
+            `${BASE}/fleet/drivers/onboard`,
+            data
+        );
+        return res.data;
+    } catch (e) {
+        onboardError(e, 'Driver onboarding failed');
+    }
+}
+
+export async function syncDriverOnboard(
+    id: number,
+    data: Partial<DriverOnboardPayload>
+): Promise<DriverOnboardResult> {
+    try {
+        const res = await apiClient.put<DriverOnboardResult>(
+            `${BASE}/fleet/drivers/${id}/onboard-sync`,
+            data
+        );
+        return res.data;
+    } catch (e) {
+        onboardError(e, 'Driver update failed');
+    }
+}
+
+/** Lazy full employee view (IAM profile + HR bank records) of a driver. */
+export async function getDriverOnboardDetails(
+    id: number
+): Promise<DriverOnboardDetails> {
+    try {
+        const res = await apiClient.get<DriverOnboardDetails>(
+            `${BASE}/fleet/drivers/${id}/onboard-details`
+        );
+        return res.data;
+    } catch (e) {
+        onboardError(e, 'Failed to load driver employee details');
+    }
 }
 
 // Maintenance

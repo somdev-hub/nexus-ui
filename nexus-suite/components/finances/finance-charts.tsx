@@ -117,14 +117,14 @@ export function TrendChart({
             <CardContent className="p-0">
                 {loading ? (
                     <div className="space-y-2 py-2">
-                        <Skeleton className="h-[220px] w-full" />
+                        <Skeleton className="h-55 w-full" />
                     </div>
                 ) : data.length === 0 ? (
                     <p className="py-10 text-center text-sm text-muted-foreground">
                         No data in this period.
                     </p>
                 ) : (
-                    <ChartContainer config={config} className="h-[240px] w-full">
+                    <ChartContainer config={config} className="h-60 w-full">
                         <BarChart data={data} margin={{ left: -8 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis
@@ -191,7 +191,7 @@ export function SplitBar({
                         Nothing to split yet.
                     </p>
                 ) : (
-                    <ChartContainer config={config} className="h-[240px] w-full">
+                    <ChartContainer config={config} className="h-60 w-full">
                         <BarChart
                             data={data}
                             layout="vertical"
@@ -265,7 +265,7 @@ export function StatusDonut({
                         No rows yet.
                     </p>
                 ) : (
-                    <ChartContainer config={config} className="h-[240px] w-full">
+                    <ChartContainer config={config} className="h-60 w-full">
                         <PieChart>
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Pie
@@ -316,7 +316,7 @@ export function AgingBars({
                 {description && <CardDescription>{description}</CardDescription>}
             </CardHeader>
             <CardContent className="p-0">
-                <ChartContainer config={config} className="h-[200px] w-full">
+                <ChartContainer config={config} className="h-50 w-full">
                     <BarChart data={data}>
                         <CartesianGrid vertical={false} />
                         <XAxis

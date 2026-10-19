@@ -62,6 +62,12 @@ export function DatePicker({
                     defaultMonth={date}
                     onSelect={handleSelect}
                     captionLayout="dropdown"
+                    // The year dropdown otherwise clamps to the current year.
+                    startMonth={new Date(2000, 0)}
+                    endMonth={new Date(
+                        new Date().getFullYear() + 25,
+                        11
+                    )}
                     disabled={disabled}
                 />
             </PopoverContent>
