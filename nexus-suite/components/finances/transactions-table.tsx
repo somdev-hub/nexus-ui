@@ -199,7 +199,11 @@ export function TransactionsTable({
                             className="h-8 w-8"
                             title="Clear from date"
                             onClick={() =>
-                                onFilterChange({ ...filter, from: undefined, page: 0 })
+                                onFilterChange({
+                                    ...filter,
+                                    from: undefined,
+                                    page: 0,
+                                })
                             }
                         >
                             <X className="h-3.5 w-3.5" />
@@ -225,7 +229,11 @@ export function TransactionsTable({
                             className="h-8 w-8"
                             title="Clear to date"
                             onClick={() =>
-                                onFilterChange({ ...filter, to: undefined, page: 0 })
+                                onFilterChange({
+                                    ...filter,
+                                    to: undefined,
+                                    page: 0,
+                                })
                             }
                         >
                             <X className="h-3.5 w-3.5" />
@@ -264,14 +272,14 @@ export function TransactionsTable({
                                         </TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Due</TableHead>
-                                        {action && <TableHead>Actions</TableHead>}
+                                        {action && (
+                                            <TableHead>Actions</TableHead>
+                                        )}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {rows.map((r) => (
-                                        <TableRow
-                                            key={`${r.kind}-${r.id}`}
-                                        >
+                                        <TableRow key={`${r.kind}-${r.id}`}>
                                             <TableCell className="text-xs text-muted-foreground">
                                                 {KIND_LABEL[r.kind] ?? r.kind}
                                             </TableCell>
@@ -304,7 +312,9 @@ export function TransactionsTable({
                                                 {fmtDate(r.dueDate)}
                                             </TableCell>
                                             {action && (
-                                                <TableCell>{action(r)}</TableCell>
+                                                <TableCell>
+                                                    {action(r)}
+                                                </TableCell>
                                             )}
                                         </TableRow>
                                     ))}

@@ -1,10 +1,7 @@
 import apiClient from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import type { PartnershipInvitationCreateRequest } from '@/types/partnership-invitations';
-import type {
-    ShipmentEta,
-    ShipmentPosition,
-} from '@/types/logistics-ops';
+import type { ShipmentEta, ShipmentPosition } from '@/types/logistics-ops';
 
 // ─────────────────────────────────────────────────────────────
 // Supplier-owned delivery: logistics marketplace + shipment handover.

@@ -21,9 +21,7 @@ export function statusColor(s?: string): string {
 }
 
 export function PaymentStatusBadge({ status }: { status?: string }) {
-    return (
-        <Badge className={cn(statusColor(status))}>{status ?? '—'}</Badge>
-    );
+    return <Badge className={cn(statusColor(status))}>{status ?? '—'}</Badge>;
 }
 
 export function PaymentStatusTimeline({

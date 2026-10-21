@@ -209,9 +209,10 @@ export default function SupplierShipmentsPage() {
                     </h1>
                     <p className="text-sm text-muted-foreground">
                         Every shipment prepared from your orders with the full
-                        detail captured at partial-ship and handover time. <br />Hand
-                        shipments over from an acknowledged order — delivery is
-                        owned by the supplier.
+                        detail captured at partial-ship and handover time.{' '}
+                        <br />
+                        Hand shipments over from an acknowledged order —
+                        delivery is owned by the supplier.
                     </p>
                 </div>
                 <Button variant="outline" asChild className="shrink-0">
@@ -236,104 +237,110 @@ export default function SupplierShipmentsPage() {
                         </div>
                     ) : (
                         <div className="max-w-full overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Shipment #</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>PO</TableHead>
-                                    <TableHead>Backordered</TableHead>
-                                    <TableHead>Expected Delivery</TableHead>
-                                    <TableHead>Tracking</TableHead>
-                                    <TableHead>Pickup → Delivery</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {shipments.map((s) => (
-                                    <TableRow key={s.shipmentId}>
-                                        <TableCell className="font-mono">
-                                            {s.shipmentNumber ?? s.shipmentId}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge>{s.status ?? '—'}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {(
-                                                s.purchaseOrder as
-                                                    | { poNumber?: string }
-                                                    | undefined
-                                            )?.poNumber ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {s.backorderedQuantity !==
-                                                undefined &&
-                                            s.backorderedQuantity !== null &&
-                                            s.backorderedQuantity > 0 ? (
-                                                <Badge variant="secondary">
-                                                    {s.backorderedQuantity}{' '}
-                                                    pending
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">
-                                                    Full qty
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap text-xs">
-                                            {s.estimatedArrival
-                                                ? new Date(
-                                                      s.estimatedArrival
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="font-mono text-xs">
-                                            {s.trackingNumber ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <AddressCell
-                                                pickup={s.pickupLocation}
-                                                delivery={s.deliveryLocation}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => setViewing(s)}
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    title="Live tracking"
-                                                    onClick={() =>
-                                                        openTracking(s)
-                                                    }
-                                                >
-                                                    <MapPin className="mr-1 h-3 w-3" />
-                                                    Track
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!shipments.length && (
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell
-                                            colSpan={8}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No shipments yet — create one from
-                                            an acknowledged order via Partial
-                                            Ship.
-                                        </TableCell>
+                                        <TableHead>Shipment #</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>PO</TableHead>
+                                        <TableHead>Backordered</TableHead>
+                                        <TableHead>Expected Delivery</TableHead>
+                                        <TableHead>Tracking</TableHead>
+                                        <TableHead>Pickup → Delivery</TableHead>
+                                        <TableHead>Actions</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {shipments.map((s) => (
+                                        <TableRow key={s.shipmentId}>
+                                            <TableCell className="font-mono">
+                                                {s.shipmentNumber ??
+                                                    s.shipmentId}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge>{s.status ?? '—'}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {(
+                                                    s.purchaseOrder as
+                                                        | { poNumber?: string }
+                                                        | undefined
+                                                )?.poNumber ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {s.backorderedQuantity !==
+                                                    undefined &&
+                                                s.backorderedQuantity !==
+                                                    null &&
+                                                s.backorderedQuantity > 0 ? (
+                                                    <Badge variant="secondary">
+                                                        {s.backorderedQuantity}{' '}
+                                                        pending
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Full qty
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap text-xs">
+                                                {s.estimatedArrival
+                                                    ? new Date(
+                                                          s.estimatedArrival
+                                                      ).toLocaleString()
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">
+                                                {s.trackingNumber ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <AddressCell
+                                                    pickup={s.pickupLocation}
+                                                    delivery={
+                                                        s.deliveryLocation
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            setViewing(s)
+                                                        }
+                                                    >
+                                                        View
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        title="Live tracking"
+                                                        onClick={() =>
+                                                            openTracking(s)
+                                                        }
+                                                    >
+                                                        <MapPin className="mr-1 h-3 w-3" />
+                                                        Track
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {!shipments.length && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={8}
+                                                className="text-center text-sm text-muted-foreground"
+                                            >
+                                                No shipments yet — create one
+                                                from an acknowledged order via
+                                                Partial Ship.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
                     {!loading && (

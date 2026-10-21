@@ -121,7 +121,10 @@ const cardSchema = z.object({
         .trim()
         .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, 'Use MM/YY')
         .refine(isFutureExpiry, 'Card is expired'),
-    cardCvv: z.string().trim().regex(/^\d{3,4}$/, 'CVV must be 3–4 digits'),
+    cardCvv: z
+        .string()
+        .trim()
+        .regex(/^\d{3,4}$/, 'CVV must be 3–4 digits'),
 });
 
 const bankSchema = z.object({
@@ -146,7 +149,13 @@ const walletSchema = z.object({
     walletId: z.string().trim().min(3, 'Enter wallet ID / linked phone'),
 });
 
-const BANKS = ['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra'];
+const BANKS = [
+    'HDFC Bank',
+    'ICICI Bank',
+    'State Bank of India',
+    'Axis Bank',
+    'Kotak Mahindra',
+];
 const WALLETS = ['MockPay Wallet', 'Nexus Cash', 'SwiftPocket'];
 const TRANSFER_RAILS = ['IMPS', 'NEFT', 'RTGS'] as const;
 
@@ -156,10 +165,30 @@ const METHODS: {
     hint: string;
     icon: typeof Smartphone;
 }[] = [
-    { id: 'UPI', label: 'UPI', hint: 'GPay / PhonePe · instant', icon: Smartphone },
-    { id: 'CARD', label: 'Card', hint: 'Visa · Mastercard · RuPay', icon: CreditCard },
-    { id: 'BANK_TRANSFER', label: 'Bank transfer', hint: 'IMPS · NEFT · RTGS', icon: Landmark },
-    { id: 'NET_BANKING', label: 'Netbanking', hint: 'All Indian banks', icon: Building2 },
+    {
+        id: 'UPI',
+        label: 'UPI',
+        hint: 'GPay / PhonePe · instant',
+        icon: Smartphone,
+    },
+    {
+        id: 'CARD',
+        label: 'Card',
+        hint: 'Visa · Mastercard · RuPay',
+        icon: CreditCard,
+    },
+    {
+        id: 'BANK_TRANSFER',
+        label: 'Bank transfer',
+        hint: 'IMPS · NEFT · RTGS',
+        icon: Landmark,
+    },
+    {
+        id: 'NET_BANKING',
+        label: 'Netbanking',
+        hint: 'All Indian banks',
+        icon: Building2,
+    },
     { id: 'WALLET', label: 'Wallet', hint: 'Linked wallets', icon: Wallet },
 ];
 
@@ -248,10 +277,7 @@ export function SuiteCheckout({
         try {
             const it = await getSuiteIntentByRef(payRef);
             setIntent(it);
-            if (
-                it.intentKind === 'LOGISTICS_SETTLEMENT' ||
-                it.quoteRef
-            ) {
+            if (it.intentKind === 'LOGISTICS_SETTLEMENT' || it.quoteRef) {
                 try {
                     setQuote(await getBillingQuote(it.quoteRef as string));
                 } catch {
@@ -267,7 +293,9 @@ export function SuiteCheckout({
                 }
             }
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Invalid payment link');
+            toast.error(
+                e instanceof Error ? e.message : 'Invalid payment link'
+            );
         } finally {
             setLoading(false);
         }
@@ -323,7 +351,9 @@ export function SuiteCheckout({
                 if (ticks > 30) {
                     stopPoll();
                     setBusy(false);
-                    toast.error(e instanceof Error ? e.message : 'Polling failed');
+                    toast.error(
+                        e instanceof Error ? e.message : 'Polling failed'
+                    );
                 }
             }
         }, 2000);
@@ -420,8 +450,7 @@ export function SuiteCheckout({
 
     const done = intent.status === 'COMPLETED';
     const failed = intent.status === 'FAILED';
-    const dead =
-        intent.status === 'CANCELLED' || intent.status === 'EXPIRED';
+    const dead = intent.status === 'CANCELLED' || intent.status === 'EXPIRED';
     const settling =
         busy ||
         intent.status === 'PROCESSING' ||
@@ -505,9 +534,7 @@ export function SuiteCheckout({
                                 <CardTitle className="text-base">
                                     Nexus Supply Chain
                                 </CardTitle>
-                                <CardDescription>
-                                    Order summary
-                                </CardDescription>
+                                <CardDescription>Order summary</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
@@ -524,7 +551,9 @@ export function SuiteCheckout({
                             {quote ? (
                                 <>
                                     <SummaryRow
-                                        icon={<FileText className="h-3.5 w-3.5" />}
+                                        icon={
+                                            <FileText className="h-3.5 w-3.5" />
+                                        }
                                         k="Quote"
                                         v={quote.quoteRef}
                                         mono
@@ -551,34 +580,54 @@ export function SuiteCheckout({
                                                           : 'Cycle penalty'}
                                                 </span>
                                                 <span className="font-mono">
-                                                    {money(l.quoted, intent.currency)}
+                                                    {money(
+                                                        l.quoted,
+                                                        intent.currency
+                                                    )}
                                                 </span>
                                             </div>
                                         ))}
                                     </div>
                                     <SummaryRow
                                         k="Base"
-                                        v={money(quote.baseTotal, intent.currency)}
+                                        v={money(
+                                            quote.baseTotal,
+                                            intent.currency
+                                        )}
                                     />
                                     <SummaryRow
                                         k="Late fees"
-                                        v={money(quote.feeTotal, intent.currency)}
+                                        v={money(
+                                            quote.feeTotal,
+                                            intent.currency
+                                        )}
                                     />
                                     <SummaryRow
                                         k="Penalties"
-                                        v={money(quote.penaltyTotal, intent.currency)}
+                                        v={money(
+                                            quote.penaltyTotal,
+                                            intent.currency
+                                        )}
                                     />
                                 </>
                             ) : (
                                 <>
                                     <SummaryRow
-                                        icon={<FileText className="h-3.5 w-3.5" />}
+                                        icon={
+                                            <FileText className="h-3.5 w-3.5" />
+                                        }
                                         k="Invoice"
-                                        v={String(intent.invoiceNumber ?? intent.invoiceId ?? '—')}
+                                        v={String(
+                                            intent.invoiceNumber ??
+                                                intent.invoiceId ??
+                                                '—'
+                                        )}
                                     />
                                     <SummaryRow
                                         k="Purchase order"
-                                        v={String(intent.purchaseOrderId ?? '—')}
+                                        v={String(
+                                            intent.purchaseOrderId ?? '—'
+                                        )}
                                     />
                                 </>
                             )}
@@ -601,7 +650,8 @@ export function SuiteCheckout({
                             {intent.status === 'INITIATED' && expiryLabel && (
                                 <Badge
                                     variant={
-                                        expiryMs !== null && expiryMs < 5 * 60000
+                                        expiryMs !== null &&
+                                        expiryMs < 5 * 60000
                                             ? 'destructive'
                                             : 'secondary'
                                     }
@@ -660,10 +710,8 @@ export function SuiteCheckout({
                                     . The invoice ledger is being updated.
                                 </p>
                                 <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-                                    Redirecting you back to your previous
-                                    screen
-                                    {backCountdown !== null &&
-                                    backCountdown > 0
+                                    Redirecting you back to your previous screen
+                                    {backCountdown !== null && backCountdown > 0
                                         ? ` in ${backCountdown}s…`
                                         : '…'}
                                 </p>
@@ -677,9 +725,7 @@ export function SuiteCheckout({
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        onClick={() =>
-                                            window.history.back()
-                                        }
+                                        onClick={() => window.history.back()}
                                     >
                                         <ArrowLeft className="mr-1.5 h-4 w-4" />
                                         Go back now
@@ -778,7 +824,10 @@ export function SuiteCheckout({
                                             <Progress value={progress} />
                                             {intent.mockPayment && (
                                                 <p className="font-mono text-[11px] text-muted-foreground">
-                                                    {intent.mockPayment.transactionReference}
+                                                    {
+                                                        intent.mockPayment
+                                                            .transactionReference
+                                                    }
                                                 </p>
                                             )}
                                         </div>
@@ -793,8 +842,8 @@ export function SuiteCheckout({
                                                 {intent.failureReason ??
                                                     'Payment declined.'}{' '}
                                                 Fix the details and retry — the
-                                                same link reuses the session,
-                                                no double charge.
+                                                same link reuses the session, no
+                                                double charge.
                                             </AlertDescription>
                                         </Alert>
                                     )}
@@ -803,8 +852,12 @@ export function SuiteCheckout({
                                         <Form {...upiForm}>
                                             <form
                                                 className="grid gap-3"
-                                                onSubmit={upiForm.handleSubmit((v) =>
-                                                    submit({ methodDetail: v.upiId })
+                                                onSubmit={upiForm.handleSubmit(
+                                                    (v) =>
+                                                        submit({
+                                                            methodDetail:
+                                                                v.upiId,
+                                                        })
                                                 )}
                                             >
                                                 <FormField
@@ -812,12 +865,16 @@ export function SuiteCheckout({
                                                     name="upiId"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>UPI ID</FormLabel>
+                                                            <FormLabel>
+                                                                UPI ID
+                                                            </FormLabel>
                                                             <FormControl>
                                                                 <Input
                                                                     {...field}
                                                                     placeholder="name@mock"
-                                                                    disabled={busy}
+                                                                    disabled={
+                                                                        busy
+                                                                    }
                                                                 />
                                                             </FormControl>
                                                             <FormMessage />
@@ -825,23 +882,31 @@ export function SuiteCheckout({
                                                     )}
                                                 />
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {['GPay', 'PhonePe', 'Paytm', 'BHIM'].map(
-                                                        (a) => (
-                                                            <Badge
-                                                                key={a}
-                                                                variant="secondary"
-                                                                className="font-normal"
-                                                            >
-                                                                {a}
-                                                            </Badge>
-                                                        )
-                                                    )}
+                                                    {[
+                                                        'GPay',
+                                                        'PhonePe',
+                                                        'Paytm',
+                                                        'BHIM',
+                                                    ].map((a) => (
+                                                        <Badge
+                                                            key={a}
+                                                            variant="secondary"
+                                                            className="font-normal"
+                                                        >
+                                                            {a}
+                                                        </Badge>
+                                                    ))}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
                                                     Use <b>fail@mock</b> to
                                                     simulate a decline.
                                                 </p>
-                                                <PayCTA busy={busy} amount={intent.amount} currency={intent.currency} retry={failed} />
+                                                <PayCTA
+                                                    busy={busy}
+                                                    amount={intent.amount}
+                                                    currency={intent.currency}
+                                                    retry={failed}
+                                                />
                                             </form>
                                         </Form>
                                     )}
@@ -850,29 +915,46 @@ export function SuiteCheckout({
                                         <Form {...cardForm}>
                                             <form
                                                 className="grid gap-3"
-                                                onSubmit={cardForm.handleSubmit((v) =>
-                                                    submit({
-                                                        cardHolderName: v.cardHolderName,
-                                                        cardNumber: v.cardNumber,
-                                                        cardExpiry: v.cardExpiry,
-                                                        cardCvv: v.cardCvv,
-                                                    })
+                                                onSubmit={cardForm.handleSubmit(
+                                                    (v) =>
+                                                        submit({
+                                                            cardHolderName:
+                                                                v.cardHolderName,
+                                                            cardNumber:
+                                                                v.cardNumber,
+                                                            cardExpiry:
+                                                                v.cardExpiry,
+                                                            cardCvv: v.cardCvv,
+                                                        })
                                                 )}
                                             >
                                                 {/* live preview */}
                                                 <div className="rounded-lg bg-primary p-4 text-primary-foreground">
                                                     <div className="flex items-center justify-between text-[11px] tracking-widest opacity-80">
-                                                        <span>DEBIT · CREDIT</span>
+                                                        <span>
+                                                            DEBIT · CREDIT
+                                                        </span>
                                                         <span className="font-bold">
                                                             {cardBrand(cardNum)}
                                                         </span>
                                                     </div>
                                                     <p className="mt-3 font-mono text-lg tracking-[0.12em]">
-                                                        {(cardNum.replace(/\D/g, '').padEnd(16, '•').match(/.{1,4}/g) ?? []).join(' ')}
+                                                        {(
+                                                            cardNum
+                                                                .replace(
+                                                                    /\D/g,
+                                                                    ''
+                                                                )
+                                                                .padEnd(16, '•')
+                                                                .match(
+                                                                    /.{1,4}/g
+                                                                ) ?? []
+                                                        ).join(' ')}
                                                     </p>
                                                     <div className="mt-3 flex items-end justify-between text-xs">
                                                         <span className="max-w-[60%] truncate uppercase opacity-80">
-                                                            {cardName || 'CARD HOLDER'}
+                                                            {cardName ||
+                                                                'CARD HOLDER'}
                                                         </span>
                                                         <span className="font-mono">
                                                             {cardExp || 'MM/YY'}
@@ -884,9 +966,16 @@ export function SuiteCheckout({
                                                     name="cardHolderName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Name on card</FormLabel>
+                                                            <FormLabel>
+                                                                Name on card
+                                                            </FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} disabled={busy} />
+                                                                <Input
+                                                                    {...field}
+                                                                    disabled={
+                                                                        busy
+                                                                    }
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -897,13 +986,17 @@ export function SuiteCheckout({
                                                     name="cardNumber"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Card number</FormLabel>
+                                                            <FormLabel>
+                                                                Card number
+                                                            </FormLabel>
                                                             <FormControl>
                                                                 <Input
                                                                     {...field}
                                                                     inputMode="numeric"
                                                                     placeholder="4111 1111 1111 1111"
-                                                                    disabled={busy}
+                                                                    disabled={
+                                                                        busy
+                                                                    }
                                                                     className="font-mono"
                                                                 />
                                                             </FormControl>
@@ -913,26 +1006,54 @@ export function SuiteCheckout({
                                                 />
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <FormField
-                                                        control={cardForm.control}
+                                                        control={
+                                                            cardForm.control
+                                                        }
                                                         name="cardExpiry"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel>Expiry (MM/YY)</FormLabel>
+                                                                <FormLabel>
+                                                                    Expiry
+                                                                    (MM/YY)
+                                                                </FormLabel>
                                                                 <FormControl>
-                                                                    <Input {...field} placeholder="12/29" disabled={busy} className="font-mono" />
+                                                                    <Input
+                                                                        {...field}
+                                                                        placeholder="12/29"
+                                                                        disabled={
+                                                                            busy
+                                                                        }
+                                                                        className="font-mono"
+                                                                    />
                                                                 </FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
                                                         )}
                                                     />
                                                     <FormField
-                                                        control={cardForm.control}
+                                                        control={
+                                                            cardForm.control
+                                                        }
                                                         name="cardCvv"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel>CVV</FormLabel>
+                                                                <FormLabel>
+                                                                    CVV
+                                                                </FormLabel>
                                                                 <FormControl>
-                                                                    <Input {...field} inputMode="numeric" type="password" maxLength={4} placeholder="•••" disabled={busy} className="font-mono" />
+                                                                    <Input
+                                                                        {...field}
+                                                                        inputMode="numeric"
+                                                                        type="password"
+                                                                        maxLength={
+                                                                            4
+                                                                        }
+                                                                        placeholder="•••"
+                                                                        disabled={
+                                                                            busy
+                                                                        }
+                                                                        className="font-mono"
+                                                                    />
                                                                 </FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
@@ -940,10 +1061,17 @@ export function SuiteCheckout({
                                                     />
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Test <b>4111 1111 1111 1111</b> succeeds,{' '}
-                                                    <b>…0002</b> declines. Test cards only.
+                                                    Test{' '}
+                                                    <b>4111 1111 1111 1111</b>{' '}
+                                                    succeeds, <b>…0002</b>{' '}
+                                                    declines. Test cards only.
                                                 </p>
-                                                <PayCTA busy={busy} amount={intent.amount} currency={intent.currency} retry={failed} />
+                                                <PayCTA
+                                                    busy={busy}
+                                                    amount={intent.amount}
+                                                    currency={intent.currency}
+                                                    retry={failed}
+                                                />
                                             </form>
                                         </Form>
                                     )}
@@ -952,12 +1080,16 @@ export function SuiteCheckout({
                                         <Form {...bankForm}>
                                             <form
                                                 className="grid gap-3"
-                                                onSubmit={bankForm.handleSubmit((v) =>
-                                                    submit({
-                                                        bankHolderName: v.bankHolderName,
-                                                        bankAccountNumber: v.bankAccountNumber,
-                                                        bankIfsc: v.bankIfsc,
-                                                    })
+                                                onSubmit={bankForm.handleSubmit(
+                                                    (v) =>
+                                                        submit({
+                                                            bankHolderName:
+                                                                v.bankHolderName,
+                                                            bankAccountNumber:
+                                                                v.bankAccountNumber,
+                                                            bankIfsc:
+                                                                v.bankIfsc,
+                                                        })
                                                 )}
                                             >
                                                 <div className="flex items-center gap-1.5">
@@ -966,8 +1098,14 @@ export function SuiteCheckout({
                                                             key={r}
                                                             type="button"
                                                             size="sm"
-                                                            variant={rail === r ? 'default' : 'outline'}
-                                                            onClick={() => setRail(r)}
+                                                            variant={
+                                                                rail === r
+                                                                    ? 'default'
+                                                                    : 'outline'
+                                                            }
+                                                            onClick={() =>
+                                                                setRail(r)
+                                                            }
                                                         >
                                                             {r}
                                                         </Button>
@@ -981,9 +1119,16 @@ export function SuiteCheckout({
                                                     name="bankHolderName"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Account holder</FormLabel>
+                                                            <FormLabel>
+                                                                Account holder
+                                                            </FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} disabled={busy} />
+                                                                <Input
+                                                                    {...field}
+                                                                    disabled={
+                                                                        busy
+                                                                    }
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -994,9 +1139,18 @@ export function SuiteCheckout({
                                                     name="bankAccountNumber"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Account number</FormLabel>
+                                                            <FormLabel>
+                                                                Account number
+                                                            </FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} inputMode="numeric" disabled={busy} className="font-mono" />
+                                                                <Input
+                                                                    {...field}
+                                                                    inputMode="numeric"
+                                                                    disabled={
+                                                                        busy
+                                                                    }
+                                                                    className="font-mono"
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -1007,15 +1161,29 @@ export function SuiteCheckout({
                                                     name="bankIfsc"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>IFSC</FormLabel>
+                                                            <FormLabel>
+                                                                IFSC
+                                                            </FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} placeholder="HDFC0001234" disabled={busy} className="font-mono uppercase" />
+                                                                <Input
+                                                                    {...field}
+                                                                    placeholder="HDFC0001234"
+                                                                    disabled={
+                                                                        busy
+                                                                    }
+                                                                    className="font-mono uppercase"
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
                                                 />
-                                                <PayCTA busy={busy} amount={intent.amount} currency={intent.currency} retry={failed} />
+                                                <PayCTA
+                                                    busy={busy}
+                                                    amount={intent.amount}
+                                                    currency={intent.currency}
+                                                    retry={failed}
+                                                />
                                             </form>
                                         </Form>
                                     )}
@@ -1024,38 +1192,60 @@ export function SuiteCheckout({
                                         <Form {...netbankForm}>
                                             <form
                                                 className="grid gap-3"
-                                                onSubmit={netbankForm.handleSubmit((v) =>
-                                                    submit({ methodDetail: v.bank })
+                                                onSubmit={netbankForm.handleSubmit(
+                                                    (v) =>
+                                                        submit({
+                                                            methodDetail:
+                                                                v.bank,
+                                                        })
                                                 )}
                                             >
                                                 <FormField
-                                                    control={netbankForm.control}
+                                                    control={
+                                                        netbankForm.control
+                                                    }
                                                     name="bank"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Select your bank</FormLabel>
+                                                            <FormLabel>
+                                                                Select your bank
+                                                            </FormLabel>
                                                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                                                {BANKS.map((b) => (
-                                                                    <button
-                                                                        key={b}
-                                                                        type="button"
-                                                                        onClick={() => field.onChange(b)}
-                                                                        className={
-                                                                            field.value === b
-                                                                                ? 'rounded-lg border border-primary bg-accent p-3 text-left text-xs font-semibold'
-                                                                                : 'rounded-lg border p-3 text-left text-xs font-medium text-muted-foreground hover:border-muted-foreground/40'
-                                                                        }
-                                                                    >
-                                                                        <Building2 className="mb-1.5 h-4 w-4" />
-                                                                        {b}
-                                                                    </button>
-                                                                ))}
+                                                                {BANKS.map(
+                                                                    (b) => (
+                                                                        <button
+                                                                            key={
+                                                                                b
+                                                                            }
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                field.onChange(
+                                                                                    b
+                                                                                )
+                                                                            }
+                                                                            className={
+                                                                                field.value ===
+                                                                                b
+                                                                                    ? 'rounded-lg border border-primary bg-accent p-3 text-left text-xs font-semibold'
+                                                                                    : 'rounded-lg border p-3 text-left text-xs font-medium text-muted-foreground hover:border-muted-foreground/40'
+                                                                            }
+                                                                        >
+                                                                            <Building2 className="mb-1.5 h-4 w-4" />
+                                                                            {b}
+                                                                        </button>
+                                                                    )
+                                                                )}
                                                             </div>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
                                                 />
-                                                <PayCTA busy={busy} amount={intent.amount} currency={intent.currency} retry={failed} />
+                                                <PayCTA
+                                                    busy={busy}
+                                                    amount={intent.amount}
+                                                    currency={intent.currency}
+                                                    retry={failed}
+                                                />
                                             </form>
                                         </Form>
                                     )}
@@ -1064,10 +1254,11 @@ export function SuiteCheckout({
                                         <Form {...walletForm}>
                                             <form
                                                 className="grid gap-3"
-                                                onSubmit={walletForm.handleSubmit((v) =>
-                                                    submit({
-                                                        methodDetail: `${v.provider} · ${v.walletId}`,
-                                                    })
+                                                onSubmit={walletForm.handleSubmit(
+                                                    (v) =>
+                                                        submit({
+                                                            methodDetail: `${v.provider} · ${v.walletId}`,
+                                                        })
                                                 )}
                                             >
                                                 <FormField
@@ -1075,10 +1266,16 @@ export function SuiteCheckout({
                                                     name="provider"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Wallet</FormLabel>
+                                                            <FormLabel>
+                                                                Wallet
+                                                            </FormLabel>
                                                             <Select
-                                                                value={field.value}
-                                                                onValueChange={field.onChange}
+                                                                value={
+                                                                    field.value
+                                                                }
+                                                                onValueChange={
+                                                                    field.onChange
+                                                                }
                                                                 disabled={busy}
                                                             >
                                                                 <FormControl>
@@ -1087,11 +1284,22 @@ export function SuiteCheckout({
                                                                     </SelectTrigger>
                                                                 </FormControl>
                                                                 <SelectContent>
-                                                                    {WALLETS.map((w) => (
-                                                                        <SelectItem key={w} value={w}>
-                                                                            {w}
-                                                                        </SelectItem>
-                                                                    ))}
+                                                                    {WALLETS.map(
+                                                                        (w) => (
+                                                                            <SelectItem
+                                                                                key={
+                                                                                    w
+                                                                                }
+                                                                                value={
+                                                                                    w
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    w
+                                                                                }
+                                                                            </SelectItem>
+                                                                        )
+                                                                    )}
                                                                 </SelectContent>
                                                             </Select>
                                                             <FormMessage />
@@ -1103,23 +1311,36 @@ export function SuiteCheckout({
                                                     name="walletId"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Wallet ID / phone</FormLabel>
+                                                            <FormLabel>
+                                                                Wallet ID /
+                                                                phone
+                                                            </FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} disabled={busy} />
+                                                                <Input
+                                                                    {...field}
+                                                                    disabled={
+                                                                        busy
+                                                                    }
+                                                                />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
                                                 />
-                                                <PayCTA busy={busy} amount={intent.amount} currency={intent.currency} retry={failed} />
+                                                <PayCTA
+                                                    busy={busy}
+                                                    amount={intent.amount}
+                                                    currency={intent.currency}
+                                                    retry={failed}
+                                                />
                                             </form>
                                         </Form>
                                     )}
 
                                     <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
                                         <Lock className="h-3 w-3" />
-                                        Card data is validated locally — only masked
-                                        references are stored.
+                                        Card data is validated locally — only
+                                        masked references are stored.
                                     </p>
                                 </div>
                             </div>

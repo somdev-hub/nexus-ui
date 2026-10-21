@@ -6,6 +6,9 @@ import type {
     FleetAssetFilter,
     Driver,
     DriverFilter,
+    DriverCommissionRow,
+    DriverCommissionItem,
+    DriverCommissionFilter,
     DriverOnboardPayload,
     DriverOnboardResult,
     DriverOnboardDetails,
@@ -301,6 +304,54 @@ export async function getDriverOnboardDetails(
         return res.data;
     } catch (e) {
         onboardError(e, 'Failed to load driver employee details');
+    }
+}
+
+// Driver commissions (contract payouts per delivered trip)
+export async function getDriverCommissionRows(
+    filter: DriverCommissionFilter = {}
+): Promise<PaginatedResponse<DriverCommissionRow>> {
+    const res = await apiClient.get<PaginatedResponse<DriverCommissionRow>>(
+        `${BASE}/fleet/drivers/commissions${toQuery(filter)}`
+    );
+    return res.data;
+}
+export async function getDriverCommissionItems(
+    driverId: number,
+    filter: DriverCommissionFilter = {}
+): Promise<PaginatedResponse<DriverCommissionItem>> {
+    const res = await apiClient.get<PaginatedResponse<DriverCommissionItem>>(
+        `${BASE}/fleet/drivers/${driverId}/commissions${toQuery(filter)}`
+    );
+    return res.data;
+}
+export async function payDriverCommission(
+    driverId: number,
+    commissionId: number,
+    data: { reference?: string; notes?: string } = {}
+): Promise<DriverCommissionItem> {
+    try {
+        const res = await apiClient.post<DriverCommissionItem>(
+            `${BASE}/fleet/drivers/${driverId}/commissions/${commissionId}/pay`,
+            data
+        );
+        return res.data;
+    } catch (e) {
+        onboardError(e, 'Commission payment failed');
+    }
+}
+export async function payDriverCommissions(
+    driverId: number,
+    data: { reference?: string; notes?: string } = {}
+): Promise<{ paidCount: number }> {
+    try {
+        const res = await apiClient.post<{ paidCount: number }>(
+            `${BASE}/fleet/drivers/${driverId}/commissions/pay-all`,
+            data
+        );
+        return res.data;
+    } catch (e) {
+        onboardError(e, 'Commission payment failed');
     }
 }
 

@@ -166,7 +166,11 @@ export default function GoodsReceiptsPage() {
         carrier: '',
         trackingNumber: '',
         notes: '',
-        lines: [] as { poLineItemId?: number; lineNumber?: number; quantityReceived: string }[],
+        lines: [] as {
+            poLineItemId?: number;
+            lineNumber?: number;
+            quantityReceived: string;
+        }[],
     });
     const [pendingTransition, setPendingTransition] = useState<{
         gr: GoodsReceipt;
@@ -427,7 +431,9 @@ export default function GoodsReceiptsPage() {
             const full = await getGoodsReceiptById(row.goodsReceiptId);
             setViewing(full);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to load receipt');
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to load receipt'
+            );
         } finally {
             setViewLoading(false);
         }
@@ -455,7 +461,9 @@ export default function GoodsReceiptsPage() {
                 })),
             });
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to load receipt');
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to load receipt'
+            );
         } finally {
             setViewLoading(false);
         }
@@ -495,7 +503,9 @@ export default function GoodsReceiptsPage() {
             const full = await getGoodsReceiptById(row.goodsReceiptId);
             setPendingTransition({ gr: full, status });
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to load receipt');
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to load receipt'
+            );
         } finally {
             setViewLoading(false);
         }
@@ -1180,17 +1190,12 @@ export default function GoodsReceiptsPage() {
                                 !allAsnsLoading
                             }
                             onPageChange={(p) => loadAllAsns(p)}
-                            onPreviousPage={() =>
-                                loadAllAsns(allAsnsPage - 1)
-                            }
-                            onNextPage={() =>
-                                loadAllAsns(allAsnsPage + 1)
-                            }
+                            onPreviousPage={() => loadAllAsns(allAsnsPage - 1)}
+                            onNextPage={() => loadAllAsns(allAsnsPage + 1)}
                             showFirstLast={false}
                         />
                         <span className="text-sm text-muted-foreground">
-                            Page{' '}
-                            {allAsnsTotalPages === 0 ? 0 : allAsnsPage + 1}{' '}
+                            Page {allAsnsTotalPages === 0 ? 0 : allAsnsPage + 1}{' '}
                             of {Math.max(allAsnsTotalPages, 1)}
                         </span>
                     </div>
@@ -1307,9 +1312,7 @@ export default function GoodsReceiptsPage() {
                     canPreviousPage={grPage > 0}
                     canNextPage={!grLast}
                     onPageChange={setGrPage}
-                    onPreviousPage={() =>
-                        setGrPage((p) => Math.max(0, p - 1))
-                    }
+                    onPreviousPage={() => setGrPage((p) => Math.max(0, p - 1))}
                     onNextPage={() => setGrPage((p) => p + 1)}
                     showFirstLast={false}
                 />
@@ -1393,15 +1396,14 @@ export default function GoodsReceiptsPage() {
                             </div>
                             {viewing.notes && (
                                 <p className="rounded-md border p-3 text-sm">
-                                    <span className="font-medium">
-                                        Notes:{' '}
-                                    </span>
+                                    <span className="font-medium">Notes: </span>
                                     {viewing.notes}
                                 </p>
                             )}
                             <div className="grid gap-2">
                                 <p className="text-sm font-medium">
-                                    Line Items ({viewing.lineItems?.length ?? 0})
+                                    Line Items ({viewing.lineItems?.length ?? 0}
+                                    )
                                 </p>
                                 {(viewing.lineItems ?? []).length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
@@ -1575,10 +1577,7 @@ export default function GoodsReceiptsPage() {
                                 <Label>Line Quantities (received)</Label>
                                 {editForm.lines.map((li, i) => (
                                     <div
-                                        key={
-                                            li.poLineItemId ??
-                                            `line-${i}`
-                                        }
+                                        key={li.poLineItemId ?? `line-${i}`}
                                         className="flex items-center gap-3"
                                     >
                                         <span className="w-16 text-sm text-muted-foreground">
@@ -1636,9 +1635,8 @@ export default function GoodsReceiptsPage() {
                     <DialogHeader>
                         <DialogTitle>Change status?</DialogTitle>
                         <DialogDescription>
-                            Move goods receipt{' '}
-                            {pendingTransition?.gr.grNumber} to{' '}
-                            {pendingTransition?.status}?
+                            Move goods receipt {pendingTransition?.gr.grNumber}{' '}
+                            to {pendingTransition?.status}?
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex justify-end gap-2">

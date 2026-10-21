@@ -239,9 +239,7 @@ export default function LogisticsPartnershipsPage() {
     useEffect(() => {
         const raw = new URLSearchParams(window.location.search).get('contract');
         const id = raw ? Number(raw) : NaN;
-        setHighlightContractId(
-            Number.isFinite(id) && id > 0 ? id : null
-        );
+        setHighlightContractId(Number.isFinite(id) && id > 0 ? id : null);
     }, []);
 
     const respond = async (

@@ -13,8 +13,7 @@ export async function getOpenTrips(
     partnershipId: number,
     scope: 'supplier' | 'logistics' = 'supplier'
 ): Promise<{ partnershipId: number; termType?: string; trips: OpenTrip[] }> {
-    const base =
-        scope === 'supplier' ? BASE : '/iam/core/logistics';
+    const base = scope === 'supplier' ? BASE : '/iam/core/logistics';
     const res = await apiClient.get(
         `${base}/billing/open-trips?partnershipId=${partnershipId}`
     );
@@ -29,8 +28,7 @@ export async function getStatements(
     frequency?: string;
     statements: BillingStatement[];
 }> {
-    const base =
-        scope === 'supplier' ? BASE : '/iam/core/logistics';
+    const base = scope === 'supplier' ? BASE : '/iam/core/logistics';
     const res = await apiClient.get(
         `${base}/billing/statements?partnershipId=${partnershipId}`
     );
@@ -45,10 +43,7 @@ export async function createBillingQuote(input: {
     cycleId?: string;
     idempotencyKey?: string;
 }): Promise<PayQuote> {
-    const res = await apiClient.post<PayQuote>(
-        `${BASE}/billing/quotes`,
-        input
-    );
+    const res = await apiClient.post<PayQuote>(`${BASE}/billing/quotes`, input);
     return res.data;
 }
 

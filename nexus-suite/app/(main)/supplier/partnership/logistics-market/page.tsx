@@ -869,8 +869,7 @@ export default function SupplierLogisticsMarketPage() {
                                 value={termType}
                                 onValueChange={(v) => {
                                     const next = v as
-                                        | 'SHORT_TERM'
-                                        | 'LONG_TERM';
+                                        'SHORT_TERM' | 'LONG_TERM';
                                     setTermType(next);
                                     if (next === 'LONG_TERM' && !freqTouched) {
                                         setPaymentFrequency(
@@ -1171,10 +1170,9 @@ export default function SupplierLogisticsMarketPage() {
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
                                         Multi-month partnerships default to
-                                        monthly billing; shorter ones to
-                                        weekly. Missed statements add a 2% of
-                                        previous payment penalty to the next
-                                        one.
+                                        monthly billing; shorter ones to weekly.
+                                        Missed statements add a 2% of previous
+                                        payment penalty to the next one.
                                     </p>
                                 </div>
                             </>

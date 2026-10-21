@@ -1,10 +1,7 @@
 export type MockPaymentMethod =
-    | 'UPI'
-    | 'CARD'
-    | 'NET_BANKING'
-    | 'BANK_TRANSFER'
-    | 'WALLET';
-export type MockPaymentStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+    'UPI' | 'CARD' | 'NET_BANKING' | 'BANK_TRANSFER' | 'WALLET';
+export type MockPaymentStatus =
+    'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type PayerRole = 'RETAILER' | 'SUPPLIER' | 'LOGISTICS';
 
 export interface MockPayInitiateInput {

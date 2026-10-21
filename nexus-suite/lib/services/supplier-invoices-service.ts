@@ -78,7 +78,9 @@ export function parseChargesBreakdown(value?: string | null): OtherCharge[] {
                 description:
                     typeof r.description === 'string' ? r.description : '',
             }))
-            .filter((r) => r.amount.trim() !== '' || r.description.trim() !== '');
+            .filter(
+                (r) => r.amount.trim() !== '' || r.description.trim() !== ''
+            );
     } catch {
         return [];
     }
@@ -125,9 +127,7 @@ export async function getSupplierInvoices(
     return res.data;
 }
 
-export async function getSupplierInvoice(
-    id: number
-): Promise<SupplierInvoice> {
+export async function getSupplierInvoice(id: number): Promise<SupplierInvoice> {
     const res = await apiClient.get<SupplierInvoice>(`${BASE}/invoices/${id}`);
     return res.data;
 }

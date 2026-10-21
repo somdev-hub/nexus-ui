@@ -76,9 +76,7 @@ export default function LogisticsDashboardPage() {
         },
         {
             title: 'Total Revenue',
-            value: (
-                <Money amount={dashboard?.totalRevenue ?? 0} />
-            ),
+            value: <Money amount={dashboard?.totalRevenue ?? 0} />,
             desc: 'from completed shipments',
             icon: IconChartBar,
             href: '/logistics/analytics',

@@ -113,8 +113,38 @@ export default function AssetDetailPage() {
         maintenanceType: 'PREVENTIVE',
         description: '',
         scheduledDate: '',
+        scheduledToDate: '',
         odometerReading: '',
     });
+    /** What opened the maintenance dialog: plain scheduling, or the asset's
+     *  "To Maintenance" action (which also marks the asset IN_MAINTENANCE). */
+    const [maintIntent, setMaintIntent] = useState<
+        'schedule' | 'to-maintenance'
+    >('schedule');
+    const emptyMaintForm = () =>
+        setMaintForm({
+            maintenanceType: 'PREVENTIVE',
+            description: '',
+            scheduledDate: '',
+            scheduledToDate: '',
+            odometerReading: '',
+        });
+    /** Opens the schedule dialog: asset + today's date prefilled. */
+    const openMaintDialog = (intent: 'schedule' | 'to-maintenance') => {
+        const today = new Date();
+        const ymd = `${today.getFullYear()}-${String(
+            today.getMonth() + 1
+        ).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        setMaintIntent(intent);
+        setMaintForm({
+            maintenanceType: 'PREVENTIVE',
+            description: '',
+            scheduledDate: ymd,
+            scheduledToDate: '',
+            odometerReading: '',
+        });
+        setMaintOpen(true);
+    };
     const [expiryOpen, setExpiryOpen] = useState(false);
     const [expiryForm, setExpiryForm] = useState({
         insuranceExpiry: '',
@@ -232,18 +262,23 @@ export default function AssetDetailPage() {
                 maintenanceType: maintForm.maintenanceType,
                 description: maintForm.description || undefined,
                 scheduledDate: maintForm.scheduledDate || undefined,
+                scheduledToDate: maintForm.scheduledToDate || undefined,
                 odometerReading: maintForm.odometerReading
                     ? Number(maintForm.odometerReading)
                     : undefined,
             });
             toast({ title: 'Maintenance scheduled', variant: 'success' });
             setMaintOpen(false);
-            setMaintForm({
-                maintenanceType: 'PREVENTIVE',
-                description: '',
-                scheduledDate: '',
-                odometerReading: '',
-            });
+            emptyMaintForm();
+            // "To Maintenance": the asset moves into maintenance once the
+            // details are actually submitted, not when the dialog opens.
+            if (maintIntent === 'to-maintenance') {
+                await transitionAssetStatus(assetId, 'IN_MAINTENANCE');
+                toast({
+                    title: 'Asset in maintenance',
+                    variant: 'success',
+                });
+            }
             await loadHeader();
         } catch (e: unknown) {
             toast({
@@ -400,10 +435,7 @@ export default function AssetDetailPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() =>
-                                    runAssetAction(
-                                        'asset-maint',
-                                        'IN_MAINTENANCE'
-                                    )
+                                    openMaintDialog('to-maintenance')
                                 }
                             >
                                 <Wrench className="mr-2 h-4 w-4" />
@@ -412,18 +444,21 @@ export default function AssetDetailPage() {
                         )}
                         {asset.status !== 'AVAILABLE' &&
                             asset.status !== 'RETIRED' && (
-                            <LoadingButton
-                                loading={busy === 'asset-release'}
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                    runAssetAction('asset-release', 'AVAILABLE')
-                                }
-                            >
-                                <Check className="mr-2 h-4 w-4" />
-                                Release
-                            </LoadingButton>
-                        )}
+                                <LoadingButton
+                                    loading={busy === 'asset-release'}
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        runAssetAction(
+                                            'asset-release',
+                                            'AVAILABLE'
+                                        )
+                                    }
+                                >
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Release
+                                </LoadingButton>
+                            )}
                         {(asset.status === 'AVAILABLE' ||
                             asset.status === 'ASSIGNED' ||
                             asset.status === 'IN_MAINTENANCE') && (
@@ -676,7 +711,9 @@ export default function AssetDetailPage() {
                                                                                 s.freightCost
                                                                             }
                                                                             currency={
-                                                                                (s as any)
+                                                                                (
+                                                                                    s as any
+                                                                                )
                                                                                     .currency
                                                                             }
                                                                         />
@@ -847,7 +884,7 @@ export default function AssetDetailPage() {
                                 Maintenance records
                                 <Button
                                     size="sm"
-                                    onClick={() => setMaintOpen(true)}
+                                    onClick={() => openMaintDialog('schedule')}
                                 >
                                     <Wrench className="mr-2 h-4 w-4" />
                                     Schedule
@@ -872,6 +909,9 @@ export default function AssetDetailPage() {
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">
                                                     {m.scheduledDate ?? '-'}
+                                                    {m.scheduledToDate
+                                                        ? ` → ${m.scheduledToDate}`
+                                                        : ''}
                                                     {m.cost != null ? (
                                                         <>
                                                             {' '}
@@ -938,35 +978,48 @@ export default function AssetDetailPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6">
-                        <div className="grid gap-2">
-                            <Label>Type</Label>
-                            <Select
-                                value={maintForm.maintenanceType}
-                                onValueChange={(v) =>
-                                    setMaintForm({
-                                        ...maintForm,
-                                        maintenanceType: v,
-                                    })
-                                }
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PREVENTIVE">
-                                        PREVENTIVE
-                                    </SelectItem>
-                                    <SelectItem value="CORRECTIVE">
-                                        CORRECTIVE
-                                    </SelectItem>
-                                    <SelectItem value="BREAKDOWN">
-                                        BREAKDOWN
-                                    </SelectItem>
-                                    <SelectItem value="INSPECTION">
-                                        INSPECTION
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-2">
+                                <Label>Asset</Label>
+                                <Input
+                                    value={`${
+                                        asset?.assetNumber ??
+                                        `Asset #${assetId}`
+                                    } (#${assetId})`}
+                                    disabled
+                                    readOnly
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Type</Label>
+                                <Select
+                                    value={maintForm.maintenanceType}
+                                    onValueChange={(v) =>
+                                        setMaintForm({
+                                            ...maintForm,
+                                            maintenanceType: v,
+                                        })
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="PREVENTIVE">
+                                            PREVENTIVE
+                                        </SelectItem>
+                                        <SelectItem value="CORRECTIVE">
+                                            CORRECTIVE
+                                        </SelectItem>
+                                        <SelectItem value="BREAKDOWN">
+                                            BREAKDOWN
+                                        </SelectItem>
+                                        <SelectItem value="INSPECTION">
+                                            INSPECTION
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="grid gap-2">
                             <Label>Description</Label>
@@ -983,32 +1036,45 @@ export default function AssetDetailPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-2">
-                                <Label>Scheduled (YYYY-MM-DD)</Label>
-                                <Input
-                                    placeholder="e.g. 2026-10-15"
-                                    value={maintForm.scheduledDate}
-                                    onChange={(e) =>
+                                <Label>Scheduled from</Label>
+                                <DatePicker
+                                    date={parseYmd(maintForm.scheduledDate)}
+                                    onDateChange={(d) =>
                                         setMaintForm({
                                             ...maintForm,
-                                            scheduledDate: e.target.value,
+                                            scheduledDate: formatYmd(d),
                                         })
                                     }
+                                    placeholder="Pick start date"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label>Odometer</Label>
-                                <Input
-                                    placeholder="e.g. 125000"
-                                    type="number"
-                                    value={maintForm.odometerReading}
-                                    onChange={(e) =>
+                                <Label>Scheduled to</Label>
+                                <DatePicker
+                                    date={parseYmd(maintForm.scheduledToDate)}
+                                    onDateChange={(d) =>
                                         setMaintForm({
                                             ...maintForm,
-                                            odometerReading: e.target.value,
+                                            scheduledToDate: formatYmd(d),
                                         })
                                     }
+                                    placeholder="Pick end date"
                                 />
                             </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Odometer</Label>
+                            <Input
+                                placeholder="e.g. 125000"
+                                type="number"
+                                value={maintForm.odometerReading}
+                                onChange={(e) =>
+                                    setMaintForm({
+                                        ...maintForm,
+                                        odometerReading: e.target.value,
+                                    })
+                                }
+                            />
                         </div>
                         <LoadingButton
                             loading={busy === 'maint-create'}

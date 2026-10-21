@@ -13,26 +13,19 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    FinanceKpis,
-} from '@/components/finances/finance-kpis';
+import { FinanceKpis } from '@/components/finances/finance-kpis';
 import {
     useConvertedPoints,
     useMoneyFormatter,
 } from '@/components/finances/money';
-import {
-    SplitBar,
-    TrendChart,
-} from '@/components/finances/finance-charts';
+import { SplitBar, TrendChart } from '@/components/finances/finance-charts';
 import {
     TransactionsTable,
     type TxnFilter,
 } from '@/components/finances/transactions-table';
 import { LogisticsLedgerActions } from '@/components/finances/logistics-ledger-actions';
-import {
-    getStatements,
-    getOpenTrips,
-} from '@/lib/services/billing-service';
+import { DriverCommissions } from '@/components/logistics/driver-commissions';
+import { getStatements, getOpenTrips } from '@/lib/services/billing-service';
 import {
     getLogisticsFinanceSummary,
     getLogisticsTransactions,
@@ -48,7 +41,9 @@ import {
     AlertTriangle,
     Banknote,
     Landmark,
+    PieChart,
     Route,
+    ScrollText,
     Truck,
     Wallet,
 } from 'lucide-react';
@@ -60,7 +55,9 @@ const PAGE_SIZE = 10;
 export default function LogisticsFinancesPage() {
     const fmt = useMoneyFormatter();
     const [period, setPeriod] = useState<FinancePeriod>('30d');
-    const [summary, setSummary] = useState<LogisticsFinanceSummary | null>(null);
+    const [summary, setSummary] = useState<LogisticsFinanceSummary | null>(
+        null
+    );
     const [txns, setTxns] = useState<FinanceTxnPage | null>(null);
     const [loading, setLoading] = useState(true);
     const [txnLoading, setTxnLoading] = useState(false);
@@ -164,10 +161,12 @@ export default function LogisticsFinancesPage() {
         src
     );
     const customers = useConvertedPoints(
-        Object.entries(summary?.revenuePerCustomer ?? {}).map(([name, amount]) => ({
-            name,
-            amount: Number(amount),
-        })),
+        Object.entries(summary?.revenuePerCustomer ?? {}).map(
+            ([name, amount]) => ({
+                name,
+                amount: Number(amount),
+            })
+        ),
         src
     );
     const trend = useConvertedPoints(summary?.trend ?? [], src);
@@ -223,18 +222,26 @@ export default function LogisticsFinancesPage() {
                     },
                     {
                         title: 'Receivable overdue',
-                        value: fmt(summary?.receivableOverdue, summary?.currency),
+                        value: fmt(
+                            summary?.receivableOverdue,
+                            summary?.currency
+                        ),
                         sub: `Penalties levied ${fmt(summary?.penaltiesLevied, summary?.currency)}`,
                         icon: AlertTriangle,
                         tone: 'bad',
                     },
                     {
                         title: 'Open payables',
-                        value: String(summary?.openPayables ?? 0),
-                        sub: `${summary?.disputes ?? 0} disputed`,
+                        value: fmt(
+                            summary?.openPayables,
+                            summary?.openPayablesCurrency ?? summary?.currency
+                        ),
+                        sub: `${
+                            summary?.openPayablesCount ?? 0
+                        } pending trip payouts`,
                         icon: Truck,
                         tone:
-                            Number(summary?.disputes ?? 0) > 0
+                            Number(summary?.openPayablesCount ?? 0) > 0
                                 ? 'warn'
                                 : 'default',
                     },
@@ -243,8 +250,18 @@ export default function LogisticsFinancesPage() {
 
             <Tabs defaultValue="overview">
                 <TabsList>
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="ledger">Ledger</TabsTrigger>
+                    <TabsTrigger value="overview">
+                        <PieChart className="mr-1.5 h-3.5 w-3.5" />
+                        Overview
+                    </TabsTrigger>
+                    <TabsTrigger value="ledger">
+                        <ScrollText className="mr-1.5 h-3.5 w-3.5" />
+                        Ledger
+                    </TabsTrigger>
+                    <TabsTrigger value="commissions">
+                        <Wallet className="mr-1.5 h-3.5 w-3.5" />
+                        Driver commissions
+                    </TabsTrigger>
                     <TabsTrigger value="settlements">
                         <Landmark className="mr-1.5 h-3.5 w-3.5" />
                         Settlements
@@ -309,6 +326,10 @@ export default function LogisticsFinancesPage() {
                     />
                 </TabsContent>
 
+                <TabsContent value="commissions" className="pt-4">
+                    <DriverCommissions />
+                </TabsContent>
+
                 <TabsContent value="settlements" className="grid gap-4 pt-4">
                     <div className="flex flex-wrap items-end gap-3">
                         <div className="grid gap-1.5">
@@ -322,7 +343,10 @@ export default function LogisticsFinancesPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {partnerships.map((p) => (
-                                        <SelectItem key={p.id} value={String(p.id)}>
+                                        <SelectItem
+                                            key={p.id}
+                                            value={String(p.id)}
+                                        >
                                             {p.name || `Partnership #${p.id}`}
                                         </SelectItem>
                                     ))}
@@ -330,8 +354,8 @@ export default function LogisticsFinancesPage() {
                             </Select>
                         </div>
                         <p className="pb-2 text-xs text-muted-foreground">
-                            Read-only here — the supplier initiates payment
-                            from its side.
+                            Read-only here — the supplier initiates payment from
+                            its side.
                         </p>
                     </div>
 
@@ -373,9 +397,16 @@ export default function LogisticsFinancesPage() {
                                                     </span>
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Base {fmt(t.outstandingBase, t.currency)}{' '}
+                                                    Base{' '}
+                                                    {fmt(
+                                                        t.outstandingBase,
+                                                        t.currency
+                                                    )}{' '}
                                                     · accrued fee{' '}
-                                                    {fmt(t.lateFeeAccrued ?? 0, t.currency)}
+                                                    {fmt(
+                                                        t.lateFeeAccrued ?? 0,
+                                                        t.currency
+                                                    )}
                                                 </p>
                                             </div>
                                             <Badge variant="outline">
@@ -407,11 +438,21 @@ export default function LogisticsFinancesPage() {
                                                         </span>
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        Base {fmt(s.baseTotal, s.currency)}{' '}
+                                                        Base{' '}
+                                                        {fmt(
+                                                            s.baseTotal,
+                                                            s.currency
+                                                        )}{' '}
                                                         · paid{' '}
-                                                        {fmt(s.basePaid ?? 0, s.currency)}{' '}
+                                                        {fmt(
+                                                            s.basePaid ?? 0,
+                                                            s.currency
+                                                        )}{' '}
                                                         · penalty{' '}
-                                                        {fmt(s.penaltyTotal ?? 0, s.currency)}
+                                                        {fmt(
+                                                            s.penaltyTotal ?? 0,
+                                                            s.currency
+                                                        )}
                                                     </p>
                                                 </div>
                                                 <Badge

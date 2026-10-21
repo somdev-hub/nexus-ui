@@ -64,7 +64,12 @@ export function useConvertedPoints<T extends { amount: number }>(
     const rates = useFxRates();
     if (display === sourceCurrency) return points;
     return points.map((p) => {
-        const c = convertAmount(Number(p.amount), sourceCurrency, display, rates);
+        const c = convertAmount(
+            Number(p.amount),
+            sourceCurrency,
+            display,
+            rates
+        );
         return c === null ? p : { ...p, amount: c };
     });
 }

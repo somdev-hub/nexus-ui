@@ -356,7 +356,8 @@ export default function LoadBoardPage() {
                                                                 `#${s.shipmentId}`}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber || 'No PO'}
+                                                            {s.poNumber ||
+                                                                'No PO'}
                                                             {s.isPartialShipment
                                                                 ? ' · Partial'
                                                                 : ''}
@@ -516,12 +517,12 @@ export default function LoadBoardPage() {
                                                         colSpan={9}
                                                         className="text-center text-sm text-muted-foreground"
                                                     >
-                                                    No available loads
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                                        No available loads
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                             {!loading && (
@@ -596,7 +597,8 @@ export default function LoadBoardPage() {
                                                                 `#${s.shipmentId}`}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber || 'No PO'}
+                                                            {s.poNumber ||
+                                                                'No PO'}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
@@ -678,17 +680,17 @@ export default function LoadBoardPage() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
-                                                            title="Shipment details"
-                                                            onClick={() =>
-                                                                openDetails(
-                                                                    s,
-                                                                    'picked-up'
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                        <LoadingButton
+                                                                title="Shipment details"
+                                                                onClick={() =>
+                                                                    openDetails(
+                                                                        s,
+                                                                        'picked-up'
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                            <LoadingButton
                                                                 loading={
                                                                     busy ===
                                                                     `eta-${s.shipmentId}`
@@ -735,12 +737,12 @@ export default function LoadBoardPage() {
                                                         colSpan={8}
                                                         className="text-center text-sm text-muted-foreground"
                                                     >
-                                                    No picked up loads
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                                        No picked up loads
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                             {!loading && (
@@ -753,9 +755,7 @@ export default function LoadBoardPage() {
                                         pageCount={pickedUp?.totalPages ?? 0}
                                         canPreviousPage={pickedUpPage > 0}
                                         canNextPage={
-                                            pickedUp
-                                                ? !pickedUp.last
-                                                : false
+                                            pickedUp ? !pickedUp.last : false
                                         }
                                         onPageChange={setPickedUpPage}
                                         onPreviousPage={() =>
@@ -818,7 +818,8 @@ export default function LoadBoardPage() {
                                                                 `#${s.shipmentId}`}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber || 'No PO'}
+                                                            {s.poNumber ||
+                                                                'No PO'}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
@@ -902,12 +903,12 @@ export default function LoadBoardPage() {
                                                         colSpan={7}
                                                         className="text-center text-sm text-muted-foreground"
                                                     >
-                                                    No delivered loads
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                                        No delivered loads
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                             {!loading && (
@@ -920,9 +921,7 @@ export default function LoadBoardPage() {
                                         pageCount={delivered?.totalPages ?? 0}
                                         canPreviousPage={deliveredPage > 0}
                                         canNextPage={
-                                            delivered
-                                                ? !delivered.last
-                                                : false
+                                            delivered ? !delivered.last : false
                                         }
                                         onPageChange={setDeliveredPage}
                                         onPreviousPage={() =>
@@ -1055,9 +1054,7 @@ export default function LoadBoardPage() {
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground">
-                                        ETA
-                                    </p>
+                                    <p className="text-muted-foreground">ETA</p>
                                     <p className="font-medium">
                                         {details.estimatedArrival ? (
                                             new Date(

@@ -205,8 +205,7 @@ export default function InvoicesPage() {
                 currency: inv.currency,
                 description: `Invoice ${inv.supplierInvoiceNumber ?? inv.invoiceNumber}`,
                 invoiceId: inv.invoiceId,
-                invoiceNumber:
-                    inv.supplierInvoiceNumber ?? inv.invoiceNumber,
+                invoiceNumber: inv.supplierInvoiceNumber ?? inv.invoiceNumber,
                 purchaseOrderId: inv.purchaseOrderId,
                 payerRole: 'RETAILER',
                 idempotencyKey: suiteIdempotencyKey(inv.invoiceId),
@@ -214,7 +213,9 @@ export default function InvoicesPage() {
             setViewing(null);
             router.push(`/checkout?ref=${encodeURIComponent(intent.ref)}`);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Could not start checkout');
+            toast.error(
+                e instanceof Error ? e.message : 'Could not start checkout'
+            );
         } finally {
             setPayBusyId(null);
         }
@@ -366,9 +367,7 @@ export default function InvoicesPage() {
                     canPreviousPage={page > 0}
                     canNextPage={!last}
                     onPageChange={setPage}
-                    onPreviousPage={() =>
-                        setPage((p) => Math.max(0, p - 1))
-                    }
+                    onPreviousPage={() => setPage((p) => Math.max(0, p - 1))}
                     onNextPage={() => setPage((p) => p + 1)}
                     showFirstLast={false}
                 />
@@ -391,9 +390,7 @@ export default function InvoicesPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {viewing?.status ?? ''}
-                            {viewing?.poNumber
-                                ? ` · ${viewing.poNumber}`
-                                : ''}
+                            {viewing?.poNumber ? ` · ${viewing.poNumber}` : ''}
                         </DialogDescription>
                     </DialogHeader>
                     {viewing && (
@@ -456,8 +453,7 @@ export default function InvoicesPage() {
                                                     Number(c.amount) || 0,
                                                     viewing.currency
                                                 )}{' '}
-                                                —{' '}
-                                                {c.description || 'Charge'}
+                                                — {c.description || 'Charge'}
                                             </span>
                                         ))}
                                     </p>
@@ -492,9 +488,7 @@ export default function InvoicesPage() {
                             )}
                             {viewing.notes && (
                                 <p className="rounded-md border p-3 text-sm">
-                                    <span className="font-medium">
-                                        Notes:{' '}
-                                    </span>
+                                    <span className="font-medium">Notes: </span>
                                     {viewing.notes}
                                 </p>
                             )}

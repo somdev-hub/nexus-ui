@@ -1,12 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -99,22 +94,27 @@ function buildInvoiceText(intent: SuiteIntent, quote: PayQuote | null): string {
         lines.push('', '--- Billed trips ---');
         for (const l of quote.lines ?? []) {
             if (l.kind === 'BASE_TRIP') {
-                const s: QuoteShipment | undefined = ship[
-                    String(l.shipmentId ?? '')
-                ];
+                const s: QuoteShipment | undefined =
+                    ship[String(l.shipmentId ?? '')];
                 lines.push('');
                 lines.push(
                     `  Shipment ${s?.shipmentNumber ?? '#' + String(l.shipmentId ?? '—')}`
                 );
-                lines.push(
-                    `  Lane           : ${s?.lane ?? '—'}`
-                );
+                lines.push(`  Lane           : ${s?.lane ?? '—'}`);
                 const from = addrText(s?.pickupLocation, s?.pickupAddress);
-                if (from) lines.push(`  Pickup         : ${from} (${dt(s?.pickupDate, true)})`);
+                if (from)
+                    lines.push(
+                        `  Pickup         : ${from} (${dt(s?.pickupDate, true)})`
+                    );
                 const to = addrText(s?.deliveryLocation, s?.deliveryAddress);
-                if (to) lines.push(`  Delivery       : ${to} (${dt(s?.deliveredAt, true)})`);
+                if (to)
+                    lines.push(
+                        `  Delivery       : ${to} (${dt(s?.deliveredAt, true)})`
+                    );
                 if (s?.deliveryDate)
-                    lines.push(`  Promised by    : ${dt(s.deliveryDate, true)}`);
+                    lines.push(
+                        `  Promised by    : ${dt(s.deliveryDate, true)}`
+                    );
                 if (s?.logisticsOrg)
                     lines.push(`  Logistics      : ${s.logisticsOrg}`);
                 lines.push(`  Base fare      : ${fmtRaw(l.quoted, c)}`);
@@ -360,7 +360,12 @@ export function LogisticsPaymentsTable({
                                 {fmtRaw(open?.amount, open?.currency)}
                             </span>
                         </div>
-                        {detailRow('Partnership', open?.partnershipId ? `#${open.partnershipId}` : null)}
+                        {detailRow(
+                            'Partnership',
+                            open?.partnershipId
+                                ? `#${open.partnershipId}`
+                                : null
+                        )}
                         {detailRow('Created at', dt(open?.createdAt))}
                         {detailRow('Completed at', dt(open?.completedAt))}
                         {(open?.failureReason ?? null) !== null &&
@@ -434,8 +439,7 @@ export function LogisticsPaymentsTable({
                                                     )}
                                                 </span>
                                             </div>
-                                            {(Number(quote.feeTotal ?? 0) >
-                                                0 ||
+                                            {(Number(quote.feeTotal ?? 0) > 0 ||
                                                 Number(
                                                     quote.penaltyTotal ?? 0
                                                 ) > 0) && (

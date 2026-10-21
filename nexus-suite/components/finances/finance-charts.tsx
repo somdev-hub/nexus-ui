@@ -51,8 +51,7 @@ const MONTHS_SHORT = [
 export function fmtTrendKey(key: string | number): string {
     const k = String(key);
     const [a, b] = k.split('-');
-    const monthOf = (m: string) =>
-        MONTHS_SHORT[Number(m) - 1] ?? undefined;
+    const monthOf = (m: string) => MONTHS_SHORT[Number(m) - 1] ?? undefined;
     if (a?.length === 2 && b) {
         const m = monthOf(a);
         return m ? `${m} ${Number(b)}` : k; // daily: "10-24" → "Oct 24"
@@ -139,7 +138,9 @@ export function TrendChart({
                                 tickLine={false}
                                 axisLine={false}
                                 tickFormatter={(v: number) =>
-                                    v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`
+                                    v >= 1000
+                                        ? `${(v / 1000).toFixed(0)}k`
+                                        : `${v}`
                                 }
                             />
                             <ChartTooltip
@@ -183,7 +184,9 @@ export function SplitBar({
         <Card className="p-4 gap-2 h-full">
             <CardHeader className="p-0">
                 <CardTitle className="text-base">{title}</CardTitle>
-                {description && <CardDescription>{description}</CardDescription>}
+                {description && (
+                    <CardDescription>{description}</CardDescription>
+                )}
             </CardHeader>
             <CardContent className="p-0">
                 {data.length === 0 ? (
@@ -217,7 +220,9 @@ export function SplitBar({
                                 dataKey="amount"
                                 fill="var(--color-amount)"
                                 radius={[0, 6, 6, 0]}
-                                className={onSelect ? 'cursor-pointer' : undefined}
+                                className={
+                                    onSelect ? 'cursor-pointer' : undefined
+                                }
                             />
                         </BarChart>
                     </ChartContainer>
@@ -257,7 +262,9 @@ export function StatusDonut({
         <Card className="p-4 gap-2">
             <CardHeader className="p-0">
                 <CardTitle className="text-base">{title}</CardTitle>
-                {description && <CardDescription>{description}</CardDescription>}
+                {description && (
+                    <CardDescription>{description}</CardDescription>
+                )}
             </CardHeader>
             <CardContent className="p-0">
                 {data.length === 0 ? (
@@ -279,12 +286,18 @@ export function StatusDonut({
                                     const name = (d as { name?: string })?.name;
                                     if (name && onSelect) onSelect(name);
                                 }}
-                                className={onSelect ? 'cursor-pointer' : undefined}
+                                className={
+                                    onSelect ? 'cursor-pointer' : undefined
+                                }
                             >
                                 {data.map((d, i) => (
                                     <Cell
                                         key={d.name}
-                                        fill={DONUT_COLORS[i % DONUT_COLORS.length]}
+                                        fill={
+                                            DONUT_COLORS[
+                                                i % DONUT_COLORS.length
+                                            ]
+                                        }
                                     />
                                 ))}
                             </Pie>
@@ -313,7 +326,9 @@ export function AgingBars({
         <Card className="p-4 gap-2 h-full">
             <CardHeader className="p-0">
                 <CardTitle className="text-base">{title}</CardTitle>
-                {description && <CardDescription>{description}</CardDescription>}
+                {description && (
+                    <CardDescription>{description}</CardDescription>
+                )}
             </CardHeader>
             <CardContent className="p-0">
                 <ChartContainer config={config} className="h-50 w-full">

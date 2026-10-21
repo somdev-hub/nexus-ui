@@ -23,7 +23,12 @@ export interface RetailerFinanceSummary {
     aging: AgingBucket[];
     trend: TrendPoint[];
     topSuppliers: NameAmount[];
-    funnel: { ordered: number; received: number; invoiced: number; paid: number };
+    funnel: {
+        ordered: number;
+        received: number;
+        invoiced: number;
+        paid: number;
+    };
 }
 
 export interface SupplierFinanceSummary {
@@ -47,7 +52,12 @@ export interface LogisticsFinanceSummary {
     totalShipments: number;
     revenuePerLane: Record<string, number>;
     revenuePerCustomer: Record<string, number>;
+    /** Outstanding payout amount (sum of pending driver commissions). */
     openPayables: number;
+    /** Pending payout line count. */
+    openPayablesCount?: number;
+    /** Currency the payout lines are denominated in (first pending line's). */
+    openPayablesCurrency?: string;
     disputes: number;
     receivableOpen: number;
     receivableOverdue: number;
@@ -191,7 +201,13 @@ export interface PayQuote {
 export interface MarkPaidResult {
     quoteRef: string;
     amountPaid: number;
-    allocation: { lineId?: number; kind: string; shipmentId?: number; applied: number; lineStatus?: string }[];
+    allocation: {
+        lineId?: number;
+        kind: string;
+        shipmentId?: number;
+        applied: number;
+        lineStatus?: string;
+    }[];
     fullyCovered: boolean;
     quoteStatus: string;
 }

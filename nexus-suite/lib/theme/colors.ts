@@ -8,29 +8,13 @@
  */
 
 export type ScaleStep =
-    | 50
-    | 100
-    | 200
-    | 300
-    | 400
-    | 500
-    | 600
-    | 700
-    | 800
-    | 900
-    | 950;
+    50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950;
 
 export type Scale = Record<ScaleStep, string>;
 
 /** Warm/neutral greys that drive every surface token of a theme. */
 export type BaseColorId =
-    | 'neutral'
-    | 'stone'
-    | 'zinc'
-    | 'mauve'
-    | 'olive'
-    | 'mist'
-    | 'taupe';
+    'neutral' | 'stone' | 'zinc' | 'mauve' | 'olive' | 'mist' | 'taupe';
 
 /** Accent hues used for the primary / ring / sidebar-primary tokens. */
 export type ThemeColorId =

@@ -68,8 +68,7 @@ const listeners = new Set<() => void>();
 function getSnapshot(): ThemeState {
     if (currentOwner === null) {
         currentOwner = readActiveThemeOwner();
-        currentState =
-            readStoredTheme(currentOwner) ?? DEFAULT_THEME_STATE;
+        currentState = readStoredTheme(currentOwner) ?? DEFAULT_THEME_STATE;
     }
     return currentState;
 }

@@ -99,7 +99,10 @@ export const ACCENT_IDS = Object.keys(ACCENT_SCALES) as AccentColorId[];
  * light mode and an 800 in dark mode, but yellow/lime step down to 400/500 so
  * they stay legible.
  */
-const PRIMARY_STEPS: Record<AccentColorId, { light: ScaleStep; dark: ScaleStep }> = {
+const PRIMARY_STEPS: Record<
+    AccentColorId,
+    { light: ScaleStep; dark: ScaleStep }
+> = {
     red: { light: 700, dark: 800 },
     orange: { light: 700, dark: 800 },
     amber: { light: 700, dark: 800 },
@@ -151,7 +154,10 @@ export const BASE_COLOR_OPTIONS: { id: BaseColorId; label: string }[] = [
 
 export const THEME_COLOR_OPTIONS: { id: ThemeColorId; label: string }[] = [
     { id: 'default', label: 'Default' },
-    ...ACCENT_IDS.map((id) => ({ id: id as ThemeColorId, label: capitalize(id) })),
+    ...ACCENT_IDS.map((id) => ({
+        id: id as ThemeColorId,
+        label: capitalize(id),
+    })),
 ];
 
 export const CHART_COLOR_OPTIONS: { id: ChartColorId; label: string }[] = [
@@ -160,7 +166,10 @@ export const CHART_COLOR_OPTIONS: { id: ChartColorId; label: string }[] = [
         id: option.id as ChartColorId,
         label: option.label,
     })),
-    ...ACCENT_IDS.map((id) => ({ id: id as ChartColorId, label: capitalize(id) })),
+    ...ACCENT_IDS.map((id) => ({
+        id: id as ChartColorId,
+        label: capitalize(id),
+    })),
 ];
 
 function capitalize(value: string) {
@@ -214,7 +223,9 @@ function chartPalette(source: BaseColorId | AccentColorId): string[] {
 
 function accentTokens(accent: AccentColorId, mode: 'light' | 'dark'): Tokens {
     const scale = ACCENT_SCALES[accent] ?? ACCENT_SCALES.blue;
-    const primaryStep = (PRIMARY_STEPS[accent] ?? { light: 700, dark: 800 })[mode];
+    const primaryStep = (PRIMARY_STEPS[accent] ?? { light: 700, dark: 800 })[
+        mode
+    ];
     const fgStep = PRIMARY_FG_STEPS[accent] ?? 50;
     const sidebarStep: ScaleStep = mode === 'light' ? 600 : 500;
     const sidebarFgStep: ScaleStep =
@@ -395,11 +406,15 @@ export function isBaseColorId(value: unknown): value is BaseColorId {
 }
 
 export function isThemeColorId(value: unknown): value is ThemeColorId {
-    return typeof value === 'string' && THEME_IDS.includes(value as ThemeColorId);
+    return (
+        typeof value === 'string' && THEME_IDS.includes(value as ThemeColorId)
+    );
 }
 
 export function isChartColorId(value: unknown): value is ChartColorId {
-    return typeof value === 'string' && CHART_IDS.includes(value as ChartColorId);
+    return (
+        typeof value === 'string' && CHART_IDS.includes(value as ChartColorId)
+    );
 }
 
 export function isFontId(value: unknown): value is FontId {
@@ -416,13 +431,14 @@ export function coerceThemeState(
 ): ThemeState {
     const source = raw ?? {};
     const radius =
-        typeof source.radius === 'number' &&
-        Number.isFinite(source.radius)
+        typeof source.radius === 'number' && Number.isFinite(source.radius)
             ? Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, source.radius))
             : DEFAULT_THEME_STATE.radius;
 
     return {
-        base: isBaseColorId(source.base) ? source.base : DEFAULT_THEME_STATE.base,
+        base: isBaseColorId(source.base)
+            ? source.base
+            : DEFAULT_THEME_STATE.base,
         theme: isThemeColorId(source.theme)
             ? source.theme
             : DEFAULT_THEME_STATE.theme,

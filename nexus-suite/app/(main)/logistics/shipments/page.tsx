@@ -616,135 +616,137 @@ export default function LogisticsShipmentsPage() {
                                 <TableSkeleton rows={6} />
                             ) : (
                                 <div className="max-w-full overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Shipment</TableHead>
-                                            <TableHead>Route</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Lifecycle</TableHead>
-                                            <TableHead>Created</TableHead>
-                                            <TableHead>Updated</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {shipments?.content?.map((s) => (
-                                            <TableRow key={s.shipmentId}>
-                                                <TableCell>
-                                                    <div className="font-medium">
-                                                        {s.shipmentNumber}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        #{s.shipmentId} •{' '}
-                                                        {s.carrierName ??
-                                                            'unassigned'}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    <span className="inline-block max-w-48 truncate align-bottom">
-                                                        {s.pickupLocation ??
-                                                            s.pickupAddress ??
-                                                            '—'}{' '}
-                                                        →{' '}
-                                                        {s.deliveryLocation ??
-                                                            s.deliveryAddress ??
-                                                            '—'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            s.status ===
-                                                            'DELIVERED'
-                                                                ? 'default'
-                                                                : s.status ===
-                                                                    'EXCEPTION'
-                                                                  ? 'destructive'
-                                                                  : 'secondary'
-                                                        }
-                                                    >
-                                                        {s.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {(() => {
-                                                        if (
-                                                            s.status ===
-                                                                'BOOKED' ||
-                                                            s.status ===
-                                                                'ASSIGNED'
-                                                        )
-                                                            return (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    Assign on
-                                                                    load board
-                                                                </span>
-                                                            );
-                                                        const next =
-                                                            nextLifecycleState(
-                                                                s.status ?? ''
-                                                            );
-                                                        if (!next)
-                                                            return (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    Terminal
-                                                                </span>
-                                                            );
-                                                        return (
-                                                            <div className="flex flex-wrap gap-1">
-                                                                <LoadingButton
-                                                                    loading={
-                                                                        busy ===
-                                                                        `ship-${s.shipmentId}-${next}`
-                                                                    }
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() =>
-                                                                        withBusy(
-                                                                            `ship-${s.shipmentId}-${next}`,
-                                                                            () =>
-                                                                                handleTransition(
-                                                                                    s.shipmentId,
-                                                                                    next
-                                                                                )
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Check className="mr-1 h-3 w-3" />
-                                                                    {next}
-                                                                </LoadingButton>
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </TableCell>
-                                                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                                                    {s.createdAt
-                                                        ? new Date(
-                                                              s.createdAt
-                                                          ).toLocaleString()
-                                                        : '—'}
-                                                </TableCell>
-                                                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                                                    {s.updatedAt
-                                                        ? new Date(
-                                                              s.updatedAt
-                                                          ).toLocaleString()
-                                                        : '—'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {!shipments?.content?.length && (
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell
-                                                    colSpan={6}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No shipments
-                                                </TableCell>
+                                                <TableHead>Shipment</TableHead>
+                                                <TableHead>Route</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Lifecycle</TableHead>
+                                                <TableHead>Created</TableHead>
+                                                <TableHead>Updated</TableHead>
                                             </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {shipments?.content?.map((s) => (
+                                                <TableRow key={s.shipmentId}>
+                                                    <TableCell>
+                                                        <div className="font-medium">
+                                                            {s.shipmentNumber}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            #{s.shipmentId} •{' '}
+                                                            {s.carrierName ??
+                                                                'unassigned'}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">
+                                                        <span className="inline-block max-w-48 truncate align-bottom">
+                                                            {s.pickupLocation ??
+                                                                s.pickupAddress ??
+                                                                '—'}{' '}
+                                                            →{' '}
+                                                            {s.deliveryLocation ??
+                                                                s.deliveryAddress ??
+                                                                '—'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge
+                                                            variant={
+                                                                s.status ===
+                                                                'DELIVERED'
+                                                                    ? 'default'
+                                                                    : s.status ===
+                                                                        'EXCEPTION'
+                                                                      ? 'destructive'
+                                                                      : 'secondary'
+                                                            }
+                                                        >
+                                                            {s.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            if (
+                                                                s.status ===
+                                                                    'BOOKED' ||
+                                                                s.status ===
+                                                                    'ASSIGNED'
+                                                            )
+                                                                return (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        Assign
+                                                                        on load
+                                                                        board
+                                                                    </span>
+                                                                );
+                                                            const next =
+                                                                nextLifecycleState(
+                                                                    s.status ??
+                                                                        ''
+                                                                );
+                                                            if (!next)
+                                                                return (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        Terminal
+                                                                    </span>
+                                                                );
+                                                            return (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    <LoadingButton
+                                                                        loading={
+                                                                            busy ===
+                                                                            `ship-${s.shipmentId}-${next}`
+                                                                        }
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            withBusy(
+                                                                                `ship-${s.shipmentId}-${next}`,
+                                                                                () =>
+                                                                                    handleTransition(
+                                                                                        s.shipmentId,
+                                                                                        next
+                                                                                    )
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Check className="mr-1 h-3 w-3" />
+                                                                        {next}
+                                                                    </LoadingButton>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                                                        {s.createdAt
+                                                            ? new Date(
+                                                                  s.createdAt
+                                                              ).toLocaleString()
+                                                            : '—'}
+                                                    </TableCell>
+                                                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                                                        {s.updatedAt
+                                                            ? new Date(
+                                                                  s.updatedAt
+                                                              ).toLocaleString()
+                                                            : '—'}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {!shipments?.content?.length && (
+                                                <TableRow>
+                                                    <TableCell
+                                                        colSpan={6}
+                                                        className="text-center text-sm text-muted-foreground"
+                                                    >
+                                                        No shipments
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                             {!loading && (
@@ -758,9 +760,7 @@ export default function LogisticsShipmentsPage() {
                                         pageCount={shipments?.totalPages ?? 0}
                                         canPreviousPage={shipmentsPage > 0}
                                         canNextPage={
-                                            shipments
-                                                ? !shipments.last
-                                                : false
+                                            shipments ? !shipments.last : false
                                         }
                                         onPageChange={setShipmentsPage}
                                         onPreviousPage={() =>
@@ -794,116 +794,121 @@ export default function LogisticsShipmentsPage() {
                                 <TableSkeleton rows={6} />
                             ) : (
                                 <div className="max-w-full overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Incident</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {incidents?.content?.map((i) => (
-                                            <TableRow key={i.incidentId}>
-                                                <TableCell>
-                                                    <div className="font-medium">
-                                                        {i.incidentNumber}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Shipment #{i.shipmentId}{' '}
-                                                        • {i.description ?? '-'}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {i.incidentType}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            i.status === 'OPEN'
-                                                                ? 'destructive'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {i.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex gap-2">
-                                                        {(i.status === 'OPEN' ||
-                                                            i.status ===
-                                                                'IN_PROGRESS') && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Edit incident"
-                                                                onClick={() =>
-                                                                    setIncidentEdit(
-                                                                        {
-                                                                            id: i.incidentId,
-                                                                            description:
-                                                                                i.description ??
-                                                                                '',
-                                                                            claimAmount:
-                                                                                i.claimAmount !=
-                                                                                null
-                                                                                    ? String(
-                                                                                          i.claimAmount
-                                                                                      )
-                                                                                    : '',
-                                                                            notes:
-                                                                                i.notes ??
-                                                                                '',
-                                                                        }
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                        {(i.status === 'OPEN' ||
-                                                            i.status ===
-                                                                'IN_PROGRESS') && (
-                                                            <LoadingButton
-                                                                loading={
-                                                                    busy ===
-                                                                    `incident-${i.incidentId}`
-                                                                }
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    withBusy(
-                                                                        `incident-${i.incidentId}`,
-                                                                        () =>
-                                                                            resolveIncident(
-                                                                                i.incidentId
-                                                                            )
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Check className="mr-2 h-4 w-4" />
-                                                                Resolve
-                                                            </LoadingButton>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {!incidents?.content?.length && (
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell
-                                                    colSpan={4}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No exceptions
-                                                </TableCell>
+                                                <TableHead>Incident</TableHead>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Action</TableHead>
                                             </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {incidents?.content?.map((i) => (
+                                                <TableRow key={i.incidentId}>
+                                                    <TableCell>
+                                                        <div className="font-medium">
+                                                            {i.incidentNumber}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            Shipment #
+                                                            {i.shipmentId} •{' '}
+                                                            {i.description ??
+                                                                '-'}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline">
+                                                            {i.incidentType}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge
+                                                            variant={
+                                                                i.status ===
+                                                                'OPEN'
+                                                                    ? 'destructive'
+                                                                    : 'secondary'
+                                                            }
+                                                        >
+                                                            {i.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex gap-2">
+                                                            {(i.status ===
+                                                                'OPEN' ||
+                                                                i.status ===
+                                                                    'IN_PROGRESS') && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    title="Edit incident"
+                                                                    onClick={() =>
+                                                                        setIncidentEdit(
+                                                                            {
+                                                                                id: i.incidentId,
+                                                                                description:
+                                                                                    i.description ??
+                                                                                    '',
+                                                                                claimAmount:
+                                                                                    i.claimAmount !=
+                                                                                    null
+                                                                                        ? String(
+                                                                                              i.claimAmount
+                                                                                          )
+                                                                                        : '',
+                                                                                notes:
+                                                                                    i.notes ??
+                                                                                    '',
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                            {(i.status ===
+                                                                'OPEN' ||
+                                                                i.status ===
+                                                                    'IN_PROGRESS') && (
+                                                                <LoadingButton
+                                                                    loading={
+                                                                        busy ===
+                                                                        `incident-${i.incidentId}`
+                                                                    }
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        withBusy(
+                                                                            `incident-${i.incidentId}`,
+                                                                            () =>
+                                                                                resolveIncident(
+                                                                                    i.incidentId
+                                                                                )
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Check className="mr-2 h-4 w-4" />
+                                                                    Resolve
+                                                                </LoadingButton>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {!incidents?.content?.length && (
+                                                <TableRow>
+                                                    <TableCell
+                                                        colSpan={4}
+                                                        className="text-center text-sm text-muted-foreground"
+                                                    >
+                                                        No exceptions
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                         </CardContent>

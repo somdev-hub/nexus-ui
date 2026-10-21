@@ -1,9 +1,6 @@
 'use client';
 
-import {
-    normalizeCurrency,
-    setDisplayCurrency,
-} from '@/lib/currency';
+import { normalizeCurrency, setDisplayCurrency } from '@/lib/currency';
 import { getOrganizationDetails } from '@/lib/services/organization-service';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { useEffect } from 'react';

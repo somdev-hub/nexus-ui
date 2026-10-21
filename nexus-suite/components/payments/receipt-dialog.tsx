@@ -91,7 +91,8 @@ export function ReceiptDialog({
                                     variant="outline"
                                     onClick={() => downloadReceipt(receipt)}
                                 >
-                                    <Download className="mr-1 h-4 w-4" /> Download
+                                    <Download className="mr-1 h-4 w-4" />{' '}
+                                    Download
                                 </Button>
                                 <Button
                                     size="sm"
@@ -107,11 +108,25 @@ export function ReceiptDialog({
                                 'Amount paid',
                                 `${receipt.currency} ${Number(receipt.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                             )}
-                            {row('Fee', `${receipt.currency} ${Number(receipt.feeAmount ?? 0).toFixed(2)}`)}
-                            {row('Method', `${receipt.paymentMethod} · ${receipt.methodDetailMasked ?? ''}`)}
-                            {row('Invoice', receipt.invoiceNumber ?? receipt.invoiceId)}
+                            {row(
+                                'Fee',
+                                `${receipt.currency} ${Number(receipt.feeAmount ?? 0).toFixed(2)}`
+                            )}
+                            {row(
+                                'Method',
+                                `${receipt.paymentMethod} · ${receipt.methodDetailMasked ?? ''}`
+                            )}
+                            {row(
+                                'Invoice',
+                                receipt.invoiceNumber ?? receipt.invoiceId
+                            )}
                             {row('Payer role', receipt.payerRole)}
-                            {row('Paid at', receipt.paidAt ? new Date(receipt.paidAt).toLocaleString() : '—')}
+                            {row(
+                                'Paid at',
+                                receipt.paidAt
+                                    ? new Date(receipt.paidAt).toLocaleString()
+                                    : '—'
+                            )}
                             {row('Idempotency key', receipt.idempotencyKey)}
                             <Separator className="my-2" />
                             <p className="text-xs text-muted-foreground">

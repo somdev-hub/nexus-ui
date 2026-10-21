@@ -443,11 +443,16 @@ export default function SupplierOrderDetailPage() {
                                     <p className="font-medium">
                                         {(() => {
                                             try {
-                                                return decodeURIComponent(
-                                                    order.supplierNotes || ''
-                                                ) || '—';
+                                                return (
+                                                    decodeURIComponent(
+                                                        order.supplierNotes ||
+                                                            ''
+                                                    ) || '—'
+                                                );
                                             } catch {
-                                                return order.supplierNotes || '—';
+                                                return (
+                                                    order.supplierNotes || '—'
+                                                );
                                             }
                                         })()}
                                     </p>

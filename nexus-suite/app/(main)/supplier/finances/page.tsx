@@ -14,9 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    FinanceKpis,
-} from '@/components/finances/finance-kpis';
+import { FinanceKpis } from '@/components/finances/finance-kpis';
 import {
     useConvertedPoints,
     useMoneyFormatter,
@@ -42,7 +40,10 @@ import {
     getSupplierTransactions,
     type FinancePeriod,
 } from '@/lib/services/finances-service';
-import { createSuiteIntent, listSuiteIntents } from '@/lib/services/payments-service';
+import {
+    createSuiteIntent,
+    listSuiteIntents,
+} from '@/lib/services/payments-service';
 import {
     getSupplierLogisticsPartnerships,
     type SupplierLogisticsPartnership,
@@ -61,6 +62,8 @@ import {
     CheckCircle2,
     ChevronDown,
     Landmark,
+    PieChart,
+    ScrollText,
     Truck,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -148,8 +151,7 @@ export default function SupplierFinancesPage() {
             getSupplierLogisticsPartnerships()
                 .then((r) => {
                     const list = (r.content ?? []).filter(
-                        (p) =>
-                            String(p.status ?? '').toUpperCase() === 'ACTIVE'
+                        (p) => String(p.status ?? '').toUpperCase() === 'ACTIVE'
                     );
                     setPartnerships(list);
                     if (list.length > 0 && !partnershipId) {
@@ -190,20 +192,20 @@ export default function SupplierFinancesPage() {
         loadBilling();
     }, [loadBilling]);
 
-    const payQuote = async (quote: {
-        quoteRef: string;
-        grandTotal: number;
-    }, currency?: string) => {
+    const payQuote = async (
+        quote: {
+            quoteRef: string;
+            grandTotal: number;
+        },
+        currency?: string
+    ) => {
         setQuoting(true);
         try {
             const intent = await createSuiteIntent({
                 amount: Number(quote.grandTotal),
                 // The quote is denominated in the trips' lane currency;
                 // fall back to the org display currency, never a hardcoded one.
-                currency:
-                    currency ??
-                    tripCurrency ??
-                    getDisplayCurrency(),
+                currency: currency ?? tripCurrency ?? getDisplayCurrency(),
                 description: `Logistics settlement ${quote.quoteRef}`,
                 payerRole: 'SUPPLIER',
                 quoteRef: quote.quoteRef,
@@ -272,8 +274,9 @@ export default function SupplierFinancesPage() {
             0
         );
     // Currency of the selected trips' amounts (lanes price in their own currency).
-    const tripCurrency = trips.find((t) => selected.has(t.shipmentId))
-        ?.currency;
+    const tripCurrency = trips.find((t) =>
+        selected.has(t.shipmentId)
+    )?.currency;
 
     const trend = useConvertedPoints(summary?.trend ?? []);
     const buyers = useConvertedPoints(summary?.topBuyers ?? []);
@@ -343,7 +346,10 @@ export default function SupplierFinancesPage() {
                     },
                     {
                         title: 'Logistics due',
-                        value: fmt(summary?.logisticsOpen, summary?.logisticsCurrency),
+                        value: fmt(
+                            summary?.logisticsOpen,
+                            summary?.logisticsCurrency
+                        ),
                         sub: `Overdue ${fmt(summary?.logisticsOverdue, summary?.logisticsCurrency)} — open Logistics tab`,
                         icon: Truck,
                         tone:
@@ -356,8 +362,14 @@ export default function SupplierFinancesPage() {
 
             <Tabs defaultValue="overview">
                 <TabsList>
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="ledger">Sales ledger</TabsTrigger>
+                    <TabsTrigger value="overview">
+                        <PieChart className="mr-1.5 h-3.5 w-3.5" />
+                        Overview
+                    </TabsTrigger>
+                    <TabsTrigger value="ledger">
+                        <ScrollText className="mr-1.5 h-3.5 w-3.5" />
+                        Sales ledger
+                    </TabsTrigger>
                     <TabsTrigger value="logistics">
                         <Landmark className="mr-1.5 h-3.5 w-3.5" />
                         Logistics settlement
@@ -503,18 +515,12 @@ export default function SupplierFinancesPage() {
                                             key={t.lineId}
                                             trip={t}
                                             fmt={fmt}
-                                            checked={selected.has(
-                                                t.shipmentId
-                                            )}
+                                            checked={selected.has(t.shipmentId)}
                                             onToggle={(v) =>
                                                 setSelected((prev) => {
-                                                    const next = new Set(
-                                                        prev
-                                                    );
+                                                    const next = new Set(prev);
                                                     if (v)
-                                                        next.add(
-                                                            t.shipmentId
-                                                        );
+                                                        next.add(t.shipmentId);
                                                     else
                                                         next.delete(
                                                             t.shipmentId
@@ -533,9 +539,8 @@ export default function SupplierFinancesPage() {
                                         <CardTitle className="text-base">
                                             Cycle statements
                                             <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                                missed statements add 2% of
-                                                the missed total to the next
-                                                one
+                                                missed statements add 2% of the
+                                                missed total to the next one
                                             </span>
                                         </CardTitle>
                                     </CardHeader>
@@ -560,9 +565,15 @@ export default function SupplierFinancesPage() {
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
                                                             Base{' '}
-                                                            {fmt(s.baseTotal, s.currency)}{' '}
+                                                            {fmt(
+                                                                s.baseTotal,
+                                                                s.currency
+                                                            )}{' '}
                                                             · paid{' '}
-                                                            {fmt(s.basePaid ?? 0, s.currency)}{' '}
+                                                            {fmt(
+                                                                s.basePaid ?? 0,
+                                                                s.currency
+                                                            )}{' '}
                                                             · penalty{' '}
                                                             {fmt(
                                                                 s.penaltyTotal ??
@@ -593,7 +604,9 @@ export default function SupplierFinancesPage() {
                                                         due > 0 && (
                                                             <Button
                                                                 size="sm"
-                                                                disabled={quoting}
+                                                                disabled={
+                                                                    quoting
+                                                                }
                                                                 onClick={() =>
                                                                     quoteStatement(
                                                                         s.cycleId,
@@ -601,7 +614,11 @@ export default function SupplierFinancesPage() {
                                                                     )
                                                                 }
                                                             >
-                                                                Pay {fmt(due, s.currency)}
+                                                                Pay{' '}
+                                                                {fmt(
+                                                                    due,
+                                                                    s.currency
+                                                                )}
                                                             </Button>
                                                         )}
                                                 </div>
@@ -617,8 +634,7 @@ export default function SupplierFinancesPage() {
                                               (it) =>
                                                   String(
                                                       it.partnershipId ?? ''
-                                                  ) ===
-                                                  String(partnershipId)
+                                                  ) === String(partnershipId)
                                           )
                                         : settlePayments
                                 }
@@ -695,10 +711,7 @@ function TripRow({
                 className="flex cursor-pointer items-center gap-3 p-3"
                 onClick={() => setOpen((o) => !o)}
             >
-                <span
-                    onClick={(e) => e.stopPropagation()}
-                    className="shrink-0"
-                >
+                <span onClick={(e) => e.stopPropagation()} className="shrink-0">
                     <Checkbox checked={checked} onCheckedChange={onToggle} />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -713,9 +726,8 @@ function TripRow({
                         {trip.deliveredAt
                             ? new Date(trip.deliveredAt).toLocaleDateString()
                             : '—'}{' '}
-                        · base{' '}
-                        {fmt(trip.outstandingBase, trip.currency)} · late fee{' '}
-                        {fmt(trip.lateFeeAccrued ?? 0, trip.currency)}
+                        · base {fmt(trip.outstandingBase, trip.currency)} · late
+                        fee {fmt(trip.lateFeeAccrued ?? 0, trip.currency)}
                     </p>
                 </div>
                 <Badge
@@ -733,15 +745,15 @@ function TripRow({
                 <div className="border-t px-3 py-2">
                     {p?.source === 'CAPACITY' && (
                         <p className="mb-1 text-xs text-muted-foreground">
-                            Priced from logistics capacity{' '}
-                            {p.lane ?? ''}
+                            Priced from logistics capacity {p.lane ?? ''}
                             {p.transportMode ? ` · ${p.transportMode}` : ''}
                             {p.equipmentType ? ` · ${p.equipmentType}` : ''}
                         </p>
                     )}
                     {p?.source === 'SHIPMENT' && (
                         <p className="mb-1 text-xs text-muted-foreground">
-                            Priced from the shipment&apos;s recorded freight cost.
+                            Priced from the shipment&apos;s recorded freight
+                            cost.
                         </p>
                     )}
                     {p?.source === 'UNPRICED' && (

@@ -1,8 +1,6 @@
 'use client';
 
-import {
-    FinanceKpis,
-} from '@/components/finances/finance-kpis';
+import { FinanceKpis } from '@/components/finances/finance-kpis';
 import {
     AgingBars,
     SplitBar,
@@ -22,10 +20,7 @@ import {
     getRetailerTransactions,
     type FinancePeriod,
 } from '@/lib/services/finances-service';
-import type {
-    FinanceTxnPage,
-    RetailerFinanceSummary,
-} from '@/types/finances';
+import type { FinanceTxnPage, RetailerFinanceSummary } from '@/types/finances';
 import {
     AlertTriangle,
     ArrowDownCircle,
@@ -61,9 +56,7 @@ export default function RetailerFinancesPage() {
                 await getRetailerTransactions({
                     kind: filter.kind,
                     status:
-                        filter.status === 'OVERDUE'
-                            ? undefined
-                            : filter.status,
+                        filter.status === 'OVERDUE' ? undefined : filter.status,
                     search: filter.search,
                     from: filter.from,
                     to: filter.to,

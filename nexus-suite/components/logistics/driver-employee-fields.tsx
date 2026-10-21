@@ -52,9 +52,9 @@ export function emptyBankRecord(): DriverBankRecord {
 export function isBankRecordComplete(r: DriverBankRecord): boolean {
     return Boolean(
         r.bankName?.trim() &&
-            r.accountHolderName?.trim() &&
-            r.accountNumber?.trim() &&
-            r.ifscCode?.trim()
+        r.accountHolderName?.trim() &&
+        r.accountNumber?.trim() &&
+        r.ifscCode?.trim()
     );
 }
 
@@ -129,9 +129,7 @@ export function DriverEmployeeFields({
                     <Input
                         placeholder="e.g. rajesh.personal@gmail.com"
                         value={value.personalEmail}
-                        onChange={(e) =>
-                            set({ personalEmail: e.target.value })
-                        }
+                        onChange={(e) => set({ personalEmail: e.target.value })}
                     />
                 </div>
                 <div className="grid gap-2">
@@ -157,9 +155,7 @@ export function DriverEmployeeFields({
                     <Label>Date of Birth</Label>
                     <DatePicker
                         date={parseYmd(value.dateOfBirth)}
-                        onDateChange={(d) =>
-                            set({ dateOfBirth: formatYmd(d) })
-                        }
+                        onDateChange={(d) => set({ dateOfBirth: formatYmd(d) })}
                         placeholder="Pick date of birth"
                     />
                 </div>
@@ -182,7 +178,12 @@ export function DriverEmployeeFields({
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                                set({ bankRecords: [...value.bankRecords, emptyBankRecord()] })
+                                set({
+                                    bankRecords: [
+                                        ...value.bankRecords,
+                                        emptyBankRecord(),
+                                    ],
+                                })
                             }
                         >
                             <Plus className="mr-1 h-4 w-4" />
@@ -215,128 +216,131 @@ export function DriverEmployeeFields({
                             </div>
                             <div className="text-xs text-muted-foreground break-all">
                                 {r.accountHolderName || '—'} · a/c{' '}
-                                {r.accountNumber || '—'} ·{' '}
-                                {r.ifscCode || '—'}
+                                {r.accountNumber || '—'} · {r.ifscCode || '—'}
                                 {r.branchAddress ? ` · ${r.branchAddress}` : ''}
                             </div>
                         </div>
                     ))}
                 {!linked &&
                     value.bankRecords.map((r, i) => (
-                    <div
-                        key={i}
-                        className="grid gap-3 rounded-md border p-3"
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-muted-foreground">
-                                Bank account {i + 1}
-                                {!isBankRecordComplete(r) && (
-                                    <span> · incomplete</span>
-                                )}
-                            </span>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                    set({
-                                        bankRecords:
-                                            value.bankRecords.filter(
-                                                (_, idx) => idx !== i
-                                            ),
-                                    })
-                                }
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="grid gap-2">
-                                <Label>Bank Name</Label>
-                                <Input
-                                    value={r.bankName}
-                                    onChange={(e) =>
-                                        setBank(i, { bankName: e.target.value })
-                                    }
-                                    placeholder="e.g. HDFC Bank"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Account Holder</Label>
-                                <Input
-                                    value={r.accountHolderName}
-                                    onChange={(e) =>
-                                        setBank(i, {
-                                            accountHolderName: e.target.value,
-                                        })
-                                    }
-                                    placeholder="e.g. Rajesh Kumar"
-                                />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div className="grid gap-2">
-                                <Label>Account Number</Label>
-                                <Input
-                                    value={r.accountNumber}
-                                    onChange={(e) =>
-                                        setBank(i, {
-                                            accountNumber: e.target.value,
-                                        })
-                                    }
-                                    placeholder="Account number"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>IFSC Code</Label>
-                                <Input
-                                    value={r.ifscCode}
-                                    onChange={(e) =>
-                                        setBank(i, { ifscCode: e.target.value })
-                                    }
-                                    placeholder="e.g. HDFC0000123"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Account Type</Label>
-                                <Select
-                                    value={r.accountType}
-                                    onValueChange={(v) =>
-                                        setBank(i, {
-                                            accountType: v as
-                                                | 'SAVINGS'
-                                                | 'CURRENT',
+                        <div
+                            key={i}
+                            className="grid gap-3 rounded-md border p-3"
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                    Bank account {i + 1}
+                                    {!isBankRecordComplete(r) && (
+                                        <span> · incomplete</span>
+                                    )}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                        set({
+                                            bankRecords:
+                                                value.bankRecords.filter(
+                                                    (_, idx) => idx !== i
+                                                ),
                                         })
                                     }
                                 >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="SAVINGS">
-                                            SAVINGS
-                                        </SelectItem>
-                                        <SelectItem value="CURRENT">
-                                            CURRENT
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Bank Name</Label>
+                                    <Input
+                                        value={r.bankName}
+                                        onChange={(e) =>
+                                            setBank(i, {
+                                                bankName: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. HDFC Bank"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Account Holder</Label>
+                                    <Input
+                                        value={r.accountHolderName}
+                                        onChange={(e) =>
+                                            setBank(i, {
+                                                accountHolderName:
+                                                    e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. Rajesh Kumar"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Account Number</Label>
+                                    <Input
+                                        value={r.accountNumber}
+                                        onChange={(e) =>
+                                            setBank(i, {
+                                                accountNumber: e.target.value,
+                                            })
+                                        }
+                                        placeholder="Account number"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>IFSC Code</Label>
+                                    <Input
+                                        value={r.ifscCode}
+                                        onChange={(e) =>
+                                            setBank(i, {
+                                                ifscCode: e.target.value,
+                                            })
+                                        }
+                                        placeholder="e.g. HDFC0000123"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Account Type</Label>
+                                    <Select
+                                        value={r.accountType}
+                                        onValueChange={(v) =>
+                                            setBank(i, {
+                                                accountType: v as
+                                                    'SAVINGS' | 'CURRENT',
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="SAVINGS">
+                                                SAVINGS
+                                            </SelectItem>
+                                            <SelectItem value="CURRENT">
+                                                CURRENT
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Branch Address</Label>
+                                <Input
+                                    value={r.branchAddress}
+                                    onChange={(e) =>
+                                        setBank(i, {
+                                            branchAddress: e.target.value,
+                                        })
+                                    }
+                                    placeholder="e.g. MG Road branch, Bengaluru"
+                                />
                             </div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Branch Address</Label>
-                            <Input
-                                value={r.branchAddress}
-                                onChange={(e) =>
-                                    setBank(i, {
-                                        branchAddress: e.target.value,
-                                    })
-                                }
-                                placeholder="e.g. MG Road branch, Bengaluru"
-                            />
-                        </div>
-                    </div>
-                ))}
+                    ))}
             </div>
 
             {linked && (

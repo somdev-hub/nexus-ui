@@ -140,6 +140,56 @@ export interface DriverFilter {
     search?: string;
 }
 
+// Driver commissions (contract payouts per delivered trip)
+
+/** Outstanding (pending) commission total in one currency. */
+export interface DriverCommissionPayable {
+    currency: string;
+    amount: number;
+}
+
+/** One row of the driver-commissions overview table. */
+export interface DriverCommissionRow {
+    driverId: number;
+    driverCode: string;
+    fullName: string;
+    status: Driver['status'];
+    iamUserId?: number | null;
+    lastActiveAt?: string;
+    lastAssignment?: {
+        shipmentId: number;
+        shipmentNumber: string;
+        status?: string;
+        lane?: string;
+    } | null;
+    payable: DriverCommissionPayable[];
+    pendingCount: number;
+}
+
+/** One per-trip commission line inside a driver's expanded subtable. */
+export interface DriverCommissionItem {
+    commissionId: number;
+    driverId: number;
+    shipmentId?: number;
+    shipmentNumber?: string;
+    lane?: string;
+    deliveredAt?: string;
+    amount: number;
+    currency?: string;
+    shipmentStatus?: string;
+    status: 'PENDING' | 'PAID';
+    paidAt?: string;
+    paymentRef?: string;
+    notes?: string;
+}
+
+export interface DriverCommissionFilter {
+    page?: number;
+    size?: number;
+    status?: string;
+    search?: string;
+}
+
 export interface MaintenanceRecord {
     maintenanceId: number;
     maintenanceNumber: string;
@@ -148,6 +198,8 @@ export interface MaintenanceRecord {
     description?: string;
     status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'OVERDUE';
     scheduledDate?: string;
+    /** End of the scheduled maintenance window. */
+    scheduledToDate?: string;
     completedDate?: string;
     odometerReading?: number;
     cost?: number;

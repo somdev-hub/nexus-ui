@@ -30,12 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
     Tooltip,
@@ -159,9 +154,7 @@ function ChartSwatchGrid({
                                         />
                                     ))}
                                 </span>
-                                <span className="truncate">
-                                    {option.label}
-                                </span>
+                                <span className="truncate">{option.label}</span>
                                 {active && (
                                     <Check className="ml-auto size-4 text-primary" />
                                 )}
@@ -249,11 +242,11 @@ export default function AppearanceSettingsPage() {
         BASE_COLOR_OPTIONS.find((option) => option.id === state.base)?.label ??
         'Custom';
     const themeLabel =
-        THEME_COLOR_OPTIONS.find((option) => option.id === state.theme)?.label ??
-        'Custom';
+        THEME_COLOR_OPTIONS.find((option) => option.id === state.theme)
+            ?.label ?? 'Custom';
     const chartLabel =
-        CHART_COLOR_OPTIONS.find((option) => option.id === state.chart)?.label ??
-        'Custom';
+        CHART_COLOR_OPTIONS.find((option) => option.id === state.chart)
+            ?.label ?? 'Custom';
 
     return (
         <div className="flex flex-1 flex-col">
@@ -285,9 +278,7 @@ export default function AppearanceSettingsPage() {
                         <Button
                             size="sm"
                             onClick={handleSave}
-                            disabled={
-                                saving || !preferencesResolved || !dirty
-                            }
+                            disabled={saving || !preferencesResolved || !dirty}
                         >
                             {saving ? (
                                 <Loader2 className="size-4 animate-spin" />
@@ -475,9 +466,7 @@ export default function AppearanceSettingsPage() {
                                 <SwatchGrid
                                     options={THEME_COLOR_OPTIONS}
                                     value={state.theme}
-                                    onChange={(next) =>
-                                        update({ theme: next })
-                                    }
+                                    onChange={(next) => update({ theme: next })}
                                     color={(id) => themeSwatch(id, state.base)}
                                 />
                             </CardContent>
@@ -531,9 +520,7 @@ export default function AppearanceSettingsPage() {
 
                                 <div className="flex flex-wrap gap-2">
                                     <Badge>Badge</Badge>
-                                    <Badge variant="secondary">
-                                        Secondary
-                                    </Badge>
+                                    <Badge variant="secondary">Secondary</Badge>
                                     <Badge variant="outline">Outline</Badge>
                                     <Badge variant="destructive">
                                         Destructive

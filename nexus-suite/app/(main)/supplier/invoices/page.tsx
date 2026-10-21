@@ -102,8 +102,9 @@ interface PendingLine {
 
 export default function SupplierInvoicesPage() {
     const { toast } = useToast();
-    const [data, setData] =
-        useState<PaginatedResponse<SupplierInvoice> | null>(null);
+    const [data, setData] = useState<PaginatedResponse<SupplierInvoice> | null>(
+        null
+    );
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
     const [grData, setGrData] =
@@ -341,9 +342,7 @@ export default function SupplierInvoicesPage() {
             setDueDate(full.dueDate ?? '');
             setCurrency(full.currency ?? 'USD');
             setPaymentTerms('');
-            const breakdown = parseChargesBreakdown(
-                full.otherChargesBreakdown
-            );
+            const breakdown = parseChargesBreakdown(full.otherChargesBreakdown);
             setCharges(
                 breakdown.length > 0
                     ? breakdown
@@ -554,8 +553,7 @@ export default function SupplierInvoicesPage() {
             <Card className="p-4 gap-2 min-w-0">
                 <CardHeader className="flex flex-row items-center justify-between p-0">
                     <CardTitle>
-                        Received Goods Receipts (
-                        {grData?.totalElements ?? 0})
+                        Received Goods Receipts ({grData?.totalElements ?? 0})
                     </CardTitle>
                     <Button
                         variant="outline"
@@ -567,8 +565,8 @@ export default function SupplierInvoicesPage() {
                 </CardHeader>
                 <CardContent className="p-0 min-w-0">
                     <p className="pb-2 text-sm text-muted-foreground">
-                        Receipts the retailer shared for validation — check
-                        the received quantities before invoicing.
+                        Receipts the retailer shared for validation — check the
+                        received quantities before invoicing.
                     </p>
                     {grLoading ? (
                         <div className="space-y-2">
@@ -653,9 +651,7 @@ export default function SupplierInvoicesPage() {
                                 pageIndex={grPage}
                                 pageCount={grData?.totalPages ?? 0}
                                 canPreviousPage={grPage > 0}
-                                canNextPage={
-                                    grData ? !grData.last : false
-                                }
+                                canNextPage={grData ? !grData.last : false}
                                 onPageChange={setGrPage}
                                 onPreviousPage={() =>
                                     setGrPage((p) => Math.max(0, p - 1))
@@ -702,10 +698,10 @@ export default function SupplierInvoicesPage() {
                                 <TableBody>
                                     {invoices.map((inv) => (
                                         <TableRow key={inv.invoiceId}>
-                                        <TableCell className="font-mono">
-                                            {inv.supplierInvoiceNumber ??
-                                                inv.invoiceNumber}
-                                        </TableCell>
+                                            <TableCell className="font-mono">
+                                                {inv.supplierInvoiceNumber ??
+                                                    inv.invoiceNumber}
+                                            </TableCell>
                                             <TableCell>
                                                 {inv.poNumber ??
                                                     inv.purchaseOrderId}
@@ -742,8 +738,7 @@ export default function SupplierInvoicesPage() {
                                                     >
                                                         View
                                                     </Button>
-                                                    {inv.status ===
-                                                        'DRAFT' && (
+                                                    {inv.status === 'DRAFT' && (
                                                         <>
                                                             <Button
                                                                 size="sm"
@@ -760,14 +755,12 @@ export default function SupplierInvoicesPage() {
                                                                 size="sm"
                                                                 variant="outline"
                                                                 onClick={() =>
-                                                                    setConfirm(
-                                                                        {
-                                                                            invoice:
-                                                                                inv,
-                                                                            status: 'PENDING_APPROVAL',
-                                                                            label: 'Submit',
-                                                                        }
-                                                                    )
+                                                                    setConfirm({
+                                                                        invoice:
+                                                                            inv,
+                                                                        status: 'PENDING_APPROVAL',
+                                                                        label: 'Submit',
+                                                                    })
                                                                 }
                                                             >
                                                                 Submit
@@ -914,8 +907,7 @@ export default function SupplierInvoicesPage() {
                                                         className="text-xs text-muted-foreground"
                                                     >
                                                         Line{' '}
-                                                        {li.lineNumber ??
-                                                            i + 1}
+                                                        {li.lineNumber ?? i + 1}
                                                         : received{' '}
                                                         {li.quantityReceived ??
                                                             '—'}
@@ -1195,8 +1187,7 @@ export default function SupplierInvoicesPage() {
                             >
                                 {saving ? 'Saving…' : 'Save Draft'}
                             </Button>
-                            {(!editing ||
-                                editing.status === 'DRAFT') && (
+                            {(!editing || editing.status === 'DRAFT') && (
                                 <Button
                                     disabled={saving}
                                     onClick={() => saveDraft(true)}
@@ -1225,9 +1216,7 @@ export default function SupplierInvoicesPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {viewing?.status ?? ''}
-                            {viewing?.poNumber
-                                ? ` · ${viewing.poNumber}`
-                                : ''}
+                            {viewing?.poNumber ? ` · ${viewing.poNumber}` : ''}
                         </DialogDescription>
                     </DialogHeader>
                     {viewing && (
@@ -1293,8 +1282,7 @@ export default function SupplierInvoicesPage() {
                                                     Number(c.amount) || 0,
                                                     viewing.currency
                                                 )}{' '}
-                                                —{' '}
-                                                {c.description || 'Charge'}
+                                                — {c.description || 'Charge'}
                                             </span>
                                         ))}
                                     </p>
@@ -1329,9 +1317,7 @@ export default function SupplierInvoicesPage() {
                             )}
                             {viewing.notes && (
                                 <p className="rounded-md border p-3 text-sm">
-                                    <span className="font-medium">
-                                        Notes:{' '}
-                                    </span>
+                                    <span className="font-medium">Notes: </span>
                                     {viewing.notes}
                                 </p>
                             )}
@@ -1441,10 +1427,7 @@ export default function SupplierInvoicesPage() {
                         >
                             Back
                         </Button>
-                        <Button
-                            onClick={runTransition}
-                            disabled={confirmBusy}
-                        >
+                        <Button onClick={runTransition} disabled={confirmBusy}>
                             {confirmBusy ? 'Working…' : 'Confirm'}
                         </Button>
                     </div>
@@ -1504,16 +1487,13 @@ export default function SupplierInvoicesPage() {
                             </div>
                             {viewingGr.notes && (
                                 <p className="rounded-md border p-3 text-sm">
-                                    <span className="font-medium">
-                                        Notes:{' '}
-                                    </span>
+                                    <span className="font-medium">Notes: </span>
                                     {viewingGr.notes}
                                 </p>
                             )}
                             <div className="grid gap-2">
                                 <p className="text-sm font-medium">
-                                    Lines (
-                                    {viewingGr.lineItems?.length ?? 0})
+                                    Lines ({viewingGr.lineItems?.length ?? 0})
                                 </p>
                                 <div className="max-w-full overflow-x-auto rounded-md border">
                                     <Table>
