@@ -6,7 +6,6 @@ import { SectionCards } from '@/components/section-cards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getProducts } from '@/lib/services/products-service';
 import { getMaterials } from '@/lib/services/materials-service';
-import { getOrders } from '@/lib/services/orders-service';
 import { getPartnerships } from '@/lib/services/partnerships-service';
 import { getPurchaseOrders } from '@/lib/services/purchase-orders-service';
 import { getSupplierContracts } from '@/lib/services/supplier-contracts-service';
@@ -16,7 +15,6 @@ import { toast } from 'sonner';
 type DashboardData = {
     products: Awaited<ReturnType<typeof getProducts>>;
     materials: Awaited<ReturnType<typeof getMaterials>>;
-    orders: Awaited<ReturnType<typeof getOrders>>;
     partnerships: Awaited<ReturnType<typeof getPartnerships>>;
 };
 
@@ -37,11 +35,10 @@ export default function Page() {
                 // inside a Server Component. On server, axios needs absolute URL; on client,
                 // relative URL works because browser resolves it against window.location.origin
                 // and withCredentials forwards HttpOnly cookies to /api/proxy.
-                const [products, materials, orders, partnerships] =
+                const [products, materials, partnerships] =
                     await Promise.all([
                         getProducts({ pageNo: 0, pageOffset: 5 }),
                         getMaterials({ pageNo: 0, pageOffset: 5 }),
-                        getOrders({ pageNo: 0, pageOffset: 5 }),
                         getPartnerships({ pageNo: 0, pageOffset: 5 }),
                         // Keep additional fetches for warming cache but don't block render
                         getPurchaseOrders({ pageNo: 0, pageOffset: 5 }).catch(
@@ -54,7 +51,7 @@ export default function Page() {
                     ]);
 
                 if (!isActive) return;
-                setData({ products, materials, orders, partnerships });
+                setData({ products, materials, partnerships });
             } catch (err: unknown) {
                 if (!isActive) return;
                 const message =
@@ -104,7 +101,7 @@ export default function Page() {
         );
     }
 
-    const { products, materials, orders, partnerships } = data;
+    const { products, materials, partnerships } = data;
 
     const tableData = [
         ...products.content.slice(0, 3).map((p, i) => ({
@@ -135,7 +132,6 @@ export default function Page() {
                         <SectionCards
                             totalProducts={products.totalElements}
                             totalMaterials={materials.totalElements}
-                            totalOrders={orders.totalElements}
                             totalPartnerships={partnerships.totalElements}
                         />
                         <div className="px-4 lg:px-6">

@@ -8,7 +8,6 @@ export * from './auth-service';
 // Core Domain Services
 export * from './products-service';
 export * from './materials-service';
-export * from './orders-service';
 export * from './partnerships-service';
 export * from './purchase-orders-service';
 export * from './supplier-contracts-service';

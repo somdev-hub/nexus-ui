@@ -157,21 +157,8 @@ const retailerSections = [
         ],
     },
     {
-        id: 'materials',
-        label: 'Materials Orders',
-        showHeader: false,
-        showActions: true,
-        items: [
-            {
-                title: 'Material Orders',
-                url: '/retailer/materials/orders',
-                icon: IconShoppingCart,
-            },
-        ],
-    },
-    {
-        id: 'suppliers',
-        label: 'Suppliers',
+        id: 'marketplace',
+        label: 'Marketplace',
         showHeader: false,
         showActions: true,
         items: [
@@ -179,6 +166,11 @@ const retailerSections = [
                 title: 'Market',
                 url: '/retailer/partnership/supplier-market',
                 icon: IconLink,
+            },
+            {
+                title: 'Partnership Management',
+                url: '/retailer/partnership/management',
+                icon: IconFileWord,
             },
             {
                 title: 'Performance',
@@ -193,19 +185,6 @@ const retailerSections = [
             {
                 title: 'Contracts',
                 url: '/retailer/supplier-contracts',
-                icon: IconFileWord,
-            },
-        ],
-    },
-    {
-        id: 'partnerships',
-        label: 'Partnerships',
-        showHeader: false,
-        showActions: true,
-        items: [
-            {
-                title: 'Partnership Management',
-                url: '/retailer/partnership/management',
                 icon: IconFileWord,
             },
         ],
