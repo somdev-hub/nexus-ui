@@ -102,6 +102,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
         const connect = async () => {
             try {
                 await notificationWebSocketService.connect({
+                    organizationId: orgId,
                     onConnect: () => {
                         console.log('[NOTIFICATIONS] onConnect fired, orgId:', orgId);
                         if (!mountedRef.current) return;

@@ -14,7 +14,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { CommandIcon, DatabaseIcon, LayoutDashboardIcon } from "lucide-react";
+import { BellIcon, CommandIcon, DatabaseIcon, LayoutDashboardIcon, SettingsIcon } from "lucide-react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const { user, isAuthenticated } = useAuth();
@@ -48,6 +48,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         url: "/nexus-buddy",
                         icon: (
                             <DatabaseIcon />
+                        ),
+                    },
+                    {
+                        title: "Notification Analytics",
+                        url: "/notifications",
+                        icon: (
+                            <BellIcon />
+                        ),
+                    },
+                    {
+                        title: "Notification Rules",
+                        url: "/notification-rules",
+                        icon: (
+                            <SettingsIcon />
                         ),
                     },
                 ]} />

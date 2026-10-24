@@ -320,8 +320,16 @@ export async function GET(request: NextRequest) {
       "[API PROXY GET] Making request with token:",
       !!session.accessToken
     );
+    // Forward all query params except 'path' to the backend
+    const queryParams = new URLSearchParams();
+    searchParams.forEach((value, key) => {
+      if (key !== "path") queryParams.append(key, value);
+    });
+    const queryString = queryParams.toString();
+    const fullPath = queryString ? `${path}?${queryString}` : path;
+
     const springBootClient = getSpringBootClient();
-    const response = await springBootClient.get(path, {
+    const response = await springBootClient.get(fullPath, {
       headers: {
         Authorization: `Bearer ${session.accessToken}`
       }

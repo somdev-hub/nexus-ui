@@ -21,6 +21,10 @@ export function resolveNotificationRoute(
             return `/retailer/procurement/goods-receipts/${entityId}`;
         case 'SUPPLIER_QUOTATION':
             return `/retailer/quotations/${entityId}`;
+        case 'PARTNERSHIP':
+            return `/retailer/partnerships/${entityId}`;
+        case 'PAYMENT':
+            return `/retailer/payments/${entityId}`;
         default:
             return `/`;
     }

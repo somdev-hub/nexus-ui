@@ -16,6 +16,8 @@ const CONNECTION_TIMEOUT = 15000; // 15 seconds timeout for connection attempt
 export type NotificationEventHandler = (push: NotificationPush) => void;
 
 export interface NotificationWebSocketConfig {
+    /** Organisation the user is acting in. Sent as X-Organization-ID on CONNECT. */
+    organizationId?: string;
     onConnect?: () => void;
     onDisconnect?: () => void;
     onError?: (error: string) => void;
@@ -25,6 +27,7 @@ export interface NotificationWebSocketConfig {
 class NotificationWebSocketService {
     private client: Client | null = null;
     private config: NotificationWebSocketConfig | null = null;
+    private organizationId: string | null = null;
     private subscriptions: Map<string, any> = new Map();
     private isManualDisconnect = false;
     private connectionPromise: Promise<void> | null = null;
@@ -58,6 +61,7 @@ class NotificationWebSocketService {
 
     async connect(config: NotificationWebSocketConfig): Promise<void> {
         this.config = config;
+        this.organizationId = config.organizationId ?? null;
 
         if (this.client?.active) {
             console.log('[NOTIFICATION WS] Already connected');
@@ -176,6 +180,9 @@ class NotificationWebSocketService {
             webSocketFactory: () => new SockJS(SOCKJS_URL),
             connectHeaders: {
                 Authorization: `Bearer ${token}`,
+                ...(this.organizationId
+                    ? { 'X-Organization-ID': this.organizationId }
+                    : {}),
             },
             reconnectDelay: 0,
             heartbeatIncoming: HEARTBEAT_INTERVAL,
@@ -315,6 +322,7 @@ class NotificationWebSocketService {
 
     disconnect(): void {
         this.isManualDisconnect = true;
+        this.organizationId = null;
         if (this.tokenRefreshTimeout) {
             clearTimeout(this.tokenRefreshTimeout);
             this.tokenRefreshTimeout = null;
