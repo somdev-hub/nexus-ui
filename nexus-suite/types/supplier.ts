@@ -66,6 +66,10 @@ export interface SupplierDigitalAsset {
 export interface ProductionCapacity {
     capacityId: number;
     productLine?: string;
+    catalogId?: number;
+    catalogName?: string;
+    variantId?: number;
+    variantLabel?: string;
     periodStart: string;
     periodEnd: string;
     shift?: string;

@@ -55,6 +55,38 @@ export async function getCapacitySummary(): Promise<CapacitySummary> {
     return res.data;
 }
 
+export interface CapacityAvailabilityCheck {
+    catalogId: number;
+    variantId?: number | null;
+    catalogName?: string;
+    periodStart?: string | null;
+    periodEnd?: string | null;
+    requested: number;
+    available: number;
+    sufficient: boolean;
+}
+
+/** Remaining capacity for a catalog item (+ variant) over a validity window. */
+export async function getCapacityAvailability(params: {
+    catalogId: number;
+    variantId?: number;
+    quantity?: number;
+    periodStart?: string;
+    periodEnd?: string;
+}): Promise<CapacityAvailabilityCheck> {
+    const p = new URLSearchParams({ catalogId: String(params.catalogId) });
+    if (params.variantId !== undefined && params.variantId !== null)
+        p.append('variantId', String(params.variantId));
+    if (params.quantity !== undefined && params.quantity !== null)
+        p.append('quantity', String(params.quantity));
+    if (params.periodStart) p.append('periodStart', params.periodStart);
+    if (params.periodEnd) p.append('periodEnd', params.periodEnd);
+    const res = await apiClient.get<CapacityAvailabilityCheck>(
+        `${CAP_BASE}/availability?${p.toString()}`
+    );
+    return res.data;
+}
+
 export async function getAtpForCatalog(
     catalogId: number,
     quantity?: number

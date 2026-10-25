@@ -15,13 +15,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { formatYmd, parseYmd } from '@/lib/date-utils';
+import { formatYmd, parseYmd, isBeforeToday } from '@/lib/date-utils';
 import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
 import {
     getDigitalAssets,
     getPriceTiers,
     getVariants,
 } from '@/lib/services/supplier-catalog-service';
+import { getCapacityAvailability } from '@/lib/services/supplier-capacity-service';
 import type {
     ProductVariant,
     SupplierCatalog,
@@ -92,6 +93,10 @@ export async function fetchRetailerOptions(
     const seen = new Map<number, string>();
     for (const p of res.content ?? []) {
         if (p.status === 'TERMINATED') continue;
+        // Quotations are raised to retailers only: skip logistics
+        // partnerships (partnershipType LOGISTICS) entirely.
+        if (String((p as { partnershipType?: unknown }).partnershipType ?? '').toUpperCase() === 'LOGISTICS')
+            continue;
         const isPrimary =
             Number.isFinite(own) &&
             p.primaryOrgId !== undefined &&
@@ -197,6 +202,11 @@ export function QuotationForm({
     const [relatedByCatalog, setRelatedByCatalog] = useState<
         Record<number, CatalogRelated>
     >({});
+    // Capacity validation per line group (catalogId|variantId → availability),
+    // fetched once per selection — never on quantity edits.
+    const [capacityChecks, setCapacityChecks] = useState<
+        Record<string, { available: number } | undefined>
+    >({});
 
     const initialCatalogIds = useMemo(
         () => [
@@ -269,11 +279,109 @@ export function QuotationForm({
         };
     }, [initialCatalogIds, fetchRelated]);
 
+    // Catalog selection opens only once the retailer and both validity dates
+    // are chosen. Changing any of them clears prior catalog selections (the
+    // quoted lines) since the capacity window they were validated against
+    // no longer applies.
+    const formReady = Boolean(
+        form.buyerOrgId && form.validFrom && form.validTo
+    );
+    const resetLines = useCallback(() => {
+        setLines([{ ...EMPTY_LINE, key: 0 }]);
+        setLineSeq(1);
+    }, []);
+
     const updateLine = (index: number, patch: Partial<QuotationFormLine>) => {
         setLines((prev) =>
             prev.map((l, i) => (i === index ? { ...l, ...patch } : l))
         );
     };
+
+    const lineGroupKey = (catalogId: string, variantId: string) =>
+        `${catalogId}|${variantId || ''}`;
+
+    // Availability depends only on catalog item + variant + validity window
+    // — never on quantity. One API call per selection, debounced.
+    const selections = lines
+        .filter((l) => l.catalogId !== '')
+        .map((l) => lineGroupKey(l.catalogId, l.variantId))
+        .join(';');
+    const capacityTargets = useMemo(
+        () =>
+            selections
+                .split(';')
+                .filter((s) => s && s.split('|')[0] !== '')
+                .map((key) => {
+                    const [cid, vid] = key.split('|');
+                    return {
+                        key,
+                        catalogId: Number(cid),
+                        variantId: vid ? Number(vid) : undefined,
+                    };
+                }),
+        [selections]
+    );
+
+    // Current line quantities per group — computed locally from keystrokes;
+    // used only for comparing against the fetched availability and for the
+    // submit gating. NO API call happens when the quantity changes.
+    const capacityGroups = useMemo(() => {
+        const map = new Map<string, { quantity: number }>();
+        for (const line of lines) {
+            if (line.catalogId === '') continue;
+            const qty = Number(line.quantity);
+            if (!Number.isFinite(qty) || qty <= 0) continue;
+            const key = lineGroupKey(line.catalogId, line.variantId);
+            const existing = map.get(key);
+            if (existing) existing.quantity += qty;
+            else map.set(key, { quantity: qty });
+        }
+        return [...map.entries()].map(([key, g]) => ({ key, ...g }));
+    }, [lines]);
+
+    // Debounced availability fetch per selected catalog item + variant over
+    // the quotation's validity window (no quantity sent). Runs only once the
+    // validity dates AND catalog items are chosen — never before.
+    useEffect(() => {
+        if (!form.validFrom || !form.validTo || capacityTargets.length === 0) {
+            setCapacityChecks({});
+            return;
+        }
+        let active = true;
+        const timer = setTimeout(async () => {
+            const updates: Record<
+                string,
+                { available: number }
+            > = {};
+            await Promise.all(
+                capacityTargets.map(async (g) => {
+                    try {
+                        const res = await getCapacityAvailability({
+                            catalogId: g.catalogId,
+                            variantId: g.variantId,
+                            periodStart: form.validFrom || undefined,
+                            periodEnd: form.validTo || undefined,
+                        });
+                        updates[g.key] = { available: res.available };
+                    } catch {
+                        // Availability unknown — backend still validates on submit.
+                    }
+                })
+            );
+            if (active) setCapacityChecks(updates);
+        }, 300);
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [capacityTargets, form.validFrom, form.validTo]);
+
+    // Block when a group's aggregated demand exceeds its fetched availability.
+    const capacityBlocked = capacityGroups.some((g) => {
+        const check = capacityChecks[g.key];
+        return check !== undefined && g.quantity > check.available;
+    });
+
     const handleCatalogChange = (index: number, value: string) => {
         const catalog = catalogs.find((c) => String(c.catalogId) === value);
         updateLine(index, {
@@ -373,12 +481,14 @@ export function QuotationForm({
                 ) : (
                     <Select
                         value={form.buyerOrgId ? String(form.buyerOrgId) : ''}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                            if (v === String(form.buyerOrgId)) return;
                             setForm({
                                 ...form,
                                 buyerOrgId: v,
-                            })
-                        }
+                            });
+                            resetLines();
+                        }}
                     >
                         <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select retailer" />
@@ -401,12 +511,16 @@ export function QuotationForm({
                     <Label>Valid From</Label>
                     <DatePicker
                         date={parseYmd(form.validFrom)}
-                        onDateChange={(d) =>
+                        onDateChange={(d) => {
+                            const next = formatYmd(d);
+                            if (next === form.validFrom) return;
                             setForm({
                                 ...form,
-                                validFrom: formatYmd(d),
-                            })
-                        }
+                                validFrom: next,
+                            });
+                            resetLines();
+                        }}
+                        disabled={isBeforeToday}
                         placeholder="Pick start date"
                     />
                 </div>
@@ -414,12 +528,16 @@ export function QuotationForm({
                     <Label>Valid To</Label>
                     <DatePicker
                         date={parseYmd(form.validTo)}
-                        onDateChange={(d) =>
+                        onDateChange={(d) => {
+                            const next = formatYmd(d);
+                            if (next === form.validTo) return;
                             setForm({
                                 ...form,
-                                validTo: formatYmd(d),
-                            })
-                        }
+                                validTo: next,
+                            });
+                            resetLines();
+                        }}
+                        disabled={isBeforeToday}
                         placeholder="Pick end date"
                     />
                 </div>
@@ -469,6 +587,7 @@ export function QuotationForm({
                         type="button"
                         size="sm"
                         variant="outline"
+                        disabled={!formReady}
                         onClick={addLine}
                     >
                         <Plus className="mr-1 h-3 w-3" />
@@ -513,12 +632,19 @@ export function QuotationForm({
                                 <Label>Catalog</Label>
                                 <Select
                                     value={line.catalogId}
+                                    disabled={!formReady}
                                     onValueChange={(v) =>
                                         handleCatalogChange(index, v)
                                     }
                                 >
                                     <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select catalog" />
+                                        <SelectValue
+                                            placeholder={
+                                                formReady
+                                                    ? 'Select catalog'
+                                                    : 'Select retailer & validity dates first'
+                                            }
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {catalogs.map((c) => (
@@ -637,6 +763,57 @@ export function QuotationForm({
                                     </div>
                                 </div>
                             </div>
+                            {line.catalogId !== '' &&
+                                (() => {
+                                    const key = lineGroupKey(
+                                        line.catalogId,
+                                        line.variantId
+                                    );
+                                    const check = capacityChecks[key];
+                                    if (!check) return null;
+                                    // Aggregated demand of all lines sharing
+                                    // this item/variant (computed locally).
+                                    const requested = capacityGroups.find(
+                                        (g) => g.key === key
+                                    )?.quantity;
+                                    if (
+                                        requested === undefined ||
+                                        requested <= 0
+                                    ) {
+                                        return (
+                                            <p className="text-xs text-muted-foreground">
+                                                Available capacity for the
+                                                validity period:{' '}
+                                                {Math.round(check.available * 1e6) / 1e6}
+                                            </p>
+                                        );
+                                    }
+                                    if (requested > check.available) {
+                                        return (
+                                            <p className="text-xs text-destructive">
+                                                Insufficient remaining
+                                                capacity for the validity
+                                                period: requested{' '}
+                                                {requested}, available{' '}
+                                                {Math.round(
+                                                    check.available * 1e6
+                                                ) / 1e6}
+                                                . Add or expand a capacity
+                                                period in the capacity
+                                                calendar.
+                                            </p>
+                                        );
+                                    }
+                                    return (
+                                        <p className="text-xs text-muted-foreground">
+                                            Capacity for the validity period
+                                            OK: {requested} of{' '}
+                                            {Math.round(check.available * 1e6) /
+                                                1e6}{' '}
+                                            available
+                                        </p>
+                                    );
+                                })()}
                             <div className="grid gap-2">
                                 <Label>Description</Label>
                                 <Input
@@ -803,7 +980,7 @@ export function QuotationForm({
                         lines,
                     })
                 }
-                disabled={saving}
+                disabled={saving || capacityBlocked}
             >
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {saving ? savingLabel : submitLabel}
