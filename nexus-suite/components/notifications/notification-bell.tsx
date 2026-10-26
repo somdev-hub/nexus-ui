@@ -12,8 +12,10 @@ import {
 import { useNotifications } from '@/hooks/use-notifications';
 import { resolveNotificationRoute } from '@/lib/notification-routes';
 import { NotificationMessage } from '@/types/notifications';
+import { useAuth } from '@/lib/auth-context';
 
 export function NotificationBell() {
+    const { user } = useAuth();
     const {
         unreadCount,
         items,
@@ -31,7 +33,8 @@ export function NotificationBell() {
                         onClick: () => {
                             window.location.href = resolveNotificationRoute(
                                 m.entityType,
-                                m.entityId
+                                m.entityId,
+                                user?.orgType
                             );
                         },
                     },
@@ -92,7 +95,8 @@ export function NotificationBell() {
                                 markRead(item.notificationId);
                                 window.location.href = resolveNotificationRoute(
                                     item.entityType,
-                                    item.entityId
+                                    item.entityId,
+                                    user?.orgType
                                 );
                             }}
                         >

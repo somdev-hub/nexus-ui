@@ -1,62 +1,61 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
-import type { ProductionCapacity } from '@/types/supplier';
-import type { PaginatedResponse } from '@/types/paginated-response';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { formatYmd, isBeforeToday, parseYmd } from '@/lib/date-utils';
+import { useQuickCreateIntent } from '@/lib/quick-create';
 import {
-	getCapacities,
-	createCapacity,
-	updateCapacity,
-	deleteCapacity,
+    createCapacity,
+    deleteCapacity,
+    getCapacities,
+    updateCapacity,
 } from '@/lib/services/supplier-capacity-service';
 import {
-	getSupplierCatalogs,
-	getVariants,
+    getSupplierCatalogs,
+    getVariants,
 } from '@/lib/services/supplier-catalog-service';
-import type { SupplierCatalog, ProductVariant } from '@/types/supplier';
-import { useToast } from '@/hooks/use-toast';
-import { useQuickCreateIntent } from '@/lib/quick-create';
-import { DatePicker } from '@/components/ui/date-picker';
-import { formatYmd, parseYmd, isBeforeToday } from '@/lib/date-utils';
+import type { PaginatedResponse } from '@/types/paginated-response';
+import type { ProductionCapacity, ProductVariant, SupplierCatalog } from '@/types/supplier';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 
 const emptyForm = {
 	catalogId: '',
@@ -113,7 +112,7 @@ export default function CapacityPage() {
 			cancelled = true;
 		};
 	}, [selectedCatalogId]);
-	const load = async () => {
+	const load = useCallback(async () => {
 		setLoading(true);
 		try {
 			const res = await getCapacities({ page: 0, size: 20 });
@@ -126,10 +125,10 @@ export default function CapacityPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [toast]);
 	useEffect(() => {
 		load();
-	}, []);
+	}, [load]);
 	const toPayload = (f: typeof emptyForm) => ({
 		catalogId: f.catalogId ? Number(f.catalogId) : undefined,
 		variantId: f.variantId ? Number(f.variantId) : undefined,

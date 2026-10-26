@@ -1,7 +1,6 @@
 'use client';
 
 import { getMaterials } from '@/lib/services/materials-service';
-import { ChartBarStacked } from '@/components/inventory-chart';
 import { MaterialTable } from '@/components/material-table';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -58,11 +57,10 @@ const Page = () => {
                 <div className="@container/main flex flex-1 justify-between gap-2 p-4 md:gap-6 md:p-6 lg:flex-row">
                     <div className="w-full">
                         <div className="flex justify-between w-full">
-                            <h2 className="text-lg font-semibold">Inventory</h2>
-                            <Button>
-                                <PlusIcon className="size-4" />
-                                Add
-                            </Button>
+                            <h2 className="text-lg font-semibold">Materials</h2>
+                            <span className="text-sm text-muted-foreground">
+                                Materials are created automatically when a purchase order is received.
+                            </span>
                         </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                             <Card className="p-4 gap-2">
@@ -141,9 +139,6 @@ const Page = () => {
                                     </div>
                                 </div>
                             </Card>
-                        </div>
-                        <div className="mt-6">
-                            <ChartBarStacked />
                         </div>
                         <div className="mt-6">
                             <MaterialTable materials={materials} />

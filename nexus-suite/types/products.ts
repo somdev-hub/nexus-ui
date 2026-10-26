@@ -47,6 +47,7 @@ export interface ProductCreateRequest {
     barcode?: string;
     sku?: string;
     tags?: string[];
+    materials?: { materialId: number; quantity: number }[];
 }
 
 export interface ProductUpdateRequest {

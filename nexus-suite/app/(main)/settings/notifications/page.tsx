@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useAuth } from '@/lib/auth-context';
 import { resolveNotificationRoute } from '@/lib/notification-routes';
 import { NotificationMessage } from '@/types/notifications';
 
 export default function NotificationsPage() {
+    const { user } = useAuth();
     const [items, setItems] = useState<NotificationMessage[]>([]);
     const { unreadCount, markRead, sync, isConnected } = useNotifications({
         onNotification: (push) => {
@@ -53,7 +55,8 @@ export default function NotificationsPage() {
                         markRead(item.notificationId);
                         window.location.href = resolveNotificationRoute(
                             item.entityType,
-                            item.entityId
+                            item.entityId,
+                            user?.orgType
                         );
                     }}
                 >

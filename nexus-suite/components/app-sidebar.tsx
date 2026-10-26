@@ -1,34 +1,33 @@
 'use client';
 
-import * as React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2 } from 'lucide-react';
 import {
-    IconChartBar,
     IconCalendar,
+    IconChartBar,
+    IconCirclePlusFilled,
     IconDashboard,
     IconDatabase,
+    IconDots,
+    IconEye,
     IconFileWord,
     IconFolder,
     IconInnerShadowTop,
-    IconCirclePlusFilled,
-    IconMail,
-    IconDots,
-    IconShare3,
-    IconTrash,
-    IconShoppingCart,
-    IconPackage,
-    IconTruck,
     IconLink,
-    IconEye,
+    IconMail,
+    IconPackage,
+    IconShare3,
+    IconShoppingCart,
+    IconTrash,
+    IconTruck,
     IconWallet,
     type Icon,
 } from '@tabler/icons-react';
+import { Loader2 } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import * as React from 'react';
 
 import { NavUser } from '@/components/nav-user';
 import QuickCreateDialog from '@/components/quick-create-dialog';
-import { requestQuickCreateMenu } from '@/lib/quick-create';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -51,6 +50,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { requestQuickCreateMenu } from '@/lib/quick-create';
 import Link from 'next/link';
 
 const retailerSections = [

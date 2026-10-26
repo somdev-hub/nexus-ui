@@ -46,6 +46,10 @@ function toBackendCreatePayload(
         barcode: data.barcode,
         sku: data.sku,
         tags: data.tags,
+        materialRequirements: data.materials?.map((m) => ({
+            materialId: m.materialId,
+            quantity: m.quantity,
+        })),
     };
 }
 

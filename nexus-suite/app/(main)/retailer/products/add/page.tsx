@@ -40,6 +40,8 @@ import {
     getProductCategories,
     getProductBrands,
 } from '@/lib/services/products-service';
+import { getMaterials } from '@/lib/services/materials-service';
+import type { Material } from '@/types/materials';
 import type { ProductCreateRequest } from '@/types/products';
 
 // Zod schema for product creation validation
@@ -77,6 +79,7 @@ const productCreateSchema = z.object({
     barcode: z.string().optional(),
     sku: z.string().optional(),
     tags: z.array(z.string()).optional(),
+    materialIds: z.array(z.number()).optional(),
 });
 
 type ProductCreateFormData = z.infer<typeof productCreateSchema>;
@@ -87,6 +90,7 @@ const NEW_PRODUCT_DRAFT_KEY = 'nexus:product:draft:new';
 const Page = () => {
     const [categories, setCategories] = useState<string[]>([]);
     const [brands, setBrands] = useState<string[]>([]);
+    const [materials, setMaterials] = useState<Material[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [draftLoaded, setDraftLoaded] = useState(false);
@@ -113,6 +117,7 @@ const Page = () => {
             barcode: '',
             sku: '',
             tags: [],
+            materialIds: [],
         },
     });
 
@@ -120,12 +125,14 @@ const Page = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [cats, brnds] = await Promise.all([
+                const [cats, brnds, mats] = await Promise.all([
                     getProductCategories(),
                     getProductBrands(),
+                    getMaterials({ pageNo: 0, pageOffset: 100 }).then((r) => r.content),
                 ]);
                 setCategories(cats);
                 setBrands(brnds);
+                setMaterials(mats);
             } catch (error) {
                 console.error('Failed to fetch categories/brands:', error);
             }
@@ -167,6 +174,10 @@ const Page = () => {
                 barcode: data.barcode || undefined,
                 sku: data.sku || undefined,
                 tags: data.tags,
+                materials: (data.materialIds || []).map((id) => ({
+                    materialId: id,
+                    quantity: 1,
+                })),
             };
 
             await createProduct(createRequest);
@@ -756,6 +767,60 @@ const Page = () => {
                                                     )}
                                                 />
                                             </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Materials */}
+                                    <Card className="p-4 gap-2">
+                                        <CardHeader>
+                                            <CardTitle>
+                                                Materials (from received POs)
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 p-0">
+                                            <p className="text-sm text-muted-foreground">
+                                                Select materials received via purchase orders to include in this product.
+                                            </p>
+                                            <FormField
+                                                control={form.control}
+                                                name="materialIds"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <div className="max-h-48 overflow-auto border rounded-md p-2 space-y-1">
+                                                            {materials.length === 0 && (
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    No materials available yet.
+                                                                </p>
+                                                            )}
+                                                            {materials.map((m) => {
+                                                                const checked = (field.value || []).includes(m.materialId);
+                                                                return (
+                                                                    <label
+                                                                        key={m.materialId}
+                                                                        className="flex items-center gap-2 text-sm"
+                                                                    >
+                                                                        <Checkbox
+                                                                            checked={checked}
+                                                                            onCheckedChange={(v) => {
+                                                                                const current = field.value || [];
+                                                                                if (v) {
+                                                                                    field.onChange([...current, m.materialId]);
+                                                                                } else {
+                                                                                    field.onChange(current.filter((id: number) => id !== m.materialId));
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <span>
+                                                                            {m.materialName} ({m.materialCode})
+                                                                        </span>
+                                                                    </label>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
                                         </CardContent>
                                     </Card>
 
