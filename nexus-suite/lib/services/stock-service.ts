@@ -74,9 +74,9 @@ export async function getInventoryValuation(
     return res.data;
 }
 
-export async function getReorderSuggestions(): Promise<Stock[]> {
-    const res = await apiClient.get<Stock[]>(
-        `${STOCK_BASE}/reorder-suggestions`
+export async function getReorderSuggestions(pageNo = 0, pageOffset = 20): Promise<{ content: Stock[]; totalPages: number; number: number }> {
+    const res = await apiClient.get<any>(
+        `${STOCK_BASE}/reorder-suggestions?page=${pageNo}&size=${pageOffset}`
     );
     return res.data;
 }

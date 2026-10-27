@@ -91,6 +91,7 @@ const Page = () => {
     const [categories, setCategories] = useState<string[]>([]);
     const [brands, setBrands] = useState<string[]>([]);
     const [materials, setMaterials] = useState<Material[]>([]);
+    const [materialQty, setMaterialQty] = useState<Record<number, string>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [draftLoaded, setDraftLoaded] = useState(false);
@@ -176,7 +177,7 @@ const Page = () => {
                 tags: data.tags,
                 materials: (data.materialIds || []).map((id) => ({
                     materialId: id,
-                    quantity: 1,
+                    quantity: Number(materialQty[id] || '1') || 1,
                 })),
             };
 
@@ -795,25 +796,40 @@ const Page = () => {
                                                             {materials.map((m) => {
                                                                 const checked = (field.value || []).includes(m.materialId);
                                                                 return (
-                                                                    <label
+                                                                    <div
                                                                         key={m.materialId}
                                                                         className="flex items-center gap-2 text-sm"
                                                                     >
-                                                                        <Checkbox
-                                                                            checked={checked}
-                                                                            onCheckedChange={(v) => {
-                                                                                const current = field.value || [];
-                                                                                if (v) {
-                                                                                    field.onChange([...current, m.materialId]);
-                                                                                } else {
-                                                                                    field.onChange(current.filter((id: number) => id !== m.materialId));
+                                                                        <label className="flex items-center gap-2 flex-1">
+                                                                            <Checkbox
+                                                                                checked={checked}
+                                                                                onCheckedChange={(v) => {
+                                                                                    const current = field.value || [];
+                                                                                    if (v) {
+                                                                                        field.onChange([...current, m.materialId]);
+                                                                                        setMaterialQty((q) => ({ ...q, [m.materialId]: q[m.materialId] || '1' }));
+                                                                                    } else {
+                                                                                        field.onChange(current.filter((id: number) => id !== m.materialId));
+                                                                                    }
+                                                                                }}
+                                                                            />
+                                                                            <span>
+                                                                                {m.materialName} ({m.materialCode})
+                                                                            </span>
+                                                                        </label>
+                                                                        {checked && (
+                                                                            <Input
+                                                                                type="number"
+                                                                                min="1"
+                                                                                step="1"
+                                                                                className="w-20"
+                                                                                value={materialQty[m.materialId] || '1'}
+                                                                                onChange={(e) =>
+                                                                                    setMaterialQty((q) => ({ ...q, [m.materialId]: e.target.value }))
                                                                                 }
-                                                                            }}
-                                                                        />
-                                                                        <span>
-                                                                            {m.materialName} ({m.materialCode})
-                                                                        </span>
-                                                                    </label>
+                                                                            />
+                                                                        )}
+                                                                    </div>
                                                                 );
                                                             })}
                                                         </div>

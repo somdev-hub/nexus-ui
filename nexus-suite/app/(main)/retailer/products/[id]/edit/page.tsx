@@ -26,6 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, Send, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -41,6 +42,8 @@ import {
     getProductCategories,
     getProductBrands,
 } from '@/lib/services/products-service';
+import { getMaterials } from '@/lib/services/materials-service';
+import type { Material } from '@/types/materials';
 import type { Product, ProductUpdateRequest } from '@/types/products';
 
 // Zod schema for product update validation - all fields optional to match ProductUpdateRequest
@@ -91,6 +94,9 @@ const EditPage = () => {
 
     const [categories, setCategories] = useState<string[]>([]);
     const [brands, setBrands] = useState<string[]>([]);
+    const [materials, setMaterials] = useState<Material[]>([]);
+    const [materialIds, setMaterialIds] = useState<number[]>([]);
+    const [materialQty, setMaterialQty] = useState<Record<number, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [product, setProduct] = useState<Product | null>(null);
@@ -131,14 +137,23 @@ const EditPage = () => {
                 return;
             }
             try {
-                const [productData, cats, brnds] = await Promise.all([
+                const [productData, cats, brnds, mats] = await Promise.all([
                     getProductById(productId),
                     getProductCategories(),
                     getProductBrands(),
+                    getMaterials({ pageNo: 0, pageOffset: 100 }).then((r) => r.content),
                 ]);
                 setProduct(productData);
                 setCategories(cats);
                 setBrands(brnds);
+                setMaterials(mats);
+                const ids = (productData.materials ?? []).map((m) => m.materialId);
+                setMaterialIds(ids);
+                const qtyMap: Record<number, string> = {};
+                (productData.materials ?? []).forEach((m) => {
+                    qtyMap[m.materialId] = String(m.quantity ?? 1);
+                });
+                setMaterialQty(qtyMap);
 
                 // A locally saved draft (via Save Draft) wins over server data.
                 let draft: Partial<ProductUpdateFormData> | null = null;
@@ -220,6 +235,10 @@ const EditPage = () => {
                 barcode: data.barcode || undefined,
                 sku: data.sku || undefined,
                 tags: data.tags,
+                materials: materialIds.map((id) => ({
+                    materialId: id,
+                    quantity: Number(materialQty[id] || '1') || 1,
+                })),
             };
 
             await updateProduct(productId, updateRequest);
@@ -828,6 +847,58 @@ const EditPage = () => {
                                                         </FormItem>
                                                     )}
                                                 />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Materials */}
+                                    <Card className="p-4 gap-2">
+                                        <CardHeader>
+                                            <CardTitle>Materials (from received POs)</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 p-0">
+                                            <p className="text-sm text-muted-foreground">
+                                                Select materials received via purchase orders to include in this product.
+                                            </p>
+                                            <div className="max-h-48 overflow-auto border rounded-md p-2 space-y-1">
+                                                {materials.length === 0 && (
+                                                    <p className="text-sm text-muted-foreground">No materials available yet.</p>
+                                                )}
+                                                {materials.map((m) => {
+                                                    const checked = materialIds.includes(m.materialId);
+                                                    return (
+                                                        <div key={m.materialId} className="flex items-center gap-2 text-sm">
+                                                            <label className="flex items-center gap-2 flex-1">
+                                                                <Checkbox
+                                                                    checked={checked}
+                                                                    onCheckedChange={(v) => {
+                                                                        if (v) {
+                                                                            setMaterialIds((ids) => [...ids, m.materialId]);
+                                                                            setMaterialQty((q) => ({ ...q, [m.materialId]: q[m.materialId] || '1' }));
+                                                                        } else {
+                                                                            setMaterialIds((ids) => ids.filter((id) => id !== m.materialId));
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <span>
+                                                                    {m.materialName} ({m.materialCode})
+                                                                </span>
+                                                            </label>
+                                                            {checked && (
+                                                                <Input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    step="1"
+                                                                    className="w-20"
+                                                                    value={materialQty[m.materialId] || '1'}
+                                                                    onChange={(e) =>
+                                                                        setMaterialQty((q) => ({ ...q, [m.materialId]: e.target.value }))
+                                                                    }
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </CardContent>
                                     </Card>

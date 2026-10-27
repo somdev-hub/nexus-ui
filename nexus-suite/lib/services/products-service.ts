@@ -85,6 +85,11 @@ function toBackendUpdatePayload(
     if (data.barcode !== undefined) out.barcode = data.barcode;
     if (data.sku !== undefined) out.sku = data.sku;
     if (data.tags !== undefined) out.tags = data.tags;
+    if (data.materials !== undefined)
+        out.materialRequirements = data.materials.map((m) => ({
+            materialId: m.materialId,
+            quantity: m.quantity,
+        }));
     return out;
 }
 
@@ -112,6 +117,11 @@ function toFrontendProduct(raw: any): Product {
         barcode: raw.barcode ?? '',
         sku: raw.sku ?? '',
         tags: raw.tags ?? [],
+        materials: (raw.materialRequirements ?? []).map((mr: any) => ({
+            materialId: mr.materialId ?? mr.material?.materialId ?? 0,
+            materialName: mr.material ?? mr.material?.name ?? '',
+            quantity: mr.quantity ?? 0,
+        })),
         createdAt: raw.createdAt ?? '',
         updatedAt: raw.updatedAt ?? '',
         createdBy: raw.createdBy ?? '',

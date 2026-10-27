@@ -154,6 +154,11 @@ const retailerSections = [
                 url: '/retailer/inventory/movements',
                 icon: IconTruck,
             },
+            {
+                title: 'Production',
+                url: '/retailer/production',
+                icon: IconTruck,
+            },
         ],
     },
     {

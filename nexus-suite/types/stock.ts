@@ -5,6 +5,7 @@ export type ValuationMethod =
 
 export interface Stock {
     stockId: number;
+    currency?: string;
     materialId: number;
     materialCode: string;
     materialName: string;
@@ -44,6 +45,7 @@ export interface StockFilter {
 
 export interface AbcItem {
     stockId: number;
+    currency?: string;
     materialId: number;
     materialCode: string;
     materialName: string;

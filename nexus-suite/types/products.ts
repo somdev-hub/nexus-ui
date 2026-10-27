@@ -21,6 +21,7 @@ export interface Product {
     barcode?: string;
     sku?: string;
     tags?: string[];
+    materials?: { materialId: number; materialName?: string; quantity: number }[];
     createdAt: string;
     updatedAt: string;
     createdBy: string;
@@ -69,6 +70,7 @@ export interface ProductUpdateRequest {
     barcode?: string;
     sku?: string;
     tags?: string[];
+    materials?: { materialId: number; quantity: number }[];
 }
 
 export interface ProductFilter {
