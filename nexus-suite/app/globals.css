@@ -124,6 +124,22 @@
     }
 }
 
+/*
+ * Numeric inputs behave like regular text fields:
+ * - no native spinner controls are rendered (Chrome/Safari/Edge/Firefox)
+ * - values can only be changed by typing
+ */
+input[type='number'] {
+    -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
 .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;

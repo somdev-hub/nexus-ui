@@ -30,6 +30,16 @@ const esc = (value?: string | number | boolean | null): string => {
 
 /** Default contract document (HTML for the rich text editor). */
 export function buildContractTemplate(v: ContractTemplateValues): string {
+    const type = (v.contractType || '').toUpperCase();
+    const isConsignment = type === 'CONSIGNMENT';
+    const isVmi = type === 'VMI';
+    const specificTerms = isConsignment
+        ? `<h2>3. Consignment Terms</h2><ul><li><strong>Ownership:</strong> Goods remain supplier property until consumed by the retailer.</li><li><strong>Payment Trigger:</strong> Billing occurs on consumption, not on receipt.</li><li><strong>Returns:</strong> Unsold/unused consignment goods may be returned to the supplier.</li><li><strong>Consignment Period:</strong> As agreed per delivery.</li></ul>`
+        : isVmi
+        ? `<h2>3. VMI Terms</h2><ul><li><strong>Replenishment:</strong> Supplier monitors and replenishes stock when levels hit the reorder point.</li><li><strong>Levels:</strong> Min/Max/Reorder levels as configured per material.</li><li><strong>Auto-Replenish:</strong> As agreed per VMI configuration.</li><li><strong>Service Levels:</strong> Fill rate and lead time commitments apply.</li></ul>`
+        : (v.description
+            ? `<h2>3. Scope</h2><p>${esc(v.description)}</p>`
+            : `<h2>3. Scope</h2><p>Scope of supply to be detailed here.</p>`);
     return (
         `<h2>Supplier Contract — ${esc(v.contractName) || 'Untitled Contract'}</h2>` +
         `<p>This Supplier Contract ("Contract") is entered into between <strong>${esc(v.retailerName) || 'Retailer'}</strong> ("Retailer") and <strong>${esc(v.supplierName) || 'Supplier'}</strong> ("Supplier").</p>` +
@@ -50,9 +60,7 @@ export function buildContractTemplate(v: ContractTemplateValues): string {
         `<li><strong>Payment Terms:</strong> ${esc(v.paymentTermsDays)} days</li>` +
         `<li><strong>Incoterms:</strong> ${esc(v.incoterms)}</li>` +
         `</ul>` +
-        (v.description
-            ? `<h2>3. Scope</h2><p>${esc(v.description)}</p>`
-            : `<h2>3. Scope</h2><p>Scope of supply to be detailed here.</p>`) +
+        (specificTerms) +
         `<h2>4. General Terms and Conditions</h2>` +
         `<ol>` +
         `<li>Supplier shall deliver goods as per the specifications and timelines agreed under this Contract.</li>` +

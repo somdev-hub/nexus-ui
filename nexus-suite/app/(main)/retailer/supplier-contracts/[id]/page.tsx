@@ -479,6 +479,14 @@ const Page = () => {
                                             : 'No'}
                                     </span>
                                 </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        Renewal Notice (days)
+                                    </span>
+                                    <span className="font-medium">
+                                        {contract.renewalNoticeDays ?? '—'}
+                                    </span>
+                                </div>
                             </CardContent>
                         </Card>
 
@@ -492,7 +500,7 @@ const Page = () => {
                                         Created
                                     </span>
                                     <span className="font-medium">
-                                        {(contract.createdAt as string) || '—'}
+                                        {contract.createdAt ? new Date(contract.createdAt).toLocaleString() : '-'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
@@ -500,7 +508,7 @@ const Page = () => {
                                         Updated
                                     </span>
                                     <span className="font-medium">
-                                        {(contract.updatedAt as string) || '—'}
+                                        {contract.updatedAt ? new Date(contract.updatedAt).toLocaleString() : '-'}
                                     </span>
                                 </div>
                             </CardContent>

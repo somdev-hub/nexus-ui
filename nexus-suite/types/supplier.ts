@@ -207,8 +207,13 @@ export interface ConsignmentStock {
     retailerOrgName?: string;
     warehouseId?: number;
     warehouseCode?: string;
-    materialId: number;
+    materialId?: number;
     materialName?: string;
+    catalogId?: number;
+    catalogName?: string;
+    variantId?: number;
+    variantValue?: string;
+    priceTierId?: number;
     quantityOnHand?: number;
     quantityAvailable?: number;
     consignmentNumber?: string;

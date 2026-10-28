@@ -2,9 +2,67 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+function Input({
+    className,
+    type,
+    onKeyDown,
+    onWheel,
+    ref,
+    ...props
+}: React.ComponentProps<'input'>) {
+    const isNumberInput = type === 'number';
+    const canStepWithKeys = type === 'number' || type === 'range';
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+    const setInputRef = React.useCallback(
+        (node: HTMLInputElement | null) => {
+            inputRef.current = node;
+
+            if (typeof ref === 'function') {
+                ref(node);
+            } else if (ref) {
+                (ref as React.RefObject<HTMLInputElement | null>).current =
+                    node;
+            }
+        },
+        [ref]
+    );
+
+    React.useEffect(() => {
+        const input = inputRef.current;
+
+        if (!isNumberInput || !input) {
+            return;
+        }
+
+        // Prevent numeric inputs from incrementing/decrementing on scroll.
+        const handleWheel = (event: WheelEvent) => {
+            event.preventDefault();
+        };
+
+        input.addEventListener('wheel', handleWheel, { passive: false });
+
+        return () => {
+            input.removeEventListener('wheel', handleWheel);
+        };
+    }, [isNumberInput]);
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        // Prevent numeric inputs (and numeric range inputs) from
+        // incrementing/decrementing with arrow keys.
+        if (
+            canStepWithKeys &&
+            (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+        ) {
+            event.preventDefault();
+        }
+
+        onKeyDown?.(event);
+    };
+
     return (
         <input
+            ref={setInputRef}
             type={type}
             data-slot="input"
             className={cn(
@@ -13,6 +71,8 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
                 'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
                 className
             )}
+            onKeyDown={handleKeyDown}
+            onWheel={onWheel}
             {...props}
         />
     );

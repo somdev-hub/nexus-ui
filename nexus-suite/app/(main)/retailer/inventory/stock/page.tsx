@@ -32,6 +32,7 @@ import {
 import { Money } from '@/components/money';
 import { getStocks, adjustStock, getReorderSuggestions, getInventoryValuation } from '@/lib/services/stock-service';
 import { getWarehouses, setProductionCapacity, type Warehouse } from '@/lib/services/warehouses-service';
+import apiClient from '@/lib/api-client';
 import type { Stock } from '@/types/stock';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
@@ -63,15 +64,19 @@ export default function StockPage() {
 	const [totalPages, setTotalPages] = useState(0);
 	const [reorderPage, setReorderPage] = useState(0);
 	const [reorderTotalPages, setReorderTotalPages] = useState(0);
+	const [consignments, setConsignments] = useState<any[]>([]);
+	const [vmis, setVmis] = useState<any[]>([]);
 
 	const load = useCallback(async () => {
 		setIsLoading(true);
 		try {
-			const [stockRes, valuation, reorder, whs] = await Promise.all([
+			const [stockRes, valuation, reorder, whs, cons, vmi] = await Promise.all([
 				getStocks({ pageNo: page, pageOffset: size, ...filter }),
 				getInventoryValuation().catch(() => null),
 				getReorderSuggestions(reorderPage, size).catch(() => ({ content: [], totalPages: 0 })),
 				getWarehouses().catch(() => []),
+				apiClient.get<any>('/iam/core/retailer/consignment/all').then((r) => (Array.isArray(r.data) ? r.data : (r.data.content ?? []))).catch(() => []),
+				apiClient.get<any>('/iam/core/retailer/vmi/all').then((r) => (Array.isArray(r.data) ? r.data : (r.data.content ?? []))).catch(() => []),
 			]);
 			const list = stockRes.content ?? [];
 			setStocks(list);
@@ -79,6 +84,8 @@ export default function StockPage() {
 			setSuggestions(reorder.content ?? []);
 			setReorderTotalPages(reorder.totalPages ?? 0);
 			setWarehouses(whs);
+			setConsignments(cons);
+			setVmis(vmi);
 			setTotalPages(stockRes.totalPages ?? 0);
 			if (valuation && valuation.totalValue != null)
 				setTotalValue(Number(valuation.totalValue));
@@ -132,7 +139,7 @@ export default function StockPage() {
 		return (
 			<div className="p-6 space-y-4">
 				<Skeleton className="h-20 w-full" />
-				<Skeleton className="h-[400px] w-full" />
+				<Skeleton className="h-100 w-full" />
 			</div>
 		);
 
@@ -156,6 +163,8 @@ export default function StockPage() {
 					<TabsTrigger value="stock">Stock</TabsTrigger>
 					<TabsTrigger value="warehouses">Warehouses</TabsTrigger>
 					<TabsTrigger value="reorder">Reorder</TabsTrigger>
+					<TabsTrigger value="consignment">Consignment</TabsTrigger>
+					<TabsTrigger value="vmi">VMI</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="stock" className="space-y-4">
@@ -406,6 +415,72 @@ export default function StockPage() {
 								<span className="text-sm">Page {reorderPage + 1} of {Math.max(1, reorderTotalPages)}</span>
 								<Button variant="outline" size="sm" disabled={reorderPage + 1 >= reorderTotalPages} onClick={() => setReorderPage((p) => p + 1)}>Next</Button>
 							</div>
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				<TabsContent value="consignment" className="space-y-4">
+					<Card className="p-4 gap-2">
+						<CardHeader className="p-0"><CardTitle>Consignment Stock (Retailer)</CardTitle></CardHeader>
+						<CardContent>
+							<Table>
+								<TableHeader className="bg-muted">
+									<TableRow>
+										<TableHead>Material</TableHead>
+										<TableHead>Supplier</TableHead>
+										<TableHead>Warehouse</TableHead>
+										<TableHead className="text-right">On Hand</TableHead>
+										<TableHead className="text-right">Available</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{consignments.map((r) => (
+										<TableRow key={r.consignmentId}>
+											<TableCell>{r.material?.name ?? r.material?.materialName ?? '—'}</TableCell>
+											<TableCell>{r.supplierOrg?.businessName ?? r.supplierOrg?.name ?? '—'}</TableCell>
+											<TableCell>{r.warehouse?.code ?? r.warehouse?.warehouseCode ?? '—'}</TableCell>
+											<TableCell className="text-right">{r.quantityOnHand ?? 0}</TableCell>
+											<TableCell className="text-right">{r.quantityAvailable ?? 0}</TableCell>
+										</TableRow>
+									))}
+									{consignments.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8">No consignment stock</TableCell></TableRow>}
+								</TableBody>
+							</Table>
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				<TabsContent value="vmi" className="space-y-4">
+					<Card className="p-4 gap-2">
+						<CardHeader className="p-0"><CardTitle>VMI (Retailer)</CardTitle></CardHeader>
+						<CardContent>
+							<Table>
+								<TableHeader className="bg-muted">
+									<TableRow>
+										<TableHead>Material</TableHead>
+										<TableHead>Supplier</TableHead>
+										<TableHead>Warehouse</TableHead>
+										<TableHead className="text-right">Min</TableHead>
+										<TableHead className="text-right">Max</TableHead>
+										<TableHead className="text-right">Reorder Point</TableHead>
+										<TableHead>Auto Replenish</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{vmis.map((r) => (
+										<TableRow key={r.vmiId}>
+											<TableCell>{r.material?.name ?? r.material?.materialName ?? '—'}</TableCell>
+											<TableCell>{r.supplierOrg?.businessName ?? r.supplierOrg?.name ?? '—'}</TableCell>
+											<TableCell>{r.warehouse?.code ?? r.warehouse?.warehouseCode ?? '—'}</TableCell>
+											<TableCell className="text-right">{r.minLevel ?? 0}</TableCell>
+											<TableCell className="text-right">{r.maxLevel ?? 0}</TableCell>
+											<TableCell className="text-right">{r.reorderPoint ?? 0}</TableCell>
+											<TableCell>{r.autoReplenish ? 'Yes' : 'No'}</TableCell>
+										</TableRow>
+									))}
+									{vmis.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8">No VMI configs</TableCell></TableRow>}
+								</TableBody>
+							</Table>
 						</CardContent>
 					</Card>
 				</TabsContent>

@@ -42,8 +42,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
-import { getMaterials } from '@/lib/services/materials-service';
-import type { Material } from '@/types/materials';
+import { getSupplierCatalogs, getVariants, getPriceTiers } from '@/lib/services/supplier-catalog-service';
+import apiClient from '@/lib/api-client';
 import {
     getConsignments,
     createConsignment,
@@ -60,21 +60,25 @@ export default function ConsignmentPage() {
     const [open, setOpen] = useState(false);
     const [form, setForm] = useState({
         retailerOrgId: '',
-        warehouseId: '',
-        materialId: '',
+        catalogId: '',
+        variantId: '',
+        priceTierId: '',
         quantityOnHand: '',
     });
     const [adjusting, setAdjusting] = useState<ConsignmentStock | null>(null);
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
-    const [materials, setMaterials] = useState<Material[]>([]);
+    const [catalogs, setCatalogs] = useState<any[]>([]);
+    const [variants, setVariants] = useState<any[]>([]);
+    const [priceTiers, setPriceTiers] = useState<any[]>([]);
     const { orgId } = useUserMetadata();
     const [delta, setDelta] = useState('');
     const [reason, setReason] = useState('');
     const [deleting, setDeleting] = useState<ConsignmentStock | null>(null);
     const [saving, setSaving] = useState(false);
     const [deleteBusy, setDeleteBusy] = useState(false);
+    const [contractError, setContractError] = useState('');
     const load = async () => {
         setLoading(true);
         try {
@@ -102,6 +106,7 @@ export default function ConsignmentPage() {
                 const seen = new Map<number, string>();
                 for (const p of res.content ?? []) {
                     if (p.status === 'TERMINATED') continue;
+                    if (String((p as { partnershipType?: unknown }).partnershipType ?? '').toUpperCase() === 'LOGISTICS') continue;
                     const isPrimary =
                         Number.isFinite(own) &&
                         p.primaryOrgId !== undefined &&
@@ -134,33 +139,83 @@ export default function ConsignmentPage() {
     }, [orgId]);
     useEffect(() => {
         let active = true;
-        const loadMaterials = async () => {
+        const loadCatalogs = async () => {
             try {
-                const res = await getMaterials({
-                    pageNo: 0,
-                    pageOffset: 100,
-                });
+                const res = await getSupplierCatalogs({ page: 0, size: 100 } as any);
                 if (!active) return;
-                setMaterials(res.content ?? []);
+                setCatalogs(Array.isArray(res) ? res : (res.content ?? []));
             } catch {
-                // leave dropdown empty; global 500 toast already fired
+                // leave dropdown empty
             }
         };
-        loadMaterials();
+        loadCatalogs();
         return () => {
             active = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (!form.catalogId) {
+            setVariants([]);
+            setPriceTiers([]);
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const [vs, pts] = await Promise.all([
+                    getVariants({ catalogId: Number(form.catalogId) }),
+                    getPriceTiers({ catalogId: Number(form.catalogId) }),
+                ]);
+                if (!active) return;
+                setVariants(Array.isArray(vs) ? vs : (vs.content ?? []));
+                setPriceTiers(Array.isArray(pts) ? pts : (pts.content ?? []));
+            } catch {
+                if (active) {
+                    setVariants([]);
+                    setPriceTiers([]);
+                }
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [form.catalogId]);
+    useEffect(() => {
+        if (!form.retailerOrgId) {
+            setContractError('');
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const res = await apiClient.get<any>(
+                    `/iam/core/retailer/supplier-contracts/check?retailerOrgId=${form.retailerOrgId}&contractType=CONSIGNMENT`
+                );
+                if (!active) return;
+                if (!res.data?.hasActiveContract) {
+                    setContractError('No active CONSIGNMENT contract with this retailer.');
+                } else {
+                    setContractError('');
+                }
+            } catch {
+                if (active) setContractError('Could not verify contract.');
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [form.retailerOrgId]);
+
     const handleCreate = async () => {
         if (saving) return;
         setSaving(true);
         try {
             await createConsignment({
                 retailerOrgId: Number(form.retailerOrgId),
-                warehouseId: form.warehouseId
-                    ? Number(form.warehouseId)
-                    : undefined,
-                materialId: Number(form.materialId),
+                catalogId: form.catalogId ? Number(form.catalogId) : undefined,
+                variantId: form.variantId ? Number(form.variantId) : undefined,
+                priceTierId: form.priceTierId ? Number(form.priceTierId) : undefined,
                 quantityOnHand: Number(form.quantityOnHand),
             });
             toast({ title: 'Consignment created', variant: 'success' });
@@ -272,51 +327,59 @@ export default function ConsignmentPage() {
                                     </Select>
                                 )}
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label>Warehouse ID</Label>
-                                    <Input
-                                        placeholder="e.g. 7"
-                                        value={form.warehouseId}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                warehouseId: e.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Material</Label>
-                                    <Select
-                                        value={
-                                            form.materialId
-                                                ? String(form.materialId)
-                                                : ''
-                                        }
-                                        onValueChange={(v) =>
-                                            setForm({
-                                                ...form,
-                                                materialId: v,
-                                            })
-                                        }
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select material" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {materials.map((m) => (
-                                                <SelectItem
-                                                    key={m.materialId}
-                                                    value={String(m.materialId)}
-                                                >
-                                                    {m.materialName} (
-                                                    {m.materialCode})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                            <div className="grid gap-2">
+                                <Label>Catalog Item</Label>
+                                <Select
+                                    value={form.catalogId ? String(form.catalogId) : ''}
+                                    onValueChange={(v) => setForm({ ...form, catalogId: v })}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select catalog item" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {catalogs.map((c) => (
+                                            <SelectItem key={c.catalogId} value={String(c.catalogId)}>
+                                                {c.name} ({c.code})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Variant</Label>
+                                <Select
+                                    value={form.variantId ? String(form.variantId) : ''}
+                                    onValueChange={(v) => setForm({ ...form, variantId: v })}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select variant (optional)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {variants.map((v, i) => (
+                                            <SelectItem key={v.variantId ?? i} value={String(v.variantId)}>
+                                                {v.variantValue} ({v.variantType})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Price Tier</Label>
+                                <Select
+                                    value={form.priceTierId ? String(form.priceTierId) : ''}
+                                    onValueChange={(v) => setForm({ ...form, priceTierId: v })}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select price tier (optional)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {priceTiers.map((t, i) => (
+                                            <SelectItem key={t.priceTierId ?? i} value={String(t.priceTierId)}>
+                                                {t.tierName ?? `Tier ${t.priceTierId}`}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid gap-2">
                                 <Label>Qty On Hand</Label>
@@ -332,7 +395,8 @@ export default function ConsignmentPage() {
                                     }
                                 />
                             </div>
-                            <Button onClick={handleCreate} disabled={saving}>
+                            {contractError && <p className="text-sm text-red-600">{contractError}</p>}
+                            <Button onClick={handleCreate} disabled={saving || !!contractError}>
                                 {saving && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
