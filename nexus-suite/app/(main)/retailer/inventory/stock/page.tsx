@@ -428,22 +428,28 @@ export default function StockPage() {
 									<TableRow>
 										<TableHead>Material</TableHead>
 										<TableHead>Supplier</TableHead>
-										<TableHead>Warehouse</TableHead>
+										<TableHead>Catalog</TableHead>
+										<TableHead>Variant</TableHead>
+										<TableHead>Price Tier</TableHead>
 										<TableHead className="text-right">On Hand</TableHead>
 										<TableHead className="text-right">Available</TableHead>
+										<TableHead>Created</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{consignments.map((r) => (
 										<TableRow key={r.consignmentId}>
-											<TableCell>{r.material?.name ?? r.material?.materialName ?? '—'}</TableCell>
-											<TableCell>{r.supplierOrg?.businessName ?? r.supplierOrg?.name ?? '—'}</TableCell>
-											<TableCell>{r.warehouse?.code ?? r.warehouse?.warehouseCode ?? '—'}</TableCell>
+											<TableCell>{r.materialName ?? r.catalogName ?? '—'}</TableCell>
+											<TableCell>{r.supplierOrgName ?? '—'}</TableCell>
+											<TableCell>{r.catalogName ?? '—'}</TableCell>
+											<TableCell>{r.variantValue ?? '—'}</TableCell>
+											<TableCell>{r.priceTierName ?? r.priceTierId ?? '—'}</TableCell>
 											<TableCell className="text-right">{r.quantityOnHand ?? 0}</TableCell>
 											<TableCell className="text-right">{r.quantityAvailable ?? 0}</TableCell>
+											<TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
 										</TableRow>
 									))}
-									{consignments.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8">No consignment stock</TableCell></TableRow>}
+									{consignments.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8">No consignment stock</TableCell></TableRow>}
 								</TableBody>
 							</Table>
 						</CardContent>

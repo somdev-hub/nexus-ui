@@ -205,6 +205,8 @@ export interface ConsignmentStock {
     consignmentId: number;
     retailerOrgId?: number;
     retailerOrgName?: string;
+    supplierOrgId?: number;
+    supplierOrgName?: string;
     warehouseId?: number;
     warehouseCode?: string;
     materialId?: number;
@@ -214,9 +216,12 @@ export interface ConsignmentStock {
     variantId?: number;
     variantValue?: string;
     priceTierId?: number;
+    priceTierName?: string;
     quantityOnHand?: number;
+    notes?: string;
     quantityAvailable?: number;
     consignmentNumber?: string;
+    createdAt?: string;
 }
 
 export interface VmiConfig {

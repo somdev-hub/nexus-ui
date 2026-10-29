@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
@@ -47,6 +48,7 @@ import apiClient from '@/lib/api-client';
 import {
     getConsignments,
     createConsignment,
+    updateConsignment,
     adjustConsignment,
     deleteConsignment,
 } from '@/lib/services/supplier-inventory-service';
@@ -66,6 +68,9 @@ export default function ConsignmentPage() {
         quantityOnHand: '',
     });
     const [adjusting, setAdjusting] = useState<ConsignmentStock | null>(null);
+    const [editing, setEditing] = useState<ConsignmentStock | null>(null);
+    const [editQty, setEditQty] = useState('');
+    const [editNotes, setEditNotes] = useState('');
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
@@ -253,6 +258,27 @@ export default function ConsignmentPage() {
             setSaving(false);
         }
     };
+    const handleEdit = async () => {
+        if (!editing || saving) return;
+        setSaving(true);
+        try {
+            await updateConsignment(editing.consignmentId, {
+                quantityOnHand: Number(editQty),
+                notes: editNotes || undefined,
+            });
+            toast({ title: 'Consignment updated', variant: 'success' });
+            setEditing(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleDelete = async () => {
         if (!deleting || deleteBusy) return;
         setDeleteBusy(true);
@@ -374,8 +400,8 @@ export default function ConsignmentPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {priceTiers.map((t, i) => (
-                                            <SelectItem key={t.priceTierId ?? i} value={String(t.priceTierId)}>
-                                                {t.tierName ?? `Tier ${t.priceTierId}`}
+                                            <SelectItem key={t.tierId ?? i} value={String(t.tierId)}>
+                                                {t.tierName ?? `Tier ${t.tierId}`}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -443,6 +469,28 @@ export default function ConsignmentPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+            <Dialog open={editing !== null} onOpenChange={(v) => !v && setEditing(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Consignment ({editing?.consignmentNumber})</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label>Quantity On Hand</Label>
+                            <Input type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Notes</Label>
+                            <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+                        </div>
+                        <Button onClick={handleEdit} disabled={saving}>
+                            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <AlertDialog
                 open={deleting !== null}
                 onOpenChange={(v) => !v && setDeleting(null)}
@@ -489,10 +537,13 @@ export default function ConsignmentPage() {
                                 <TableRow>
                                     <TableHead>Consignment #</TableHead>
                                     <TableHead>Retailer</TableHead>
-                                    <TableHead>Warehouse</TableHead>
                                     <TableHead>Material</TableHead>
+                                    <TableHead>Catalog</TableHead>
+                                    <TableHead>Variant</TableHead>
+                                    <TableHead>Price Tier</TableHead>
                                     <TableHead>On Hand</TableHead>
                                     <TableHead>Available</TableHead>
+                                    <TableHead>Created</TableHead>
                                     <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -507,12 +558,16 @@ export default function ConsignmentPage() {
                                                 c.retailerOrgId}
                                         </TableCell>
                                         <TableCell>
-                                            {c.warehouseCode ||
-                                                c.warehouseId ||
-                                                '-'}
+                                            {c.materialName || c.materialId || '—'}
                                         </TableCell>
                                         <TableCell>
-                                            {c.materialName || c.materialId}
+                                            {c.catalogName || c.catalogId || '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {c.variantValue || c.variantId || '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {c.priceTierName ?? c.priceTierId ?? '—'}
                                         </TableCell>
                                         <TableCell>
                                             {c.quantityOnHand}
@@ -521,7 +576,21 @@ export default function ConsignmentPage() {
                                             {c.quantityAvailable}
                                         </TableCell>
                                         <TableCell>
+                                            {c.createdAt ? new Date(c.createdAt).toLocaleString() : '—'}
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="flex gap-1">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setEditing(c);
+                                                        setEditQty(String(c.quantityOnHand ?? ''));
+                                                        setEditNotes(c.notes ?? '');
+                                                    }}
+                                                >
+                                                    Edit
+                                                </Button>
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
