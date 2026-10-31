@@ -9,6 +9,9 @@ export type SupplierDecisionStatus =
 export type SupplierContractStatus =
     | 'DRAFT'
     | 'PENDING_APPROVAL'
+    | 'PENDING_RETAILER_APPROVAL'
+    | 'PENDING_SUPPLIER_APPROVAL'
+    | 'PENDING_LOGISTICS_APPROVAL'
     | 'ACTIVE'
     | 'EXPIRED'
     | 'TERMINATED'
@@ -95,6 +98,7 @@ export interface SupplierContractUpdateRequest {
     baseCurrency?: string;
     paymentTermsDays?: number;
     incoterms?: string;
+    contractAmount?: number;
 }
 
 export interface SupplierContractStatusUpdateRequest {

@@ -232,6 +232,12 @@ export interface VmiConfig {
     warehouseCode?: string;
     materialId: number;
     materialName?: string;
+    catalogId?: number;
+    catalogName?: string;
+    variantId?: number;
+    variantValue?: string;
+    priceTierId?: number;
+    priceTierName?: string;
     minLevel?: number;
     maxLevel?: number;
     reorderPoint?: number;
@@ -239,6 +245,7 @@ export interface VmiConfig {
     autoReplenish?: boolean;
     lastReplenishedAt?: string;
     isActive?: boolean;
+    createdAt?: string;
 }
 
 export interface SupplierDashboard {
@@ -364,6 +371,8 @@ export interface CustomerSummary {
 export interface VmiSuggestion {
     vmiId: number;
     materialId: number;
+    materialName?: string;
+    catalogName?: string;
     available: number;
     reorderPoint: number;
     needsReplenish: boolean;

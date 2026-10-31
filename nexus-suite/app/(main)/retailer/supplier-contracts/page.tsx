@@ -2,7 +2,7 @@
 
 import { SupplierContractTable } from '@/components/supplier-contract-table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getSupplierContracts } from '@/lib/services/supplier-contracts-service';
+import { getSupplierContracts, approveSupplierContract } from '@/lib/services/supplier-contracts-service';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { SupplierContract } from '@/types/supplier-contracts';
@@ -63,7 +63,27 @@ export default function Page() {
                                 </p>
                             </div>
                         </div>
-                        <SupplierContractTable supplierContracts={contracts} />
+                        <SupplierContractTable
+                            supplierContracts={contracts}
+                            onApprove={async (contract) => {
+                                try {
+                                    const updated = await approveSupplierContract(
+                                        contract.contractId,
+                                        'supplier'
+                                    );
+                                    setContracts((prev) =>
+                                        prev.map((c) =>
+                                            c.contractId === contract.contractId
+                                                ? updated
+                                                : c
+                                        )
+                                    );
+                                    toast.success('Contract approved');
+                                } catch (e) {
+                                    toast.error('Failed to approve contract');
+                                }
+                            }}
+                        />
                     </div>
                 </div>
             </div>

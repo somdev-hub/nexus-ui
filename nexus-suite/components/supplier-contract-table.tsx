@@ -72,7 +72,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { updateSupplierContractStatus } from '@/lib/services/supplier-contracts-service';
+import {
+    updateSupplierContractStatus,
+    approveSupplierContract,
+} from '@/lib/services/supplier-contracts-service';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Field } from './ui/field';
@@ -98,6 +101,21 @@ const statusConfig: Record<
     },
     PENDING_APPROVAL: {
         label: 'Pending Approval',
+        variant: 'outline',
+        icon: <IconClock className="h-3 w-3" />,
+    },
+    PENDING_RETAILER_APPROVAL: {
+        label: 'Pending Retailer Approval',
+        variant: 'outline',
+        icon: <IconClock className="h-3 w-3" />,
+    },
+    PENDING_SUPPLIER_APPROVAL: {
+        label: 'Pending Supplier Approval',
+        variant: 'outline',
+        icon: <IconClock className="h-3 w-3" />,
+    },
+    PENDING_LOGISTICS_APPROVAL: {
+        label: 'Pending Logistics Approval',
         variant: 'outline',
         icon: <IconClock className="h-3 w-3" />,
     },
@@ -135,7 +153,8 @@ const fallbackStatusConfig = {
 };
 
 const buildColumns = (
-    onSubmit: (contract: SupplierContract) => void
+    onSubmit: (contract: SupplierContract) => void,
+    onApprove?: (contract: SupplierContract) => void
 ): ColumnDef<SupplierContract>[] => [
     {
         id: 'select',
@@ -283,6 +302,16 @@ const buildColumns = (
                             Submit for Approval
                         </DropdownMenuItem>
                     )}
+                    {(row.original.status === 'PENDING_APPROVAL' ||
+                        row.original.status === 'PENDING_SUPPLIER_APPROVAL' ||
+                        row.original.status === 'PENDING_LOGISTICS_APPROVAL') && (
+                        <DropdownMenuItem
+                            onClick={() => onApprove?.(row.original)}
+                        >
+                            <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                            Approve
+                        </DropdownMenuItem>
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
         ),
@@ -291,8 +320,10 @@ const buildColumns = (
 
 export function SupplierContractTable({
     supplierContracts: initialData,
+    onApprove,
 }: {
     supplierContracts: SupplierContract[];
+    onApprove?: (contract: SupplierContract) => void;
 }) {
     const [data, setData] = React.useState(() => initialData);
     const [rowSelection, setRowSelection] = React.useState({});
@@ -336,8 +367,8 @@ export function SupplierContractTable({
     }, []);
 
     const columns = React.useMemo(
-        () => buildColumns(requestSubmit),
-        [requestSubmit]
+        () => buildColumns(requestSubmit, onApprove),
+        [requestSubmit, onApprove]
     );
 
     const table = useReactTable({

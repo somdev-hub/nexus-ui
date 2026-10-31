@@ -6,6 +6,13 @@ import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreVertical } from 'lucide-react';
+import {
     Table,
     TableBody,
     TableCell,
@@ -41,8 +48,7 @@ import {
 } from '@/components/ui/select';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
-import { getMaterials } from '@/lib/services/materials-service';
-import type { Material } from '@/types/materials';
+import { getSupplierCatalogs, getVariants, getPriceTiers } from '@/lib/services/supplier-catalog-service';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -55,11 +61,13 @@ import {
     triggerVmiReplenish,
 } from '@/lib/services/supplier-inventory-service';
 import { useToast } from '@/hooks/use-toast';
+import apiClient from '@/lib/api-client';
 
 const emptyForm = {
     retailerOrgId: '',
-    materialId: '',
-    warehouseId: '',
+    catalogId: '',
+    variantId: '',
+    priceTierId: '',
     minLevel: '',
     maxLevel: '',
     reorderPoint: '',
@@ -81,10 +89,13 @@ export default function VmiPage() {
     const [deleting, setDeleting] = useState<VmiConfig | null>(null);
     const [saving, setSaving] = useState(false);
     const [deleteBusy, setDeleteBusy] = useState(false);
+    const [contractError, setContractError] = useState('');
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
-    const [materials, setMaterials] = useState<Material[]>([]);
+    const [catalogs, setCatalogs] = useState<any[]>([]);
+    const [variants, setVariants] = useState<any[]>([]);
+    const [priceTiers, setPriceTiers] = useState<any[]>([]);
     const { orgId } = useUserMetadata();
     const load = async () => {
         setLoading(true);
@@ -117,6 +128,7 @@ export default function VmiPage() {
                 const seen = new Map<number, string>();
                 for (const p of res.content ?? []) {
                     if (p.status === 'TERMINATED') continue;
+                    if (String((p as { partnershipType?: unknown }).partnershipType ?? '').toUpperCase() === 'LOGISTICS') continue;
                     const isPrimary =
                         Number.isFinite(own) &&
                         p.primaryOrgId !== undefined &&
@@ -149,27 +161,80 @@ export default function VmiPage() {
     }, [orgId]);
     useEffect(() => {
         let active = true;
-        const loadMaterials = async () => {
+        const loadCatalogs = async () => {
             try {
-                const res = await getMaterials({
-                    pageNo: 0,
-                    pageOffset: 100,
-                });
+                const res = await getSupplierCatalogs({ page: 0, size: 100 } as any);
                 if (!active) return;
-                setMaterials(res.content ?? []);
+                setCatalogs(Array.isArray(res) ? res : (res.content ?? []));
             } catch {
-                // leave dropdown empty; global 500 toast already fired
+                // leave dropdown empty
             }
         };
-        loadMaterials();
+        loadCatalogs();
         return () => {
             active = false;
         };
     }, []);
+
+    useEffect(() => {
+        const activeCatalog = form.catalogId || editForm.catalogId;
+        if (!activeCatalog) {
+            setVariants([]);
+            setPriceTiers([]);
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const [vs, pts] = await Promise.all([
+                    getVariants({ catalogId: Number(activeCatalog) }),
+                    getPriceTiers({ catalogId: Number(activeCatalog) }),
+                ]);
+                if (!active) return;
+                setVariants(Array.isArray(vs) ? vs : (vs.content ?? []));
+                setPriceTiers(Array.isArray(pts) ? pts : (pts.content ?? []));
+            } catch {
+                if (active) {
+                    setVariants([]);
+                    setPriceTiers([]);
+                }
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [form.catalogId, editForm.catalogId]);
+    useEffect(() => {
+        if (!form.retailerOrgId) {
+            setContractError('');
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const res = await apiClient.get<any>(
+                    `/iam/core/retailer/supplier-contracts/check?retailerOrgId=${form.retailerOrgId}&contractType=VMI`
+                );
+                if (!active) return;
+                if (!res.data?.hasActiveContract) {
+                    setContractError('No active VMI contract with this retailer.');
+                } else {
+                    setContractError('');
+                }
+            } catch {
+                if (active) setContractError('Could not verify contract.');
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [form.retailerOrgId]);
+
     const toPayload = (f: typeof emptyForm) => ({
         retailerOrgId: Number(f.retailerOrgId),
-        materialId: Number(f.materialId),
-        warehouseId: f.warehouseId ? Number(f.warehouseId) : undefined,
+        catalogId: f.catalogId ? Number(f.catalogId) : undefined,
+        variantId: f.variantId ? Number(f.variantId) : undefined,
+        priceTierId: f.priceTierId ? Number(f.priceTierId) : undefined,
         minLevel: f.minLevel ? Number(f.minLevel) : undefined,
         maxLevel: f.maxLevel ? Number(f.maxLevel) : undefined,
         reorderPoint: f.reorderPoint ? Number(f.reorderPoint) : undefined,
@@ -200,8 +265,9 @@ export default function VmiPage() {
         setEditing(v);
         setEditForm({
             retailerOrgId: v.retailerOrgId ? String(v.retailerOrgId) : '',
-            materialId: String(v.materialId ?? ''),
-            warehouseId: v.warehouseId ? String(v.warehouseId) : '',
+            catalogId: v.catalogId ? String(v.catalogId) : '',
+            variantId: v.variantId ? String(v.variantId) : '',
+            priceTierId: v.priceTierId ? String(v.priceTierId) : '',
             minLevel:
                 v.minLevel !== undefined && v.minLevel !== null
                     ? String(v.minLevel)
@@ -308,35 +374,58 @@ export default function VmiPage() {
                 )}
             </div>
             <div className="grid gap-2">
-                <Label>Material</Label>
+                <Label>Catalog Item</Label>
                 <Select
-                    value={value.materialId ? String(value.materialId) : ''}
-                    onValueChange={(v) => setValue({ ...value, materialId: v })}
+                    value={value.catalogId ? String(value.catalogId) : ''}
+                    onValueChange={(v) => setValue({ ...value, catalogId: v })}
                 >
                     <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select material" />
+                        <SelectValue placeholder="Select catalog item" />
                     </SelectTrigger>
                     <SelectContent>
-                        {materials.map((m) => (
-                            <SelectItem
-                                key={m.materialId}
-                                value={String(m.materialId)}
-                            >
-                                {m.materialName} ({m.materialCode})
+                        {catalogs.map((c) => (
+                            <SelectItem key={c.catalogId} value={String(c.catalogId)}>
+                                {c.name} ({c.code})
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
             </div>
             <div className="grid gap-2">
-                <Label>Warehouse ID</Label>
-                <Input
-                    placeholder="e.g. 7"
-                    value={value.warehouseId}
-                    onChange={(e) =>
-                        setValue({ ...value, warehouseId: e.target.value })
-                    }
-                />
+                <Label>Variant</Label>
+                <Select
+                    value={value.variantId ? String(value.variantId) : ''}
+                    onValueChange={(v) => setValue({ ...value, variantId: v })}
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select variant (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {variants.map((v, i) => (
+                            <SelectItem key={v.variantId ?? i} value={String(v.variantId)}>
+                                {v.variantValue} ({v.variantType})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid gap-2">
+                <Label>Price Tier</Label>
+                <Select
+                    value={value.priceTierId ? String(value.priceTierId) : ''}
+                    onValueChange={(v) => setValue({ ...value, priceTierId: v })}
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select price tier (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {priceTiers.map((t, i) => (
+                            <SelectItem key={t.tierId ?? i} value={String(t.tierId)}>
+                                {t.tierName ?? `Tier ${t.tierId}`}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
@@ -415,7 +504,8 @@ export default function VmiPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             {renderFields(form, setForm)}
-                            <Button onClick={handleCreate} disabled={saving}>
+                            {contractError && <p className="text-sm text-red-600">{contractError}</p>}
+                            <Button onClick={handleCreate} disabled={saving || !!contractError}>
                                 {saving && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
@@ -485,8 +575,7 @@ export default function VmiPage() {
                                 >
                                     <div>
                                         <div className="text-sm font-medium">
-                                            VMI #{s.vmiId} • Material{' '}
-                                            {s.materialId}
+                                            VMI #{s.vmiId} - {s.catalogName || s.materialName || `Material ${s.materialId}`} (Available {s.available} / Reorder {s.reorderPoint})
                                         </div>
                                         <div className="text-xs text-muted-foreground">
                                             Available {s.available} / Reorder{' '}
@@ -521,10 +610,14 @@ export default function VmiPage() {
                                 <TableRow>
                                     <TableHead>Retailer</TableHead>
                                     <TableHead>Material</TableHead>
-                                    <TableHead>Warehouse</TableHead>
+                                    <TableHead>Catalog</TableHead>
+                                    <TableHead>Variant</TableHead>
+                                    <TableHead>Price Tier</TableHead>
                                     <TableHead>Min / Max</TableHead>
                                     <TableHead>Reorder Point</TableHead>
+                                    <TableHead>Reorder Qty</TableHead>
                                     <TableHead>Auto</TableHead>
+                                    <TableHead>Created</TableHead>
                                     <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -536,18 +629,23 @@ export default function VmiPage() {
                                                 v.retailerOrgId}
                                         </TableCell>
                                         <TableCell>
-                                            {v.materialName || v.materialId}
+                                            {v.materialName || v.materialId || '—'}
                                         </TableCell>
                                         <TableCell>
-                                            {v.warehouseCode ||
-                                                v.warehouseId ||
-                                                '-'}
+                                            {v.catalogName || v.catalogId || '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {v.variantValue || v.variantId || '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {v.priceTierName || v.priceTierId || '—'}
                                         </TableCell>
                                         <TableCell className="text-xs">
                                             {v.minLevel ?? '-'} /{' '}
                                             {v.maxLevel ?? '-'}
                                         </TableCell>
-                                        <TableCell>{v.reorderPoint}</TableCell>
+                                        <TableCell>{v.reorderPoint ?? '—'}</TableCell>
+                                        <TableCell>{v.reorderQuantity ?? '—'}</TableCell>
                                         <TableCell>
                                             <Badge
                                                 variant={
@@ -560,35 +658,27 @@ export default function VmiPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        replenish(v.vmiId)
-                                                    }
-                                                >
-                                                    Replenish
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => openEdit(v)}
-                                                >
-                                                    <Pencil className="mr-1 h-3 w-3" />
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() =>
-                                                        setDeleting(v)
-                                                    }
-                                                >
-                                                    <Trash2 className="mr-1 h-3 w-3" />
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                            {v.createdAt ? new Date(v.createdAt).toLocaleString() : '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => replenish(v.vmiId)}>
+                                                        Replenish
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => openEdit(v)}>
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => setDeleting(v)}>
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))}

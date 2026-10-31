@@ -465,26 +465,32 @@ export default function StockPage() {
 									<TableRow>
 										<TableHead>Material</TableHead>
 										<TableHead>Supplier</TableHead>
-										<TableHead>Warehouse</TableHead>
+										<TableHead>Catalog</TableHead>
+										<TableHead>Variant</TableHead>
+										<TableHead>Price Tier</TableHead>
 										<TableHead className="text-right">Min</TableHead>
 										<TableHead className="text-right">Max</TableHead>
 										<TableHead className="text-right">Reorder Point</TableHead>
 										<TableHead>Auto Replenish</TableHead>
+										<TableHead>Created</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{vmis.map((r) => (
 										<TableRow key={r.vmiId}>
-											<TableCell>{r.material?.name ?? r.material?.materialName ?? '—'}</TableCell>
-											<TableCell>{r.supplierOrg?.businessName ?? r.supplierOrg?.name ?? '—'}</TableCell>
-											<TableCell>{r.warehouse?.code ?? r.warehouse?.warehouseCode ?? '—'}</TableCell>
+											<TableCell>{r.materialName ?? '—'}</TableCell>
+											<TableCell>{r.supplierOrgName ?? '—'}</TableCell>
+											<TableCell>{r.catalogName ?? r.catalogId ?? '—'}</TableCell>
+											<TableCell>{r.variantValue ?? r.variantId ?? '—'}</TableCell>
+											<TableCell>{r.priceTierName ?? r.priceTierId ?? '—'}</TableCell>
 											<TableCell className="text-right">{r.minLevel ?? 0}</TableCell>
 											<TableCell className="text-right">{r.maxLevel ?? 0}</TableCell>
 											<TableCell className="text-right">{r.reorderPoint ?? 0}</TableCell>
 											<TableCell>{r.autoReplenish ? 'Yes' : 'No'}</TableCell>
+											<TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
 										</TableRow>
 									))}
-									{vmis.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8">No VMI configs</TableCell></TableRow>}
+									{vmis.length === 0 && <TableRow><TableCell colSpan={10} className="text-center py-8">No VMI configs</TableCell></TableRow>}
 								</TableBody>
 							</Table>
 						</CardContent>

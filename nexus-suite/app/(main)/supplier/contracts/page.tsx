@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreVertical, Eye, Check, X, FileText, File } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,7 +55,12 @@ const SUPPLIER_STATUS_LABEL: Record<string, string> = {
 };
 
 // Contracts the supplier can act on: shared with them and not dead.
-const ACTIONABLE = new Set(['PENDING_APPROVAL', 'ACTIVE']);
+const ACTIONABLE = new Set([
+    'PENDING_APPROVAL',
+    'PENDING_SUPPLIER_APPROVAL',
+    'PENDING_LOGISTICS_APPROVAL',
+    'ACTIVE',
+]);
 
 export default function SupplierContractsPage() {
     const router = useRouter();
@@ -221,74 +234,50 @@ export default function SupplierContractsPage() {
                                                         : '—'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                openDetail(c)
-                                                            }
-                                                        >
-                                                            View
-                                                        </Button>
-                                                        {ACTIONABLE.has(
-                                                            c.status
-                                                        ) &&
-                                                            supplierStatusOf(
-                                                                c
-                                                            ) !== 'APPROVED' &&
-                                                            supplierStatusOf(
-                                                                c
-                                                            ) !==
-                                                                'REJECTED' && (
-                                                                <>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() =>
-                                                                            setConfirm(
-                                                                                {
-                                                                                    action: 'approve',
-                                                                                    contract:
-                                                                                        c,
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Approve
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="destructive"
-                                                                        onClick={() =>
-                                                                            setConfirm(
-                                                                                {
-                                                                                    action: 'reject',
-                                                                                    contract:
-                                                                                        c,
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Reject
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() =>
-                                                                            setConfirm(
-                                                                                {
-                                                                                    action: 'amendments',
-                                                                                    contract:
-                                                                                        c,
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Amendments
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                    </div>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => openDetail(c)}>
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                View
+                                                            </DropdownMenuItem>
+
+                                                            {ACTIONABLE.has(c.status) &&
+                                                                supplierStatusOf(c) !== 'APPROVED' &&
+                                                                supplierStatusOf(c) !== 'REJECTED' && (
+                                                                    <>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                setConfirm({ action: 'approve', contract: c })
+                                                                            }
+                                                                        >
+                                                                            <Check className="mr-2 h-4 w-4" />
+                                                                            Approve
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                setConfirm({ action: 'reject', contract: c })
+                                                                            }
+                                                                        >
+                                                                            <X className="mr-2 h-4 w-4" />
+                                                                            Reject
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                setConfirm({ action: 'amendments', contract: c })
+                                                                            }
+                                                                        >
+                                                                            <FileText className="mr-2 h-4 w-4" />
+                                                                            Amendments
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
                                         ))}

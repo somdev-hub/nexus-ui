@@ -32,6 +32,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreVertical } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
@@ -67,10 +74,14 @@ export default function ConsignmentPage() {
         priceTierId: '',
         quantityOnHand: '',
     });
-    const [adjusting, setAdjusting] = useState<ConsignmentStock | null>(null);
     const [editing, setEditing] = useState<ConsignmentStock | null>(null);
+    const [editCatalogId, setEditCatalogId] = useState('');
+    const [editVariantId, setEditVariantId] = useState('');
+    const [editPriceTierId, setEditPriceTierId] = useState('');
     const [editQty, setEditQty] = useState('');
     const [editNotes, setEditNotes] = useState('');
+    const [editVariants, setEditVariants] = useState<any[]>([]);
+    const [editPriceTiers, setEditPriceTiers] = useState<any[]>([]);
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
@@ -78,8 +89,7 @@ export default function ConsignmentPage() {
     const [variants, setVariants] = useState<any[]>([]);
     const [priceTiers, setPriceTiers] = useState<any[]>([]);
     const { orgId } = useUserMetadata();
-    const [delta, setDelta] = useState('');
-    const [reason, setReason] = useState('');
+
     const [deleting, setDeleting] = useState<ConsignmentStock | null>(null);
     const [saving, setSaving] = useState(false);
     const [deleteBusy, setDeleteBusy] = useState(false);
@@ -186,6 +196,34 @@ export default function ConsignmentPage() {
             active = false;
         };
     }, [form.catalogId]);
+
+    useEffect(() => {
+        if (!editCatalogId) {
+            setEditVariants([]);
+            setEditPriceTiers([]);
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const [vs, pts] = await Promise.all([
+                    getVariants({ catalogId: Number(editCatalogId) }),
+                    getPriceTiers({ catalogId: Number(editCatalogId) }),
+                ]);
+                if (!active) return;
+                setEditVariants(Array.isArray(vs) ? vs : (vs.content ?? []));
+                setEditPriceTiers(Array.isArray(pts) ? pts : (pts.content ?? []));
+            } catch {
+                if (active) {
+                    setEditVariants([]);
+                    setEditPriceTiers([]);
+                }
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [editCatalogId]);
     useEffect(() => {
         if (!form.retailerOrgId) {
             setContractError('');
@@ -235,34 +273,15 @@ export default function ConsignmentPage() {
             setSaving(false);
         }
     };
-    const handleAdjust = async () => {
-        if (!adjusting || saving) return;
-        setSaving(true);
-        try {
-            await adjustConsignment(
-                adjusting.consignmentId,
-                Number(delta),
-                reason || undefined
-            );
-            toast({ title: 'Quantity adjusted', variant: 'success' });
-            setAdjusting(null);
-            setDelta('');
-            setReason('');
-            load();
-        } catch (e: unknown) {
-            toast({
-                title: e instanceof Error ? e.message : String(e),
-                variant: 'destructive',
-            });
-        } finally {
-            setSaving(false);
-        }
-    };
     const handleEdit = async () => {
         if (!editing || saving) return;
         setSaving(true);
         try {
             await updateConsignment(editing.consignmentId, {
+                retailerOrgId: Number(editing.retailerOrgId),
+                catalogId: editCatalogId ? Number(editCatalogId) : undefined,
+                variantId: editVariantId ? Number(editVariantId) : undefined,
+                priceTierId: editPriceTierId ? Number(editPriceTierId) : undefined,
                 quantityOnHand: Number(editQty),
                 notes: editNotes || undefined,
             });
@@ -432,49 +451,45 @@ export default function ConsignmentPage() {
                     </DialogContent>
                 </Dialog>
             </div>
-            <Dialog
-                open={adjusting !== null}
-                onOpenChange={(v) => !v && setAdjusting(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            Adjust Quantity ({adjusting?.consignmentNumber})
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-6">
-                        <div className="grid gap-2">
-                            <Label>Delta (use negative to deduct)</Label>
-                            <Input
-                                type="number"
-                                placeholder="e.g. 50 or -20"
-                                value={delta}
-                                onChange={(e) => setDelta(e.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Reason</Label>
-                            <Input
-                                placeholder="e.g. Cycle count correction"
-                                value={reason}
-                                onChange={(e) => setReason(e.target.value)}
-                            />
-                        </div>
-                        <Button onClick={handleAdjust} disabled={saving}>
-                            {saving && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            {saving ? 'Applying…' : 'Apply'}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
             <Dialog open={editing !== null} onOpenChange={(v) => !v && setEditing(null)}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Consignment ({editing?.consignmentNumber})</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label>Catalog Item</Label>
+                            <Select value={editCatalogId} onValueChange={setEditCatalogId}>
+                                <SelectTrigger className="w-full"><SelectValue placeholder="Select catalog item" /></SelectTrigger>
+                                <SelectContent>
+                                    {catalogs.map((c) => (
+                                        <SelectItem key={c.catalogId} value={String(c.catalogId)}>{c.name} ({c.code})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Variant</Label>
+                            <Select value={editVariantId} onValueChange={setEditVariantId}>
+                                <SelectTrigger className="w-full"><SelectValue placeholder="Select variant (optional)" /></SelectTrigger>
+                                <SelectContent>
+                                    {editVariants.map((v, i) => (
+                                        <SelectItem key={v.variantId ?? i} value={String(v.variantId)}>{v.variantValue} ({v.variantType})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Price Tier</Label>
+                            <Select value={editPriceTierId} onValueChange={setEditPriceTierId}>
+                                <SelectTrigger className="w-full"><SelectValue placeholder="Select price tier (optional)" /></SelectTrigger>
+                                <SelectContent>
+                                    {editPriceTiers.map((t, i) => (
+                                        <SelectItem key={t.tierId ?? i} value={String(t.tierId)}>{t.tierName ?? `Tier ${t.tierId}`}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <div className="grid gap-2">
                             <Label>Quantity On Hand</Label>
                             <Input type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
@@ -579,39 +594,32 @@ export default function ConsignmentPage() {
                                             {c.createdAt ? new Date(c.createdAt).toLocaleString() : '—'}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        setEditing(c);
-                                                        setEditQty(String(c.quantityOnHand ?? ''));
-                                                        setEditNotes(c.notes ?? '');
-                                                    }}
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        setAdjusting(c)
-                                                    }
-                                                >
-                                                    <Pencil className="mr-1 h-3 w-3" />
-                                                    Adjust
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() =>
-                                                        setDeleting(c)
-                                                    }
-                                                >
-                                                    <Trash2 className="mr-1 h-3 w-3" />
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            setEditing(c);
+                                                            setEditCatalogId(c.catalogId ? String(c.catalogId) : '');
+                                                            setEditVariantId(c.variantId ? String(c.variantId) : '');
+                                                            setEditPriceTierId(c.priceTierId ? String(c.priceTierId) : '');
+                                                            setEditQty(String(c.quantityOnHand ?? ''));
+                                                            setEditNotes(c.notes ?? '');
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => setDeleting(c)}
+                                                    >
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))}

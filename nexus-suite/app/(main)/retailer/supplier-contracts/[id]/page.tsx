@@ -301,7 +301,9 @@ const Page = () => {
                                 </Button>
                             )}
                             {(contract.status === 'DRAFT' ||
-                                contract.status === 'PENDING_APPROVAL') && (
+                                contract.status === 'PENDING_APPROVAL' ||
+                                contract.status === 'PENDING_SUPPLIER_APPROVAL' ||
+                                contract.status === 'PENDING_LOGISTICS_APPROVAL') && (
                                 <>
                                     <Button
                                         onClick={() => setConfirmApprove(true)}
