@@ -7,6 +7,7 @@ import type {
     StockPaginatedResponse,
     StockMovementPaginatedResponse,
 } from '@/types/stock';
+import type { ConsignmentStock, VmiConfig } from '@/types/supplier';
 
 const BASE = '/iam/core/retailer';
 const STOCK_BASE = `${BASE}/stock`;
@@ -53,7 +54,6 @@ export async function getStockById(id: number): Promise<Stock> {
 }
 
 export async function getAbcAnalysis(category?: string): Promise<AbcAnalysis> {
-    // IAM maps to /iam/core/retailer/stocks/abc-analysis (plural) via StockController /core/stocks/abc-analysis
     const base = `${BASE}/stocks`;
     const url = category
         ? `${base}/abc-analysis?category=${category}`
@@ -74,7 +74,10 @@ export async function getInventoryValuation(
     return res.data;
 }
 
-export async function getReorderSuggestions(pageNo = 0, pageOffset = 20): Promise<{ content: Stock[]; totalPages: number; number: number }> {
+export async function getReorderSuggestions(
+    pageNo = 0,
+    pageOffset = 20
+): Promise<{ content: Stock[]; totalPages: number; number: number }> {
     const res = await apiClient.get<any>(
         `${STOCK_BASE}/reorder-suggestions?page=${pageNo}&size=${pageOffset}`
     );
@@ -106,4 +109,31 @@ export async function adjustStock(
         {}
     );
     return res.data;
+}
+
+export async function getRetailerConsignments(): Promise<ConsignmentStock[]> {
+    const res = await apiClient.get<any>('/iam/core/retailer/consignment/all');
+    const data = res.data;
+    return Array.isArray(data) ? data : (data.content ?? []);
+}
+
+export async function consumeConsignment(id: number, quantity: number) {
+    const res = await apiClient.post<any>(`/iam/core/retailer/consignment/${id}/consume?quantity=${quantity}`, {});
+    return res.data;
+}
+
+export async function returnConsignment(id: number, quantity: number) {
+    const res = await apiClient.post<any>(`/iam/core/retailer/consignment/${id}/return?quantity=${quantity}`, {});
+    return res.data;
+}
+
+export async function receiveConsignment(id: number, quantity: number) {
+    const res = await apiClient.post<any>(`/iam/core/retailer/consignment/${id}/receive?quantity=${quantity}`, {});
+    return res.data;
+}
+
+export async function getRetailerVmis(): Promise<VmiConfig[]> {
+    const res = await apiClient.get<any>('/iam/core/retailer/vmi/all');
+    const data = res.data;
+    return Array.isArray(data) ? data : (data.content ?? []);
 }

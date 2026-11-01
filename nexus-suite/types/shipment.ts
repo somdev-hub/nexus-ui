@@ -62,6 +62,8 @@ export type ShipmentDocumentType =
 export interface Shipment {
     shipmentId: number;
     shipmentNumber: string;
+    referenceType?: string;
+    referenceId?: number;
     retailerOrgId: number;
     retailerOrgName?: string;
     supplierOrgId: number;

@@ -228,6 +228,7 @@ export interface VmiConfig {
     vmiId: number;
     retailerOrgId?: number;
     retailerOrgName?: string;
+    supplierOrgName?: string;
     warehouseId?: number;
     warehouseCode?: string;
     materialId: number;

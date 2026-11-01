@@ -88,6 +88,11 @@ export interface SupplierShipment {
     pickupDate?: string;
     deliveryDate?: string;
     trackingNumber?: string;
+    carrierTrackingNumber?: string;
+    scheduledDeliveryDate?: string;
+    pickupAddress?: string;
+    deliveryAddress?: string;
+    referenceType?: string;
     carrierName?: string;
     carrierReference?: string;
     shipmentMode?: string;

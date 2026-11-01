@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import apiClient from '@/lib/api-client';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
     TableBody,
@@ -137,10 +139,21 @@ function Section({
 
 const SHIPMENTS_PAGE_SIZE = 10;
 
+function truncate(value: string, max = 40): string {
+    let v = value;
+    try {
+        v = decodeURIComponent(v);
+    } catch {
+        // keep original
+    }
+    return v.length > max ? v.slice(0, max) + '…' : v;
+}
+
 export default function SupplierShipmentsPage() {
     const { toast } = useToast();
     const [data, setData] =
         useState<PaginatedResponse<SupplierShipment> | null>(null);
+    const [coreShipments, setCoreShipments] = useState<any[]>([]);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
     const [viewing, setViewing] = useState<SupplierShipment | null>(null);
@@ -169,6 +182,14 @@ export default function SupplierShipmentsPage() {
                     size: SHIPMENTS_PAGE_SIZE,
                 });
                 setData(ships);
+                try {
+                    const res = await apiClient.get<any>('/iam/core/supplier/core-shipments?size=100');
+                    const d = res.data;
+                    const list = Array.isArray(d) ? d : (d.content ?? []);
+                    setCoreShipments(list.filter((s: any) => s.referenceType === 'CONSIGNMENT_FILL' || s.referenceType === 'VMI_REPLENISHMENT'));
+                } catch {
+                    setCoreShipments([]);
+                }
             } catch (e: unknown) {
                 toast({
                     title: e instanceof Error ? e.message : String(e),
@@ -284,20 +305,20 @@ export default function SupplierShipmentsPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-xs">
-                                                {s.estimatedArrival
+                                                {(s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate)
                                                     ? new Date(
-                                                          s.estimatedArrival
+                                                          (s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate) as string
                                                       ).toLocaleString()
                                                     : '—'}
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">
-                                                {s.trackingNumber ?? '—'}
+                                                {s.carrierTrackingNumber || s.trackingNumber || '—'}
                                             </TableCell>
                                             <TableCell>
                                                 <AddressCell
-                                                    pickup={s.pickupLocation}
+                                                    pickup={s.pickupAddress || s.pickupLocation}
                                                     delivery={
-                                                        s.deliveryLocation
+                                                        s.deliveryAddress || s.deliveryLocation
                                                     }
                                                 />
                                             </TableCell>
@@ -365,6 +386,73 @@ export default function SupplierShipmentsPage() {
                             </span>
                         </div>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card className="p-4 gap-2 min-w-0">
+                <CardHeader className="p-0">
+                    <CardTitle>Core Shipments (Consignment / VMI)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 min-w-0">
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Shipment #</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Expected Delivery</TableHead>
+                                    <TableHead>Tracking</TableHead>
+                                    <TableHead>Pickup → Delivery</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {coreShipments.map((s) => (
+                                    <TableRow key={s.shipmentId}>
+                                        <TableCell className="font-mono">
+                                            {s.shipmentNumber ?? s.shipmentId}
+                                        </TableCell>
+                                        <TableCell>
+                                            {s.referenceType === 'CONSIGNMENT_FILL'
+                                                ? 'Consignment'
+                                                : s.referenceType === 'VMI_REPLENISHMENT'
+                                                ? 'VMI'
+                                                : 'PO'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge>{s.status ?? '—'}</Badge>
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap text-xs">
+                                            {(s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate)
+                                                ? new Date((s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate) as string).toLocaleString()
+                                                : '—'}
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            {s.carrierTrackingNumber || s.trackingNumber || '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-xs">
+                                                {truncate(s.pickupAddress || s.pickupLocation || '—')} → {truncate(s.deliveryAddress || s.deliveryLocation || '—')}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button size="sm" variant="outline" asChild>
+                                                <Link href={`/retailer/shipments/${s.shipmentId}`}>View</Link>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {coreShipments.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                            No core shipments
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
 

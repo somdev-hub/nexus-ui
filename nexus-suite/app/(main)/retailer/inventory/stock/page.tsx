@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MoreVertical, Loader2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import {
 	Table,
@@ -30,9 +32,9 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Money } from '@/components/money';
-import { getStocks, adjustStock, getReorderSuggestions, getInventoryValuation } from '@/lib/services/stock-service';
+import { getStocks, adjustStock, getReorderSuggestions, getInventoryValuation, getRetailerConsignments, getRetailerVmis, consumeConsignment, returnConsignment, receiveConsignment } from '@/lib/services/stock-service';
 import { getWarehouses, setProductionCapacity, type Warehouse } from '@/lib/services/warehouses-service';
-import apiClient from '@/lib/api-client';
+import type { ConsignmentStock, VmiConfig } from '@/types/supplier';
 import type { Stock } from '@/types/stock';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
@@ -64,8 +66,11 @@ export default function StockPage() {
 	const [totalPages, setTotalPages] = useState(0);
 	const [reorderPage, setReorderPage] = useState(0);
 	const [reorderTotalPages, setReorderTotalPages] = useState(0);
-	const [consignments, setConsignments] = useState<any[]>([]);
-	const [vmis, setVmis] = useState<any[]>([]);
+	const [consignments, setConsignments] = useState<ConsignmentStock[]>([]);
+	const [vmis, setVmis] = useState<VmiConfig[]>([]);
+	const [consignmentAction, setConsignmentAction] = useState<{ c: ConsignmentStock; type: 'receive' | 'consume' | 'return' } | null>(null);
+	const [consignmentQty, setConsignmentQty] = useState('');
+	const [consignmentSubmitting, setConsignmentSubmitting] = useState(false);
 
 	const load = useCallback(async () => {
 		setIsLoading(true);
@@ -75,8 +80,8 @@ export default function StockPage() {
 				getInventoryValuation().catch(() => null),
 				getReorderSuggestions(reorderPage, size).catch(() => ({ content: [], totalPages: 0 })),
 				getWarehouses().catch(() => []),
-				apiClient.get<any>('/iam/core/retailer/consignment/all').then((r) => (Array.isArray(r.data) ? r.data : (r.data.content ?? []))).catch(() => []),
-				apiClient.get<any>('/iam/core/retailer/vmi/all').then((r) => (Array.isArray(r.data) ? r.data : (r.data.content ?? []))).catch(() => []),
+				getRetailerConsignments().catch(() => []),
+				getRetailerVmis().catch(() => []),
 			]);
 			const list = stockRes.content ?? [];
 			setStocks(list);
@@ -130,9 +135,10 @@ export default function StockPage() {
 
 	const filtered = stocks.filter(
 		(s) =>
-			!search ||
-			(s.materialName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-			(s.materialCode ?? '').toLowerCase().includes(search.toLowerCase())
+			(s.quantityOnHand ?? 0) > 0 &&
+			(!search ||
+				(s.materialName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+				(s.materialCode ?? '').toLowerCase().includes(search.toLowerCase()))
 	);
 
 	if (isLoading)
@@ -319,7 +325,7 @@ export default function StockPage() {
 											<CardContent className="p-0 space-y-2 text-sm">
 												<div className="text-muted-foreground">{w.location}</div>
 												<div className="flex justify-between"><span>Capacity</span><span className="font-medium">{w.capacity ?? w.storageCapacity ?? 0}</span></div>
-												<div className="flex justify-between"><span>Utilization</span><span className="font-medium">{w.currentUtilization ?? 0}</span></div>
+												<div className="flex justify-between"><span>Utilization</span><span className="font-medium">{w.currentUtilization ?? 0} / {w.capacity ?? w.storageCapacity ?? 0}</span></div>
 												{w.warehouseType === 'RESERVE' && <div className="flex justify-between"><span>Multiplier</span><span className="font-medium">×{w.capacityMultiplier} (auto)</span></div>}
 											</CardContent>
 										</Card>
@@ -422,7 +428,7 @@ export default function StockPage() {
 				<TabsContent value="consignment" className="space-y-4">
 					<Card className="p-4 gap-2">
 						<CardHeader className="p-0"><CardTitle>Consignment Stock (Retailer)</CardTitle></CardHeader>
-						<CardContent>
+						<CardContent className="p-0">
 							<Table>
 								<TableHeader className="bg-muted">
 									<TableRow>
@@ -434,6 +440,7 @@ export default function StockPage() {
 										<TableHead className="text-right">On Hand</TableHead>
 										<TableHead className="text-right">Available</TableHead>
 										<TableHead>Created</TableHead>
+										<TableHead>Actions</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -447,19 +454,77 @@ export default function StockPage() {
 											<TableCell className="text-right">{r.quantityOnHand ?? 0}</TableCell>
 											<TableCell className="text-right">{r.quantityAvailable ?? 0}</TableCell>
 											<TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
+											<TableCell>
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button variant="ghost" size="icon">
+															<MoreVertical className="h-4 w-4" />
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem onClick={() => { setConsignmentAction({ c: r, type: 'receive' }); setConsignmentQty(''); }}>
+															Receive
+														</DropdownMenuItem>
+														<DropdownMenuItem onClick={() => { setConsignmentAction({ c: r, type: 'consume' }); setConsignmentQty(''); }}>
+															Consume
+														</DropdownMenuItem>
+														<DropdownMenuItem onClick={() => { setConsignmentAction({ c: r, type: 'return' }); setConsignmentQty(''); }}>
+															Return
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											</TableCell>
 										</TableRow>
 									))}
-									{consignments.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8">No consignment stock</TableCell></TableRow>}
+									{consignments.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-8">No consignment stock</TableCell></TableRow>}
 								</TableBody>
 							</Table>
 						</CardContent>
 					</Card>
+
+					<Dialog open={!!consignmentAction} onOpenChange={(v) => !v && setConsignmentAction(null)}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>
+									{consignmentAction?.type === 'receive' && 'Receive Consignment'}
+									{consignmentAction?.type === 'consume' && 'Consume Consignment'}
+									{consignmentAction?.type === 'return' && 'Return Consignment'}
+								</DialogTitle>
+							</DialogHeader>
+							<div className="grid gap-4">
+								<div className="grid gap-2">
+									<Label>Quantity</Label>
+									<Input type="number" value={consignmentQty} onChange={(e) => setConsignmentQty(e.target.value)} />
+								</div>
+								<Button disabled={consignmentSubmitting} onClick={async () => {
+									const q = Number(consignmentQty);
+									if (!q || !consignmentAction) return;
+									setConsignmentSubmitting(true);
+									try {
+										if (consignmentAction.type === 'receive') await receiveConsignment(consignmentAction.c.consignmentId, q);
+										if (consignmentAction.type === 'consume') await consumeConsignment(consignmentAction.c.consignmentId, q);
+										if (consignmentAction.type === 'return') await returnConsignment(consignmentAction.c.consignmentId, q);
+										toast.success('Done');
+										setConsignmentAction(null);
+										load();
+									} catch (e) {
+										toast.error(e instanceof Error ? e.message : 'Failed');
+									} finally {
+										setConsignmentSubmitting(false);
+									}
+								}}>
+									{consignmentSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+									Apply
+								</Button>
+							</div>
+						</DialogContent>
+					</Dialog>
 				</TabsContent>
 
 				<TabsContent value="vmi" className="space-y-4">
 					<Card className="p-4 gap-2">
 						<CardHeader className="p-0"><CardTitle>VMI (Retailer)</CardTitle></CardHeader>
-						<CardContent>
+						<CardContent className="p-0">
 							<Table>
 								<TableHeader className="bg-muted">
 									<TableRow>

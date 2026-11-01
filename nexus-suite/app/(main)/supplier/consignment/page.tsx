@@ -51,12 +51,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
 import { getSupplierCatalogs, getVariants, getPriceTiers } from '@/lib/services/supplier-catalog-service';
+import { getOrgAddresses, formatOrgAddress, orgAddressOptionLabel, type OrgAddress } from '@/lib/services/org-profile-service';
 import apiClient from '@/lib/api-client';
 import {
     getConsignments,
     createConsignment,
     updateConsignment,
-    adjustConsignment,
+    fillConsignment,
     deleteConsignment,
 } from '@/lib/services/supplier-inventory-service';
 import { useToast } from '@/hooks/use-toast';
@@ -75,6 +76,11 @@ export default function ConsignmentPage() {
         quantityOnHand: '',
     });
     const [editing, setEditing] = useState<ConsignmentStock | null>(null);
+    const [filling, setFilling] = useState<ConsignmentStock | null>(null);
+    const [pickupAddressId, setPickupAddressId] = useState('');
+    const [deliveryAddressId, setDeliveryAddressId] = useState('');
+    const [supplierAddresses, setSupplierAddresses] = useState<OrgAddress[]>([]);
+    const [retailerAddresses, setRetailerAddresses] = useState<OrgAddress[]>([]);
     const [editCatalogId, setEditCatalogId] = useState('');
     const [editVariantId, setEditVariantId] = useState('');
     const [editPriceTierId, setEditPriceTierId] = useState('');
@@ -89,6 +95,16 @@ export default function ConsignmentPage() {
     const [variants, setVariants] = useState<any[]>([]);
     const [priceTiers, setPriceTiers] = useState<any[]>([]);
     const { orgId } = useUserMetadata();
+
+    useEffect(() => {
+        if (!orgId) return;
+        getOrgAddresses(orgId).then(setSupplierAddresses).catch(() => {});
+    }, [orgId]);
+
+    useEffect(() => {
+        if (!filling?.retailerOrgId) return;
+        getOrgAddresses(filling.retailerOrgId).then(setRetailerAddresses).catch(() => {});
+    }, [filling]);
 
     const [deleting, setDeleting] = useState<ConsignmentStock | null>(null);
     const [saving, setSaving] = useState(false);
@@ -506,6 +522,74 @@ export default function ConsignmentPage() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={filling !== null} onOpenChange={(v) => !v && setFilling(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Fill Consignment ({filling?.consignmentNumber})</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label>Catalog Item</Label>
+                            <Input value={filling?.catalogName || filling?.catalogId || ''} disabled />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Variant</Label>
+                            <Input value={filling?.variantValue || filling?.variantId || ''} disabled />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Price Tier</Label>
+                            <Input value={filling?.priceTierId || ''} disabled />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Pickup Address</Label>
+                            <Select value={pickupAddressId} onValueChange={setPickupAddressId}>
+                                <SelectTrigger className="w-full"><SelectValue placeholder="Select pickup address" /></SelectTrigger>
+                                <SelectContent>
+                                    {supplierAddresses.map((a) => (
+                                        <SelectItem key={a.orgAddressId} value={String(a.orgAddressId)}>
+                                            {orgAddressOptionLabel(a)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Delivery Address</Label>
+                            <Select value={deliveryAddressId} onValueChange={setDeliveryAddressId}>
+                                <SelectTrigger className="w-full"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                                <SelectContent>
+                                    {retailerAddresses.map((a) => (
+                                        <SelectItem key={a.orgAddressId} value={String(a.orgAddressId)}>
+                                            {orgAddressOptionLabel(a)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button onClick={async () => {
+                            if (!filling) return;
+                            const pickup = supplierAddresses.find((a) => String(a.orgAddressId) === pickupAddressId);
+                            const delivery = retailerAddresses.find((a) => String(a.orgAddressId) === deliveryAddressId);
+                            try {
+                                await fillConsignment(
+                                    filling.consignmentId,
+                                    pickup ? formatOrgAddress(pickup) : undefined,
+                                    delivery ? formatOrgAddress(delivery) : undefined
+                                );
+                                toast({ title: 'Consignment filled', variant: 'success' });
+                                setFilling(null);
+                                load();
+                            } catch (e) {
+                                toast({
+                                    title: e instanceof Error ? e.message : String(e),
+                                    variant: 'destructive',
+                                });
+                            }
+                        }}>Fill Consignment</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <AlertDialog
                 open={deleting !== null}
                 onOpenChange={(v) => !v && setDeleting(null)}
@@ -612,6 +696,15 @@ export default function ConsignmentPage() {
                                                         }}
                                                     >
                                                         Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            setFilling(c);
+                                                            setPickupAddressId('');
+                                                            setDeliveryAddressId('');
+                                                        }}
+                                                    >
+                                                        Fill Consignment
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         onClick={() => setDeleting(c)}
