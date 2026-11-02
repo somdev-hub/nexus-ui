@@ -13,23 +13,15 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MoreVertical, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { IconDotsVertical } from '@tabler/icons-react';
 import { Textarea } from '@/components/ui/textarea';
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Money } from '@/components/money';
 import { getStocks, adjustStock, getReorderSuggestions, getInventoryValuation, getRetailerConsignments, getRetailerVmis, consumeConsignment, returnConsignment, receiveConsignment } from '@/lib/services/stock-service';
@@ -37,8 +29,62 @@ import { getWarehouses, setProductionCapacity, type Warehouse } from '@/lib/serv
 import type { ConsignmentStock, VmiConfig } from '@/types/supplier';
 import type { Stock } from '@/types/stock';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
+
+/** Per-page fetch: one larger batch so the centralized tables paginate client-side. */
+const STOCK_PAGE_SIZE = 100;
+
+/** Sub-list of a single warehouse's stock — own table instance (grouped view). */
+function WarehouseStockList({ stocks }: { stocks: Stock[] }) {
+	const columns: ColumnDef<Stock>[] = [
+		{
+			id: 'material',
+			header: 'Material',
+			accessorFn: (row) => row.materialName ?? '',
+			cell: ({ row }) => (
+				<div>
+					<div className="font-medium">{row.original.materialName ?? '—'}</div>
+					<div className="text-xs text-muted-foreground">{row.original.materialCode ?? ''}</div>
+				</div>
+			),
+			enableHiding: false,
+		},
+		{
+			accessorKey: 'quantityOnHand',
+			header: () => <div className="w-full text-right">On Hand</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.quantityOnHand ?? 0}</div>,
+		},
+		{
+			accessorKey: 'quantityAvailable',
+			header: () => <div className="w-full text-right">Available</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.quantityAvailable ?? 0}</div>,
+		},
+		{
+			accessorKey: 'quantityReserved',
+			header: () => <div className="w-full text-right">Reserved</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.quantityReserved ?? 0}</div>,
+		},
+	];
+
+	const table = useTables<Stock>({
+		data: stocks,
+		columns,
+		enablePagination: false,
+		getRowId: (row) => row.stockId.toString(),
+	});
+
+	return (
+		<CentralizedDataTable
+			table={table}
+			hidePagination
+			emptyMessage="No stock in this warehouse"
+		/>
+	);
+}
 
 export default function StockPage() {
 	const [stocks, setStocks] = useState<Stock[]>([]);
@@ -61,11 +107,6 @@ export default function StockPage() {
 	}>({});
 	const [search, setSearch] = useState('');
 	const [suggestions, setSuggestions] = useState<Stock[]>([]);
-	const [page, setPage] = useState(0);
-	const [size, setSize] = useState(20);
-	const [totalPages, setTotalPages] = useState(0);
-	const [reorderPage, setReorderPage] = useState(0);
-	const [reorderTotalPages, setReorderTotalPages] = useState(0);
 	const [consignments, setConsignments] = useState<ConsignmentStock[]>([]);
 	const [vmis, setVmis] = useState<VmiConfig[]>([]);
 	const [consignmentAction, setConsignmentAction] = useState<{ c: ConsignmentStock; type: 'receive' | 'consume' | 'return' } | null>(null);
@@ -76,9 +117,10 @@ export default function StockPage() {
 		setIsLoading(true);
 		try {
 			const [stockRes, valuation, reorder, whs, cons, vmi] = await Promise.all([
-				getStocks({ pageNo: page, pageOffset: size, ...filter }),
+				getStocks({ pageNo: 0, pageOffset: STOCK_PAGE_SIZE, ...filter }),
 				getInventoryValuation().catch(() => null),
-				getReorderSuggestions(reorderPage, size).catch(() => ({ content: [], totalPages: 0 })),
+				// One larger batch for the centralized (client-side paged) table.
+				getReorderSuggestions(0, STOCK_PAGE_SIZE).catch(() => ({ content: [] })),
 				getWarehouses().catch(() => []),
 				getRetailerConsignments().catch(() => []),
 				getRetailerVmis().catch(() => []),
@@ -87,11 +129,9 @@ export default function StockPage() {
 			setStocks(list);
 			setAllStocks(list);
 			setSuggestions(reorder.content ?? []);
-			setReorderTotalPages(reorder.totalPages ?? 0);
 			setWarehouses(whs);
 			setConsignments(cons);
 			setVmis(vmi);
-			setTotalPages(stockRes.totalPages ?? 0);
 			if (valuation && valuation.totalValue != null)
 				setTotalValue(Number(valuation.totalValue));
 			else setTotalValue(0);
@@ -100,7 +140,7 @@ export default function StockPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [filter, page, size, reorderPage]);
+	}, [filter]);
 
 	const handleAdjust = async (stockId: number) => {
 		if (!adjustForm.quantity || !adjustForm.reason) {
@@ -133,13 +173,340 @@ export default function StockPage() {
 		load();
 	}, [load]);
 
-	const filtered = stocks.filter(
-		(s) =>
-			(s.quantityOnHand ?? 0) > 0 &&
-			(!search ||
-				(s.materialName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-				(s.materialCode ?? '').toLowerCase().includes(search.toLowerCase()))
+	const filtered = useMemo(
+		() =>
+			stocks.filter(
+				(s) =>
+					(s.quantityOnHand ?? 0) > 0 &&
+					(!search ||
+						(s.materialName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+						(s.materialCode ?? '').toLowerCase().includes(search.toLowerCase()))
+			),
+		[stocks, search]
 	);
+
+	const stockColumns: ColumnDef<Stock>[] = [
+		{
+			id: 'material',
+			header: 'Material',
+			accessorFn: (row) => row.materialName ?? '',
+			cell: ({ row }) => (
+				<div>
+					<div className="font-medium">{row.original.materialName ?? '—'}</div>
+					<div className="text-xs text-muted-foreground">{row.original.materialCode ?? '—'}</div>
+				</div>
+			),
+			enableHiding: false,
+		},
+		{
+			id: 'warehouse',
+			header: 'Warehouse',
+			accessorFn: (row) => row.warehouseCode ?? '',
+			cell: ({ row }) => (
+				<div>
+					{row.original.warehouseCode ?? '—'}
+					<div className="text-xs text-muted-foreground">{row.original.warehouseLocation ?? ''}</div>
+				</div>
+			),
+		},
+		{
+			accessorKey: 'quantityOnHand',
+			header: () => <div className="w-full text-right">On Hand</div>,
+			cell: ({ row }) => <div className="text-right">{(row.original.quantityOnHand ?? 0).toString()}</div>,
+		},
+		{
+			accessorKey: 'quantityAvailable',
+			header: () => <div className="w-full text-right">Available</div>,
+			cell: ({ row }) => <div className="text-right font-medium">{(row.original.quantityAvailable ?? 0).toString()}</div>,
+		},
+		{
+			accessorKey: 'quantityReserved',
+			header: () => <div className="w-full text-right">Reserved</div>,
+			cell: ({ row }) => <div className="text-right">{(row.original.quantityReserved ?? 0).toString()}</div>,
+		},
+		{
+			accessorKey: 'totalValue',
+			header: 'Valuation',
+			cell: ({ row }) => (
+				<div>
+					<Money amount={row.original.totalValue ?? 0} currency={row.original.currency} />
+					<div className="text-xs">{row.original.valuationMethod ?? '—'}</div>
+				</div>
+			),
+		},
+		{
+			id: 'status',
+			header: 'Status',
+			accessorFn: (row) => (row.belowReorderPoint || row.atOrBelowMinLevel ? 1 : 0),
+			cell: ({ row }) => (
+				<div>
+					{row.original.belowReorderPoint && <Badge className="bg-orange-100 text-orange-800 mr-1">Reorder</Badge>}
+					{row.original.atOrBelowMinLevel && <Badge className="bg-red-100 text-red-800">Low</Badge>}
+					{!row.original.belowReorderPoint && !row.original.atOrBelowMinLevel && <Badge variant="outline">OK</Badge>}
+				</div>
+			),
+		},
+		{
+			id: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="icon" className="text-muted-foreground size-8">
+							<IconDotsVertical />
+							<span className="sr-only">Open menu</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-40">
+						<DropdownMenuItem onSelect={() => setAdjustOpen(row.original.stockId)}>
+							Adjust
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			),
+		},
+	];
+
+	const stockTable = useTables<Stock>({
+		data: filtered,
+		columns: stockColumns,
+		pageSize: DEFAULT_TABLE_PAGE_SIZE,
+		sorting: [],
+		columnVisibility: {},
+		columnFilters: [],
+		getRowId: (row) => row.stockId.toString(),
+	});
+
+	const reorderColumns: ColumnDef<Stock>[] = [
+		{
+			id: 'material',
+			header: 'Material',
+			accessorFn: (row) => row.materialName ?? '',
+			cell: ({ row }) => (
+				<div>
+					<div className="font-medium">{row.original.materialName ?? '—'}</div>
+					<div className="text-xs text-muted-foreground">{row.original.materialCode ?? '—'}</div>
+				</div>
+			),
+			enableHiding: false,
+		},
+		{
+			id: 'warehouse',
+			header: 'Warehouse',
+			accessorFn: (row) => row.warehouseCode ?? '',
+			cell: ({ row }) => <div>{row.original.warehouseCode ?? row.original.warehouseId}</div>,
+		},
+		{
+			accessorKey: 'quantityAvailable',
+			header: () => <div className="w-full text-right">Available</div>,
+			cell: ({ row }) => <div className="text-right">{(row.original.quantityAvailable ?? 0).toString()}</div>,
+		},
+		{
+			accessorKey: 'reorderQuantity',
+			header: () => <div className="w-full text-right">Reorder Qty</div>,
+			cell: ({ row }) => <div className="text-right">{(row.original.reorderQuantity ?? 0).toString()}</div>,
+		},
+		{
+			id: 'actions',
+			header: 'Action',
+			cell: () => (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="icon" className="text-muted-foreground size-8">
+							<IconDotsVertical />
+							<span className="sr-only">Open menu</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem asChild>
+							<Link href="/retailer/purchase-orders/add">Create PO</Link>
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			),
+		},
+	];
+
+	const reorderTable = useTables<Stock>({
+		data: suggestions,
+		columns: reorderColumns,
+		pageSize: DEFAULT_TABLE_PAGE_SIZE,
+		sorting: [],
+		columnVisibility: {},
+		columnFilters: [],
+		getRowId: (row) => row.stockId.toString(),
+	});
+
+	const consignmentColumns: ColumnDef<ConsignmentStock>[] = [
+		{
+			id: 'material',
+			header: 'Material',
+			accessorFn: (row) => row.materialName ?? row.catalogName ?? '',
+			cell: ({ row }) => <div>{row.original.materialName ?? row.original.catalogName ?? '—'}</div>,
+			enableHiding: false,
+		},
+		{
+			accessorKey: 'supplierOrgName',
+			header: 'Supplier',
+			cell: ({ row }) => <div>{row.original.supplierOrgName ?? '—'}</div>,
+		},
+		{
+			accessorKey: 'catalogName',
+			header: 'Catalog',
+			cell: ({ row }) => <div>{row.original.catalogName ?? '—'}</div>,
+		},
+		{
+			accessorKey: 'variantValue',
+			header: 'Variant',
+			cell: ({ row }) => <div>{row.original.variantValue ?? '—'}</div>,
+		},
+		{
+			id: 'priceTier',
+			header: 'Price Tier',
+			accessorFn: (row) => row.priceTierName ?? '',
+			cell: ({ row }) => (
+				<div>{row.original.priceTierName ?? row.original.priceTierId ?? '—'}</div>
+			),
+		},
+		{
+			accessorKey: 'quantityOnHand',
+			header: () => <div className="w-full text-right">On Hand</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.quantityOnHand ?? 0}</div>,
+		},
+		{
+			accessorKey: 'quantityAvailable',
+			header: () => <div className="w-full text-right">Available</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.quantityAvailable ?? 0}</div>,
+		},
+		{
+			accessorKey: 'createdAt',
+			header: 'Created',
+			cell: ({ row }) => (
+				<div className="whitespace-nowrap">
+					{row.original.createdAt ? new Date(row.original.createdAt).toLocaleString() : '—'}
+				</div>
+			),
+		},
+		{
+			id: 'actions',
+			header: 'Actions',
+			cell: ({ row }) => (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="icon" className="text-muted-foreground size-8">
+							<IconDotsVertical />
+							<span className="sr-only">Open menu</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-40">
+						<DropdownMenuItem
+							onSelect={() => { setConsignmentAction({ c: row.original, type: 'receive' }); setConsignmentQty(''); }}
+						>
+							Receive
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onSelect={() => { setConsignmentAction({ c: row.original, type: 'consume' }); setConsignmentQty(''); }}
+						>
+							Consume
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onSelect={() => { setConsignmentAction({ c: row.original, type: 'return' }); setConsignmentQty(''); }}
+						>
+							Return
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			),
+		},
+	];
+
+	const consignmentTable = useTables<ConsignmentStock>({
+		data: consignments,
+		columns: consignmentColumns,
+		pageSize: DEFAULT_TABLE_PAGE_SIZE,
+		sorting: [],
+		columnVisibility: {},
+		columnFilters: [],
+		getRowId: (row) => row.consignmentId.toString(),
+	});
+
+	const vmiColumns: ColumnDef<VmiConfig>[] = [
+		{
+			id: 'material',
+			header: 'Material',
+			accessorFn: (row) => row.materialName ?? '',
+			cell: ({ row }) => <div>{row.original.materialName ?? '—'}</div>,
+			enableHiding: false,
+		},
+		{
+			accessorKey: 'supplierOrgName',
+			header: 'Supplier',
+			cell: ({ row }) => <div>{row.original.supplierOrgName ?? '—'}</div>,
+		},
+		{
+			id: 'catalog',
+			header: 'Catalog',
+			accessorFn: (row) => row.catalogName ?? '',
+			cell: ({ row }) => <div>{row.original.catalogName ?? row.original.catalogId ?? '—'}</div>,
+		},
+		{
+			id: 'variant',
+			header: 'Variant',
+			accessorFn: (row) => row.variantValue ?? '',
+			cell: ({ row }) => <div>{row.original.variantValue ?? row.original.variantId ?? '—'}</div>,
+		},
+		{
+			id: 'priceTier',
+			header: 'Price Tier',
+			accessorFn: (row) => row.priceTierName ?? '',
+			cell: ({ row }) => (
+				<div>{row.original.priceTierName ?? row.original.priceTierId ?? '—'}</div>
+			),
+		},
+		{
+			accessorKey: 'minLevel',
+			header: () => <div className="w-full text-right">Min</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.minLevel ?? 0}</div>,
+		},
+		{
+			accessorKey: 'maxLevel',
+			header: () => <div className="w-full text-right">Max</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.maxLevel ?? 0}</div>,
+		},
+		{
+			accessorKey: 'reorderPoint',
+			header: () => <div className="w-full text-right">Reorder Point</div>,
+			cell: ({ row }) => <div className="text-right">{row.original.reorderPoint ?? 0}</div>,
+		},
+		{
+			id: 'autoReplenish',
+			header: 'Auto Replenish',
+			accessorFn: (row) => (row.autoReplenish ? 'Yes' : 'No'),
+			cell: ({ row }) => <div>{row.original.autoReplenish ? 'Yes' : 'No'}</div>,
+		},
+		{
+			accessorKey: 'createdAt',
+			header: 'Created',
+			cell: ({ row }) => (
+				<div className="whitespace-nowrap">
+					{row.original.createdAt ? new Date(row.original.createdAt).toLocaleString() : '—'}
+				</div>
+			),
+		},
+	];
+
+	const vmiTable = useTables<VmiConfig>({
+		data: vmis,
+		columns: vmiColumns,
+		pageSize: DEFAULT_TABLE_PAGE_SIZE,
+		sorting: [],
+		columnVisibility: {},
+		columnFilters: [],
+		getRowId: (row) => row.vmiId.toString(),
+	});
+
+	// Stock row picked by the shared Adjust dialog (id saved from the row action).
+	const adjustTarget = stocks.find((s) => s.stockId === adjustOpen) ?? null;
 
 	if (isLoading)
 		return (
@@ -199,95 +566,14 @@ export default function StockPage() {
 							<SelectContent>
 								<SelectItem value="all">All</SelectItem>
 								<SelectItem value="below">Below Reorder</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-					<div className="rounded-lg border overflow-hidden">
-						<Table>
-							<TableHeader className="bg-muted">
-								<TableRow>
-									<TableHead>Material</TableHead>
-									<TableHead>Warehouse</TableHead>
-									<TableHead className="text-right">On Hand</TableHead>
-									<TableHead className="text-right">Available</TableHead>
-									<TableHead className="text-right">Reserved</TableHead>
-									<TableHead>Valuation</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{filtered.map((s) => (
-									<TableRow key={s.stockId}>
-										<TableCell>
-											<div className="font-medium">{s.materialName ?? '—'}</div>
-											<div className="text-xs text-muted-foreground">{s.materialCode ?? '—'}</div>
-										</TableCell>
-										<TableCell>
-											{s.warehouseCode ?? '—'}
-											<div className="text-xs text-muted-foreground">{s.warehouseLocation ?? ''}</div>
-										</TableCell>
-										<TableCell className="text-right">{(s.quantityOnHand ?? 0).toString()}</TableCell>
-										<TableCell className="text-right font-medium">{(s.quantityAvailable ?? 0).toString()}</TableCell>
-										<TableCell className="text-right">{(s.quantityReserved ?? 0).toString()}</TableCell>
-										<TableCell>
-											<Money amount={s.totalValue ?? 0} currency={s.currency} />
-											<div className="text-xs">{s.valuationMethod ?? '—'}</div>
-										</TableCell>
-										<TableCell>
-											{s.belowReorderPoint && <Badge className="bg-orange-100 text-orange-800 mr-1">Reorder</Badge>}
-											{s.atOrBelowMinLevel && <Badge className="bg-red-100 text-red-800">Low</Badge>}
-											{!s.belowReorderPoint && !s.atOrBelowMinLevel && <Badge variant="outline">OK</Badge>}
-										</TableCell>
-										<TableCell>
-											<Dialog open={adjustOpen === s.stockId} onOpenChange={(v) => setAdjustOpen(v ? s.stockId : null)}>
-												<DialogTrigger asChild>
-													<Button variant="outline" size="sm">Adjust</Button>
-												</DialogTrigger>
-												<DialogContent>
-													<DialogHeader>
-														<DialogTitle>Adjust Stock — {s.materialCode}</DialogTitle>
-													</DialogHeader>
-													<div className="grid gap-6">
-														<div className="grid gap-2">
-															<Label>Quantity</Label>
-															<Input type="number" placeholder="e.g. 10 (positive) or -5" value={adjustForm.quantity} onChange={setAdjust('quantity')} />
-														</div>
-														<div className="grid gap-2">
-															<Label>Reason</Label>
-															<Textarea placeholder="e.g. Cycle count correction" value={adjustForm.reason} onChange={setAdjust('reason')} />
-														</div>
-														<div className="grid grid-cols-2 gap-3">
-															<div className="grid gap-2">
-																<Label>Reference Type</Label>
-																<Input placeholder="e.g. MANUAL" value={adjustForm.referenceType} onChange={setAdjust('referenceType')} />
-															</div>
-															<div className="grid gap-2">
-																<Label>Reference ID</Label>
-																<Input placeholder="e.g. 0" value={adjustForm.referenceId} onChange={setAdjust('referenceId')} />
-															</div>
-														</div>
-														<Button onClick={() => handleAdjust(s.stockId)} disabled={adjusting}>{adjusting ? 'Adjusting...' : 'Apply Adjustment'}</Button>
-													</div>
-												</DialogContent>
-											</Dialog>
-										</TableCell>
-									</TableRow>
-								))}
-								{filtered.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No stock found</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
-					</div>
-					<div className="flex items-center justify-between">
-						<Button variant="outline" size="sm" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Previous</Button>
-						<span className="text-sm">Page {page + 1} of {Math.max(1, totalPages)}</span>
-						<Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-					</div>
-				</TabsContent>
+						</SelectContent>
+					</Select>
+				</div>
+				<CentralizedDataTable
+					table={stockTable}
+					emptyMessage="No stock found"
+				/>
+			</TabsContent>
 
 				<TabsContent value="warehouses" className="space-y-4">
 					<Card className="p-4 gap-2">
@@ -345,32 +631,10 @@ export default function StockPage() {
 							<Card key={w.warehouseId} className="p-3 gap-2">
 								<CardHeader className="p-0">
 									<CardTitle className="text-sm">{w.warehouseCode ?? w.warehouseId} {w.warehouseLocation ? `— ${w.warehouseLocation}` : ''}</CardTitle>
-								</CardHeader>
-								<CardContent className="p-0">
-									<Table>
-										<TableHeader className="bg-muted">
-											<TableRow>
-												<TableHead>Material</TableHead>
-												<TableHead className="text-right">On Hand</TableHead>
-												<TableHead className="text-right">Available</TableHead>
-												<TableHead className="text-right">Reserved</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{w.items.map((s) => (
-												<TableRow key={s.stockId}>
-													<TableCell>
-														<div className="font-medium">{s.materialName ?? '—'}</div>
-														<div className="text-xs text-muted-foreground">{s.materialCode ?? ''}</div>
-													</TableCell>
-													<TableCell className="text-right">{s.quantityOnHand ?? 0}</TableCell>
-													<TableCell className="text-right">{s.quantityAvailable ?? 0}</TableCell>
-													<TableCell className="text-right">{s.quantityReserved ?? 0}</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								</CardContent>
+					</CardHeader>
+					<CardContent className="p-0">
+						<WarehouseStockList stocks={w.items} />
+					</CardContent>
 							</Card>
 						))}
 					</div>
@@ -384,102 +648,27 @@ export default function StockPage() {
 						</CardHeader>
 						<CardContent className="p-0">
 							{suggestions.length === 0 ? (
-								<p className="text-sm text-muted-foreground">No items below reorder point.</p>
-							) : (
-								<div className="rounded-lg border overflow-hidden">
-									<Table>
-										<TableHeader className="bg-muted">
-											<TableRow>
-												<TableHead>Material</TableHead>
-												<TableHead>Warehouse</TableHead>
-												<TableHead className="text-right">Available</TableHead>
-												<TableHead className="text-right">Reorder Qty</TableHead>
-												<TableHead>Action</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{suggestions.map((s) => (
-												<TableRow key={s.stockId}>
-													<TableCell>
-														<div className="font-medium">{s.materialName ?? '—'}</div>
-														<div className="text-xs text-muted-foreground">{s.materialCode ?? '—'}</div>
-													</TableCell>
-													<TableCell>{s.warehouseCode ?? s.warehouseId}</TableCell>
-													<TableCell className="text-right">{(s.quantityAvailable ?? 0).toString()}</TableCell>
-													<TableCell className="text-right">{(s.reorderQuantity ?? 0).toString()}</TableCell>
-													<TableCell>
-														<Link href="/retailer/purchase-orders/add"><Button variant="outline" size="sm">Create PO</Button></Link>
-													</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								</div>
-							)}
-							<div className="flex items-center justify-between mt-2">
-								<Button variant="outline" size="sm" disabled={reorderPage <= 0} onClick={() => setReorderPage((p) => Math.max(0, p - 1))}>Previous</Button>
-								<span className="text-sm">Page {reorderPage + 1} of {Math.max(1, reorderTotalPages)}</span>
-								<Button variant="outline" size="sm" disabled={reorderPage + 1 >= reorderTotalPages} onClick={() => setReorderPage((p) => p + 1)}>Next</Button>
-							</div>
-						</CardContent>
-					</Card>
-				</TabsContent>
+							<p className="text-sm text-muted-foreground">No items below reorder point.</p>
+						) : (
+							<CentralizedDataTable
+								table={reorderTable}
+								emptyMessage="No items below reorder point"
+							/>
+						)}
+					</CardContent>
+				</Card>
+			</TabsContent>
 
 				<TabsContent value="consignment" className="space-y-4">
 					<Card className="p-4 gap-2">
-						<CardHeader className="p-0"><CardTitle>Consignment Stock (Retailer)</CardTitle></CardHeader>
-						<CardContent className="p-0">
-							<Table>
-								<TableHeader className="bg-muted">
-									<TableRow>
-										<TableHead>Material</TableHead>
-										<TableHead>Supplier</TableHead>
-										<TableHead>Catalog</TableHead>
-										<TableHead>Variant</TableHead>
-										<TableHead>Price Tier</TableHead>
-										<TableHead className="text-right">On Hand</TableHead>
-										<TableHead className="text-right">Available</TableHead>
-										<TableHead>Created</TableHead>
-										<TableHead>Actions</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{consignments.map((r) => (
-										<TableRow key={r.consignmentId}>
-											<TableCell>{r.materialName ?? r.catalogName ?? '—'}</TableCell>
-											<TableCell>{r.supplierOrgName ?? '—'}</TableCell>
-											<TableCell>{r.catalogName ?? '—'}</TableCell>
-											<TableCell>{r.variantValue ?? '—'}</TableCell>
-											<TableCell>{r.priceTierName ?? r.priceTierId ?? '—'}</TableCell>
-											<TableCell className="text-right">{r.quantityOnHand ?? 0}</TableCell>
-											<TableCell className="text-right">{r.quantityAvailable ?? 0}</TableCell>
-											<TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
-											<TableCell>
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button variant="ghost" size="icon">
-															<MoreVertical className="h-4 w-4" />
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end">
-														<DropdownMenuItem onClick={() => { setConsignmentAction({ c: r, type: 'receive' }); setConsignmentQty(''); }}>
-															Receive
-														</DropdownMenuItem>
-														<DropdownMenuItem onClick={() => { setConsignmentAction({ c: r, type: 'consume' }); setConsignmentQty(''); }}>
-															Consume
-														</DropdownMenuItem>
-														<DropdownMenuItem onClick={() => { setConsignmentAction({ c: r, type: 'return' }); setConsignmentQty(''); }}>
-															Return
-														</DropdownMenuItem>
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
-										</TableRow>
-									))}
-									{consignments.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-8">No consignment stock</TableCell></TableRow>}
-								</TableBody>
-							</Table>
-						</CardContent>
+						<CardHeader className="p-0"><CardTitle>Consignment Stock (Retailer)</CardTitle>
+					</CardHeader>
+					<CardContent className="p-0">
+						<CentralizedDataTable
+							table={consignmentTable}
+							emptyMessage="No consignment stock"
+						/>
+					</CardContent>
 					</Card>
 
 					<Dialog open={!!consignmentAction} onOpenChange={(v) => !v && setConsignmentAction(null)}>
@@ -523,45 +712,50 @@ export default function StockPage() {
 
 				<TabsContent value="vmi" className="space-y-4">
 					<Card className="p-4 gap-2">
-						<CardHeader className="p-0"><CardTitle>VMI (Retailer)</CardTitle></CardHeader>
-						<CardContent className="p-0">
-							<Table>
-								<TableHeader className="bg-muted">
-									<TableRow>
-										<TableHead>Material</TableHead>
-										<TableHead>Supplier</TableHead>
-										<TableHead>Catalog</TableHead>
-										<TableHead>Variant</TableHead>
-										<TableHead>Price Tier</TableHead>
-										<TableHead className="text-right">Min</TableHead>
-										<TableHead className="text-right">Max</TableHead>
-										<TableHead className="text-right">Reorder Point</TableHead>
-										<TableHead>Auto Replenish</TableHead>
-										<TableHead>Created</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{vmis.map((r) => (
-										<TableRow key={r.vmiId}>
-											<TableCell>{r.materialName ?? '—'}</TableCell>
-											<TableCell>{r.supplierOrgName ?? '—'}</TableCell>
-											<TableCell>{r.catalogName ?? r.catalogId ?? '—'}</TableCell>
-											<TableCell>{r.variantValue ?? r.variantId ?? '—'}</TableCell>
-											<TableCell>{r.priceTierName ?? r.priceTierId ?? '—'}</TableCell>
-											<TableCell className="text-right">{r.minLevel ?? 0}</TableCell>
-											<TableCell className="text-right">{r.maxLevel ?? 0}</TableCell>
-											<TableCell className="text-right">{r.reorderPoint ?? 0}</TableCell>
-											<TableCell>{r.autoReplenish ? 'Yes' : 'No'}</TableCell>
-											<TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</TableCell>
-										</TableRow>
-									))}
-									{vmis.length === 0 && <TableRow><TableCell colSpan={10} className="text-center py-8">No VMI configs</TableCell></TableRow>}
-								</TableBody>
-							</Table>
-						</CardContent>
+						<CardHeader className="p-0"><CardTitle>VMI (Retailer)</CardTitle>
+					</CardHeader>
+					<CardContent className="p-0">
+						<CentralizedDataTable
+							table={vmiTable}
+							emptyMessage="No VMI configs"
+						/>
+					</CardContent>
 					</Card>
 				</TabsContent>
 			</Tabs>
+
+			<Dialog open={adjustOpen !== null} onOpenChange={(v) => !v && setAdjustOpen(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>
+							Adjust Stock — {adjustTarget?.materialCode ?? ''}
+						</DialogTitle>
+					</DialogHeader>
+					{adjustTarget && (
+						<div className="grid gap-6">
+							<div className="grid gap-2">
+								<Label>Quantity</Label>
+								<Input type="number" placeholder="e.g. 10 (positive) or -5" value={adjustForm.quantity} onChange={setAdjust('quantity')} />
+							</div>
+							<div className="grid gap-2">
+								<Label>Reason</Label>
+								<Textarea placeholder="e.g. Cycle count correction" value={adjustForm.reason} onChange={setAdjust('reason')} />
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<div className="grid gap-2">
+									<Label>Reference Type</Label>
+									<Input placeholder="e.g. MANUAL" value={adjustForm.referenceType} onChange={setAdjust('referenceType')} />
+								</div>
+								<div className="grid gap-2">
+									<Label>Reference ID</Label>
+									<Input placeholder="e.g. 0" value={adjustForm.referenceId} onChange={setAdjust('referenceId')} />
+								</div>
+							</div>
+							<Button onClick={() => handleAdjust(adjustTarget.stockId)} disabled={adjusting}>{adjusting ? 'Adjusting...' : 'Apply Adjustment'}</Button>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

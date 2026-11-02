@@ -1,18 +1,13 @@
 'use client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { getSupplierRisks } from '@/lib/services/supplier-risk-service';
 import type { SupplierRisk } from '@/types/supplier-risk';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 
 const LEVEL_COLOR: Record<string, string> = {
     LOW: 'bg-green-100 text-green-800',
@@ -35,7 +30,11 @@ export default function RiskPage() {
         let a = true;
         (async () => {
             try {
-                const r = await getSupplierRisks({ pageNo: 0, pageOffset: 20 });
+                const r = await getSupplierRisks({
+                    pageNo: 0,
+                    // Sufficient for the centralized table (client-side paging).
+                    pageOffset: 100,
+                });
                 if (!a) return;
                 setData(r.content);
             } catch (e) {
@@ -48,6 +47,72 @@ export default function RiskPage() {
             a = false;
         };
     }, []);
+
+    const columns: ColumnDef<SupplierRisk>[] = [
+        {
+            id: 'supplier',
+            header: 'Supplier',
+            accessorFn: (row) => row.supplierName ?? row.supplierId,
+            cell: ({ row }) => (
+                <div>{row.original.supplierName || row.original.supplierId}</div>
+            ),
+            enableHiding: false,
+        },
+        {
+            accessorKey: 'riskCategory',
+            header: 'Category',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.riskCategory}</Badge>
+            ),
+        },
+        {
+            accessorKey: 'riskLevel',
+            header: 'Level',
+            cell: ({ row }) => (
+                <Badge className={LEVEL_COLOR[row.original.riskLevel]}>
+                    {row.original.riskLevel}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'riskStatus',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge className={STATUS_COLOR[row.original.riskStatus]}>
+                    {row.original.riskStatus}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'riskScore',
+            header: () => <div className="w-full text-right">Score</div>,
+            cell: ({ row }) => (
+                <div className="text-right">{row.original.riskScore}</div>
+            ),
+        },
+        {
+            accessorKey: 'nextReviewDate',
+            header: 'Next Review',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.nextReviewDate
+                        ? new Date(row.original.nextReviewDate).toLocaleDateString()
+                        : '—'}
+                </div>
+            ),
+        },
+    ];
+
+    const table = useTables<SupplierRisk>({
+        data,
+        columns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row) => row.riskId.toString(),
+    });
+
     if (isLoading)
         return (
             <div className="p-6">
@@ -62,66 +127,7 @@ export default function RiskPage() {
                     Risk categories & mitigation · FR-RET-024
                 </p>
             </div>
-            <div className="rounded-lg border overflow-hidden">
-                <Table>
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead>Supplier</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Level</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Score</TableHead>
-                            <TableHead>Next Review</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {data.map((r) => (
-                            <TableRow key={r.riskId}>
-                                <TableCell>
-                                    {r.supplierName || r.supplierId}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline">
-                                        {r.riskCategory}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge className={LEVEL_COLOR[r.riskLevel]}>
-                                        {r.riskLevel}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        className={STATUS_COLOR[r.riskStatus]}
-                                    >
-                                        {r.riskStatus}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {r.riskScore}
-                                </TableCell>
-                                <TableCell>
-                                    {r.nextReviewDate
-                                        ? new Date(
-                                              r.nextReviewDate
-                                          ).toLocaleDateString()
-                                        : '—'}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {data.length === 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={6}
-                                    className="text-center py-8"
-                                >
-                                    No risks
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+            <CentralizedDataTable table={table} emptyMessage="No risks" />
         </div>
     );
 }

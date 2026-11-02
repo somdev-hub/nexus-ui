@@ -1,7 +1,6 @@
 'use client';
 
 import { PurchaseOrderTable } from '@/components/purchase-order-table';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
     Select,
     SelectContent,
@@ -9,12 +8,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { TablePagination } from '@/components/ui/table-pagination';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getPurchaseOrders } from '@/lib/services/purchase-orders-service';
+import type { PaginatedResponse } from '@/types/paginated-response';
+import type { PurchaseOrder } from '@/types/purchase-orders';
 import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import { toast } from 'sonner';
-import type { PurchaseOrder } from '@/types/purchase-orders';
-import type { PaginatedResponse } from '@/types/paginated-response';
 
 const STATUSES = [
     'DRAFT',
@@ -32,7 +31,9 @@ const STATUSES = [
     'CLOSED',
 ];
 
-const PAGE_SIZE = 20;
+// Fetch a larger batch so the centralized table (inside PurchaseOrderTable)
+// can paginate client-side; the page itself no longer renders pagination.
+const PAGE_SIZE = 100;
 
 export default function Page() {
     const [data, setData] = useState<PaginatedResponse<PurchaseOrder> | null>(
@@ -40,14 +41,13 @@ export default function Page() {
     );
     const [isLoading, setIsLoading] = useState(true);
     const [status, setStatus] = useState('all');
-    const [pageNo, setPageNo] = useState(0);
 
     const load = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await getPurchaseOrders({
                 status: status === 'all' ? undefined : status,
-                page: pageNo,
+                page: 0,
                 size: PAGE_SIZE,
             });
             setData(res);
@@ -60,7 +60,7 @@ export default function Page() {
         } finally {
             setIsLoading(false);
         }
-    }, [status, pageNo]);
+    }, [status]);
 
     useEffect(() => {
         load();
@@ -70,7 +70,7 @@ export default function Page() {
         return (
             <div className="flex flex-1 flex-col p-4 md:p-6 gap-4">
                 <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-[400px] w-full" />
+                <Skeleton className="h-100 w-full" />
             </div>
         );
     }
@@ -81,7 +81,7 @@ export default function Page() {
         <>
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
-                    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+                    <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h1 className="text-2xl font-bold">
@@ -94,10 +94,7 @@ export default function Page() {
                             </div>
                             <Select
                                 value={status}
-                                onValueChange={(v) => {
-                                    setStatus(v);
-                                    setPageNo(0);
-                                }}
+                                onValueChange={setStatus}
                             >
                                 <SelectTrigger className="w-full md:w-56">
                                     <SelectValue placeholder="All statuses" />
@@ -121,26 +118,6 @@ export default function Page() {
                                 >['purchaseOrders']
                             }
                         />
-                        <div className="flex items-center justify-between gap-4">
-                            <span className="text-sm text-muted-foreground">
-                                {data?.totalElements ?? 0} order(s)
-                            </span>
-                            <TablePagination
-                                pageIndex={pageNo}
-                                pageCount={data?.totalPages ?? 0}
-                                canPreviousPage={pageNo > 0}
-                                canNextPage={data ? !data.last : false}
-                                onPageChange={setPageNo}
-                                onPreviousPage={() =>
-                                    setPageNo((p) => Math.max(0, p - 1))
-                                }
-                                onNextPage={() => setPageNo((p) => p + 1)}
-                                showFirstLast={false}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                                Page {pageNo + 1} of {data?.totalPages ?? 1}
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>

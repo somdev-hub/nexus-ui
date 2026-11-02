@@ -13,6 +13,7 @@ import {
 import { Info, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ShipmentMap from '@/components/shipment-map';
+import PartialShipmentDialog from '@/components/supplier-handover-dialog';
 import type { ShipmentEta } from '@/types/logistics-ops';
 import {
     Dialog,
@@ -22,7 +23,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
     TableBody,
@@ -153,7 +153,9 @@ export default function SupplierShipmentsPage() {
     const { toast } = useToast();
     const [data, setData] =
         useState<PaginatedResponse<SupplierShipment> | null>(null);
-    const [coreShipments, setCoreShipments] = useState<any[]>([]);
+    const [coreShipments, setCoreShipments] = useState<SupplierShipment[]>([]);
+    const [handoverShipment, setHandoverShipment] =
+        useState<SupplierShipment | null>(null);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
     const [viewing, setViewing] = useState<SupplierShipment | null>(null);
@@ -183,10 +185,18 @@ export default function SupplierShipmentsPage() {
                 });
                 setData(ships);
                 try {
-                    const res = await apiClient.get<any>('/iam/core/supplier/core-shipments?size=100');
+                    const res = await apiClient.get<
+                        PaginatedResponse<SupplierShipment> | SupplierShipment[]
+                    >('/iam/core/supplier/core-shipments?size=100');
                     const d = res.data;
                     const list = Array.isArray(d) ? d : (d.content ?? []);
-                    setCoreShipments(list.filter((s: any) => s.referenceType === 'CONSIGNMENT_FILL' || s.referenceType === 'VMI_REPLENISHMENT'));
+                    setCoreShipments(
+                        list.filter(
+                            (s) =>
+                                s.referenceType === 'CONSIGNMENT_FILL' ||
+                                s.referenceType === 'VMI_REPLENISHMENT'
+                        )
+                    );
                 } catch {
                     setCoreShipments([]);
                 }
@@ -232,8 +242,9 @@ export default function SupplierShipmentsPage() {
                         Every shipment prepared from your orders with the full
                         detail captured at partial-ship and handover time.{' '}
                         <br />
-                        Hand shipments over from an acknowledged order —
-                        delivery is owned by the supplier.
+                        Hand shipments over from an acknowledged order or a
+                        prepared consignment/VMI core shipment — delivery is
+                        owned by the supplier.
                     </p>
                 </div>
                 <Button variant="outline" asChild className="shrink-0">
@@ -437,15 +448,27 @@ export default function SupplierShipmentsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <Button size="sm" variant="outline" asChild>
-                                                <Link href={`/retailer/shipments/${s.shipmentId}`}>View</Link>
-                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button size="sm" variant="outline" asChild>
+                                                    <Link href={`/retailer/shipments/${s.shipmentId}`}>View</Link>
+                                                </Button>
+                                                {s.status === 'DRAFT' && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setHandoverShipment(s)
+                                                        }
+                                                    >
+                                                        Handover
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {coreShipments.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                             No core shipments
                                         </TableCell>
                                     </TableRow>
@@ -778,6 +801,18 @@ export default function SupplierShipmentsPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            <PartialShipmentDialog
+                shipment={handoverShipment}
+                open={handoverShipment !== null}
+                onOpenChange={(v) => {
+                    if (!v) setHandoverShipment(null);
+                }}
+                onHandedOver={() => {
+                    setHandoverShipment(null);
+                    load(0);
+                }}
+            />
         </div>
     );
 }

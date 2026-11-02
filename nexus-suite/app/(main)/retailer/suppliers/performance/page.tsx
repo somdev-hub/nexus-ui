@@ -1,18 +1,13 @@
 'use client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { getSupplierPerformances } from '@/lib/services/supplier-performance-service';
 import type { SupplierPerformance } from '@/types/supplier-performance';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 
 const TIER_COLOR: Record<string, string> = {
     EXCELLENT: 'bg-green-100 text-green-800',
@@ -31,7 +26,8 @@ export default function PerformancePage() {
             try {
                 const r = await getSupplierPerformances({
                     pageNo: 0,
-                    pageOffset: 20,
+                    // Sufficient for the centralized table (client-side paging).
+                    pageOffset: 100,
                 });
                 if (!a) return;
                 setData(r.content);
@@ -45,6 +41,84 @@ export default function PerformancePage() {
             a = false;
         };
     }, []);
+
+    const right = (label: string): NonNullable<ColumnDef<SupplierPerformance>['header']> =>
+        function PerformanceHeader() {
+            return <div className="w-full text-right">{label}</div>;
+        };
+
+    const columns: ColumnDef<SupplierPerformance>[] = [
+        {
+            id: 'supplier',
+            header: 'Supplier',
+            accessorFn: (row) => row.supplierName ?? row.supplierId,
+            cell: ({ row }) => (
+                <div>{row.original.supplierName || row.original.supplierId}</div>
+            ),
+            enableHiding: false,
+        },
+        {
+            accessorKey: 'otifScore',
+            header: right('OTIF'),
+            cell: ({ row }) => (
+                <div className="text-right">{row.original.otifScore}%</div>
+            ),
+        },
+        {
+            accessorKey: 'qualityDefectRate',
+            header: right('Defect %'),
+            cell: ({ row }) => (
+                <div className="text-right">
+                    {row.original.qualityDefectRate}%
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'avgLeadTimeDays',
+            header: right('Lead Days'),
+            cell: ({ row }) => (
+                <div className="text-right">{row.original.avgLeadTimeDays}</div>
+            ),
+        },
+        {
+            accessorKey: 'responsivenessScore',
+            header: right('Responsiveness'),
+            cell: ({ row }) => (
+                <div className="text-right">
+                    {row.original.responsivenessScore}%
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'overallScore',
+            header: right('Overall'),
+            cell: ({ row }) => (
+                <div className="text-right font-bold">
+                    {row.original.overallScore}%
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'performanceTier',
+            header: 'Tier',
+            cell: ({ row }) => (
+                <Badge className={TIER_COLOR[row.original.performanceTier]}>
+                    {row.original.performanceTier}
+                </Badge>
+            ),
+        },
+    ];
+
+    const table = useTables<SupplierPerformance>({
+        data,
+        columns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row) => row.performanceId.toString(),
+    });
+
     if (isLoading)
         return (
             <div className="p-6">
@@ -59,72 +133,10 @@ export default function PerformancePage() {
                     OTIF · Quality · Lead Time · Responsiveness · FR-RET-022
                 </p>
             </div>
-            <div className="rounded-lg border overflow-hidden">
-                <Table>
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead>Supplier</TableHead>
-                            <TableHead className="text-right">OTIF</TableHead>
-                            <TableHead className="text-right">
-                                Defect %
-                            </TableHead>
-                            <TableHead className="text-right">
-                                Lead Days
-                            </TableHead>
-                            <TableHead className="text-right">
-                                Responsiveness
-                            </TableHead>
-                            <TableHead className="text-right">
-                                Overall
-                            </TableHead>
-                            <TableHead>Tier</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {data.map((p) => (
-                            <TableRow key={p.performanceId}>
-                                <TableCell>
-                                    {p.supplierName || p.supplierId}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {p.otifScore}%
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {p.qualityDefectRate}%
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {p.avgLeadTimeDays}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {p.responsivenessScore}%
-                                </TableCell>
-                                <TableCell className="text-right font-bold">
-                                    {p.overallScore}%
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        className={
-                                            TIER_COLOR[p.performanceTier]
-                                        }
-                                    >
-                                        {p.performanceTier}
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {data.length === 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={7}
-                                    className="text-center py-8"
-                                >
-                                    No performance records
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+            <CentralizedDataTable
+                table={table}
+                emptyMessage="No performance records"
+            />
         </div>
     );
 }

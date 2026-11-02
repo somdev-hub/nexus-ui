@@ -1,34 +1,11 @@
 'use client';
 
-import * as React from 'react';
-import {
-    getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type ColumnDef,
-    type ColumnFiltersState,
-    type SortingState,
-    type VisibilityState,
-} from '@tanstack/react-table';
-import { flexRender } from '@tanstack/react-table';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
-import { toast } from 'sonner';
 import { z } from 'zod';
+import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-    type ChartConfig,
-} from '@/components/ui/chart';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Drawer,
     DrawerClose,
@@ -57,16 +34,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TablePagination } from './ui/table-pagination';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    type ChartConfig,
+} from '@/components/ui/chart';
 import {
     IconChevronDown,
     IconCircleCheckFilled,
@@ -88,34 +65,6 @@ export const schema = z.object({
 });
 
 const columns: ColumnDef<z.infer<typeof schema>>[] = [
-    {
-        id: 'select',
-        header: ({ table }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={
-                        table.getIsAllPageRowsSelected() ||
-                        (table.getIsSomePageRowsSelected() && 'indeterminate')
-                    }
-                    onCheckedChange={(value) =>
-                        table.toggleAllPageRowsSelected(!!value)
-                    }
-                    aria-label="Select all"
-                />
-            </div>
-        ),
-        cell: ({ row }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    aria-label="Select row"
-                />
-            </div>
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
     {
         accessorKey: 'header',
         header: 'Items',
@@ -238,41 +187,17 @@ export function DataTable({
 }: {
     data: z.infer<typeof schema>[];
 }) {
-    const [data, setData] = React.useState(() => initialData);
-    const [rowSelection, setRowSelection] = React.useState({});
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({});
-    const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([]);
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: 10,
-    });
-
-    const table = useReactTable({
-        data,
+    const table = useTables<z.infer<typeof schema>>({
+        data: initialData,
         columns,
-        state: {
-            sorting,
-            columnVisibility,
-            rowSelection,
-            columnFilters,
-            pagination,
-        },
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        pageIndex: 0,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        enablePagination: true,
+        enableSorting: true,
         getRowId: (row) => row.id.toString(),
-        enableRowSelection: true,
-        onRowSelectionChange: setRowSelection,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        onPaginationChange: setPagination,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
     });
 
     return (
@@ -330,8 +255,7 @@ export function DataTable({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            {table
-                                .getAllColumns()
+                            {table.getAllColumns()
                                 .filter(
                                     (column) =>
                                         typeof column.accessorFn !==
@@ -363,144 +287,25 @@ export function DataTable({
                 value="outline"
                 className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
             >
-                <div className="overflow-hidden rounded-lg border">
-                    <Table>
-                        <TableHeader className="bg-muted sticky top-0 z-10">
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    {headerGroup.headers.map((header) => {
-                                        return (
-                                            <TableHead
-                                                key={header.id}
-                                                colSpan={header.colSpan}
-                                            >
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                          header.column
-                                                              .columnDef.header,
-                                                          header.getContext()
-                                                      )}
-                                            </TableHead>
-                                        );
-                                    })}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                            {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={
-                                            row.getIsSelected() && 'selected'
-                                        }
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
-                                                {flexRender(
-                                                    cell.column.columnDef.cell,
-                                                    cell.getContext()
-                                                )}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={columns.length}
-                                        className="h-24 text-center"
-                                    >
-                                        No results.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-                <div className="flex items-center justify-between gap-4 px-4">
-                    <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                        {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                        {table.getFilteredRowModel().rows.length} row(s)
-                        selected.
-                    </div>
-                    <div className="flex flex-1 items-center justify-center">
-                        <TablePagination
-                            pageIndex={table.getState().pagination.pageIndex}
-                            pageCount={table.getPageCount()}
-                            canPreviousPage={table.getCanPreviousPage()}
-                            canNextPage={table.getCanNextPage()}
-                            onPageChange={(index) => table.setPageIndex(index)}
-                            onPreviousPage={() => table.previousPage()}
-                            onNextPage={() => table.nextPage()}
-                            onFirstPage={() => table.setPageIndex(0)}
-                            onLastPage={() =>
-                                table.setPageIndex(table.getPageCount() - 1)
-                            }
-                        />
-                    </div>
-                    <div className="flex flex-1 items-center justify-end gap-4">
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="hidden items-center gap-2 lg:flex">
-                            <Label
-                                htmlFor="rows-per-page"
-                                className="shrink-0 text-sm font-medium whitespace-nowrap"
-                            >
-                                Rows per page
-                            </Label>
-                            <Select
-                                value={`${table.getState().pagination.pageSize}`}
-                                onValueChange={(value) => {
-                                    table.setPageSize(Number(value));
-                                }}
-                            >
-                                <SelectTrigger
-                                    size="sm"
-                                    className="w-full"
-                                    id="rows-per-page"
-                                >
-                                    <SelectValue
-                                        placeholder={
-                                            table.getState().pagination.pageSize
-                                        }
-                                    />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                                        <SelectItem
-                                            key={pageSize}
-                                            value={`${pageSize}`}
-                                        >
-                                            {pageSize}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
+                <CentralizedDataTable table={table} emptyMessage="No results." />
             </TabsContent>
             <TabsContent
                 value="past-performance"
                 className="flex flex-col px-4 lg:px-6"
             >
-                <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
+                <div className="aspect-video w-full flex-1 rounded-lg border border-dashed" />
             </TabsContent>
             <TabsContent
                 value="key-personnel"
                 className="flex flex-col px-4 lg:px-6"
             >
-                <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
+                <div className="aspect-video w-full flex-1 rounded-lg border border-dashed" />
             </TabsContent>
             <TabsContent
                 value="focus-documents"
                 className="flex flex-col px-4 lg:px-6"
             >
-                <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
+                <div className="aspect-video w-full flex-1 rounded-lg border border-dashed" />
             </TabsContent>
         </Tabs>
     );
@@ -618,7 +423,10 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                             <div className="flex flex-col gap-3">
                                 <Label htmlFor="type">Type</Label>
                                 <Select defaultValue={item.type}>
-                                    <SelectTrigger id="type" className="w-full">
+                                    <SelectTrigger
+                                        id="type"
+                                        className="w-full"
+                                    >
                                         <SelectValue placeholder="Select a type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -631,18 +439,14 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                                         <SelectItem value="Technical Approach">
                                             Technical Approach
                                         </SelectItem>
-                                        <SelectItem value="Design">
-                                            Design
-                                        </SelectItem>
+                                        <SelectItem value="Design">Design</SelectItem>
                                         <SelectItem value="Capabilities">
                                             Capabilities
                                         </SelectItem>
                                         <SelectItem value="Focus Documents">
                                             Focus Documents
                                         </SelectItem>
-                                        <SelectItem value="Narrative">
-                                            Narrative
-                                        </SelectItem>
+                                        <SelectItem value="Narrative">Narrative</SelectItem>
                                         <SelectItem value="Cover Page">
                                             Cover Page
                                         </SelectItem>
@@ -659,9 +463,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                                         <SelectValue placeholder="Select a status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Done">
-                                            Done
-                                        </SelectItem>
+                                        <SelectItem value="Done">Done</SelectItem>
                                         <SelectItem value="In Progress">
                                             In Progress
                                         </SelectItem>
@@ -685,7 +487,10 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                         <div className="flex flex-col gap-3">
                             <Label htmlFor="reviewer">Reviewer</Label>
                             <Select defaultValue={item.reviewer}>
-                                <SelectTrigger id="reviewer" className="w-full">
+                                <SelectTrigger
+                                    id="reviewer"
+                                    className="w-full"
+                                >
                                     <SelectValue placeholder="Select a reviewer" />
                                 </SelectTrigger>
                                 <SelectContent>

@@ -20,19 +20,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { PlusIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { Partnership } from '@/types/partnerships';
 import type { PartnershipInvitation } from '@/types/partnership-invitations';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 
 const Page = () => {
     const [partnerships, setPartnerships] = useState<Partnership[]>([]);
@@ -197,6 +192,69 @@ const Page = () => {
         (p) => p.status === 'TERMINATED'
     );
 
+    const closedColumns: ColumnDef<Partnership>[] = [
+        {
+            accessorKey: 'partnershipId',
+            header: 'Partnership #',
+            enableHiding: false,
+        },
+        {
+            id: 'supplier',
+            header: 'Supplier',
+            accessorFn: (row) =>
+                row.secondaryOrgName ?? row.primaryOrgName ?? '',
+            cell: ({ row }) => (
+                <div>
+                    {row.original.secondaryOrgName ??
+                        row.original.primaryOrgName ??
+                        '—'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'partnershipType',
+            header: 'Type',
+            cell: ({ row }) => (
+                <div>{row.original.partnershipType ?? '—'}</div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.status}</Badge>
+            ),
+        },
+        {
+            accessorKey: 'startDate',
+            header: 'Start',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.startDate
+                        ? new Date(row.original.startDate).toLocaleDateString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'endDate',
+            header: 'End',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.endDate
+                        ? new Date(row.original.endDate).toLocaleDateString()
+                        : '—'}
+                </div>
+            ),
+        },
+    ];
+
+    const closedTable = useTables<Partnership>({
+        data: closedPartnerships,
+        columns: closedColumns,
+        getRowId: (row) => row.partnershipId.toString(),
+    });
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col p-4 md:p-6 gap-4">
@@ -272,57 +330,10 @@ const Page = () => {
                             </CardHeader>
                             <CardContent className="p-0 space-y-4">
                                 {closedPartnerships.length > 0 && (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>
-                                                    Partnership #
-                                                </TableHead>
-                                                <TableHead>Supplier</TableHead>
-                                                <TableHead>Type</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Start</TableHead>
-                                                <TableHead>End</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {closedPartnerships.map((p) => (
-                                                <TableRow key={p.partnershipId}>
-                                                    <TableCell>
-                                                        {p.partnershipId}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {p.secondaryOrgName ??
-                                                            p.primaryOrgName ??
-                                                            '—'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {p.partnershipType ??
-                                                            '—'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">
-                                                            {p.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {p.startDate
-                                                            ? new Date(
-                                                                  p.startDate
-                                                              ).toLocaleDateString()
-                                                            : '—'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {p.endDate
-                                                            ? new Date(
-                                                                  p.endDate
-                                                              ).toLocaleDateString()
-                                                            : '—'}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                    <CentralizedDataTable
+                                        table={closedTable}
+                                        emptyMessage="No closed partnerships"
+                                    />
                                 )}
                                 <PartnershipInvitationList
                                     invitations={sentClosed}

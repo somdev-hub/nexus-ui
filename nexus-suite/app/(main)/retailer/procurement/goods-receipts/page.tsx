@@ -53,9 +53,24 @@ import type {
     GoodsReceiptPaginatedResponse,
 } from '@/types/procurement';
 import type { PurchaseOrder } from '@/types/purchase-orders';
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { TablePagination } from '@/components/ui/table-pagination';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconEye,
+    IconTrendingUp,
+} from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 
 interface PoLineOption {
     id: number;
@@ -101,6 +116,97 @@ function today() {
     return new Date().toISOString().slice(0, 10);
 }
 
+/** Shared ASN details dialog — replaces the old expandable detail rows. */
+function AsnDetailDialog({
+    asn,
+    onClose,
+}: {
+    asn: AsnDocument | null;
+    onClose: () => void;
+}) {
+    const ordered = asn?.orderedQuantity ?? 0;
+    const shipped = asn?.shippedQuantity ?? 0;
+    const pct =
+        ordered > 0 ? Math.min(100, Math.round((shipped / ordered) * 100)) : 0;
+    return (
+        <Dialog open={asn !== null} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>
+                        ASN {String(asn?.asnNumber ?? asn?.asnId ?? '')}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Dispatch details — carrier, route, load and PO
+                        coverage.
+                    </DialogDescription>
+                </DialogHeader>
+                {asn && (
+                    <div className="grid gap-4 text-sm">
+                        <div className="grid gap-3 rounded-md bg-muted/40 p-3 md:grid-cols-3">
+                            <div>
+                                <p className="text-muted-foreground">Carrier</p>
+                                <p className="font-medium break-words">
+                                    {asn.carrierName ?? '—'}
+                                </p>
+                                <p className="font-mono text-xs text-muted-foreground break-all">
+                                    {asn.trackingNumber ?? ''}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Route</p>
+                                <p className="font-medium break-words whitespace-normal">
+                                    {asn.pickupLocation ?? '—'} →{' '}
+                                    {asn.deliveryLocation ?? '—'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Shipment status: {asn.shipmentStatus ?? '—'}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Load</p>
+                                <p className="font-medium">
+                                    {asn.totalPackages ?? '—'} pkgs ·{' '}
+                                    {asn.totalWeight ?? '—'} kg ·{' '}
+                                    {asn.totalVolume ?? '—'} m³
+                                </p>
+                                {asn.logisticsOrgName && (
+                                    <p className="text-xs text-muted-foreground">
+                                        via {asn.logisticsOrgName}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                                <span>PO coverage by this dispatch</span>
+                                <span>{pct}%</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                <div
+                                    className="h-full rounded-full bg-primary"
+                                    style={{ width: `${pct}%` }}
+                                />
+                            </div>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                                {shipped} shipped of {ordered} ordered
+                                {asn.backorderedQuantity != null &&
+                                asn.backorderedQuantity > 0
+                                    ? ` · ${asn.backorderedQuantity} backordered`
+                                    : ''}
+                            </div>
+                        </div>
+                        {asn.notes && (
+                            <p className="text-xs text-muted-foreground break-words whitespace-normal">
+                                {asn.notes}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 /** Best-effort server message from an axios-style error. */
 function apiErrorMessage(e: unknown, fallback: string): string {
     const data = (e as { response?: { data?: unknown } } | null)?.response
@@ -122,28 +228,22 @@ function apiErrorMessage(e: unknown, fallback: string): string {
 const newGrNumber = () =>
     `GR-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
 
-const GR_PAGE_SIZE = 10;
+const GR_PAGE_SIZE = 100;
 
 export default function GoodsReceiptsPage() {
     const [data, setData] = useState<GoodsReceipt[]>([]);
-    const [grPage, setGrPage] = useState(0);
-    const [grTotalPages, setGrTotalPages] = useState(1);
     const [grTotalElements, setGrTotalElements] = useState(0);
-    const [grLast, setGrLast] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [asnPoId, setAsnPoId] = useState('');
     const [asns, setAsns] = useState<AsnDocument[] | null>(null);
-    const [expandedAsn, setExpandedAsn] = useState<string | null>(null);
     const [asnLoading, setAsnLoading] = useState(false);
     const [allAsns, setAllAsns] = useState<AsnDocument[]>([]);
-    const [allAsnsPage, setAllAsnsPage] = useState(0);
-    const [allAsnsTotalPages, setAllAsnsTotalPages] = useState(1);
     const [allAsnsTotalElements, setAllAsnsTotalElements] = useState(0);
     const [allAsnsLoading, setAllAsnsLoading] = useState(false);
-    const [expandedAllAsn, setExpandedAllAsn] = useState<string | null>(null);
-    const ASN_PAGE_SIZE = 10;
+    const [asnViewing, setAsnViewing] = useState<AsnDocument | null>(null);
+    const ASN_PAGE_SIZE = 100;
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
     const [poLines, setPoLines] = useState<PoLineOption[]>([]);
     const [poLinesLoading, setPoLinesLoading] = useState(false);
@@ -199,22 +299,20 @@ export default function GoodsReceiptsPage() {
         CANCELLED: [],
     };
 
-    const applyGrPage = (r: GoodsReceiptPaginatedResponse, pageNo: number) => {
+    const applyGrPage = (r: GoodsReceiptPaginatedResponse) => {
+        // Fetch one larger batch so the centralized table paginates client-side.
         setData(r.content ?? []);
-        setGrPage(pageNo);
-        setGrTotalPages(r.totalPages ?? 1);
         setGrTotalElements(r.totalElements ?? 0);
-        setGrLast(r.last ?? pageNo >= (r.totalPages ?? 1) - 1);
     };
 
-    const load = async (pageNo: number = grPage) => {
+    const load = async () => {
         setIsLoading(true);
         try {
             const r = await getGoodsReceipts({
-                pageNo,
+                pageNo: 0,
                 pageOffset: GR_PAGE_SIZE,
             });
-            applyGrPage(r, pageNo);
+            applyGrPage(r);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Failed');
         } finally {
@@ -227,11 +325,11 @@ export default function GoodsReceiptsPage() {
         (async () => {
             try {
                 const r = await getGoodsReceipts({
-                    pageNo: grPage,
+                    pageNo: 0,
                     pageOffset: GR_PAGE_SIZE,
                 });
                 if (!a) return;
-                applyGrPage(r, grPage);
+                applyGrPage(r);
             } catch (e) {
                 toast.error(e instanceof Error ? e.message : 'Failed');
             } finally {
@@ -241,7 +339,7 @@ export default function GoodsReceiptsPage() {
         return () => {
             a = false;
         };
-    }, [grPage]);
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -343,13 +441,12 @@ export default function GoodsReceiptsPage() {
         }
     };
 
-    const loadAllAsns = async (page: number) => {
+    const loadAllAsns = async () => {
         setAllAsnsLoading(true);
         try {
-            const res = await getRetailerAsns({ page, size: ASN_PAGE_SIZE });
+            // Fetch one larger batch so the centralized table paginates client-side.
+            const res = await getRetailerAsns({ page: 0, size: ASN_PAGE_SIZE });
             setAllAsns(res.content ?? []);
-            setAllAsnsPage(res.page ?? page);
-            setAllAsnsTotalPages(res.totalPages ?? 1);
             setAllAsnsTotalElements(res.totalElements ?? 0);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Failed to load ASNs');
@@ -359,7 +456,7 @@ export default function GoodsReceiptsPage() {
     };
 
     useEffect(() => {
-        loadAllAsns(0);
+        loadAllAsns();
     }, []);
 
     const handleCreate = async () => {
@@ -547,6 +644,234 @@ export default function GoodsReceiptsPage() {
             setTransitioning(false);
         }
     };
+
+    const grColumns: ColumnDef<GoodsReceipt>[] = [
+        {
+            accessorKey: 'grNumber',
+            header: 'GR Number',
+            cell: ({ row }) => (
+                <div className="font-mono">{row.original.grNumber}</div>
+            ),
+            enableHiding: false,
+        },
+        {
+            id: 'poNumber',
+            header: 'PO',
+            accessorFn: (row) => row.poNumber || row.purchaseOrderId,
+            cell: ({ row }) => (
+                <div>{row.original.poNumber || row.original.purchaseOrderId}</div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge className={STATUS_COLOR[row.original.status]}>
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'receivedDate',
+            header: 'Received',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.receivedDate
+                        ? new Date(row.original.receivedDate).toLocaleString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'deliveryNoteNumber',
+            header: 'Delivery Note',
+            cell: ({ row }) => (
+                <div className="font-mono">
+                    {row.original.deliveryNoteNumber || '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const r = row.original;
+                const transitions = NEXT_STATUS[r.status] ?? [];
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                size="icon"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                                disabled={viewLoading}
+                                onSelect={() => openView(r)}
+                            >
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            {r.status === 'DRAFT' && (
+                                <DropdownMenuItem
+                                    disabled={viewLoading}
+                                    onSelect={() => openEdit(r)}
+                                >
+                                    <IconEdit className="mr-2 h-4 w-4" />
+                                    Edit
+                                </DropdownMenuItem>
+                            )}
+                            {transitions.length > 0 && (
+                                <DropdownMenuSeparator />
+                            )}
+                            {transitions.map((t) => (
+                                <DropdownMenuItem
+                                    key={t.value}
+                                    disabled={viewLoading}
+                                    onSelect={() => askTransition(r, t.value)}
+                                >
+                                    <IconTrendingUp className="mr-2 h-4 w-4" />
+                                    {t.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const grTable = useTables<GoodsReceipt>({
+        data,
+        columns: grColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row) => row.goodsReceiptId.toString(),
+    });
+
+    const asnColumns: ColumnDef<AsnDocument>[] = [
+        {
+            id: 'asnNumber',
+            header: 'ASN Number',
+            accessorFn: (row) => String(row.asnNumber ?? row.asnId ?? ''),
+            cell: ({ row }) => (
+                <div className="font-mono">
+                    {String(row.original.asnNumber ?? row.original.asnId ?? '—')}
+                </div>
+            ),
+            enableHiding: false,
+        },
+        {
+            id: 'poNumber',
+            header: 'PO',
+            accessorFn: (row) => String(row.poNumber ?? row.purchaseOrderId ?? ''),
+            cell: ({ row }) => (
+                <div className="font-mono text-xs">
+                    {String(
+                        row.original.poNumber ?? row.original.purchaseOrderId ?? '—'
+                    )}
+                </div>
+            ),
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => String(row.status ?? ''),
+            cell: ({ row }) => (
+                <Badge>{String(row.original.status ?? '—')}</Badge>
+            ),
+        },
+        {
+            id: 'shipmentNumber',
+            header: 'Shipment',
+            accessorFn: (row) =>
+                String(row.shipmentNumber ?? row.shipmentId ?? ''),
+            cell: ({ row }) => (
+                <div className="font-mono text-xs">
+                    {String(
+                        row.original.shipmentNumber ??
+                            row.original.shipmentId ??
+                            '—'
+                    )}
+                </div>
+            ),
+        },
+        {
+            id: 'shippedOrdered',
+            header: 'On truck / Ordered',
+            accessorFn: (row) => row.shippedQuantity ?? 0,
+            cell: ({ row }) => {
+                const a = row.original;
+                const ordered = a.orderedQuantity ?? 0;
+                const shipped = a.shippedQuantity ?? 0;
+                return (
+                    <div className="text-xs whitespace-nowrap">
+                        {shipped} / {ordered}
+                        {a.backorderedQuantity != null &&
+                        a.backorderedQuantity > 0 ? (
+                            <span className="text-muted-foreground">
+                                {' '}
+                                ({a.backorderedQuantity} backordered)
+                            </span>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'estimatedArrival',
+            header: 'ETA',
+            accessorFn: (row) => String(row.estimatedArrival ?? ''),
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap text-xs">
+                    {row.original.estimatedArrival
+                        ? new Date(row.original.estimatedArrival).toLocaleString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            header: '',
+            cell: ({ row }) => (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground flex size-8"
+                    onClick={() => setAsnViewing(row.original)}
+                >
+                    <IconEye />
+                    <span className="sr-only">Details</span>
+                </Button>
+            ),
+        },
+    ];
+
+    const lookupAsnTable = useTables<AsnDocument>({
+        data: asns ?? [],
+        columns: asnColumns,
+        enablePagination: false,
+        getRowId: (row, index) =>
+            String(row.asnId ?? row.asnNumber ?? `lookup-asn-${index}`),
+    });
+
+    const allAsnsTable = useTables<AsnDocument>({
+        data: allAsns,
+        columns: asnColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row, index) =>
+            String(row.asnId ?? row.asnNumber ?? `all-asn-${index}`),
+    });
 
     if (isLoading && data.length === 0)
         return (
@@ -739,226 +1064,11 @@ export default function GoodsReceiptsPage() {
                         </Button>
                     </div>
                     {asns !== null && (
-                        <div className="rounded-lg border overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-muted">
-                                    <TableRow>
-                                        <TableHead>ASN Number</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Shipment</TableHead>
-                                        <TableHead>
-                                            On truck / Ordered
-                                        </TableHead>
-                                        <TableHead>ETA</TableHead>
-                                        <TableHead></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {asns.map((a, i) => {
-                                        const key =
-                                            a.asnId ??
-                                            a.asnNumber ??
-                                            `asn-${i}`;
-                                        const expanded =
-                                            expandedAsn === String(key);
-                                        const ordered = a.orderedQuantity ?? 0;
-                                        const shipped = a.shippedQuantity ?? 0;
-                                        const pct =
-                                            ordered > 0
-                                                ? Math.min(
-                                                      100,
-                                                      Math.round(
-                                                          (shipped / ordered) *
-                                                              100
-                                                      )
-                                                  )
-                                                : 0;
-                                        return (
-                                            <Fragment key={String(key)}>
-                                                <TableRow>
-                                                    <TableCell className="font-mono">
-                                                        {String(
-                                                            a.asnNumber ??
-                                                                a.asnId ??
-                                                                '—'
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge>
-                                                            {String(
-                                                                a.status ?? '—'
-                                                            )}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="font-mono text-xs">
-                                                        {String(
-                                                            a.shipmentNumber ??
-                                                                a.shipmentId ??
-                                                                '—'
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-xs whitespace-nowrap">
-                                                        {shipped} / {ordered}
-                                                        {a.backorderedQuantity !==
-                                                            undefined &&
-                                                        a.backorderedQuantity !==
-                                                            null &&
-                                                        a.backorderedQuantity >
-                                                            0 ? (
-                                                            <span className="text-muted-foreground">
-                                                                {' '}
-                                                                (
-                                                                {
-                                                                    a.backorderedQuantity
-                                                                }{' '}
-                                                                backordered)
-                                                            </span>
-                                                        ) : null}
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        {a.estimatedArrival
-                                                            ? new Date(
-                                                                  a.estimatedArrival
-                                                              ).toLocaleString()
-                                                            : '—'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                setExpandedAsn(
-                                                                    expanded
-                                                                        ? null
-                                                                        : String(
-                                                                              key
-                                                                          )
-                                                                )
-                                                            }
-                                                        >
-                                                            {expanded
-                                                                ? 'Hide'
-                                                                : 'Details'}
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {expanded && (
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colSpan={6}
-                                                            className="whitespace-normal"
-                                                        >
-                                                            <div className="grid gap-3 rounded-md bg-muted/40 p-3 text-sm md:grid-cols-3">
-                                                                <div className="min-w-0">
-                                                                    <p className="text-muted-foreground">
-                                                                        Carrier
-                                                                    </p>
-                                                                    <p className="font-medium break-words">
-                                                                        {a.carrierName ??
-                                                                            '—'}
-                                                                    </p>
-                                                                    <p className="font-mono text-xs text-muted-foreground break-all">
-                                                                        {a.trackingNumber ??
-                                                                            ''}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-muted-foreground">
-                                                                        Route
-                                                                    </p>
-                                                                    <p className="font-medium break-words whitespace-normal leading-snug">
-                                                                        <span className="block">
-                                                                            {a.pickupLocation ??
-                                                                                '—'}
-                                                                        </span>
-                                                                        <span
-                                                                            aria-hidden="true"
-                                                                            className="my-0.5 block text-muted-foreground"
-                                                                        >
-                                                                            ↓
-                                                                        </span>
-                                                                        <span className="block">
-                                                                            {a.deliveryLocation ??
-                                                                                '—'}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        Shipment
-                                                                        status:{' '}
-                                                                        {a.shipmentStatus ??
-                                                                            '—'}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-muted-foreground">
-                                                                        Load
-                                                                    </p>
-                                                                    <p className="font-medium">
-                                                                        {a.totalPackages ??
-                                                                            '—'}{' '}
-                                                                        pkgs ·{' '}
-                                                                        {a.totalWeight ??
-                                                                            '—'}{' '}
-                                                                        kg ·{' '}
-                                                                        {a.totalVolume ??
-                                                                            '—'}{' '}
-                                                                        m³
-                                                                    </p>
-                                                                    {a.logisticsOrgName && (
-                                                                        <p className="text-xs text-muted-foreground">
-                                                                            via{' '}
-                                                                            {
-                                                                                a.logisticsOrgName
-                                                                            }
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                            <div className="mt-2">
-                                                                <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                                                                    <span>
-                                                                        PO
-                                                                        coverage
-                                                                        by this
-                                                                        dispatch
-                                                                    </span>
-                                                                    <span>
-                                                                        {pct}%
-                                                                    </span>
-                                                                </div>
-                                                                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                                                                    <div
-                                                                        className="h-full rounded-full bg-primary"
-                                                                        style={{
-                                                                            width: `${pct}%`,
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            {a.notes && (
-                                                                <p className="mt-2 text-xs text-muted-foreground break-words whitespace-normal">
-                                                                    {a.notes}
-                                                                </p>
-                                                            )}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </Fragment>
-                                        );
-                                    })}
-                                    {asns.length === 0 && (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={6}
-                                                className="text-center py-6 text-muted-foreground"
-                                            >
-                                                No ASN for this purchase order
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <CentralizedDataTable
+                            table={lookupAsnTable}
+                            hidePagination
+                            emptyMessage="No ASN for this purchase order"
+                        />
                     )}
                 </CardContent>
             </Card>
@@ -970,7 +1080,7 @@ export default function GoodsReceiptsPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => loadAllAsns(allAsnsPage)}
+                        onClick={() => loadAllAsns()}
                         disabled={allAsnsLoading}
                     >
                         {allAsnsLoading ? 'Loading...' : 'Refresh'}
@@ -981,343 +1091,19 @@ export default function GoodsReceiptsPage() {
                         Every dispatch visible to your organisation, newest
                         first. Use the lookup above to narrow to a single PO.
                     </p>
-                    <div className="rounded-lg border overflow-hidden">
-                        <Table>
-                            <TableHeader className="bg-muted">
-                                <TableRow>
-                                    <TableHead>ASN Number</TableHead>
-                                    <TableHead>PO</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Shipment</TableHead>
-                                    <TableHead>On truck / Ordered</TableHead>
-                                    <TableHead>ETA</TableHead>
-                                    <TableHead></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {allAsns.map((a, i) => {
-                                    const key =
-                                        a.asnId ??
-                                        a.asnNumber ??
-                                        `all-asn-${i}`;
-                                    const expanded =
-                                        expandedAllAsn === String(key);
-                                    const ordered = a.orderedQuantity ?? 0;
-                                    const shipped = a.shippedQuantity ?? 0;
-                                    return (
-                                        <Fragment key={String(key)}>
-                                            <TableRow>
-                                                <TableCell className="font-mono">
-                                                    {String(
-                                                        a.asnNumber ??
-                                                            a.asnId ??
-                                                            '—'
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="font-mono text-xs">
-                                                    {String(
-                                                        a.poNumber ??
-                                                            a.purchaseOrderId ??
-                                                            '—'
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge>
-                                                        {String(
-                                                            a.status ?? '—'
-                                                        )}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="font-mono text-xs">
-                                                    {String(
-                                                        a.shipmentNumber ??
-                                                            a.shipmentId ??
-                                                            '—'
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-xs whitespace-nowrap">
-                                                    {shipped} / {ordered}
-                                                    {a.backorderedQuantity !==
-                                                        undefined &&
-                                                    a.backorderedQuantity !==
-                                                        null &&
-                                                    a.backorderedQuantity >
-                                                        0 ? (
-                                                        <span className="text-muted-foreground">
-                                                            {' '}
-                                                            (
-                                                            {
-                                                                a.backorderedQuantity
-                                                            }{' '}
-                                                            backordered)
-                                                        </span>
-                                                    ) : null}
-                                                </TableCell>
-                                                <TableCell className="whitespace-nowrap text-xs">
-                                                    {a.estimatedArrival
-                                                        ? new Date(
-                                                              a.estimatedArrival
-                                                          ).toLocaleString()
-                                                        : '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            setExpandedAllAsn(
-                                                                expanded
-                                                                    ? null
-                                                                    : String(
-                                                                          key
-                                                                      )
-                                                            )
-                                                        }
-                                                    >
-                                                        {expanded
-                                                            ? 'Hide'
-                                                            : 'Details'}
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                            {expanded && (
-                                                <TableRow>
-                                                    <TableCell
-                                                        colSpan={7}
-                                                        className="whitespace-normal"
-                                                    >
-                                                        <div className="grid gap-3 rounded-md bg-muted/40 p-3 text-sm md:grid-cols-3">
-                                                            <div>
-                                                                <p className="text-muted-foreground">
-                                                                    Carrier
-                                                                </p>
-                                                                <p className="font-medium">
-                                                                    {a.carrierName ??
-                                                                        '—'}
-                                                                </p>
-                                                                <p className="font-mono text-xs text-muted-foreground">
-                                                                    {a.trackingNumber ??
-                                                                        ''}
-                                                                </p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-muted-foreground">
-                                                                    Route
-                                                                </p>
-                                                                <p className="font-medium">
-                                                                    {a.pickupLocation ??
-                                                                        '—'}{' '}
-                                                                    →{' '}
-                                                                    {a.deliveryLocation ??
-                                                                        '—'}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    Shipment
-                                                                    status:{' '}
-                                                                    {a.shipmentStatus ??
-                                                                        '—'}
-                                                                </p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-muted-foreground">
-                                                                    Load
-                                                                </p>
-                                                                <p className="font-medium">
-                                                                    {a.totalPackages ??
-                                                                        '—'}{' '}
-                                                                    pkgs ·{' '}
-                                                                    {a.totalWeight ??
-                                                                        '—'}{' '}
-                                                                    kg ·{' '}
-                                                                    {a.totalVolume ??
-                                                                        '—'}{' '}
-                                                                    m³
-                                                                </p>
-                                                                {a.logisticsOrgName && (
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        via{' '}
-                                                                        {
-                                                                            a.logisticsOrgName
-                                                                        }
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {a.notes && (
-                                                            <p className="mt-2 text-xs text-muted-foreground">
-                                                                {a.notes}
-                                                            </p>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </Fragment>
-                                    );
-                                })}
-                                {allAsns.length === 0 && !allAsnsLoading && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="text-center py-6 text-muted-foreground"
-                                        >
-                                            No advance shipping notices yet
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {allAsnsLoading && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="text-center py-6 text-muted-foreground"
-                                        >
-                                            Loading ASNs...
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-                        <span className="text-sm text-muted-foreground">
-                            {allAsnsTotalElements} ASN(s)
-                        </span>
-                        <TablePagination
-                            pageIndex={allAsnsPage}
-                            pageCount={allAsnsTotalPages}
-                            canPreviousPage={allAsnsPage > 0}
-                            canNextPage={
-                                allAsnsPage < allAsnsTotalPages - 1 &&
-                                !allAsnsLoading
-                            }
-                            onPageChange={(p) => loadAllAsns(p)}
-                            onPreviousPage={() => loadAllAsns(allAsnsPage - 1)}
-                            onNextPage={() => loadAllAsns(allAsnsPage + 1)}
-                            showFirstLast={false}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                            Page {allAsnsTotalPages === 0 ? 0 : allAsnsPage + 1}{' '}
-                            of {Math.max(allAsnsTotalPages, 1)}
-                        </span>
-                    </div>
+                    <CentralizedDataTable
+                        table={allAsnsTable}
+                        emptyMessage="No advance shipping notices yet"
+                    />
                 </CardContent>
             </Card>
-            <div className="rounded-lg border overflow-hidden max-w-full overflow-x-auto">
-                <Table>
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead>GR Number</TableHead>
-                            <TableHead>PO</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Received</TableHead>
-                            <TableHead>Delivery Note</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {data.map((r) => (
-                            <TableRow key={r.goodsReceiptId}>
-                                <TableCell className="font-mono">
-                                    {r.grNumber}
-                                </TableCell>
-                                <TableCell>
-                                    {r.poNumber || r.purchaseOrderId}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge className={STATUS_COLOR[r.status]}>
-                                        {r.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    {r.receivedDate
-                                        ? new Date(
-                                              r.receivedDate
-                                          ).toLocaleDateString()
-                                        : '—'}
-                                </TableCell>
-                                <TableCell>
-                                    {r.deliveryNoteNumber || '—'}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            disabled={viewLoading}
-                                            onClick={() => openView(r)}
-                                        >
-                                            View
-                                        </Button>
-                                        {r.status === 'DRAFT' && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={viewLoading}
-                                                onClick={() => openEdit(r)}
-                                            >
-                                                Edit
-                                            </Button>
-                                        )}
-                                        {(NEXT_STATUS[r.status] ?? []).map(
-                                            (t) => (
-                                                <Button
-                                                    key={t.value}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={viewLoading}
-                                                    onClick={() =>
-                                                        askTransition(
-                                                            r,
-                                                            t.value
-                                                        )
-                                                    }
-                                                >
-                                                    {t.label}
-                                                </Button>
-                                            )
-                                        )}
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {data.length === 0 && !isLoading && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={6}
-                                    className="text-center py-8"
-                                >
-                                    No goods receipts
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        {isLoading && data.length > 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={6}
-                                    className="text-center py-8 text-muted-foreground"
-                                >
-                                    Loading goods receipts...
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <CentralizedDataTable
+                table={grTable}
+                emptyMessage="No goods receipts"
+            />
+            <div className="flex items-center">
                 <span className="text-sm text-muted-foreground">
                     {grTotalElements} receipt(s)
-                </span>
-                <TablePagination
-                    pageIndex={grPage}
-                    pageCount={grTotalPages}
-                    canPreviousPage={grPage > 0}
-                    canNextPage={!grLast}
-                    onPageChange={setGrPage}
-                    onPreviousPage={() => setGrPage((p) => Math.max(0, p - 1))}
-                    onNextPage={() => setGrPage((p) => p + 1)}
-                    showFirstLast={false}
-                />
-                <span className="text-sm text-muted-foreground">
-                    Page {grPage + 1} of {Math.max(grTotalPages, 1)}
                 </span>
             </div>
             <Dialog
@@ -1656,6 +1442,7 @@ export default function GoodsReceiptsPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+            <AsnDetailDialog asn={asnViewing} onClose={() => setAsnViewing(null)} />
         </div>
     );
 }

@@ -2,21 +2,6 @@
 
 import * as React from 'react';
 import {
-    flexRender,
-    getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type ColumnDef,
-    type ColumnFiltersState,
-    type Row,
-    type SortingState,
-    type VisibilityState,
-} from '@tanstack/react-table';
-import {
     IconChevronDown,
     IconCircleCheckFilled,
     IconDotsVertical,
@@ -26,15 +11,14 @@ import {
     IconLoader,
     IconPlus,
     IconTrash,
-    IconTrendingUp,
 } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import { createProduct, deleteProduct } from '@/lib/services/products-service';
 
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -52,17 +36,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Field } from './ui/field';
-import { TablePagination } from './ui/table-pagination';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -105,34 +82,6 @@ const createColumns = (
     onDelete: (productId: number, productCode: string) => void,
     onDuplicate: (product: Product) => void
 ): ColumnDef<Product>[] => [
-    {
-        id: 'select',
-        header: ({ table }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={
-                        table.getIsAllPageRowsSelected() ||
-                        (table.getIsSomePageRowsSelected() && 'indeterminate')
-                    }
-                    onCheckedChange={(value) =>
-                        table.toggleAllPageRowsSelected(!!value)
-                    }
-                    aria-label="Select all"
-                />
-            </div>
-        ),
-        cell: ({ row }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    aria-label="Select row"
-                />
-            </div>
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
     {
         accessorKey: 'productName',
         header: 'Product Name',
@@ -274,16 +223,6 @@ export function ProductTable({
     products: Product[];
 }) {
     const [data, setData] = React.useState(() => initialData);
-    const [rowSelection, setRowSelection] = React.useState({});
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({});
-    const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([]);
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: 10,
-    });
 
     const [confirmingDelete, setConfirmingDelete] = React.useState<{
         productId: number;
@@ -347,29 +286,14 @@ export function ProductTable({
         [requestDelete, handleDuplicate]
     );
 
-    const table = useReactTable({
+    const table = useTables<Product>({
         data,
         columns,
-        state: {
-            sorting,
-            columnVisibility,
-            rowSelection,
-            columnFilters,
-            pagination,
-        },
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
         getRowId: (row) => row.productId.toString(),
-        enableRowSelection: true,
-        onRowSelectionChange: setRowSelection,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        onPaginationChange: setPagination,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
     });
 
     return (
@@ -448,12 +372,12 @@ export function ProductTable({
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <Button variant="outline" size="sm" asChild>
-                        <a href="/retailer/products/add">
+                        <Link href="/retailer/products/add">
                             <IconPlus />
                             <span className="hidden lg:inline">
                                 Add Product
                             </span>
-                        </a>
+                        </Link>
                     </Button>
                 </div>
             </div>
@@ -461,126 +385,10 @@ export function ProductTable({
                 value="outline"
                 className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
             >
-                <div className="overflow-hidden rounded-lg border">
-                    <Table>
-                        <TableHeader className="bg-muted sticky top-0 z-10">
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    {headerGroup.headers.map((header) => {
-                                        return (
-                                            <TableHead
-                                                key={header.id}
-                                                colSpan={header.colSpan}
-                                            >
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                          header.column
-                                                              .columnDef.header,
-                                                          header.getContext()
-                                                      )}
-                                            </TableHead>
-                                        );
-                                    })}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                            {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={
-                                            row.getIsSelected() && 'selected'
-                                        }
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
-                                                {flexRender(
-                                                    cell.column.columnDef.cell,
-                                                    cell.getContext()
-                                                )}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={columns.length}
-                                        className="h-24 text-center"
-                                    >
-                                        No products found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-                <div className="flex items-center justify-between gap-4 px-4">
-                    <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                        {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                        {table.getFilteredRowModel().rows.length} row(s)
-                        selected.
-                    </div>
-                    <div className="flex flex-1 items-center justify-center">
-                        <TablePagination
-                            pageIndex={table.getState().pagination.pageIndex}
-                            pageCount={table.getPageCount()}
-                            canPreviousPage={table.getCanPreviousPage()}
-                            canNextPage={table.getCanNextPage()}
-                            onPageChange={(index) => table.setPageIndex(index)}
-                            onPreviousPage={() => table.previousPage()}
-                            onNextPage={() => table.nextPage()}
-                            onFirstPage={() => table.setPageIndex(0)}
-                            onLastPage={() =>
-                                table.setPageIndex(table.getPageCount() - 1)
-                            }
-                        />
-                    </div>
-                    <div className="flex flex-1 items-center justify-end gap-4">
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </div>
-                        <div className="hidden items-center gap-2 lg:flex">
-                            <Label
-                                htmlFor="rows-per-page"
-                                className="shrink-0 text-sm font-medium whitespace-nowrap"
-                            >
-                                Rows per page
-                            </Label>
-                            <Select
-                                value={`${table.getState().pagination.pageSize}`}
-                                onValueChange={(value) => {
-                                    table.setPageSize(Number(value));
-                                }}
-                            >
-                                <SelectTrigger
-                                    size="sm"
-                                    className="w-full"
-                                    id="rows-per-page"
-                                >
-                                    <SelectValue
-                                        placeholder={
-                                            table.getState().pagination.pageSize
-                                        }
-                                    />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                                        <SelectItem
-                                            key={pageSize}
-                                            value={`${pageSize}`}
-                                        >
-                                            {pageSize}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
+                <CentralizedDataTable
+                    table={table}
+                    emptyMessage="No products found."
+                />
             </TabsContent>
             <TabsContent value="cards" className="flex flex-col px-4 lg:px-6">
                 <div className="aspect-video w-full flex-1 rounded-lg border border-dashed">

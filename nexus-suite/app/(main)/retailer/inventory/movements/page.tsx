@@ -1,18 +1,13 @@
 'use client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { getStockMovements } from '@/lib/services/stock-service';
 import type { StockMovement } from '@/types/stock';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 
 export default function MovementsPage() {
     const [data, setData] = useState<StockMovement[]>([]);
@@ -24,7 +19,8 @@ export default function MovementsPage() {
             try {
                 const res = await getStockMovements({
                     pageNo: 0,
-                    pageOffset: 20,
+                    // Sufficient for the centralized table (client-side paging).
+                    pageOffset: 100,
                 });
                 if (!active) return;
                 setData(res.content);
@@ -41,6 +37,70 @@ export default function MovementsPage() {
         };
     }, []);
 
+    const columns: ColumnDef<StockMovement>[] = [
+        {
+            accessorKey: 'type',
+            header: 'Type',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.type}</Badge>
+            ),
+            enableHiding: false,
+        },
+        {
+            accessorKey: 'quantity',
+            header: () => <div className="w-full text-right">Qty</div>,
+            cell: ({ row }) => (
+                <div className="text-right">{row.original.quantity}</div>
+            ),
+        },
+        {
+            id: 'beforeAfter',
+            header: 'Before → After',
+            accessorFn: (row) => row.quantityBefore ?? 0,
+            cell: ({ row }) => (
+                <div>
+                    {row.original.quantityBefore} → {row.original.quantityAfter}
+                </div>
+            ),
+        },
+        {
+            id: 'reference',
+            header: 'Reference',
+            accessorFn: (row) => row.referenceType ?? '',
+            cell: ({ row }) => (
+                <div>
+                    {row.original.referenceType} #{row.original.referenceId}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'batchNumber',
+            header: 'Batch',
+            cell: ({ row }) => (
+                <div>{row.original.batchNumber || '—'}</div>
+            ),
+        },
+        {
+            accessorKey: 'createdAt',
+            header: 'Date',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {new Date(row.original.createdAt).toLocaleString()}
+                </div>
+            ),
+        },
+    ];
+
+    const table = useTables<StockMovement>({
+        data,
+        columns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row) => row.movementId.toString(),
+    });
+
     if (isLoading)
         return (
             <div className="p-6">
@@ -56,50 +116,10 @@ export default function MovementsPage() {
                     Audit trail · FR-RET-013 (batch/expiry tracked)
                 </p>
             </div>
-            <div className="rounded-lg border overflow-hidden">
-                <Table>
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Qty</TableHead>
-                            <TableHead>Before → After</TableHead>
-                            <TableHead>Reference</TableHead>
-                            <TableHead>Batch</TableHead>
-                            <TableHead>Date</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {data.map((m) => (
-                            <TableRow key={m.movementId}>
-                                <TableCell>
-                                    <Badge variant="outline">{m.type}</Badge>
-                                </TableCell>
-                                <TableCell>{m.quantity}</TableCell>
-                                <TableCell>
-                                    {m.quantityBefore} → {m.quantityAfter}
-                                </TableCell>
-                                <TableCell>
-                                    {m.referenceType} #{m.referenceId}
-                                </TableCell>
-                                <TableCell>{m.batchNumber || '—'}</TableCell>
-                                <TableCell>
-                                    {new Date(m.createdAt).toLocaleString()}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {data.length === 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={6}
-                                    className="text-center py-8"
-                                >
-                                    No movements
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+            <CentralizedDataTable
+                table={table}
+                emptyMessage="No movements"
+            />
         </div>
     );
 }

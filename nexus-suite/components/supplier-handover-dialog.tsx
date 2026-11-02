@@ -32,9 +32,15 @@ import {
 import { createPartialShipment } from '@/lib/services/supplier-orders-service';
 import {
     loadHandoverOptions,
+    loadShipmentHandoverOptions,
     type HandoverOption,
     type HandoverOptionsData,
 } from '@/lib/services/supplier-handover-service';
+import {
+    handoverShipment,
+    type HandoverResponse,
+    type SupplierShipment,
+} from '@/lib/services/supplier-logistics-service';
 import type { PartialShipmentResponse, SupplierOrder } from '@/types/supplier';
 
 // ─────────────────────────────────────────────────────────────
@@ -42,13 +48,22 @@ import type { PartialShipmentResponse, SupplierOrder } from '@/types/supplier';
 // Lists logistics partnerships grouped SHORT_TERM / LONG_TERM,
 // gated on pickup/delivery city coverage. The shipment (BOOKED)
 // then surfaces on the logistics load board.
+//
+// Used in two modes:
+// - `order`: split a purchase order and hand the new shipment over.
+// - `shipment`: hand an existing core (consignment fill / VMI
+//   replenishment) shipment over to a partnered logistics org.
 // ─────────────────────────────────────────────────────────────
 
 interface PartialShipmentDialogProps {
-    order: SupplierOrder | null;
+    /** Partial-ship an acknowledged purchase order. */
+    order?: SupplierOrder | null;
+    /** Hand over an already-created core shipment. */
+    shipment?: SupplierShipment | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onCreated?: (res: PartialShipmentResponse) => void;
+    onHandedOver?: (res: HandoverResponse) => void;
 }
 
 function OptionRow({
@@ -95,7 +110,7 @@ function OptionRow({
                     {option.routeLabel || '—'}
                 </span>
                 {!option.matches && option.reason ? (
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-0.5 block break-words text-xs text-muted-foreground">
                         {option.reason}
                     </span>
                 ) : null}
@@ -105,13 +120,16 @@ function OptionRow({
 }
 
 export function PartialShipmentDialog({
-    order,
+    order = null,
+    shipment = null,
     open,
     onOpenChange,
     onCreated,
+    onHandedOver,
 }: PartialShipmentDialogProps) {
     const { toast } = useToast();
     const { orgId } = useUserMetadata();
+    const isShipmentMode = shipment !== null;
     const [shippedQty, setShippedQty] = useState('');
     const [totalPackages, setTotalPackages] = useState('');
     const [packageWeight, setPackageWeight] = useState('');
@@ -131,11 +149,12 @@ export function PartialShipmentDialog({
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        if (!open || !order) return;
+        if (!open || (!order && !shipment)) return;
         // Default to the full PO ordered quantity — the supplier may lower
-        // it for a partial shipment, but never raise it.
+        // it for a partial shipment, but never raise it. Core-shipment
+        // handover carries its own quantity, so the field is hidden there.
         const ordered =
-            order.lineItems?.reduce(
+            order?.lineItems?.reduce(
                 (sum, li) => sum + (Number(li.quantityOrdered) || 0),
                 0
             ) ?? 0;
@@ -147,7 +166,7 @@ export function PartialShipmentDialog({
         setPackageHeight('');
         setPackageDimensionUom('M');
         setFreightCost('');
-        setFreightCurrency(order.currency || 'USD');
+        setFreightCurrency(order?.currency || shipment?.currency || 'USD');
         setFreightTerms('');
         setShipmentNotes('');
         setOptions(null);
@@ -156,7 +175,10 @@ export function PartialShipmentDialog({
         setSupplierAddressId('');
         let active = true;
         setOptionsLoading(true);
-        loadHandoverOptions(order, orgId)
+        const loader = order
+            ? loadHandoverOptions(order, orgId)
+            : loadShipmentHandoverOptions(shipment as SupplierShipment, orgId);
+        loader
             .then((data) => {
                 if (!active) return;
                 setOptions(data);
@@ -179,7 +201,7 @@ export function PartialShipmentDialog({
             active = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, order?.purchaseOrderId]);
+    }, [open, order?.purchaseOrderId, shipment?.shipmentId]);
 
     const orderedQty =
         order?.lineItems?.reduce(
@@ -230,21 +252,23 @@ export function PartialShipmentDialog({
     ].find((o) => String(o.partnershipId) === selectedPartnershipId);
 
     const doCreate = async (withHandover: boolean) => {
-        if (!order) return;
-        const qty = Number(shippedQty);
-        if (!Number.isFinite(qty) || qty <= 0) {
-            toast({
-                title: 'Enter a valid shipped quantity',
-                variant: 'destructive',
-            });
-            return;
-        }
-        if (orderedQty > 0 && qty > orderedQty) {
-            toast({
-                title: `Shipped quantity cannot exceed the ordered quantity (${orderedQty})`,
-                variant: 'destructive',
-            });
-            return;
+        if (!order && !shipment) return;
+        if (order) {
+            const qty = Number(shippedQty);
+            if (!Number.isFinite(qty) || qty <= 0) {
+                toast({
+                    title: 'Enter a valid shipped quantity',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            if (orderedQty > 0 && qty > orderedQty) {
+                toast({
+                    title: `Shipped quantity cannot exceed the ordered quantity (${orderedQty})`,
+                    variant: 'destructive',
+                });
+                return;
+            }
         }
         if (withHandover) {
             if (!selectedOption) {
@@ -266,13 +290,7 @@ export function PartialShipmentDialog({
         try {
             const freight = num(freightCost);
             const notes = shipmentNotes.trim();
-            const res = await createPartialShipment(order.purchaseOrderId, {
-                shippedQuantity: qty,
-                trackingNumber: 'TRK-' + Date.now(),
-                freightCost: freight,
-                currency: freightCurrency.trim() || undefined,
-                freightTerms: freightTerms || undefined,
-                notes: notes ? notes : undefined,
+            const packagePayload = {
                 totalPackages: pkgCount,
                 packageWeight: pkgWeight,
                 packageLength: dimL,
@@ -281,7 +299,9 @@ export function PartialShipmentDialog({
                 packageDimensionUom,
                 totalWeight: autoTotalWeight,
                 totalVolume: autoTotalVolume,
-                ...(withHandover && selectedOption
+            };
+            const handoverPayload =
+                withHandover && selectedOption
                     ? {
                           partnershipId: selectedOption.partnershipId,
                           logisticsOrgId: selectedOption.logisticsOrgId,
@@ -291,17 +311,48 @@ export function PartialShipmentDialog({
                           deliveryLocation:
                               options?.retailerAddressText || undefined,
                       }
-                    : {}),
-            });
-            toast({
-                title:
-                    withHandover && res.handedOverToLogistics
-                        ? `Shipment ${res.shipmentNumber} handed over — now on the logistics load board`
-                        : `Partial shipment ${res.shipmentNumber} created`,
-                variant: 'success',
-            });
-            onOpenChange(false);
-            onCreated?.(res);
+                    : {};
+
+            if (order) {
+                const res = await createPartialShipment(order.purchaseOrderId, {
+                    shippedQuantity: Number(shippedQty),
+                    trackingNumber: 'TRK-' + Date.now(),
+                    freightCost: freight,
+                    currency: freightCurrency.trim() || undefined,
+                    freightTerms: freightTerms || undefined,
+                    notes: notes ? notes : undefined,
+                    ...packagePayload,
+                    ...handoverPayload,
+                });
+                toast({
+                    title:
+                        withHandover && res.handedOverToLogistics
+                            ? `Shipment ${res.shipmentNumber} handed over — now on the logistics load board`
+                            : `Partial shipment ${res.shipmentNumber} created`,
+                    variant: 'success',
+                });
+                onOpenChange(false);
+                onCreated?.(res);
+            } else if (shipment) {
+                const res = await handoverShipment(shipment.shipmentId, {
+                    notes: notes ? notes : undefined,
+                    freightCost: freight,
+                    currency: freightCurrency.trim() || undefined,
+                    freightTerms: freightTerms || undefined,
+                    ...packagePayload,
+                    ...handoverPayload,
+                });
+                toast({
+                    title: `Shipment ${
+                        res.shipmentNumber ??
+                        shipment.shipmentNumber ??
+                        shipment.shipmentId
+                    } handed over — now on the logistics load board`,
+                    variant: 'success',
+                });
+                onOpenChange(false);
+                onHandedOver?.(res);
+            }
         } catch (e: unknown) {
             toast({
                 title: e instanceof Error ? e.message : String(e),
@@ -317,44 +368,53 @@ export function PartialShipmentDialog({
             <DialogContent className="md:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
-                        Partial Shipment for {order?.poNumber ?? ''}
+                        {order
+                            ? `Partial Shipment for ${order.poNumber ?? ''}`
+                            : `Handover Shipment ${
+                                  shipment?.shipmentNumber ??
+                                  shipment?.shipmentId ??
+                                  ''
+                              }`}
                     </DialogTitle>
                     <DialogDescription>
-                        Choose a partnered logistics provider. The shipment is
-                        booked straight to their load board.
+                        {order
+                            ? 'Choose a partnered logistics provider. The shipment is booked straight to their load board.'
+                            : 'Choose a partnered logistics provider to book this core shipment on their load board.'}
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1">
-                    <div className="grid gap-2">
-                        <Label>
-                            Shipped Qty
-                            {orderedQty > 0 && (
-                                <span className="ml-2 font-normal text-muted-foreground">
-                                    Ordered: {orderedQty} — lower it for a
-                                    partial shipment
-                                </span>
-                            )}
-                        </Label>
-                        <Input
-                            placeholder="e.g. 50"
-                            value={shippedQty}
-                            onChange={(e) => {
-                                const next = Number(e.target.value);
-                                if (
-                                    orderedQty > 0 &&
-                                    Number.isFinite(next) &&
-                                    next > orderedQty
-                                ) {
-                                    setShippedQty(String(orderedQty));
-                                    return;
-                                }
-                                setShippedQty(e.target.value);
-                            }}
-                            type="number"
-                            min={0}
-                            max={orderedQty > 0 ? orderedQty : undefined}
-                        />
-                    </div>
+                <div className="grid max-h-[70vh] min-w-0 gap-4 overflow-x-hidden overflow-y-auto pr-1">
+                    {order && (
+                        <div className="grid gap-2">
+                            <Label>
+                                Shipped Qty
+                                {orderedQty > 0 && (
+                                    <span className="ml-2 font-normal text-muted-foreground">
+                                        Ordered: {orderedQty} — lower it for a
+                                        partial shipment
+                                    </span>
+                                )}
+                            </Label>
+                            <Input
+                                placeholder="e.g. 50"
+                                value={shippedQty}
+                                onChange={(e) => {
+                                    const next = Number(e.target.value);
+                                    if (
+                                        orderedQty > 0 &&
+                                        Number.isFinite(next) &&
+                                        next > orderedQty
+                                    ) {
+                                        setShippedQty(String(orderedQty));
+                                        return;
+                                    }
+                                    setShippedQty(e.target.value);
+                                }}
+                                type="number"
+                                min={0}
+                                max={orderedQty > 0 ? orderedQty : undefined}
+                            />
+                        </div>
+                    )}
 
                     <div className="grid gap-2 rounded-md border p-3">
                         <p className="text-sm font-medium">Package details</p>
@@ -384,7 +444,7 @@ export function PartialShipmentDialog({
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             <div className="grid gap-2">
                                 <Label>Length</Label>
                                 <Input
@@ -458,7 +518,7 @@ export function PartialShipmentDialog({
                                 (optional — shown on the shipment)
                             </span>
                         </p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="grid gap-2">
                                 <Label>Freight cost</Label>
                                 <Input
@@ -527,8 +587,8 @@ export function PartialShipmentDialog({
                         </p>
                     ) : options ? (
                         <>
-                            <div className="grid gap-2 rounded-md border p-3 text-sm">
-                                <div>
+                            <div className="grid min-w-0 gap-2 rounded-md border p-3 text-sm">
+                                <div className="min-w-0">
                                     <span className="text-muted-foreground">
                                         Pickup:{' '}
                                     </span>
@@ -558,7 +618,7 @@ export function PartialShipmentDialog({
                                             </SelectContent>
                                         </Select>
                                     ) : (
-                                        <span className="font-medium">
+                                        <span className="break-words font-medium">
                                             {options.autoSupplierAddress
                                                 ? formatOrgAddress(
                                                       options.autoSupplierAddress
@@ -567,11 +627,11 @@ export function PartialShipmentDialog({
                                         </span>
                                     )}
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <span className="text-muted-foreground">
                                         Deliver to:{' '}
                                     </span>
-                                    <span className="font-medium">
+                                    <span className="break-words font-medium">
                                         {options.retailerAddressText || '—'}
                                     </span>
                                 </div>
@@ -637,21 +697,27 @@ export function PartialShipmentDialog({
                     ) : null}
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                        <Button
-                            variant="outline"
-                            disabled={submitting}
-                            onClick={() => doCreate(false)}
-                        >
-                            Create without handover
-                        </Button>
+                        {order && (
+                            <Button
+                                variant="outline"
+                                disabled={submitting}
+                                onClick={() => doCreate(false)}
+                            >
+                                Create without handover
+                            </Button>
+                        )}
                         <Button
                             disabled={submitting || !selectedOption?.matches}
                             onClick={() => doCreate(true)}
                         >
                             <Check className="mr-2 h-4 w-4" />
                             {submitting
-                                ? 'Creating…'
-                                : 'Create Shipment & Hand Over'}
+                                ? isShipmentMode
+                                    ? 'Handing over…'
+                                    : 'Creating…'
+                                : isShipmentMode
+                                  ? 'Hand Over to Logistics'
+                                  : 'Create Shipment & Hand Over'}
                         </Button>
                     </div>
                 </div>

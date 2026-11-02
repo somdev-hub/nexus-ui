@@ -9,19 +9,20 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
 import { getAbcAnalysis } from '@/lib/services/stock-service';
-import type { AbcAnalysis } from '@/types/stock';
+import type { AbcAnalysis, AbcItem } from '@/types/stock';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Money } from '@/components/finances/money';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
+
+const CAT_COLOR: Record<string, string> = {
+	A: 'bg-green-100 text-green-800',
+	B: 'bg-yellow-100 text-yellow-800',
+	C: 'bg-red-100 text-red-800',
+};
 
 export default function AbcPage() {
 	const [data, setData] = useState<AbcAnalysis | null>(null);
@@ -46,6 +47,100 @@ export default function AbcPage() {
 		load();
 	}, [load]);
 
+	const items = data?.items ?? [];
+
+	const abcColumns: ColumnDef<AbcItem>[] = [
+		{
+			id: 'material',
+			header: 'Material',
+			accessorFn: (row) => row.materialName ?? '',
+			cell: ({ row }) => (
+				<div>
+					<div className="font-medium">
+						{row.original.materialName ?? '—'}
+					</div>
+					<div className="text-xs text-muted-foreground">
+						{row.original.materialCode ?? '—'} · WH{' '}
+						{row.original.warehouseId ?? '—'}
+					</div>
+				</div>
+			),
+			enableHiding: false,
+		},
+		{
+			accessorKey: 'quantityOnHand',
+			header: () => <div className="w-full text-right">Qty On Hand</div>,
+			cell: ({ row }) => (
+				<div className="text-right">
+					{(row.original.quantityOnHand ?? 0).toString()}
+				</div>
+			),
+		},
+		{
+			accessorKey: 'unitCost',
+			header: () => <div className="w-full text-right">Unit Cost</div>,
+			cell: ({ row }) => (
+				<div className="text-right">
+					<Money
+						amount={row.original.unitCost ?? 0}
+						currency={
+							(row.original as { currency?: string }).currency
+						}
+					/>
+				</div>
+			),
+		},
+		{
+			accessorKey: 'annualValue',
+			header: () => <div className="w-full text-right">Annual Value</div>,
+			cell: ({ row }) => (
+				<div className="text-right font-medium">
+					<Money
+						amount={row.original.annualValue ?? 0}
+						currency={
+							(row.original as { currency?: string }).currency
+						}
+					/>
+				</div>
+			),
+		},
+		{
+			accessorKey: 'cumulativePercentage',
+			header: () => (
+				<div className="w-full text-right">Cumulative %</div>
+			),
+			cell: ({ row }) => (
+				<div className="text-right">
+					{row.original.cumulativePercentage ?? 0}%
+				</div>
+			),
+		},
+		{
+			accessorKey: 'abcCategory',
+			header: 'Category',
+			cell: ({ row }) => (
+				<Badge
+					className={
+						CAT_COLOR[row.original.abcCategory as string] ??
+						'bg-gray-100'
+					}
+				>
+					{row.original.abcCategory ?? '—'}
+				</Badge>
+			),
+		},
+	];
+
+	const abcTable = useTables<AbcItem>({
+		data: items,
+		columns: abcColumns,
+		pageSize: DEFAULT_TABLE_PAGE_SIZE,
+		sorting: [],
+		columnVisibility: {},
+		columnFilters: [],
+		getRowId: (row) => row.stockId.toString(),
+	});
+
 	if (isLoading)
 		return (
 			<div className="p-6 space-y-4">
@@ -54,12 +149,6 @@ export default function AbcPage() {
 			</div>
 		);
 	if (!data) return <div className="p-6 text-muted-foreground">No data</div>;
-
-	const catColor: Record<string, string> = {
-		A: 'bg-green-100 text-green-800',
-		B: 'bg-yellow-100 text-yellow-800',
-		C: 'bg-red-100 text-red-800',
-	};
 
 	return (
 		<div className="flex flex-1 flex-col p-6 gap-6">
@@ -158,81 +247,11 @@ export default function AbcPage() {
 					</CardContent>
 				</Card>
 			</div>
-			<div className="rounded-lg border overflow-hidden">
-				<Table>
-					<TableHeader className="bg-muted">
-						<TableRow>
-							<TableHead>Material</TableHead>
-							<TableHead className="text-right">
-								Qty On Hand
-							</TableHead>
-							<TableHead className="text-right">
-								Unit Cost
-							</TableHead>
-							<TableHead className="text-right">
-								Annual Value
-							</TableHead>
-							<TableHead className="text-right">
-								Cumulative %
-							</TableHead>
-							<TableHead>Category</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{data.items.map((it) => (
-							<TableRow key={it.stockId}>
-								<TableCell>
-									<div className="font-medium">
-										{it.materialName ?? '—'}
-									</div>
-									<div className="text-xs text-muted-foreground">
-										{it.materialCode ?? '—'} · WH{' '}
-										{it.warehouseId ?? '—'}
-									</div>
-								</TableCell>
-								<TableCell className="text-right">
-									{(it.quantityOnHand ?? 0).toString()}
-								</TableCell>
-								<TableCell className="text-right">
-									<Money
-										amount={it.unitCost ?? 0}
-										currency={(it as any).currency}
-									/>
-								</TableCell>
-								<TableCell className="text-right font-medium">
-									<Money
-										amount={it.annualValue ?? 0}
-										currency={(it as any).currency}
-									/>
-								</TableCell>
-								<TableCell className="text-right">
-									{it.cumulativePercentage ?? 0}%
-								</TableCell>
-								<TableCell>
-									<Badge
-										className={
-											catColor[
-											it.abcCategory as string
-											] ?? 'bg-gray-100'
-										}
-									>
-										{it.abcCategory ?? '—'}
-									</Badge>
-								</TableCell>
-							</TableRow>
-						))}
-						{data.items.length === 0 && (
-							<TableRow>
-								<TableCell
-									colSpan={6}
-									className="text-center py-8"
-								>
-									No items
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
+			<div className="pt-1">
+				<CentralizedDataTable
+					table={abcTable}
+					emptyMessage="No items"
+				/>
 			</div>
 		</div>
 	);

@@ -5,14 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
     getRetailerDashboard,
     getSpendAnalytics,
     getSupplyChainVisibility,
@@ -20,13 +12,46 @@ import {
 import type { DashboardData, SpendAnalytics } from '@/types/retailer-analytics';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
+
+interface Milestone {
+    stage?: string;
+    timestamp?: string | number | null;
+    status?: string | null;
+}
 import { ChartAreaInteractive } from '@/components/chart-area-interactive';
+
+interface Bottleneck {
+    stage?: string;
+    delay?: string | number | null;
+}
+
+interface TrackingEvent {
+    eventType?: string;
+    location?: string | null;
+    timestamp?: string | number | null;
+}
+
+interface SupplyChainVisibility {
+    purchaseOrderNumber?: string;
+    poStatus?: string;
+    shipmentNumber?: string | null;
+    shipmentStatus?: string | null;
+    totalLeadTimeDays?: number;
+    milestones?: Milestone[];
+    bottlenecks?: Bottleneck[];
+    trackingTimeline?: TrackingEvent[];
+}
 
 export default function AnalyticsPage() {
     const [dashboard, setDashboard] = useState<DashboardData | null>(null);
     const [spend, setSpend] = useState<SpendAnalytics | null>(null);
     const [poId, setPoId] = useState('');
-    const [visibility, setVisibility] = useState<any>(null);
+    const [visibility, setVisibility] = useState<SupplyChainVisibility | null>(
+        null
+    );
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -62,6 +87,37 @@ export default function AnalyticsPage() {
             );
         }
     };
+
+    const milestoneColumns: ColumnDef<Milestone>[] = [
+        {
+            accessorKey: 'stage',
+            header: 'Stage',
+            enableHiding: false,
+        },
+        {
+            accessorKey: 'timestamp',
+            header: 'Timestamp',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.timestamp
+                        ? new Date(row.original.timestamp).toLocaleString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => row.status ?? '',
+            cell: ({ row }) => <div>{row.original.status || '—'}</div>,
+        },
+    ];
+
+    const milestoneTable = useTables<Milestone>({
+        data: (visibility?.milestones ?? []) as Milestone[],
+        columns: milestoneColumns,
+        getRowId: (_row, index) => `milestone-${index}`,
+    });
 
     if (isLoading)
         return (
@@ -309,44 +365,22 @@ export default function AnalyticsPage() {
                                 <p className="font-medium text-sm mb-2">
                                     Milestones
                                 </p>
-                                <Table>
-                                    <TableHeader className="bg-muted">
-                                        <TableRow>
-                                            <TableHead>Stage</TableHead>
-                                            <TableHead>Timestamp</TableHead>
-                                            <TableHead>Status</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {visibility.milestones?.map(
-                                            (m: any, i: number) => (
-                                                <TableRow key={i}>
-                                                    <TableCell>
-                                                        {m.stage}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {m.timestamp
-                                                            ? new Date(
-                                                                  m.timestamp
-                                                              ).toLocaleString()
-                                                            : '—'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {m.status || '—'}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                <CentralizedDataTable
+                                    table={milestoneTable}
+                                    hidePagination={
+                                        ((visibility?.milestones ??
+                                            []) as Milestone[]).length <= 1
+                                    }
+                                    emptyMessage="No milestones"
+                                />
                             </div>
-                            {visibility.bottlenecks?.length > 0 && (
+                            {(visibility.bottlenecks?.length ?? 0) > 0 && (
                                 <div>
                                     <p className="font-medium text-sm">
                                         Bottlenecks
                                     </p>
-                                    {visibility.bottlenecks.map(
-                                        (b: any, i: number) => (
+                                    {visibility.bottlenecks?.map(
+                                        (b, i) => (
                                             <Badge
                                                 key={i}
                                                 variant="destructive"
@@ -358,14 +392,15 @@ export default function AnalyticsPage() {
                                     )}
                                 </div>
                             )}
-                            {visibility.trackingTimeline?.length > 0 && (
+                            {(visibility.trackingTimeline?.length ?? 0) >
+                                0 && (
                                 <div>
                                     <p className="font-medium text-sm">
                                         Tracking
                                     </p>
                                     {visibility.trackingTimeline
-                                        .slice(0, 5)
-                                        .map((t: any, i: number) => (
+                                        ?.slice(0, 5)
+                                        .map((t, i) => (
                                             <div
                                                 key={i}
                                                 className="text-sm py-1 border-b flex justify-between"

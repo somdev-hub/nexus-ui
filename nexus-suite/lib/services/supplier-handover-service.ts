@@ -54,6 +54,17 @@ function normCity(v?: string | null): string {
     return (v ?? '').trim().toLowerCase();
 }
 
+/** Shipment/consignment addresses are sometimes stored URL-encoded. */
+function safeDecode(value?: string | null): string {
+    const text = (value ?? '').trim();
+    if (!text) return '';
+    try {
+        return decodeURIComponent(text);
+    } catch {
+        return text;
+    }
+}
+
 function cityCovered(covered: string[], city: string): boolean {
     const want = normCity(city);
     if (!want) return false;
@@ -138,7 +149,7 @@ export function resolveRetailerDelivery(
             'No delivery address found for the retailer. The purchase order has no usable delivery address — please ask the retailer to maintain one.'
         );
     }
-    const poText = (poShippingAddress ?? '').trim();
+    const poText = safeDecode(poShippingAddress);
     const exact = poText
         ? active.find((a) => formatOrgAddress(a) === poText)
         : undefined;
@@ -160,6 +171,59 @@ export async function loadHandoverOptions(
             'This order has no buyer organization — cannot determine the delivery address.'
         );
     }
+    return loadOptions({
+        buyerOrgId,
+        shippingAddress: order.shippingAddress,
+        ownOrgId,
+        requireRetailerAddresses: true,
+    });
+}
+
+/**
+ * Handover options for an already-created core shipment (consignment fill /
+ * VMI replenishment). The shipment carries its delivery address and (for
+ * rows created after the ownership fix) the retailer org id, so the same
+ * partnership/route gating used by the partial-ship dialog applies.
+ */
+export async function loadShipmentHandoverOptions(
+    shipment: ShipmentHandoverSource,
+    ownOrgId?: number | string | null
+): Promise<HandoverOptionsData> {
+    return loadOptions({
+        buyerOrgId: shipment.retailerOrgId,
+        shippingAddress: shipment.deliveryAddress,
+        deliveryFallbackText: shipment.deliveryAddress,
+        ownOrgId,
+        requireRetailerAddresses: false,
+    });
+}
+
+export interface ShipmentHandoverSource {
+    shipmentId?: number;
+    shipmentNumber?: string;
+    deliveryAddress?: string;
+    pickupAddress?: string;
+    retailerOrgId?: number;
+    currency?: string;
+}
+
+interface LoadOptionsInput {
+    buyerOrgId?: number | null;
+    shippingAddress?: string;
+    deliveryFallbackText?: string;
+    ownOrgId?: number | string | null;
+    /** Orders must have a retailer address book; shipments may fall back. */
+    requireRetailerAddresses?: boolean;
+}
+
+async function loadOptions({
+    buyerOrgId,
+    shippingAddress,
+    deliveryFallbackText,
+    ownOrgId,
+    requireRetailerAddresses = false,
+}: LoadOptionsInput): Promise<HandoverOptionsData> {
+    const hasBuyer = buyerOrgId !== undefined && buyerOrgId !== null;
     const [
         partnershipsRes,
         capacitiesRes,
@@ -173,28 +237,80 @@ export async function loadHandoverOptions(
             () => ({ content: [] }) as { content: PrivateRouteRow[] }
         ),
         getOrgAddresses(String(ownOrgId ?? '')).catch(() => [] as OrgAddress[]),
-        getOrgAddresses(buyerOrgId).catch(() => {
-            throw new Error(
-                'Could not load the retailer delivery addresses. Please try again.'
-            );
-        }),
+        hasBuyer
+            ? getOrgAddresses(buyerOrgId as number).catch(() => [] as OrgAddress[])
+            : Promise.resolve([] as OrgAddress[]),
     ]);
 
     const pickup = resolveSupplierPickup(supplierAddresses);
-    const delivery = resolveRetailerDelivery(
-        order.shippingAddress,
-        retailerAddresses
-    );
-    const supplierCity = pickup.autoSupplierAddress?.city;
-    const retailerCity = delivery.address?.city;
+    if (requireRetailerAddresses && retailerAddresses.length === 0) {
+        throw new Error(
+            'Could not load the retailer delivery addresses. Please try again.'
+        );
+    }
+    const delivery =
+        retailerAddresses.length > 0
+            ? resolveRetailerDelivery(shippingAddress, retailerAddresses)
+            : {
+                  address: undefined,
+                  addressText: safeDecode(
+                      deliveryFallbackText ?? shippingAddress
+                  ),
+              };
 
+    // When the supplier must pick from a dropdown there is no auto address,
+    // so match routes against the default/first one until they choose.
+    const pickupCitySource =
+        pickup.autoSupplierAddress ??
+        supplierAddresses.find((a) => a.isDefaultShipping === true) ??
+        supplierAddresses[0];
+    const supplierCity = pickupCitySource?.city;
+    const retailerCity = delivery.address?.city ?? delivery.addressText;
+
+    return {
+        supplierAddresses: supplierAddresses.filter(
+            (a) => a.isActive !== false
+        ),
+        ...pickup,
+        supplierCity,
+        retailerAddress: delivery.address,
+        retailerAddressText: delivery.addressText,
+        retailerCity,
+        ...buildPartnershipOptions({
+            partnerships: partnershipsRes.content ?? [],
+            capacities: capacitiesRes.content ?? [],
+            privateRoutes: privateRes.content ?? [],
+            ownOrgId,
+            supplierCity,
+            retailerCity,
+        }),
+    };
+}
+
+interface BuildOptionsInput {
+    partnerships: SupplierLogisticsPartnership[];
+    capacities: LogisticsCapacityRow[];
+    privateRoutes: PrivateRouteRow[];
+    ownOrgId?: number | string | null;
+    supplierCity?: string;
+    retailerCity?: string;
+}
+
+function buildPartnershipOptions({
+    partnerships,
+    capacities,
+    privateRoutes,
+    ownOrgId,
+    supplierCity,
+    retailerCity,
+}: BuildOptionsInput): Pick<HandoverOptionsData, 'shortTerm' | 'longTerm'> {
     const capacitiesById = new Map<number, LogisticsCapacityRow>();
-    for (const c of capacitiesRes.content ?? []) {
+    for (const c of capacities) {
         capacitiesById.set(c.forecastId, c);
     }
     // Private partnership lanes (long-term): only this supplier sees them.
     const privateByPartnership = new Map<number, PrivateRouteRow[]>();
-    for (const r of privateRes.content ?? []) {
+    for (const r of privateRoutes) {
         if (r.partnershipId === undefined || r.partnershipId === null) continue;
         const list = privateByPartnership.get(Number(r.partnershipId)) ?? [];
         list.push(r);
@@ -203,7 +319,7 @@ export async function loadHandoverOptions(
 
     const shortTerm: HandoverOption[] = [];
     const longTerm: HandoverOption[] = [];
-    for (const p of partnershipsRes.content ?? []) {
+    for (const p of partnerships) {
         if (String(p.status ?? '').toUpperCase() !== 'ACTIVE') continue;
         const term = String(p.partnershipTermType ?? '').toUpperCase();
         if (term !== 'SHORT_TERM' && term !== 'LONG_TERM') continue;
@@ -307,16 +423,5 @@ export async function loadHandoverOptions(
         (term === 'SHORT_TERM' ? shortTerm : longTerm).push(option);
     }
 
-    return {
-        supplierAddresses: supplierAddresses.filter(
-            (a) => a.isActive !== false
-        ),
-        ...pickup,
-        supplierCity,
-        retailerAddress: delivery.address,
-        retailerAddressText: delivery.addressText,
-        retailerCity,
-        shortTerm,
-        longTerm,
-    };
+    return { shortTerm, longTerm };
 }

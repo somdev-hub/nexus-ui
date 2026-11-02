@@ -2,53 +2,15 @@
 
 import * as React from 'react';
 import {
-    IconChevronDown,
-    IconCircleCheckFilled,
     IconDotsVertical,
-    IconLayoutColumns,
-    IconLoader,
-    IconPlus,
-    IconTrendingUp,
     IconEye,
+    IconLayoutColumns,
+    IconPlus,
 } from '@tabler/icons-react';
-import {
-    flexRender,
-    getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type ColumnDef,
-    type ColumnFiltersState,
-    type Row,
-    type SortingState,
-    type VisibilityState,
-} from '@tanstack/react-table';
-import { toast } from 'sonner';
-import { z } from 'zod';
+import type { ColumnDef } from '@tanstack/react-table';
 
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-    type ChartConfig,
-} from '@/components/ui/chart';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-    Drawer,
-    DrawerClose,
-    DrawerContent,
-    DrawerDescription,
-    DrawerFooter,
-    DrawerHeader,
-    DrawerTitle,
-    DrawerTrigger,
-} from '@/components/ui/drawer';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -58,25 +20,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { TablePagination } from './ui/table-pagination';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 import { Material } from '@/types/materials';
 import { Money } from '@/components/finances/money';
 
@@ -85,48 +30,8 @@ interface MaterialTableProps {
 }
 
 export function MaterialTable({ materials }: MaterialTableProps) {
-    const isMobile = useIsMobile();
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([]);
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({});
-    const [rowSelection, setRowSelection] = React.useState({});
-    const [globalFilter, setGlobalFilter] = React.useState('');
-
     const columns: ColumnDef<Material>[] = React.useMemo(
         () => [
-            {
-                id: 'select',
-                header: ({ table }) => (
-                    <div className="flex items-center justify-center">
-                        <Checkbox
-                            checked={
-                                table.getIsAllPageRowsSelected() ||
-                                (table.getIsSomePageRowsSelected() &&
-                                    'indeterminate')
-                            }
-                            onCheckedChange={(value) =>
-                                table.toggleAllPageRowsSelected(!!value)
-                            }
-                            aria-label="Select all"
-                        />
-                    </div>
-                ),
-                cell: ({ row }) => (
-                    <div className="flex items-center justify-center">
-                        <Checkbox
-                            checked={row.getIsSelected()}
-                            onCheckedChange={(value) =>
-                                row.toggleSelected(!!value)
-                            }
-                            aria-label="Select row"
-                        />
-                    </div>
-                ),
-                enableSorting: false,
-                enableHiding: false,
-            },
             {
                 accessorKey: 'materialCode',
                 header: 'Material Code',
@@ -169,7 +74,10 @@ export function MaterialTable({ materials }: MaterialTableProps) {
                     <div className="font-mono tabular-nums">
                         <Money
                             amount={row.getValue('unitPrice')}
-                            currency={(row.original as any).currency}
+                            currency={
+                                (row.original as { currency?: string })
+                                    .currency
+                            }
                         />
                     </div>
                 ),
@@ -208,7 +116,7 @@ export function MaterialTable({ materials }: MaterialTableProps) {
             {
                 id: 'actions',
                 header: 'Actions',
-                cell: ({ row }) => (
+                cell: () => (
                     <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                             <IconEye className="h-4 w-4" />
@@ -244,158 +152,54 @@ export function MaterialTable({ materials }: MaterialTableProps) {
         []
     );
 
-    const table = useReactTable({
+    const table = useTables<Material>({
         data: materials,
         columns,
-        state: {
-            sorting,
-            columnFilters,
-            columnVisibility,
-            rowSelection,
-            globalFilter,
-        },
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        onRowSelectionChange: setRowSelection,
-        onGlobalFilterChange: setGlobalFilter,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
-        getPaginationRowModel: getPaginationRowModel(),
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        globalFilter: '',
     });
 
     return (
-        <div className="w-full">
-            <div className="flex items-center gap-4 mb-4">
-                <Input
-                    placeholder="Search materials..."
-                    value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
-                    className="max-w-xs"
-                />
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <IconLayoutColumns className="mr-2 h-4 w-4" />
-                            Columns
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {table
-                            .getAllColumns()
-                            .filter((column) => column.getCanHide())
-                            .map((column) => (
-                                <DropdownMenuCheckboxItem
-                                    key={column.id}
-                                    checked={column.getIsVisible()}
-                                    onCheckedChange={(value) =>
-                                        column.toggleVisibility(!!value)
-                                    }
-                                >
-                                    {column.id}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id}>
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                  header.column.columnDef
-                                                      .header,
-                                                  header.getContext()
-                                              )}
-                                    </TableHead>
+        <CentralizedDataTable
+            table={table}
+            emptyMessage="No materials found."
+            toolbar={
+                <div className="flex items-center gap-4">
+                    <Input
+                        placeholder="Search materials..."
+                        value={table.getState().globalFilter ?? ''}
+                        onChange={(e) => table.setGlobalFilter(e.target.value)}
+                        className="max-w-xs"
+                    />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <IconLayoutColumns className="mr-2 h-4 w-4" />
+                                Columns
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {table
+                                .getAllColumns()
+                                .filter((column) => column.getCanHide())
+                                .map((column) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={column.id}
+                                        checked={column.getIsVisible()}
+                                        onCheckedChange={(value) =>
+                                            column.toggleVisibility(!!value)
+                                        }
+                                    >
+                                        {column.id}
+                                    </DropdownMenuCheckboxItem>
                                 ))}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {table.getRowModel().rows.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center"
-                                >
-                                    No materials found.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={
-                                        row.getIsSelected() && 'selected'
-                                    }
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext()
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-                <div className="border-t p-4 flex items-center justify-between">
-                    <div className="flex flex-1 items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                            Page {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </span>
-                    </div>
-                    <div className="flex flex-1 items-center justify-center">
-                        <TablePagination
-                            pageIndex={table.getState().pagination.pageIndex}
-                            pageCount={table.getPageCount()}
-                            canPreviousPage={table.getCanPreviousPage()}
-                            canNextPage={table.getCanNextPage()}
-                            onPageChange={(index) => table.setPageIndex(index)}
-                            onPreviousPage={() => table.previousPage()}
-                            onNextPage={() => table.nextPage()}
-                            showFirstLast={false}
-                        />
-                    </div>
-                    <div className="flex flex-1 items-center justify-end gap-2">
-                        <span className="hidden shrink-0 text-sm whitespace-nowrap text-muted-foreground sm:inline">
-                            Rows per page
-                        </span>
-                        <Select
-                            value={table
-                                .getState()
-                                .pagination.pageSize.toString()}
-                            onValueChange={(value) =>
-                                table.setPageSize(Number(value))
-                            }
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="30">30</SelectItem>
-                                <SelectItem value="40">40</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
-            </div>
-        </div>
+            }
+        />
     );
 }

@@ -8,13 +8,18 @@ import { Money } from '@/components/money';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    IconCircleCheckFilled,
+    IconDotsVertical,
+    IconEye,
+    IconFileText,
+    IconX,
+} from '@tabler/icons-react';
 import {
     acceptRetailerQuotation,
     getRetailerQuotations,
@@ -29,6 +34,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
 
 const STATUS_COLOR: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -52,7 +60,8 @@ export default function RetailerQuotationsPage() {
             try {
                 const res = await getRetailerQuotations({
                     page: 0,
-                    size: 20,
+                    // Sufficient for the centralized table (client-side paging).
+                    size: 100,
                     status: statusFilter || undefined,
                 });
                 setData(res.content ?? []);
@@ -94,6 +103,176 @@ export default function RetailerQuotationsPage() {
             setRejectingId(null);
         }
     };
+
+    const columns: ColumnDef<SupplierQuotation>[] = [
+        {
+            accessorKey: 'quotationNumber',
+            header: 'Number',
+            cell: ({ row }) => (
+                <div className="font-mono">{row.original.quotationNumber}</div>
+            ),
+            enableHiding: false,
+        },
+        {
+            id: 'supplier',
+            header: 'Supplier',
+            cell: ({ row }) =>
+                row.original.supplierOrgName ||
+                (row.original.supplierOrgId !== undefined
+                    ? `Org #${row.original.supplierOrgId}`
+                    : '—'),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    className={
+                        STATUS_COLOR[row.original.status] ??
+                        'bg-gray-100 text-gray-800'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'validity',
+            header: 'Validity',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.validFrom
+                        ? new Date(
+                              row.original.validFrom
+                          ).toLocaleDateString()
+                        : '—'}{' '}
+                    →{' '}
+                    {row.original.validTo
+                        ? new Date(row.original.validTo).toLocaleDateString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'created',
+            header: 'Created',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.createdAt ? (
+                        <>
+                            <div>
+                                {new Date(
+                                    row.original.createdAt
+                                ).toLocaleDateString()}
+                            </div>
+                            <div className="text-muted-foreground">
+                                {new Date(
+                                    row.original.createdAt
+                                ).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                })}
+                            </div>
+                        </>
+                    ) : (
+                        '—'
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'totalAmount',
+            header: () => <div className="w-full text-right">Total</div>,
+            cell: ({ row }) => (
+                <div className="text-right">
+                    <Money
+                        amount={row.original.totalAmount}
+                        currency={row.original.currency}
+                    />
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const q = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                size="icon"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem asChild>
+                                <Link href={`/retailer/quotations/${q.quotationId}`}>
+                                    <IconEye className="mr-2 h-4 w-4" />
+                                    View
+                                </Link>
+                            </DropdownMenuItem>
+                            {q.status === 'SENT' && (
+                                <>
+                                    <DropdownMenuItem
+                                        disabled={
+                                            acceptingId === q.quotationId
+                                        }
+                                        onSelect={() =>
+                                            handleAccept(q.quotationId)
+                                        }
+                                    >
+                                        <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                        {acceptingId === q.quotationId
+                                            ? 'Accepting…'
+                                            : 'Accept'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        variant="destructive"
+                                        disabled={
+                                            rejectingId === q.quotationId
+                                        }
+                                        onSelect={() =>
+                                            handleReject(q.quotationId)
+                                        }
+                                    >
+                                        <IconX className="mr-2 h-4 w-4" />
+                                        {rejectingId === q.quotationId
+                                            ? 'Rejecting…'
+                                            : 'Reject'}
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {q.status === 'ACCEPTED' && (
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={`/retailer/purchase-orders/add?fromQuotation=${q.quotationId}`}
+                                    >
+                                        <IconFileText className="mr-2 h-4 w-4" />
+                                        Convert to PO
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const table = useTables<SupplierQuotation>({
+        data,
+        columns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row) => row.quotationId.toString(),
+    });
 
     if (isLoading) {
         return (
@@ -140,159 +319,10 @@ export default function RetailerQuotationsPage() {
                     <CardTitle>Quotations</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Number</TableHead>
-                                <TableHead>Supplier</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Validity</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead className="text-right">
-                                    Total
-                                </TableHead>
-                                <TableHead>Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {data.map((q) => (
-                                <TableRow key={q.quotationId}>
-                                    <TableCell className="font-mono">
-                                        {q.quotationNumber}
-                                    </TableCell>
-                                    <TableCell>
-                                        {q.supplierOrgName ||
-                                            (q.supplierOrgId !== undefined
-                                                ? `Org #${q.supplierOrgId}`
-                                                : '—')}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            className={
-                                                STATUS_COLOR[q.status] ??
-                                                'bg-gray-100 text-gray-800'
-                                            }
-                                        >
-                                            {q.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs whitespace-nowrap">
-                                        {q.validFrom
-                                            ? new Date(
-                                                  q.validFrom
-                                              ).toLocaleDateString()
-                                            : '—'}{' '}
-                                        →{' '}
-                                        {q.validTo
-                                            ? new Date(
-                                                  q.validTo
-                                              ).toLocaleDateString()
-                                            : '—'}
-                                    </TableCell>
-                                    <TableCell className="text-xs whitespace-nowrap">
-                                        {q.createdAt ? (
-                                            <>
-                                                <div>
-                                                    {new Date(
-                                                        q.createdAt
-                                                    ).toLocaleDateString()}
-                                                </div>
-                                                <div className="text-muted-foreground">
-                                                    {new Date(
-                                                        q.createdAt
-                                                    ).toLocaleTimeString([], {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit',
-                                                    })}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            '—'
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Money
-                                            amount={q.totalAmount}
-                                            currency={q.currency}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={`/retailer/quotations/${q.quotationId}`}
-                                                >
-                                                    View
-                                                </Link>
-                                            </Button>
-                                            {q.status === 'SENT' && (
-                                                <Button
-                                                    size="sm"
-                                                    disabled={
-                                                        acceptingId ===
-                                                        q.quotationId
-                                                    }
-                                                    onClick={() =>
-                                                        handleAccept(
-                                                            q.quotationId
-                                                        )
-                                                    }
-                                                >
-                                                    {acceptingId ===
-                                                    q.quotationId
-                                                        ? 'Accepting…'
-                                                        : 'Accept'}
-                                                </Button>
-                                            )}
-                                            {q.status === 'SENT' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={
-                                                        rejectingId ===
-                                                        q.quotationId
-                                                    }
-                                                    onClick={() =>
-                                                        handleReject(
-                                                            q.quotationId
-                                                        )
-                                                    }
-                                                >
-                                                    {rejectingId ===
-                                                    q.quotationId
-                                                        ? 'Rejecting…'
-                                                        : 'Reject'}
-                                                </Button>
-                                            )}
-                                            {q.status === 'ACCEPTED' && (
-                                                <Button size="sm" asChild>
-                                                    <Link
-                                                        href={`/retailer/purchase-orders/add?fromQuotation=${q.quotationId}`}
-                                                    >
-                                                        Convert to PO
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {data.length === 0 && (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={7}
-                                        className="text-center py-8 text-muted-foreground"
-                                    >
-                                        No {status} quotations received yet
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                    <CentralizedDataTable
+                        table={table}
+                        emptyMessage={`No ${status} quotations received yet`}
+                    />
                 </CardContent>
             </Card>
         </div>

@@ -1,75 +1,26 @@
 'use client';
 
-import * as React from 'react';
-import {
-    flexRender,
-    getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type ColumnDef,
-    type ColumnFiltersState,
-    type Row,
-    type SortingState,
-    type VisibilityState,
-} from '@tanstack/react-table';
-import {
-    IconChevronDown,
-    IconChevronUp,
-    IconCircleCheckFilled,
-    IconDotsVertical,
-    IconLayoutColumns,
-    IconLoader,
-    IconPlus,
-    IconTrendingUp,
-    IconEye,
-    IconEdit,
-    IconTrash,
-    IconBuildingStore,
-    IconMapPin,
-    IconStar,
-    IconTruck,
-    IconAward,
-} from '@tabler/icons-react';
-import { toast } from 'sonner';
-
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     DropdownMenu,
-    DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Field } from './ui/field';
-import { TablePagination } from './ui/table-pagination';
-
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { Supplier } from '@/types/suppliers';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconEye,
+    IconMapPin,
+    IconStar,
+    IconTrash,
+} from '@tabler/icons-react';
 
 const getStatusColor = (status: string) => {
     switch (status) {
@@ -87,34 +38,6 @@ const getStatusColor = (status: string) => {
 };
 
 const columns: ColumnDef<Supplier>[] = [
-    {
-        id: 'select',
-        header: ({ table }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={
-                        table.getIsAllPageRowsSelected() ||
-                        (table.getIsSomePageRowsSelected() && 'indeterminate')
-                    }
-                    onCheckedChange={(value) =>
-                        table.toggleAllPageRowsSelected(!!value)
-                    }
-                    aria-label="Select all"
-                />
-            </div>
-        ),
-        cell: ({ row }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    aria-label="Select row"
-                />
-            </div>
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
     {
         accessorKey: 'businessName',
         header: 'Business Name',
@@ -225,178 +148,24 @@ const columns: ColumnDef<Supplier>[] = [
 ];
 
 export function SupplierTable({
-    suppliers: initialData,
+    suppliers,
 }: {
     suppliers: Supplier[];
 }) {
-    const [data, setData] = React.useState(() => initialData);
-    const [rowSelection, setRowSelection] = React.useState({});
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({});
-    const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([]);
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: 10,
-    });
-
-    const table = useReactTable({
-        data,
+    const table = useTables<Supplier>({
+        data: suppliers,
         columns,
-        state: {
-            sorting,
-            columnVisibility,
-            rowSelection,
-            columnFilters,
-            pagination,
-        },
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        pageIndex: 0,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        enablePagination: true,
+        enableSorting: true,
         getRowId: (row) => row.supplierId.toString(),
-        enableRowSelection: true,
-        onRowSelectionChange: setRowSelection,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        onPaginationChange: setPagination,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
-
-    const isMobile = useIsMobile();
 
     return (
-        <div className="w-full">
-            <div className="relative overflow-auto">
-                <Table>
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) =>
-                                    header.isPlaceholder ? null : (
-                                        <TableHead
-                                            key={header.id}
-                                            className={
-                                                header.column.getCanSort()
-                                                    ? 'cursor-pointer select-none'
-                                                    : ''
-                                            }
-                                            onClick={header.column.getToggleSortingHandler()}
-                                            style={{
-                                                width: header.column.getSize(),
-                                                minWidth:
-                                                    header.column.getSize(),
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-1">
-                                                {flexRender(
-                                                    header.column.columnDef
-                                                        .header,
-                                                    header.getContext()
-                                                )}
-                                                {{
-                                                    asc: (
-                                                        <IconChevronUp className="size-4" />
-                                                    ),
-                                                    desc: (
-                                                        <IconChevronDown className="size-4" />
-                                                    ),
-                                                }[
-                                                    header.column.getIsSorted() as string
-                                                ] ?? null}
-                                            </div>
-                                        </TableHead>
-                                    )
-                                )}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={
-                                        row.getIsSelected() && 'selected'
-                                    }
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            style={{
-                                                width: cell.column.getSize(),
-                                                minWidth: cell.column.getSize(),
-                                            }}
-                                        >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext()
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center"
-                                >
-                                    No suppliers found.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-4">
-                <div className="flex flex-1 items-center text-sm text-muted-foreground">
-                    <span>
-                        Page{' '}
-                        <strong>
-                            {table.getState().pagination.pageIndex + 1}
-                        </strong>{' '}
-                        of <strong>{table.getPageCount()}</strong>
-                    </span>
-                </div>
-                <div className="flex flex-1 items-center justify-center">
-                    <TablePagination
-                        pageIndex={table.getState().pagination.pageIndex}
-                        pageCount={table.getPageCount()}
-                        canPreviousPage={table.getCanPreviousPage()}
-                        canNextPage={table.getCanNextPage()}
-                        onPageChange={(index) => table.setPageIndex(index)}
-                        onPreviousPage={() => table.previousPage()}
-                        onNextPage={() => table.nextPage()}
-                        showFirstLast={false}
-                    />
-                </div>
-                <div className="flex flex-1 items-center justify-end gap-2">
-                    <span className="hidden shrink-0 text-sm whitespace-nowrap text-muted-foreground sm:inline">
-                        Rows per page
-                    </span>
-                    <Select
-                        onValueChange={(value) =>
-                            table.setPageSize(Number(value))
-                        }
-                        value={table.getState().pagination.pageSize.toString()}
-                    >
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Page size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="10">10</SelectItem>
-                            <SelectItem value="20">20</SelectItem>
-                            <SelectItem value="30">30</SelectItem>
-                            <SelectItem value="40">40</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-        </div>
+        <CentralizedDataTable table={table} emptyMessage="No suppliers found." />
     );
 }

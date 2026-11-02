@@ -90,9 +90,10 @@ export interface SupplierShipment {
     trackingNumber?: string;
     carrierTrackingNumber?: string;
     scheduledDeliveryDate?: string;
-    pickupAddress?: string;
-    deliveryAddress?: string;
     referenceType?: string;
+    /** Retailer org (Account id) the shipment is destined for. */
+    retailerOrgId?: number;
+    supplierOrgId?: number;
     carrierName?: string;
     carrierReference?: string;
     shipmentMode?: string;
@@ -143,6 +144,19 @@ export interface HandoverRequest {
     pickupDate?: string;
     deliveryDate?: string;
     notes?: string;
+    // Package facts; totals derive server-side when omitted.
+    totalPackages?: number;
+    packageWeight?: number;
+    packageLength?: number;
+    packageWidth?: number;
+    packageHeight?: number;
+    packageDimensionUom?: string;
+    totalWeight?: number;
+    totalVolume?: number;
+    // Supplier-quoted freight costing (optional).
+    freightCost?: number;
+    currency?: string;
+    freightTerms?: string;
 }
 
 export interface HandoverResponse {

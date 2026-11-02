@@ -1,45 +1,40 @@
 'use client';
 
-import * as React from 'react';
 import {
-    flexRender,
-    getCoreRowModel,
-    getFacetedRowModel,
-    getFacetedUniqueValues,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type ColumnDef,
-    type ColumnFiltersState,
-    type Row,
-    type SortingState,
-    type VisibilityState,
-} from '@tanstack/react-table';
-import {
-    IconChevronDown,
-    IconCircleCheckFilled,
-    IconDotsVertical,
-    IconEdit,
-    IconLayoutColumns,
-    IconLoader,
-    IconPlus,
-    IconTrash,
-    IconTrendingUp,
-    IconSend,
-    IconTruck,
-    IconFileText,
-    IconClock,
     IconAlertCircle,
     IconCheck,
+    IconChevronDown,
+    IconCircleCheckFilled,
+    IconClock,
+    IconDotsVertical,
+    IconEdit,
+    IconFileText,
+    IconLayoutColumns,
+    IconPlus,
+    IconSend,
+    IconTrash,
+    IconTrendingUp,
+    IconTruck,
     IconX,
 } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import * as React from 'react';
 import { toast } from 'sonner';
 
-import { useIsMobile } from '@/hooks/use-mobile';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { Money } from '@/components/money';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -57,35 +52,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Field } from './ui/field';
-import { TablePagination } from './ui/table-pagination';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Money } from '@/components/money';
-import Link from 'next/link';
-import { format } from 'date-fns';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { DEFAULT_TABLE_PAGE_SIZE, useTables } from '@/hooks/use-tables';
 import {
     cancelPurchaseOrder,
     transitionPurchaseOrder,
 } from '@/lib/services/purchase-orders-service';
 import type { PurchaseOrder as ApiPurchaseOrder } from '@/types/purchase-orders';
+import { format } from 'date-fns';
+import Link from 'next/link';
+import { Field } from './ui/field';
 
 // API objects carry the same fields with looser optionality — normalize to
 // the table's row shape when merging transition results back in.
@@ -267,34 +243,6 @@ const buildColumns = (
     onDelete: (po: PurchaseOrder) => void
 ): ColumnDef<PurchaseOrder>[] => [
     {
-        id: 'select',
-        header: ({ table }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={
-                        table.getIsAllPageRowsSelected() ||
-                        (table.getIsSomePageRowsSelected() && 'indeterminate')
-                    }
-                    onCheckedChange={(value) =>
-                        table.toggleAllPageRowsSelected(!!value)
-                    }
-                    aria-label="Select all"
-                />
-            </div>
-        ),
-        cell: ({ row }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    aria-label="Select row"
-                />
-            </div>
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
-    {
         accessorKey: 'purchaseOrderNumber',
         header: 'PO Number',
         cell: ({ row }) => (
@@ -435,12 +383,6 @@ export function PurchaseOrderTable({
     purchaseOrders: PurchaseOrder[];
 }) {
     const [data, setData] = React.useState(() => initialData);
-    const [rowSelection, setRowSelection] = React.useState({});
-    const [columnVisibility, setColumnVisibility] =
-        React.useState<VisibilityState>({});
-    const [columnFilters, setColumnFilters] =
-        React.useState<ColumnFiltersState>([]);
-    const [sorting, setSorting] = React.useState<SortingState>([]);
 
     const [confirming, setConfirming] = React.useState<{
         action: 'submit' | 'send' | 'delete';
@@ -527,26 +469,14 @@ export function PurchaseOrderTable({
         [requestSubmit, requestSend, requestDelete]
     );
 
-    const table = useReactTable({
+    const table = useTables<PurchaseOrder>({
         data,
         columns,
-        state: {
-            sorting,
-            columnVisibility,
-            rowSelection,
-            columnFilters,
-        },
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
         getRowId: (row) => row.purchaseOrderId.toString(),
-        enableRowSelection: true,
-        onRowSelectionChange: setRowSelection,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        onColumnVisibilityChange: setColumnVisibility,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
     });
 
     return (
@@ -554,7 +484,7 @@ export function PurchaseOrderTable({
             defaultValue="outline"
             className="w-full flex-col justify-start gap-6"
         >
-            <div className="flex items-center justify-between px-4 lg:px-6">
+            <div className="flex items-center justify-between">
                 <Label htmlFor="view-selector" className="sr-only">
                     View
                 </Label>
@@ -634,64 +564,12 @@ export function PurchaseOrderTable({
             </div>
             <TabsContent
                 value="outline"
-                className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+                className="relative flex flex-col gap-4 overflow-auto"
             >
-                <div className="overflow-hidden rounded-lg border">
-                    <Table>
-                        <TableHeader className="bg-muted sticky top-0 z-10">
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    {headerGroup.headers.map((header) => {
-                                        return (
-                                            <TableHead
-                                                key={header.id}
-                                                colSpan={header.colSpan}
-                                            >
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                          header.column
-                                                              .columnDef.header,
-                                                          header.getContext()
-                                                      )}
-                                            </TableHead>
-                                        );
-                                    })}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                            {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={
-                                            row.getIsSelected() && 'selected'
-                                        }
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
-                                                {flexRender(
-                                                    cell.column.columnDef.cell,
-                                                    cell.getContext()
-                                                )}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={columns.length}
-                                        className="h-24 text-center"
-                                    >
-                                        No purchase orders found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                <CentralizedDataTable
+                    table={table}
+                    emptyMessage="No purchase orders found."
+                />
             </TabsContent>
             <TabsContent value="cards" className="flex flex-col px-4 lg:px-6">
                 <div className="aspect-video w-full flex-1 rounded-lg border border-dashed">

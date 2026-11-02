@@ -19,7 +19,22 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { TablePagination } from '@/components/ui/table-pagination';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    IconCircleCheckFilled,
+    IconCreditCard,
+    IconDotsVertical,
+    IconEye,
+    IconX,
+} from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables, DEFAULT_TABLE_PAGE_SIZE } from '@/hooks/use-tables';
 import {
     createSuiteIntent,
     listSuiteIntents,
@@ -46,7 +61,7 @@ import { toast } from 'sonner';
 // then pays via the standalone mock PMS gateway.
 // ─────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 100;
 
 const COLOR: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -72,10 +87,8 @@ export default function InvoicesPage() {
     const router = useRouter();
     const { email, name } = useUserMetadata();
     const [data, setData] = useState<Invoice[]>([]);
-    const [page, setPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
-    const [last, setLast] = useState(true);
+    const [refresh, setRefresh] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [viewing, setViewing] = useState<Invoice | null>(null);
     const [viewLoading, setViewLoading] = useState(false);
@@ -90,15 +103,13 @@ export default function InvoicesPage() {
         status: 'APPROVED';
     } | null>(null);
 
-    const load = async (pageNo: number = page) => {
+    const load = async () => {
         setIsLoading(true);
         try {
-            const r = await getInvoices({ pageNo, pageOffset: PAGE_SIZE });
+            // Fetch one larger batch so the centralized table paginates client-side.
+            const r = await getInvoices({ pageNo: 0, pageOffset: PAGE_SIZE });
             setData(r.content ?? []);
-            setPage(pageNo);
-            setTotalPages(r.totalPages ?? 1);
             setTotalElements(r.totalElements ?? 0);
-            setLast(r.last ?? pageNo >= (r.totalPages ?? 1) - 1);
             // Best-effort: map in-flight payment sessions so APPROVED rows
             // show Continue instead of starting a duplicate session.
             try {
@@ -127,9 +138,8 @@ export default function InvoicesPage() {
     };
 
     useEffect(() => {
-        load(page);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page]);
+        load();
+    }, [refresh]);
 
     const openView = async (row: Invoice) => {
         setViewLoading(true);
@@ -152,7 +162,7 @@ export default function InvoicesPage() {
             toast.success('Invoice approved — ready for payment');
             setConfirm(null);
             setViewing(null);
-            load();
+            setRefresh((r) => r + 1);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Approval failed');
         } finally {
@@ -175,7 +185,7 @@ export default function InvoicesPage() {
             setRejectFor(null);
             setRejectReason('');
             setViewing(null);
-            load();
+            setRefresh((r) => r + 1);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Rejection failed');
         } finally {
@@ -221,6 +231,139 @@ export default function InvoicesPage() {
         }
     };
 
+    const columns: ColumnDef<Invoice>[] = [
+        {
+            id: 'number',
+            header: 'Invoice #',
+            accessorFn: (row) => row.supplierInvoiceNumber ?? row.invoiceNumber,
+            cell: ({ row }) => (
+                <div className="font-mono">
+                    {row.original.supplierInvoiceNumber ??
+                        row.original.invoiceNumber}
+                </div>
+            ),
+            enableHiding: false,
+        },
+        {
+            id: 'poNumber',
+            header: 'PO',
+            accessorFn: (row) => row.poNumber || row.purchaseOrderId,
+            cell: ({ row }) => (
+                <div>{row.original.poNumber || row.original.purchaseOrderId}</div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge className={COLOR[row.original.status]}>
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'totalAmount',
+            header: () => <div className="w-full text-right">Amount</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-mono">
+                    {fmtMoney(row.original.totalAmount, row.original.currency)}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'invoiceDate',
+            header: 'Invoice Date',
+            cell: ({ row }) => <div>{fmtDate(row.original.invoiceDate)}</div>,
+        },
+        {
+            accessorKey: 'dueDate',
+            header: 'Due',
+            cell: ({ row }) => <div>{fmtDate(row.original.dueDate)}</div>,
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const i = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                size="icon"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                                disabled={viewLoading}
+                                onSelect={() => openView(i)}
+                            >
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            {i.status === 'PENDING_APPROVAL' && (
+                                <>
+                                    <DropdownMenuItem
+                                        disabled={viewLoading}
+                                        onSelect={() =>
+                                            setConfirm({
+                                                invoice: i,
+                                                status: 'APPROVED',
+                                            })
+                                        }
+                                    >
+                                        <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                        Approve
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        variant="destructive"
+                                        disabled={viewLoading}
+                                        onSelect={() => {
+                                            setRejectFor(i);
+                                            setRejectReason('');
+                                        }}
+                                    >
+                                        <IconX className="mr-2 h-4 w-4" />
+                                        Reject
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {i.status === 'APPROVED' && (
+                                <DropdownMenuItem
+                                    disabled={
+                                        viewLoading || payBusyId === i.invoiceId
+                                    }
+                                    onSelect={() => continueCheckout(i)}
+                                >
+                                    <IconCreditCard className="mr-2 h-4 w-4" />
+                                    {payBusyId === i.invoiceId
+                                        ? 'Starting…'
+                                        : inflight[i.invoiceId]
+                                          ? 'Continue'
+                                          : 'Pay'}
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const table = useTables<Invoice>({
+        data,
+        columns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        sorting: [],
+        columnVisibility: {},
+        columnFilters: [],
+        getRowId: (row) => row.invoiceId.toString(),
+    });
+
     if (isLoading && data.length === 0)
         return (
             <div className="p-6">
@@ -240,139 +383,13 @@ export default function InvoicesPage() {
                     Refresh
                 </Button>
             </div>
-            <div className="rounded-lg border overflow-hidden max-w-full overflow-x-auto">
-                <Table>
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead>Invoice #</TableHead>
-                            <TableHead>PO</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead>Invoice Date</TableHead>
-                            <TableHead>Due</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {data.map((i) => (
-                            <TableRow key={i.invoiceId}>
-                                <TableCell className="font-mono">
-                                    {i.supplierInvoiceNumber ?? i.invoiceNumber}
-                                </TableCell>
-                                <TableCell>
-                                    {i.poNumber || i.purchaseOrderId}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge className={COLOR[i.status]}>
-                                        {i.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {fmtMoney(i.totalAmount, i.currency)}
-                                </TableCell>
-                                <TableCell>{fmtDate(i.invoiceDate)}</TableCell>
-                                <TableCell>{fmtDate(i.dueDate)}</TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            disabled={viewLoading}
-                                            onClick={() => openView(i)}
-                                        >
-                                            View
-                                        </Button>
-                                        {i.status === 'PENDING_APPROVAL' && (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={viewLoading}
-                                                    onClick={() =>
-                                                        setConfirm({
-                                                            invoice: i,
-                                                            status: 'APPROVED',
-                                                        })
-                                                    }
-                                                >
-                                                    Approve
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    disabled={viewLoading}
-                                                    onClick={() => {
-                                                        setRejectFor(i);
-                                                        setRejectReason('');
-                                                    }}
-                                                >
-                                                    Reject
-                                                </Button>
-                                            </>
-                                        )}
-                                        {i.status === 'APPROVED' && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={
-                                                    viewLoading ||
-                                                    payBusyId === i.invoiceId
-                                                }
-                                                onClick={() =>
-                                                    continueCheckout(i)
-                                                }
-                                            >
-                                                {payBusyId === i.invoiceId
-                                                    ? 'Starting…'
-                                                    : inflight[i.invoiceId]
-                                                      ? 'Continue'
-                                                      : 'Pay'}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {data.length === 0 && !isLoading && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={7}
-                                    className="text-center py-8"
-                                >
-                                    No invoices — suppliers submit them from
-                                    shared goods receipts
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        {isLoading && data.length > 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={7}
-                                    className="text-center py-8 text-muted-foreground"
-                                >
-                                    Loading invoices...
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <CentralizedDataTable
+                table={table}
+                emptyMessage="No invoices — suppliers submit them from shared goods receipts"
+            />
+            <div className="flex items-center">
                 <span className="text-sm text-muted-foreground">
                     {totalElements} invoice(s)
-                </span>
-                <TablePagination
-                    pageIndex={page}
-                    pageCount={totalPages}
-                    canPreviousPage={page > 0}
-                    canNextPage={!last}
-                    onPageChange={setPage}
-                    onPreviousPage={() => setPage((p) => Math.max(0, p - 1))}
-                    onNextPage={() => setPage((p) => p + 1)}
-                    showFirstLast={false}
-                />
-                <span className="text-sm text-muted-foreground">
-                    Page {page + 1} of {Math.max(totalPages, 1)}
                 </span>
             </div>
 
