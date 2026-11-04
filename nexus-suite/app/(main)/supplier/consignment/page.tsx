@@ -1,18 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+import { IconDotsVertical, IconEdit, IconTrash, IconTruck } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { ConsignmentStock } from '@/types/supplier';
+import type { SupplierCatalog, ProductVariant, SupplierPriceTier } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import {
     Dialog,
     DialogContent,
@@ -38,7 +35,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
@@ -61,6 +57,116 @@ import {
     deleteConsignment,
 } from '@/lib/services/supplier-inventory-service';
 import { useToast } from '@/hooks/use-toast';
+
+const buildConsignmentColumns = (
+    onEdit: (c: ConsignmentStock) => void,
+    onFill: (c: ConsignmentStock) => void,
+    onDelete: (c: ConsignmentStock) => void
+): ColumnDef<ConsignmentStock>[] => [
+    {
+        accessorKey: 'consignmentNumber',
+        header: 'Consignment #',
+        cell: ({ row }) => (
+            <div className="font-medium">
+                {row.original.consignmentNumber}
+            </div>
+        ),
+    },
+    {
+        accessorKey: 'retailerOrgName',
+        header: 'Retailer',
+        cell: ({ row }) =>
+            row.original.retailerOrgName || row.original.retailerOrgId,
+    },
+    {
+        accessorKey: 'materialName',
+        header: 'Material',
+        cell: ({ row }) =>
+            row.original.materialName || row.original.materialId || '—',
+    },
+    {
+        accessorKey: 'catalogName',
+        header: 'Catalog',
+        cell: ({ row }) =>
+            row.original.catalogName || row.original.catalogId || '—',
+    },
+    {
+        accessorKey: 'variantValue',
+        header: 'Variant',
+        cell: ({ row }) =>
+            row.original.variantValue || row.original.variantId || '—',
+    },
+    {
+        accessorKey: 'priceTierName',
+        header: 'Price Tier',
+        cell: ({ row }) =>
+            row.original.priceTierName ?? row.original.priceTierId ?? '—',
+    },
+    {
+        id: 'quantityOnHand',
+        accessorFn: (row) => row.quantityOnHand ?? 0,
+        header: () => <div className="w-full text-right">On Hand</div>,
+        cell: ({ row }) => (
+            <div className="text-right">
+                {row.original.quantityOnHand}
+            </div>
+        ),
+    },
+    {
+        id: 'quantityAvailable',
+        accessorFn: (row) => row.quantityAvailable ?? 0,
+        header: () => <div className="w-full text-right">Available</div>,
+        cell: ({ row }) => (
+            <div className="text-right">
+                {row.original.quantityAvailable}
+            </div>
+        ),
+    },
+    {
+        accessorKey: 'createdAt',
+        header: 'Created',
+        cell: ({ row }) =>
+            row.original.createdAt
+                ? new Date(row.original.createdAt).toLocaleString()
+                : '—',
+    },
+    {
+        accessorKey: 'actions',
+        header: 'Action',
+        id: 'actions',
+        cell: ({ row }) => (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                    >
+                        <IconDotsVertical />
+                        <span className="sr-only">Open menu</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                        <IconEdit className="mr-2 h-4 w-4" />
+                        Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onFill(row.original)}>
+                        <IconTruck className="mr-2 h-4 w-4" />
+                        Fill Consignment
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(row.original)}
+                    >
+                        <IconTrash className="mr-2 h-4 w-4" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        ),
+    },
+];
 
 export default function ConsignmentPage() {
     const { toast } = useToast();
@@ -86,14 +192,14 @@ export default function ConsignmentPage() {
     const [editPriceTierId, setEditPriceTierId] = useState('');
     const [editQty, setEditQty] = useState('');
     const [editNotes, setEditNotes] = useState('');
-    const [editVariants, setEditVariants] = useState<any[]>([]);
-    const [editPriceTiers, setEditPriceTiers] = useState<any[]>([]);
+    const [editVariants, setEditVariants] = useState<ProductVariant[]>([]);
+    const [editPriceTiers, setEditPriceTiers] = useState<SupplierPriceTier[]>([]);
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
-    const [catalogs, setCatalogs] = useState<any[]>([]);
-    const [variants, setVariants] = useState<any[]>([]);
-    const [priceTiers, setPriceTiers] = useState<any[]>([]);
+    const [catalogs, setCatalogs] = useState<SupplierCatalog[]>([]);
+    const [variants, setVariants] = useState<ProductVariant[]>([]);
+    const [priceTiers, setPriceTiers] = useState<SupplierPriceTier[]>([]);
     const { orgId } = useUserMetadata();
 
     useEffect(() => {
@@ -113,7 +219,7 @@ export default function ConsignmentPage() {
     const load = async () => {
         setLoading(true);
         try {
-            const res = await getConsignments({ page: 0, size: 20 });
+            const res = await getConsignments({ page: 0, size: 100 });
             setData(res);
         } catch (e: unknown) {
             toast({
@@ -126,6 +232,7 @@ export default function ConsignmentPage() {
     };
     useEffect(() => {
         load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     useEffect(() => {
         let active = true;
@@ -172,7 +279,7 @@ export default function ConsignmentPage() {
         let active = true;
         const loadCatalogs = async () => {
             try {
-                const res = await getSupplierCatalogs({ page: 0, size: 100 } as any);
+                const res = await getSupplierCatalogs({ page: 0, size: 100 });
                 if (!active) return;
                 setCatalogs(Array.isArray(res) ? res : (res.content ?? []));
             } catch {
@@ -248,7 +355,7 @@ export default function ConsignmentPage() {
         let active = true;
         (async () => {
             try {
-                const res = await apiClient.get<any>(
+                const res = await apiClient.get<{ hasActiveContract?: boolean }>(
                     `/iam/core/retailer/supplier-contracts/check?retailerOrgId=${form.retailerOrgId}&contractType=CONSIGNMENT`
                 );
                 if (!active) return;
@@ -331,6 +438,33 @@ export default function ConsignmentPage() {
             setDeleteBusy(false);
         }
     };
+    const openFill = (c: ConsignmentStock) => {
+        setFilling(c);
+        setPickupAddressId('');
+        setDeliveryAddressId('');
+    };
+    const openConsignmentEdit = (c: ConsignmentStock) => {
+        setEditing(c);
+        setEditCatalogId(c.catalogId ? String(c.catalogId) : '');
+        setEditVariantId(c.variantId ? String(c.variantId) : '');
+        setEditPriceTierId(c.priceTierId ? String(c.priceTierId) : '');
+        setEditQty(String(c.quantityOnHand ?? ''));
+        setEditNotes(c.notes ?? '');
+    };
+    const columns = buildConsignmentColumns(
+        openConsignmentEdit,
+        openFill,
+        (c) => setDeleting(c)
+    );
+    const consignments = data?.content ?? [];
+    const table = useTables<ConsignmentStock>({
+        data: consignments,
+        columns,
+        getRowId: (row, index) =>
+            row.consignmentId !== undefined
+                ? String(row.consignmentId)
+                : String(index),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -631,103 +765,10 @@ export default function ConsignmentPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Consignment #</TableHead>
-                                    <TableHead>Retailer</TableHead>
-                                    <TableHead>Material</TableHead>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Variant</TableHead>
-                                    <TableHead>Price Tier</TableHead>
-                                    <TableHead>On Hand</TableHead>
-                                    <TableHead>Available</TableHead>
-                                    <TableHead>Created</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map((c: ConsignmentStock) => (
-                                    <TableRow key={c.consignmentId}>
-                                        <TableCell className="font-medium">
-                                            {c.consignmentNumber}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.retailerOrgName ||
-                                                c.retailerOrgId}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.materialName || c.materialId || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.catalogName || c.catalogId || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.variantValue || c.variantId || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.priceTierName ?? c.priceTierId ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.quantityOnHand}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.quantityAvailable}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.createdAt ? new Date(c.createdAt).toLocaleString() : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        onClick={() => {
-                                                            setEditing(c);
-                                                            setEditCatalogId(c.catalogId ? String(c.catalogId) : '');
-                                                            setEditVariantId(c.variantId ? String(c.variantId) : '');
-                                                            setEditPriceTierId(c.priceTierId ? String(c.priceTierId) : '');
-                                                            setEditQty(String(c.quantityOnHand ?? ''));
-                                                            setEditNotes(c.notes ?? '');
-                                                        }}
-                                                    >
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => {
-                                                            setFilling(c);
-                                                            setPickupAddressId('');
-                                                            setDeliveryAddressId('');
-                                                        }}
-                                                    >
-                                                        Fill Consignment
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => setDeleting(c)}
-                                                    >
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No consignment stock
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No consignment stock"
+                        />
                     )}
                 </CardContent>
             </Card>

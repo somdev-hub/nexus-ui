@@ -1,16 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useTables } from '@/hooks/use-tables';
 import {
     getAllAccountHealth,
     getHealthSummary,
@@ -58,8 +53,78 @@ export default function AccountHealthPage() {
                 setLoading(false);
             }
         })();
-    }, []);
+    }, [toast]);
     const list = data ?? [];
+    const columns: ColumnDef<AccountHealth>[] = [
+        {
+            id: 'buyer',
+            accessorFn: (row) =>
+                buyerNames[row.buyerOrgId] ?? String(row.buyerOrgId ?? ''),
+            header: 'Buyer',
+            cell: ({ row }) =>
+                buyerNames[row.original.buyerOrgId] ?? (
+                    <>
+                        {row.original.buyerOrgId || row.index + 1}
+                        <div className="text-xs text-muted-foreground">
+                            ID {row.original.buyerOrgId}
+                        </div>
+                    </>
+                ),
+        },
+        {
+            accessorKey: 'totalOrders',
+            header: () => <div className="w-full text-right">Orders</div>,
+            cell: ({ row }) => (
+                <div className="font-mono text-right">
+                    {row.original.totalOrders}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'totalOrderValue',
+            header: () => <div className="w-full text-right">Value</div>,
+            cell: ({ row }) => (
+                <div className="font-mono text-right">
+                    {row.original.totalOrderValue
+                        ? `$${Math.round(row.original.totalOrderValue)}`
+                        : '-'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'paymentBehaviorScore',
+            header: 'Payment Score',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.paymentBehaviorScore > 80
+                            ? 'default'
+                            : row.original.paymentBehaviorScore > 50
+                              ? 'secondary'
+                              : 'destructive'
+                    }
+                >
+                    {row.original.paymentBehaviorScore
+                        ? Math.round(row.original.paymentBehaviorScore) + '%'
+                        : '-'}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'creditUtilization',
+            header: 'Credit',
+            cell: ({ row }) => (
+                <Badge variant="outline">
+                    {row.original.creditUtilization || '-'}
+                </Badge>
+            ),
+        },
+    ];
+    const table = useTables<AccountHealth>({
+        data: list,
+        columns,
+        getRowId: (row, index) => String(row.buyerOrgId ?? index),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <h1 className="text-2xl font-semibold">
@@ -119,72 +184,10 @@ export default function AccountHealthPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Buyer</TableHead>
-                                    <TableHead>Orders</TableHead>
-                                    <TableHead>Value</TableHead>
-                                    <TableHead>Payment Score</TableHead>
-                                    <TableHead>Credit</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {list.map((h, idx: number) => (
-                                    <TableRow key={idx}>
-                                        <TableCell>
-                                            {buyerNames[h.buyerOrgId] ?? (
-                                                <>
-                                                    {h.buyerOrgId || idx + 1}
-                                                    <div className="text-xs text-muted-foreground">
-                                                        ID {h.buyerOrgId}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{h.totalOrders}</TableCell>
-                                        <TableCell>
-                                            {h.totalOrderValue
-                                                ? `$${Math.round(h.totalOrderValue)}`
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    h.paymentBehaviorScore > 80
-                                                        ? 'default'
-                                                        : h.paymentBehaviorScore >
-                                                            50
-                                                          ? 'secondary'
-                                                          : 'destructive'
-                                                }
-                                            >
-                                                {h.paymentBehaviorScore
-                                                    ? Math.round(
-                                                          h.paymentBehaviorScore
-                                                      ) + '%'
-                                                    : '-'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">
-                                                {h.creditUtilization || '-'}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!list.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No account health data
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No account health data"
+                        />
                     )}
                 </CardContent>
             </Card>

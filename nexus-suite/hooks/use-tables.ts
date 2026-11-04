@@ -15,6 +15,7 @@ import {
     type Row,
     type RowSelectionState,
     type SortingState,
+    type Updater,
     type VisibilityState,
 } from '@tanstack/react-table';
 
@@ -50,6 +51,17 @@ export interface UseTablesOptions<TData> {
     enableRowSelection?: boolean;
     /** Stable row id resolver. */
     getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
+    /**
+     * Use manual (server-side) pagination. When true, `data` must already be
+     * the current page and `pageCount` must be supplied.
+     */
+    manualPagination?: boolean;
+    /** Total number of pages (manual pagination only). */
+    pageCount?: number;
+    /** Controlled pagination state. */
+    pagination?: PaginationState;
+    /** Called with the next pagination state whenever it changes. */
+    onPaginationChange?: (pagination: PaginationState) => void;
 }
 
 /**
@@ -73,6 +85,10 @@ export function useTables<TData>({
     enableSorting = true,
     enableRowSelection = false,
     getRowId,
+    manualPagination = false,
+    pageCount,
+    pagination,
+    onPaginationChange,
 }: UseTablesOptions<TData>) {
     const [sortingState, setSorting] = React.useState<SortingState>(
         sorting ?? []
@@ -81,6 +97,21 @@ export function useTables<TData>({
         pageIndex,
         pageSize,
     });
+    const activePagination = pagination ?? paginationState;
+
+    const handlePaginationChange = React.useCallback(
+        (updater: Updater<PaginationState>) => {
+            const next =
+                typeof updater === 'function'
+                    ? updater(activePagination)
+                    : updater;
+            if (pagination === undefined) {
+                setPagination(next);
+            }
+            onPaginationChange?.(next);
+        },
+        [activePagination, pagination, onPaginationChange]
+    );
     const [rowSelectionState, setRowSelection] = React.useState<RowSelectionState>(
         rowSelection ?? {}
     );
@@ -97,7 +128,7 @@ export function useTables<TData>({
         state: {
             sorting: enableSorting ? sortingState : [],
             pagination: enablePagination
-                ? paginationState
+                ? activePagination
                 : { pageIndex: 0, pageSize: DEFAULT_TABLE_PAGE_SIZE },
             rowSelection: rowSelectionState,
             columnVisibility: columnVisibilityState,
@@ -105,7 +136,11 @@ export function useTables<TData>({
             globalFilter: globalFilterState,
         },
         onSortingChange: enableSorting ? setSorting : () => {},
-        onPaginationChange: enablePagination ? setPagination : () => {},
+        onPaginationChange: enablePagination
+            ? handlePaginationChange
+            : () => {},
+        manualPagination,
+        pageCount: manualPagination ? pageCount : undefined,
         onRowSelectionChange: setRowSelection,
         enableRowSelection,
         getRowId,
@@ -116,7 +151,9 @@ export function useTables<TData>({
         getFacetedRowModel: getFacetedRowModel(),
         getFacetedUniqueValues: getFacetedUniqueValues(),
         getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        getPaginationRowModel: manualPagination
+            ? undefined
+            : getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
 

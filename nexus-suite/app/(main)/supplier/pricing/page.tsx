@@ -1,23 +1,23 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
 import type { SupplierPriceTier } from '@/types/supplier';
 import type { SupplierContract } from '@/types/supplier-contracts';
 import { getSupplierContractsForSupplier } from '@/lib/services/supplier-contracts-supplier-service';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -43,6 +43,9 @@ import {
     deletePriceTier,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
+import { IconDotsVertical, IconEdit, IconTrash } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useTables } from '@/hooks/use-tables';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { DatePicker } from '@/components/ui/date-picker';
 import { formatYmd, parseYmd } from '@/lib/date-utils';
@@ -71,11 +74,11 @@ export default function SupplierPricingPage() {
     const [contracts, setContracts] = useState<SupplierContract[]>([]);
     const [editing, setEditing] = useState<SupplierPriceTier | null>(null);
 
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         try {
             const [tiers, shared] = await Promise.all([
-                getPriceTiers({ page: 0, size: 20 }),
+                getPriceTiers({ page: 0, size: 100 }),
                 getSupplierContractsForSupplier(0, 100).catch(() => null),
             ]);
             setData(tiers);
@@ -90,10 +93,10 @@ export default function SupplierPricingPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
     useEffect(() => {
         load();
-    }, []);
+    }, [load]);
 
     const handleCreate = async () => {
         if (saving) return;
@@ -223,6 +226,110 @@ export default function SupplierPricingPage() {
             });
         }
     };
+
+    const rows = data?.content ?? [];
+    const columns: ColumnDef<SupplierPriceTier>[] = [
+        {
+            id: 'catalog',
+            accessorFn: (row) => row.catalogName || String(row.catalogId),
+            header: 'Catalog',
+        },
+        {
+            id: 'qtyRange',
+            accessorFn: (row) =>
+                `${row.minQuantity ?? 0} - ${row.maxQuantity ?? '∞'}`,
+            header: 'Qty Range',
+            cell: ({ row }) => (
+                <div>
+                    {row.original.minQuantity ?? 0} -{' '}
+                    {row.original.maxQuantity ?? '∞'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'unitPrice',
+            header: () => <div className="w-full text-right">Unit Price</div>,
+            cell: ({ row }) => (
+                <div className="text-right">
+                    <Money
+                        amount={row.original.unitPrice}
+                        currency={row.original.currency}
+                    />
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'customerSegment',
+            header: 'Segment',
+            cell: ({ row }) => (
+                <Badge variant="outline">
+                    {row.original.customerSegment || 'ALL'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'contract',
+            accessorFn: (row) =>
+                row.contractNumber ??
+                (row.contractId !== undefined
+                    ? String(row.contractId)
+                    : '-'),
+            header: 'Contract',
+        },
+        {
+            id: 'validity',
+            accessorFn: (row) => `${row.validFrom ?? ''} → ${row.validTo ?? ''}`,
+            header: 'Validity',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.validFrom
+                        ? new Date(row.original.validFrom).toLocaleDateString()
+                        : '-'}
+                    {' → '}
+                    {row.original.validTo
+                        ? new Date(row.original.validTo).toLocaleDateString()
+                        : '-'}
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                        >
+                            <IconDotsVertical />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                            <IconEdit className="mr-2 h-4 w-4" />
+                            Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => handleDelete(row.original.tierId)}
+                        >
+                            <IconTrash className="mr-2 h-4 w-4" />
+                            Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ),
+        },
+    ];
+
+    const table = useTables<SupplierPriceTier>({
+        data: rows,
+        columns,
+        getRowId: (row) => row.tierId.toString(),
+    });
 
     return (
         <div className="p-4 lg:p-6 space-y-4">
@@ -605,91 +712,10 @@ export default function SupplierPricingPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Qty Range</TableHead>
-                                    <TableHead>Unit Price</TableHead>
-                                    <TableHead>Segment</TableHead>
-                                    <TableHead>Contract</TableHead>
-                                    <TableHead>Validity</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map((t: SupplierPriceTier) => (
-                                    <TableRow key={t.tierId}>
-                                        <TableCell>
-                                            {t.catalogName || t.catalogId}
-                                        </TableCell>
-                                        <TableCell>
-                                            {t.minQuantity ?? 0} -{' '}
-                                            {t.maxQuantity ?? '∞'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Money
-                                                amount={t.unitPrice}
-                                                currency={t.currency}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">
-                                                {t.customerSegment || 'ALL'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {t.contractNumber ??
-                                                t.contractId ??
-                                                '-'}
-                                        </TableCell>
-                                        <TableCell className="text-xs whitespace-nowrap">
-                                            {t.validFrom
-                                                ? new Date(
-                                                      t.validFrom
-                                                  ).toLocaleDateString()
-                                                : '-'}
-                                            {' → '}
-                                            {t.validTo
-                                                ? new Date(
-                                                      t.validTo
-                                                  ).toLocaleDateString()
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => openEdit(t)}
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() =>
-                                                        handleDelete(t.tierId)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No tiers
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No tiers"
+                        />
                     )}
                 </CardContent>
             </Card>

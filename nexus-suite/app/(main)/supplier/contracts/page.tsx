@@ -1,30 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
+import {
+    IconCircleCheckFilled,
+    IconDotsVertical,
+    IconEye,
+    IconFileText,
+    IconX,
+} from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Check, X, FileText, File } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -63,7 +63,6 @@ const ACTIONABLE = new Set([
 ]);
 
 export default function SupplierContractsPage() {
-    const router = useRouter();
     const { name } = useUserMetadata();
     const [contracts, setContracts] = useState<SupplierContract[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -77,7 +76,7 @@ export default function SupplierContractsPage() {
     const load = async () => {
         setIsLoading(true);
         try {
-            const res = await getSupplierContractsForSupplier(0, 50);
+            const res = await getSupplierContractsForSupplier(0, 100);
             setContracts(res.content ?? []);
         } catch (err: unknown) {
             toast.error(
@@ -91,10 +90,6 @@ export default function SupplierContractsPage() {
     useEffect(() => {
         load();
     }, []);
-
-    const openDetail = (c: SupplierContract) => {
-        router.push(`/supplier/contracts/${c.contractId}`);
-    };
 
     const refreshContract = (updated: SupplierContract) => {
         setContracts((prev) =>
@@ -149,6 +144,148 @@ export default function SupplierContractsPage() {
     const supplierStatusOf = (c: SupplierContract): SupplierDecisionStatus =>
         c.supplierStatus ?? 'PENDING';
 
+    const columns: ColumnDef<SupplierContract>[] = [
+        {
+            accessorKey: 'contractNumber',
+            header: 'Number',
+            cell: ({ row }) => (
+                <div className="font-mono">{row.original.contractNumber}</div>
+            ),
+        },
+        {
+            accessorKey: 'contractName',
+            header: 'Name',
+            cell: ({ row }) => (
+                <div className="max-w-xs truncate">
+                    {row.original.contractName}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.status}</Badge>
+            ),
+        },
+        {
+            id: 'supplierDecision',
+            header: 'Your Decision',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        supplierStatusOf(row.original) === 'APPROVED'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {SUPPLIER_STATUS_LABEL[supplierStatusOf(row.original)] ??
+                        supplierStatusOf(row.original)}
+                </Badge>
+            ),
+        },
+        {
+            id: 'effectiveDate',
+            header: 'Effective',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.effectiveDate
+                        ? new Date(
+                              row.original.effectiveDate
+                          ).toLocaleDateString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'expiryDate',
+            header: 'Expiry',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.expiryDate
+                        ? new Date(row.original.expiryDate).toLocaleDateString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const c = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                            align="end"
+                            className="w-40"
+                        >
+                            <DropdownMenuItem asChild>
+                                <Link href={`/supplier/contracts/${c.contractId}`}>
+                                    <IconEye className="mr-2 h-4 w-4" />
+                                    View
+                                </Link>
+                            </DropdownMenuItem>
+                            {ACTIONABLE.has(c.status) &&
+                                supplierStatusOf(c) !== 'APPROVED' &&
+                                supplierStatusOf(c) !== 'REJECTED' && (
+                                    <>
+                                        <DropdownMenuItem
+                                            onClick={() =>
+                                                setConfirm({
+                                                    action: 'approve',
+                                                    contract: c,
+                                                })
+                                            }
+                                        >
+                                            <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                            Approve
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            variant="destructive"
+                                            onClick={() =>
+                                                setConfirm({
+                                                    action: 'reject',
+                                                    contract: c,
+                                                })
+                                            }
+                                        >
+                                            <IconX className="mr-2 h-4 w-4" />
+                                            Reject
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() =>
+                                                setConfirm({
+                                                    action: 'amendments',
+                                                    contract: c,
+                                                })
+                                            }
+                                        >
+                                            <IconFileText className="mr-2 h-4 w-4" />
+                                            Amendments
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+    const table = useTables<SupplierContract>({
+        data: contracts,
+        columns,
+        getRowId: (row) => String(row.contractId),
+    });
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
@@ -170,120 +307,10 @@ export default function SupplierContractsPage() {
                             <CardTitle>Shared With Me</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            {contracts.length === 0 ? (
-                                <p className="p-4 text-sm text-muted-foreground">
-                                    No contracts shared with you yet.
-                                </p>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Number</TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Your Decision</TableHead>
-                                            <TableHead>Effective</TableHead>
-                                            <TableHead>Expiry</TableHead>
-                                            <TableHead className="text-right">
-                                                Actions
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {contracts.map((c) => (
-                                            <TableRow key={c.contractId}>
-                                                <TableCell className="font-mono">
-                                                    {c.contractNumber}
-                                                </TableCell>
-                                                <TableCell className="max-w-xs truncate">
-                                                    {c.contractName}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {c.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            supplierStatusOf(
-                                                                c
-                                                            ) === 'APPROVED'
-                                                                ? 'default'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {SUPPLIER_STATUS_LABEL[
-                                                            supplierStatusOf(c)
-                                                        ] ??
-                                                            supplierStatusOf(c)}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="whitespace-nowrap">
-                                                    {c.effectiveDate
-                                                        ? new Date(
-                                                              c.effectiveDate
-                                                          ).toLocaleDateString()
-                                                        : '—'}
-                                                </TableCell>
-                                                <TableCell className="whitespace-nowrap">
-                                                    {c.expiryDate
-                                                        ? new Date(
-                                                              c.expiryDate
-                                                          ).toLocaleDateString()
-                                                        : '—'}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon">
-                                                                <MoreVertical className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => openDetail(c)}>
-                                                                <Eye className="mr-2 h-4 w-4" />
-                                                                View
-                                                            </DropdownMenuItem>
-
-                                                            {ACTIONABLE.has(c.status) &&
-                                                                supplierStatusOf(c) !== 'APPROVED' &&
-                                                                supplierStatusOf(c) !== 'REJECTED' && (
-                                                                    <>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                setConfirm({ action: 'approve', contract: c })
-                                                                            }
-                                                                        >
-                                                                            <Check className="mr-2 h-4 w-4" />
-                                                                            Approve
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                setConfirm({ action: 'reject', contract: c })
-                                                                            }
-                                                                        >
-                                                                            <X className="mr-2 h-4 w-4" />
-                                                                            Reject
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                setConfirm({ action: 'amendments', contract: c })
-                                                                            }
-                                                                        >
-                                                                            <FileText className="mr-2 h-4 w-4" />
-                                                                            Amendments
-                                                                        </DropdownMenuItem>
-                                                                    </>
-                                                                )}
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
+                            <CentralizedDataTable
+                                table={table}
+                                emptyMessage="No contracts shared with you yet."
+                            />
                         </CardContent>
                     </Card>
                 </div>

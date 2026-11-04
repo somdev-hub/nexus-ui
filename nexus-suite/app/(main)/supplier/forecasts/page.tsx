@@ -1,20 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Loader2, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+import { IconDotsVertical, IconEdit, IconSend, IconTrash } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { CollaborativeForecast } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import {
     Dialog,
     DialogContent,
@@ -67,6 +69,87 @@ const emptyForm = {
     notes: '',
 };
 
+const buildForecastColumns = (
+    onShare: (f: CollaborativeForecast) => void,
+    onEdit: (f: CollaborativeForecast) => void,
+    onDelete: (f: CollaborativeForecast) => void
+): ColumnDef<CollaborativeForecast>[] => [
+    {
+        accessorKey: 'retailerOrgName',
+        header: 'Retailer',
+        cell: ({ row }) =>
+            row.original.retailerOrgName || row.original.retailerOrgId || '-',
+    },
+    {
+        accessorKey: 'catalogName',
+        header: 'Catalog',
+        cell: ({ row }) =>
+            row.original.catalogName || row.original.catalogId || '-',
+    },
+    {
+        accessorKey: 'periodStart',
+        header: 'Period',
+        cell: ({ row }) => (
+            <div className="text-xs">
+                {row.original.periodStart} → {row.original.periodEnd}
+            </div>
+        ),
+    },
+    {
+        id: 'qty',
+        accessorFn: (row) => row.forecastQuantity,
+        header: () => <div className="w-full text-right">Qty</div>,
+        cell: ({ row }) => (
+            <div className="text-right">{row.original.forecastQuantity}</div>
+        ),
+    },
+    {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => <Badge>{row.original.status}</Badge>,
+    },
+    {
+        accessorKey: 'actions',
+        header: 'Action',
+        id: 'actions',
+        cell: ({ row }) => (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                    >
+                        <IconDotsVertical />
+                        <span className="sr-only">Open menu</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                    {row.original.status === 'DRAFT' && (
+                        <DropdownMenuItem onClick={() => onShare(row.original)}>
+                            <IconSend className="mr-2 h-4 w-4" />
+                            Share
+                        </DropdownMenuItem>
+                    )}
+                    {row.original.status === 'DRAFT' && (
+                        <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                            <IconEdit className="mr-2 h-4 w-4" />
+                            Edit
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(row.original)}
+                    >
+                        <IconTrash className="mr-2 h-4 w-4" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        ),
+    },
+];
+
 export default function ForecastsPage() {
     const { toast } = useToast();
     const [data, setData] =
@@ -89,7 +172,7 @@ export default function ForecastsPage() {
     const load = async () => {
         setLoading(true);
         try {
-            const res = await getForecasts({ page: 0, size: 20 });
+            const res = await getForecasts({ page: 0, size: 100 });
             setData(res);
         } catch (e: unknown) {
             toast({
@@ -102,6 +185,7 @@ export default function ForecastsPage() {
     };
     useEffect(() => {
         load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     useEffect(() => {
         let active = true;
@@ -347,6 +431,20 @@ export default function ForecastsPage() {
             </div>
         </>
     );
+    const columns = buildForecastColumns(
+        (f) => {
+            void share(f.forecastId);
+        },
+        openEdit,
+        (f) => setDeleting(f)
+    );
+    const forecasts = data?.content ?? [];
+    const table = useTables<CollaborativeForecast>({
+        data: forecasts,
+        columns,
+        getRowId: (row, index) =>
+            row.forecastId !== undefined ? String(row.forecastId) : String(index),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -436,95 +534,10 @@ export default function ForecastsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Retailer</TableHead>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Period</TableHead>
-                                    <TableHead>Qty</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map(
-                                    (f: CollaborativeForecast) => (
-                                        <TableRow key={f.forecastId}>
-                                            <TableCell>
-                                                {f.retailerOrgName ||
-                                                    f.retailerOrgId ||
-                                                    '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {f.catalogName ||
-                                                    f.catalogId ||
-                                                    '-'}
-                                            </TableCell>
-                                            <TableCell className="text-xs">
-                                                {f.periodStart} → {f.periodEnd}
-                                            </TableCell>
-                                            <TableCell>
-                                                {f.forecastQuantity}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>{f.status}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {f.status === 'DRAFT' && (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    share(
-                                                                        f.forecastId
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Share2 className="mr-1 h-3 w-3" />
-                                                                Share
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    openEdit(f)
-                                                                }
-                                                            >
-                                                                <Pencil className="mr-1 h-3 w-3" />
-                                                                Edit
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() =>
-                                                            setDeleting(f)
-                                                        }
-                                                    >
-                                                        <Trash2 className="mr-1 h-3 w-3" />
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                )}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={6}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No forecasts
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No forecasts"
+                        />
                     )}
                 </CardContent>
             </Card>

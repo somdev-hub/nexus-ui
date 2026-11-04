@@ -1,21 +1,20 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
 import type { ProductVariant } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -38,6 +37,9 @@ import {
     deleteVariant,
 } from '@/lib/services/supplier-catalog-service';
 import { useToast } from '@/hooks/use-toast';
+import { useTables } from '@/hooks/use-tables';
+import { IconDotsVertical, IconTrash } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function VariantsPage() {
@@ -56,10 +58,10 @@ export default function VariantsPage() {
         skuSuffix: '',
         priceAdjustment: '',
     });
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         try {
-            const v = await getVariants({ page: 0, size: 20 });
+            const v = await getVariants({ page: 0, size: 100 });
             setData(v);
         } catch (e: unknown) {
             toast({
@@ -69,10 +71,10 @@ export default function VariantsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
     useEffect(() => {
         load();
-    }, []);
+    }, [load]);
     const handleCreate = async () => {
         if (saving) return;
         setSaving(true);
@@ -110,6 +112,67 @@ export default function VariantsPage() {
             });
         }
     };
+    const rows = data?.content ?? [];
+    const columns: ColumnDef<ProductVariant>[] = [
+        {
+            id: 'catalog',
+            accessorFn: (row) => row.catalogName || String(row.catalogId),
+            header: 'Catalog',
+        },
+        {
+            accessorKey: 'variantType',
+            header: 'Type',
+            cell: ({ row }) => <Badge>{row.original.variantType}</Badge>,
+        },
+        {
+            accessorKey: 'variantValue',
+            header: 'Value',
+        },
+        {
+            accessorKey: 'skuSuffix',
+            header: 'SKU Suffix',
+            cell: ({ row }) => row.original.skuSuffix || '-',
+        },
+        {
+            id: 'priceAdjustment',
+            accessorFn: (row) => row.priceAdjustment ?? 0,
+            header: 'Price Adj.',
+            cell: ({ row }) => row.original.priceAdjustment ?? 0,
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                        >
+                            <IconDotsVertical />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() =>
+                                handleDelete(row.original.variantId)
+                            }
+                        >
+                            <IconTrash className="mr-2 h-4 w-4" />
+                            Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ),
+        },
+    ];
+    const table = useTables<ProductVariant>({
+        data: rows,
+        columns,
+        getRowId: (row) => row.variantId.toString(),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -229,58 +292,10 @@ export default function VariantsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Value</TableHead>
-                                    <TableHead>SKU Suffix</TableHead>
-                                    <TableHead>Price Adj.</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map((v: ProductVariant) => (
-                                    <TableRow key={v.variantId}>
-                                        <TableCell>
-                                            {v.catalogName || v.catalogId}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge>{v.variantType}</Badge>
-                                        </TableCell>
-                                        <TableCell>{v.variantValue}</TableCell>
-                                        <TableCell>
-                                            {v.skuSuffix || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {v.priceAdjustment}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() =>
-                                                    handleDelete(v.variantId)
-                                                }
-                                            >
-                                                Delete
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={6}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No variants
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No variants"
+                        />
                     )}
                 </CardContent>
             </Card>

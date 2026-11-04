@@ -30,16 +30,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { useTables } from '@/hooks/use-tables';
 import { formatYmd, isBeforeToday, parseYmd } from '@/lib/date-utils';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import {
@@ -52,9 +52,10 @@ import {
     getSupplierCatalogs,
     getVariants,
 } from '@/lib/services/supplier-catalog-service';
-import type { PaginatedResponse } from '@/types/paginated-response';
 import type { ProductionCapacity, ProductVariant, SupplierCatalog } from '@/types/supplier';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { IconDotsVertical, IconEdit, IconTrash } from '@tabler/icons-react';
+import { Loader2, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 const emptyForm = {
@@ -76,8 +77,7 @@ const formatDatePart = (value?: string | null) => {
 
 export default function CapacityPage() {
 	const { toast } = useToast();
-	const [data, setData] =
-		useState<PaginatedResponse<ProductionCapacity> | null>(null);
+	const [capacities, setCapacities] = useState<ProductionCapacity[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [open, setOpen] = useState(false);
 	useQuickCreateIntent('supplier:capacity', () => setOpen(true));
@@ -116,7 +116,7 @@ export default function CapacityPage() {
 		setLoading(true);
 		try {
 			const res = await getCapacities({ page: 0, size: 20 });
-			setData(res);
+			setCapacities(res.content ?? []);
 		} catch (e: unknown) {
 			toast({
 				title: e instanceof Error ? e.message : String(e),
@@ -217,6 +217,130 @@ export default function CapacityPage() {
 			setDeleteBusy(false);
 		}
 	};
+	const columns: ColumnDef<ProductionCapacity>[] = [
+		{
+			id: 'catalog',
+			accessorFn: (row) => row.catalogName ?? row.productLine ?? '',
+			header: 'Catalog Item',
+			cell: ({ row }) => (
+				<div className="space-y-1">
+					<div>
+						{row.original.catalogName ??
+							row.original.productLine ??
+							'-'}
+					</div>
+					{row.original.variantLabel && (
+						<Badge variant="outline" className="text-xs">
+							{row.original.variantLabel}
+						</Badge>
+					)}
+				</div>
+			),
+		},
+		{
+			id: 'period',
+			accessorFn: (row) => row.periodStart ?? '',
+			header: 'Period',
+			cell: ({ row }) => (
+				<div className="text-xs whitespace-nowrap">
+					{formatDatePart(row.original.periodStart)} →{' '}
+					{formatDatePart(row.original.periodEnd)}
+				</div>
+			),
+		},
+		{
+			accessorKey: 'shift',
+			header: 'Shift',
+			cell: ({ row }) => (
+				<Badge variant="outline">{row.original.shift || '-'}</Badge>
+			),
+		},
+		{
+			accessorKey: 'availableCapacity',
+			header: () => <div className="w-full text-right">Available</div>,
+			cell: ({ row }) => (
+				<div className="font-mono text-right">
+					{row.original.availableCapacity ?? 0}
+				</div>
+			),
+		},
+		{
+			accessorKey: 'allocatedCapacity',
+			header: () => <div className="w-full text-right">Allocated</div>,
+			cell: ({ row }) => (
+				<div className="font-mono text-right">
+					{row.original.allocatedCapacity ?? 0}
+				</div>
+			),
+		},
+		{
+			id: 'remainingCapacity',
+			accessorFn: (row) =>
+				row.remainingCapacity ??
+				(row.availableCapacity ?? 0) - (row.allocatedCapacity ?? 0),
+			header: () => <div className="w-full text-right">Remaining</div>,
+			cell: ({ row }) => (
+				<div className="font-mono font-medium text-right">
+					{row.original.remainingCapacity ??
+						(row.original.availableCapacity ?? 0) -
+							(row.original.allocatedCapacity ?? 0)}
+				</div>
+			),
+		},
+		{
+			accessorKey: 'unit',
+			header: 'Unit',
+			cell: ({ row }) => row.original.unit || '-',
+		},
+		{
+			accessorKey: 'notes',
+			header: 'Notes',
+			cell: ({ row }) => (
+				<div className="max-w-40 truncate text-xs">
+					{row.original.notes || '-'}
+				</div>
+			),
+		},
+		{
+			id: 'actions',
+			header: 'Action',
+			cell: ({ row }) => (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+						>
+							<IconDotsVertical />
+							<span className="sr-only">Open menu</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-40">
+						<DropdownMenuItem onClick={() => openEdit(row.original)}>
+							<IconEdit className="mr-2 h-4 w-4" />
+							Edit
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							variant="destructive"
+							onClick={() => setDeleting(row.original)}
+						>
+							<IconTrash className="mr-2 h-4 w-4" />
+							Delete
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			),
+		},
+	];
+	const table = useTables<ProductionCapacity>({
+		data: capacities,
+		columns,
+		getRowId: (row, index) =>
+			row.capacityId !== undefined
+				? String(row.capacityId)
+				: String(index),
+	});
 	const renderFields = (
 		value: typeof emptyForm,
 		setValue: (v: typeof emptyForm) => void
@@ -431,100 +555,10 @@ export default function CapacityPage() {
 							<Skeleton className="h-10 w-full" />
 						</div>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Catalog Item</TableHead>
-									<TableHead>Period</TableHead>
-									<TableHead>Shift</TableHead>
-									<TableHead>Available</TableHead>
-									<TableHead>Allocated</TableHead>
-									<TableHead>Remaining</TableHead>
-									<TableHead>Unit</TableHead>
-									<TableHead>Notes</TableHead>
-									<TableHead>Action</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{data?.content?.map((c: ProductionCapacity) => (
-									<TableRow key={c.capacityId}>
-										<TableCell>
-											<div className="space-y-1">
-												<div>
-													{c.catalogName ??
-														c.productLine ??
-														'-'}
-												</div>
-												{c.variantLabel && (
-													<Badge
-														variant="outline"
-														className="text-xs"
-													>
-														{c.variantLabel}
-													</Badge>
-												)}
-											</div>
-										</TableCell>
-										<TableCell className="text-xs whitespace-nowrap">
-											{formatDatePart(c.periodStart)} →{' '}
-											{formatDatePart(c.periodEnd)}
-										</TableCell>
-										<TableCell>
-											<Badge variant="outline">
-												{c.shift || '-'}
-											</Badge>
-										</TableCell>
-										<TableCell>
-											{c.availableCapacity}
-										</TableCell>
-										<TableCell>
-											{c.allocatedCapacity}
-										</TableCell>
-										<TableCell className="font-medium">
-											{c.remainingCapacity ??
-												(c.availableCapacity ?? 0) -
-												(c.allocatedCapacity ?? 0)}
-										</TableCell>
-										<TableCell>{c.unit || '-'}</TableCell>
-										<TableCell className="max-w-40 truncate text-xs">
-											{c.notes || '-'}
-										</TableCell>
-										<TableCell>
-											<div className="flex gap-1">
-												<Button
-													size="sm"
-													variant="outline"
-													onClick={() => openEdit(c)}
-												>
-													<Pencil className="mr-1 h-3 w-3" />
-													Edit
-												</Button>
-												<Button
-													size="sm"
-													variant="destructive"
-													onClick={() =>
-														setDeleting(c)
-													}
-												>
-													<Trash2 className="mr-1 h-3 w-3" />
-													Delete
-												</Button>
-											</div>
-										</TableCell>
-									</TableRow>
-								))}
-								{!data?.content?.length && (
-									<TableRow>
-										<TableCell
-											colSpan={9}
-											className="text-center text-sm text-muted-foreground"
-										>
-											No capacity
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
+						<CentralizedDataTable
+							table={table}
+							emptyMessage="No capacity"
+						/>
 					)}
 				</CardContent>
 			</Card>

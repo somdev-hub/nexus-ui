@@ -1,7 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+import { IconDotsVertical, IconEdit, IconRefresh, IconTrash } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { VmiConfig, VmiSuggestion } from '@/types/supplier';
+import type { SupplierCatalog, ProductVariant, SupplierPriceTier } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,15 +14,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical } from 'lucide-react';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import {
     Dialog,
     DialogContent,
@@ -75,6 +71,129 @@ const emptyForm = {
     autoReplenish: true,
 };
 
+const buildVmiColumns = (
+    onReplenish: (v: VmiConfig) => void,
+    onEdit: (v: VmiConfig) => void,
+    onDelete: (v: VmiConfig) => void
+): ColumnDef<VmiConfig>[] => [
+    {
+        accessorKey: 'retailerOrgName',
+        header: 'Retailer',
+        cell: ({ row }) =>
+            row.original.retailerOrgName || row.original.retailerOrgId,
+    },
+    {
+        accessorKey: 'materialName',
+        header: 'Material',
+        cell: ({ row }) =>
+            row.original.materialName || row.original.materialId || '—',
+    },
+    {
+        accessorKey: 'catalogName',
+        header: 'Catalog',
+        cell: ({ row }) =>
+            row.original.catalogName || row.original.catalogId || '—',
+    },
+    {
+        accessorKey: 'variantValue',
+        header: 'Variant',
+        cell: ({ row }) =>
+            row.original.variantValue || row.original.variantId || '—',
+    },
+    {
+        accessorKey: 'priceTierName',
+        header: 'Price Tier',
+        cell: ({ row }) =>
+            row.original.priceTierName || row.original.priceTierId || '—',
+    },
+    {
+        id: 'minMax',
+        header: 'Min / Max',
+        cell: ({ row }) => (
+            <div className="text-xs">
+                {row.original.minLevel ?? '-'} / {row.original.maxLevel ?? '-'}
+            </div>
+        ),
+    },
+    {
+        id: 'reorderPoint',
+        accessorFn: (row) => row.reorderPoint ?? 0,
+        header: () => <div className="w-full text-right">Reorder Point</div>,
+        cell: ({ row }) => (
+            <div className="text-right">
+                {row.original.reorderPoint ?? '—'}
+            </div>
+        ),
+    },
+    {
+        id: 'reorderQuantity',
+        accessorFn: (row) => row.reorderQuantity ?? 0,
+        header: () => <div className="w-full text-right">Reorder Qty</div>,
+        cell: ({ row }) => (
+            <div className="text-right">
+                {row.original.reorderQuantity ?? '—'}
+            </div>
+        ),
+    },
+    {
+        accessorKey: 'autoReplenish',
+        header: 'Auto',
+        cell: ({ row }) => (
+            <Badge
+                variant={row.original.autoReplenish ? 'default' : 'secondary'}
+            >
+                {String(row.original.autoReplenish)}
+            </Badge>
+        ),
+    },
+    {
+        accessorKey: 'createdAt',
+        header: 'Created',
+        cell: ({ row }) =>
+            row.original.createdAt
+                ? new Date(row.original.createdAt).toLocaleString()
+                : '—',
+    },
+    {
+        accessorKey: 'actions',
+        header: 'Action',
+        id: 'actions',
+        cell: ({ row }) => (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                    >
+                        <IconDotsVertical />
+                        <span className="sr-only">Open menu</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem
+                        onClick={() => onReplenish(row.original)}
+                    >
+                        <IconRefresh className="mr-2 h-4 w-4" />
+                        Replenish
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                        <IconEdit className="mr-2 h-4 w-4" />
+                        Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(row.original)}
+                    >
+                        <IconTrash className="mr-2 h-4 w-4" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        ),
+    },
+];
+
 export default function VmiPage() {
     const { toast } = useToast();
     const [data, setData] = useState<PaginatedResponse<VmiConfig> | null>(null);
@@ -93,15 +212,15 @@ export default function VmiPage() {
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
-    const [catalogs, setCatalogs] = useState<any[]>([]);
-    const [variants, setVariants] = useState<any[]>([]);
-    const [priceTiers, setPriceTiers] = useState<any[]>([]);
+    const [catalogs, setCatalogs] = useState<SupplierCatalog[]>([]);
+    const [variants, setVariants] = useState<ProductVariant[]>([]);
+    const [priceTiers, setPriceTiers] = useState<SupplierPriceTier[]>([]);
     const { orgId } = useUserMetadata();
     const load = async () => {
         setLoading(true);
         try {
             const [v, s] = await Promise.all([
-                getVmis({ page: 0, size: 20 }),
+                getVmis({ page: 0, size: 100 }),
                 getVmiSuggestions().catch(() => null),
             ]);
             setData(v);
@@ -117,6 +236,7 @@ export default function VmiPage() {
     };
     useEffect(() => {
         load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     useEffect(() => {
         let active = true;
@@ -163,7 +283,7 @@ export default function VmiPage() {
         let active = true;
         const loadCatalogs = async () => {
             try {
-                const res = await getSupplierCatalogs({ page: 0, size: 100 } as any);
+                const res = await getSupplierCatalogs({ page: 0, size: 100 });
                 if (!active) return;
                 setCatalogs(Array.isArray(res) ? res : (res.content ?? []));
             } catch {
@@ -212,7 +332,7 @@ export default function VmiPage() {
         let active = true;
         (async () => {
             try {
-                const res = await apiClient.get<any>(
+                const res = await apiClient.get<{ hasActiveContract?: boolean }>(
                     `/iam/core/retailer/supplier-contracts/check?retailerOrgId=${form.retailerOrgId}&contractType=VMI`
                 );
                 if (!active) return;
@@ -485,6 +605,20 @@ export default function VmiPage() {
             </div>
         </>
     );
+    const columns = buildVmiColumns(
+        (v) => {
+            void replenish(v.vmiId);
+        },
+        openEdit,
+        (v) => setDeleting(v)
+    );
+    const vmis = data?.content ?? [];
+    const table = useTables<VmiConfig>({
+        data: vmis,
+        columns,
+        getRowId: (row, index) =>
+            row.vmiId !== undefined ? String(row.vmiId) : String(index),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -605,95 +739,10 @@ export default function VmiPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Retailer</TableHead>
-                                    <TableHead>Material</TableHead>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Variant</TableHead>
-                                    <TableHead>Price Tier</TableHead>
-                                    <TableHead>Min / Max</TableHead>
-                                    <TableHead>Reorder Point</TableHead>
-                                    <TableHead>Reorder Qty</TableHead>
-                                    <TableHead>Auto</TableHead>
-                                    <TableHead>Created</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map((v: VmiConfig) => (
-                                    <TableRow key={v.vmiId}>
-                                        <TableCell>
-                                            {v.retailerOrgName ||
-                                                v.retailerOrgId}
-                                        </TableCell>
-                                        <TableCell>
-                                            {v.materialName || v.materialId || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {v.catalogName || v.catalogId || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {v.variantValue || v.variantId || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {v.priceTierName || v.priceTierId || '—'}
-                                        </TableCell>
-                                        <TableCell className="text-xs">
-                                            {v.minLevel ?? '-'} /{' '}
-                                            {v.maxLevel ?? '-'}
-                                        </TableCell>
-                                        <TableCell>{v.reorderPoint ?? '—'}</TableCell>
-                                        <TableCell>{v.reorderQuantity ?? '—'}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    v.autoReplenish
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {String(v.autoReplenish)}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {v.createdAt ? new Date(v.createdAt).toLocaleString() : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => replenish(v.vmiId)}>
-                                                        Replenish
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => openEdit(v)}>
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => setDeleting(v)}>
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No VMI
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No VMI"
+                        />
                     )}
                 </CardContent>
             </Card>

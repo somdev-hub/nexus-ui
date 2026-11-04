@@ -25,7 +25,6 @@ import {
 import { DatePicker } from '@/components/ui/date-picker';
 import { formatYmd, parseYmd } from '@/lib/date-utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Table,
     TableBody,
@@ -34,7 +33,23 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { TablePagination } from '@/components/ui/table-pagination';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconEye,
+    IconPlus,
+    IconSend,
+    IconX,
+} from '@tabler/icons-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import type { SupplierOrder } from '@/types/supplier';
 import type { GoodsReceipt } from '@/types/procurement';
@@ -57,8 +72,6 @@ import { useToast } from '@/hooks/use-toast';
 // goods receipt, builds the invoice (lines + tax + charges) and
 // submits it. The retailer only reviews, approves/rejects and pays.
 // ─────────────────────────────────────────────────────────────
-
-const PAGE_SIZE = 10;
 
 // Fixed tax: 18% of the base (lines) amount, non-editable.
 const TAX_RATE = 0.18;
@@ -105,11 +118,9 @@ export default function SupplierInvoicesPage() {
     const [data, setData] = useState<PaginatedResponse<SupplierInvoice> | null>(
         null
     );
-    const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
     const [grData, setGrData] =
         useState<PaginatedResponse<GoodsReceipt> | null>(null);
-    const [grPage, setGrPage] = useState(0);
     const [grLoading, setGrLoading] = useState(true);
     const [orders, setOrders] = useState<SupplierOrder[]>([]);
     const [viewingGr, setViewingGr] = useState<GoodsReceipt | null>(null);
@@ -137,51 +148,45 @@ export default function SupplierInvoicesPage() {
     const [notes, setNotes] = useState('');
     const [lines, setLines] = useState<PendingLine[]>([]);
 
-    const load = useCallback(
-        async (pageNo: number = page) => {
-            setLoading(true);
-            try {
-                const res = await getSupplierInvoices({
-                    page: pageNo,
-                    size: PAGE_SIZE,
-                });
-                setData(res);
-            } catch (e: unknown) {
-                toast({
-                    title: e instanceof Error ? e.message : String(e),
-                    variant: 'destructive',
-                });
-            } finally {
-                setLoading(false);
-            }
-        },
-        [toast, page]
-    );
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await getSupplierInvoices({
+                page: 0,
+                size: 100,
+            });
+            setData(res);
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
 
     useEffect(() => {
         load();
     }, [load]);
 
-    const loadGrs = useCallback(
-        async (pageNo: number = grPage) => {
-            setGrLoading(true);
-            try {
-                const res = await getSupplierGoodsReceipts({
-                    page: pageNo,
-                    size: PAGE_SIZE,
-                });
-                setGrData(res);
-            } catch (e: unknown) {
-                toast({
-                    title: e instanceof Error ? e.message : String(e),
-                    variant: 'destructive',
-                });
-            } finally {
-                setGrLoading(false);
-            }
-        },
-        [toast, grPage]
-    );
+    const loadGrs = useCallback(async () => {
+        setGrLoading(true);
+        try {
+            const res = await getSupplierGoodsReceipts({
+                page: 0,
+                size: 100,
+            });
+            setGrData(res);
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setGrLoading(false);
+        }
+    }, [toast]);
 
     useEffect(() => {
         loadGrs();
@@ -531,6 +536,202 @@ export default function SupplierInvoicesPage() {
 
     const invoices = data?.content ?? [];
 
+    const grColumns: ColumnDef<GoodsReceipt>[] = [
+        {
+            accessorKey: 'grNumber',
+            header: 'GR Number',
+            cell: ({ row }) => (
+                <div className="font-mono">{row.original.grNumber}</div>
+            ),
+        },
+        {
+            id: 'po',
+            header: 'PO',
+            cell: ({ row }) => (
+                <div className="font-mono text-xs">
+                    {poNumberOf(row.original.purchaseOrderId)}
+                </div>
+            ),
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            cell: ({ row }) => <Badge>{row.original.status ?? '—'}</Badge>,
+        },
+        {
+            id: 'received',
+            header: 'Received',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap text-xs">
+                    {fmtDate(row.original.receivedDate)}
+                </div>
+            ),
+        },
+        {
+            id: 'deliveryNote',
+            header: 'Delivery Note',
+            cell: ({ row }) => row.original.deliveryNoteNumber ?? '—',
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const g = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                                onClick={() => setViewingGr(g)}
+                            >
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => createFromGr(g)}
+                            >
+                                <IconPlus className="mr-2 h-4 w-4" />
+                                Create Invoice
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+    const grTable = useTables<GoodsReceipt>({
+        data: grData?.content ?? [],
+        columns: grColumns,
+        getRowId: (row) => String(row.goodsReceiptId),
+    });
+
+    const columns: ColumnDef<SupplierInvoice>[] = [
+        {
+            id: 'invoiceNumber',
+            header: 'Invoice #',
+            cell: ({ row }) => (
+                <div className="font-mono">
+                    {row.original.supplierInvoiceNumber ??
+                        row.original.invoiceNumber}
+                </div>
+            ),
+        },
+        {
+            id: 'po',
+            header: 'PO',
+            cell: ({ row }) =>
+                row.original.poNumber ?? row.original.purchaseOrderId,
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    className={
+                        STATUS_COLOR[row.original.status] ??
+                        'bg-gray-100 text-gray-800'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'totalAmount',
+            header: () => <div className="w-full text-right">Amount</div>,
+            cell: ({ row }) => (
+                <div className="text-right">
+                    {fmtMoney(
+                        row.original.totalAmount,
+                        row.original.currency
+                    )}
+                </div>
+            ),
+        },
+        {
+            id: 'invoiceDate',
+            header: 'Invoice Date',
+            cell: ({ row }) => fmtDate(row.original.invoiceDate),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const inv = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => openView(inv)}>
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            {inv.status === 'DRAFT' && (
+                                <>
+                                    <DropdownMenuItem
+                                        onClick={() => openEdit(inv)}
+                                    >
+                                        <IconEdit className="mr-2 h-4 w-4" />
+                                        Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setConfirm({
+                                                invoice: inv,
+                                                status: 'PENDING_APPROVAL',
+                                                label: 'Submit',
+                                            })
+                                        }
+                                    >
+                                        <IconSend className="mr-2 h-4 w-4" />
+                                        Submit
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {(inv.status === 'DRAFT' ||
+                                inv.status === 'PENDING_APPROVAL') && (
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() =>
+                                        setConfirm({
+                                            invoice: inv,
+                                            status: 'CANCELLED',
+                                            label: 'Cancel',
+                                        })
+                                    }
+                                >
+                                    <IconX className="mr-2 h-4 w-4" />
+                                    Cancel
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+    const table = useTables<SupplierInvoice>({
+        data: invoices,
+        columns,
+        getRowId: (row) => String(row.invoiceId),
+    });
+
     return (
         <div className="p-4 lg:p-6 space-y-4 min-w-0 max-w-full">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -574,95 +775,10 @@ export default function SupplierInvoicesPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <div className="max-w-full overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>GR Number</TableHead>
-                                        <TableHead>PO</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Received</TableHead>
-                                        <TableHead>Delivery Note</TableHead>
-                                        <TableHead>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {(grData?.content ?? []).map((g) => (
-                                        <TableRow key={g.goodsReceiptId}>
-                                            <TableCell className="font-mono">
-                                                {g.grNumber}
-                                            </TableCell>
-                                            <TableCell className="font-mono text-xs">
-                                                {poNumberOf(g.purchaseOrderId)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>{g.status ?? '—'}</Badge>
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap text-xs">
-                                                {fmtDate(g.receivedDate)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {g.deliveryNoteNumber ?? '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            setViewingGr(g)
-                                                        }
-                                                    >
-                                                        View
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            createFromGr(g)
-                                                        }
-                                                    >
-                                                        Create Invoice
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {(grData?.content ?? []).length === 0 && (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={6}
-                                                className="text-center text-sm text-muted-foreground"
-                                            >
-                                                No shared receipts yet
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                    {!grLoading && (
-                        <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
-                            <span className="text-sm text-muted-foreground">
-                                {grData?.totalElements ?? 0} receipt(s)
-                            </span>
-                            <TablePagination
-                                pageIndex={grPage}
-                                pageCount={grData?.totalPages ?? 0}
-                                canPreviousPage={grPage > 0}
-                                canNextPage={grData ? !grData.last : false}
-                                onPageChange={setGrPage}
-                                onPreviousPage={() =>
-                                    setGrPage((p) => Math.max(0, p - 1))
-                                }
-                                onNextPage={() => setGrPage((p) => p + 1)}
-                                showFirstLast={false}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                                Page {grPage + 1} of {grData?.totalPages ?? 1}
-                            </span>
-                        </div>
+                        <CentralizedDataTable
+                            table={grTable}
+                            emptyMessage="No shared receipts yet"
+                        />
                     )}
                 </CardContent>
             </Card>
@@ -681,150 +797,10 @@ export default function SupplierInvoicesPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <div className="max-w-full overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Invoice #</TableHead>
-                                        <TableHead>PO</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">
-                                            Amount
-                                        </TableHead>
-                                        <TableHead>Invoice Date</TableHead>
-                                        <TableHead>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {invoices.map((inv) => (
-                                        <TableRow key={inv.invoiceId}>
-                                            <TableCell className="font-mono">
-                                                {inv.supplierInvoiceNumber ??
-                                                    inv.invoiceNumber}
-                                            </TableCell>
-                                            <TableCell>
-                                                {inv.poNumber ??
-                                                    inv.purchaseOrderId}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    className={
-                                                        STATUS_COLOR[
-                                                            inv.status
-                                                        ] ??
-                                                        'bg-gray-100 text-gray-800'
-                                                    }
-                                                >
-                                                    {inv.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {fmtMoney(
-                                                    inv.totalAmount,
-                                                    inv.currency
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {fmtDate(inv.invoiceDate)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            openView(inv)
-                                                        }
-                                                    >
-                                                        View
-                                                    </Button>
-                                                    {inv.status === 'DRAFT' && (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    openEdit(
-                                                                        inv
-                                                                    )
-                                                                }
-                                                            >
-                                                                Edit
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    setConfirm({
-                                                                        invoice:
-                                                                            inv,
-                                                                        status: 'PENDING_APPROVAL',
-                                                                        label: 'Submit',
-                                                                    })
-                                                                }
-                                                            >
-                                                                Submit
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    {(inv.status === 'DRAFT' ||
-                                                        inv.status ===
-                                                            'PENDING_APPROVAL') && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                setConfirm({
-                                                                    invoice:
-                                                                        inv,
-                                                                    status: 'CANCELLED',
-                                                                    label: 'Cancel',
-                                                                })
-                                                            }
-                                                        >
-                                                            Cancel
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {invoices.length === 0 && (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={6}
-                                                className="text-center text-sm text-muted-foreground"
-                                            >
-                                                No invoices yet — create one
-                                                from a shared goods receipt.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                    {!loading && (
-                        <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
-                            <span className="text-sm text-muted-foreground">
-                                {data?.totalElements ?? 0} invoice(s)
-                            </span>
-                            <TablePagination
-                                pageIndex={page}
-                                pageCount={data?.totalPages ?? 0}
-                                canPreviousPage={page > 0}
-                                canNextPage={data ? !data.last : false}
-                                onPageChange={setPage}
-                                onPreviousPage={() =>
-                                    setPage((p) => Math.max(0, p - 1))
-                                }
-                                onNextPage={() => setPage((p) => p + 1)}
-                                showFirstLast={false}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                                Page {page + 1} of {data?.totalPages ?? 1}
-                            </span>
-                        </div>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No invoices yet — create one from a shared goods receipt."
+                        />
                     )}
                 </CardContent>
             </Card>

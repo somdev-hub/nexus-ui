@@ -1,5 +1,16 @@
 'use client';
 import Link from 'next/link';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useMemo } from 'react';
+import {
+    IconCircleCheckFilled,
+    IconDotsVertical,
+    IconEdit,
+    IconEye,
+    IconSend,
+    IconTrash,
+    IconX,
+} from '@tabler/icons-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,14 +32,14 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Money } from '@/components/money';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
@@ -53,7 +64,7 @@ import {
 import type { PaginatedResponse } from '@/types/paginated-response';
 import type { SupplierCatalog, SupplierQuotation } from '@/types/supplier';
 import { Loader2, Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function QuotationsPage() {
     const { toast } = useToast();
@@ -72,7 +83,7 @@ export default function QuotationsPage() {
     const load = async () => {
         setLoading(true);
         try {
-            const res = await getQuotations({ page: 0, size: 20 });
+            const res = await getQuotations({ page: 0, size: 100 });
             setData(res);
         } catch (e: unknown) {
             toast({
@@ -85,6 +96,7 @@ export default function QuotationsPage() {
     };
     useEffect(() => {
         load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     // Retailers this supplier has a partnership with (for the Buyer dropdown).
     useEffect(() => {
@@ -195,6 +207,173 @@ export default function QuotationsPage() {
             setDeleteBusy(false);
         }
     };
+    const columns: ColumnDef<SupplierQuotation>[] = [
+        {
+            accessorKey: 'quotationNumber',
+            header: 'Number',
+            cell: ({ row }) => (
+                <Link
+                    className="font-medium underline underline-offset-2"
+                    href={`/supplier/quotations/${row.original.quotationId}`}
+                >
+                    {row.original.quotationNumber}
+                </Link>
+            ),
+        },
+        {
+            id: 'buyer',
+            header: 'Buyer',
+            cell: ({ row }) =>
+                row.original.buyerOrgName || row.original.buyerOrgId || '-',
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => <Badge>{row.original.status}</Badge>,
+        },
+        {
+            id: 'version',
+            header: 'Version',
+            cell: ({ row }) => <div>v{row.original.versionNumber ?? 1}</div>,
+        },
+        {
+            id: 'validity',
+            header: 'Validity',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.validFrom
+                        ? new Date(
+                              row.original.validFrom
+                          ).toLocaleDateString()
+                        : '-'}{' '}
+                    →{' '}
+                    {row.original.validTo
+                        ? new Date(row.original.validTo).toLocaleDateString()
+                        : '-'}
+                </div>
+            ),
+        },
+        {
+            id: 'created',
+            header: 'Created',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.createdAt ? (
+                        <>
+                            <div>
+                                {new Date(
+                                    row.original.createdAt
+                                ).toLocaleDateString()}
+                            </div>
+                            <div className="text-muted-foreground">
+                                {new Date(row.original.createdAt)
+                                    .toLocaleTimeString([], {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                    })}
+                            </div>
+                        </>
+                    ) : (
+                        '-'
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'totalAmount',
+            header: () => <div className="w-full text-right">Total</div>,
+            cell: ({ row }) => (
+                <div className="text-right">
+                    <Money
+                        amount={row.original.totalAmount}
+                        currency={row.original.currency}
+                    />
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const q = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem asChild>
+                                <Link href={`/supplier/quotations/${q.quotationId}`}>
+                                    <IconEye className="mr-2 h-4 w-4" />
+                                    View
+                                </Link>
+                            </DropdownMenuItem>
+                            {q.status === 'DRAFT' && (
+                                <DropdownMenuItem
+                                    onClick={() => setEditing(q)}
+                                >
+                                    <IconEdit className="mr-2 h-4 w-4" />
+                                    Edit
+                                </DropdownMenuItem>
+                            )}
+                            {q.status === 'DRAFT' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        transition(q.quotationId, 'SENT')
+                                    }
+                                >
+                                    <IconSend className="mr-2 h-4 w-4" />
+                                    Send
+                                </DropdownMenuItem>
+                            )}
+                            {(q.status === 'DRAFT' || q.status === 'SENT') && (
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() =>
+                                        transition(q.quotationId, 'REJECTED')
+                                    }
+                                >
+                                    <IconX className="mr-2 h-4 w-4" />
+                                    Reject
+                                </DropdownMenuItem>
+                            )}
+                            {q.status === 'SENT' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        transition(q.quotationId, 'EXPIRED')
+                                    }
+                                >
+                                    <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                    Expire
+                                </DropdownMenuItem>
+                            )}
+                            {q.status !== 'ACCEPTED' &&
+                                q.status !== 'CONVERTED' && (
+                                    <DropdownMenuItem
+                                        variant="destructive"
+                                        onClick={() => setDeleting(q)}
+                                    >
+                                        <IconTrash className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+    const table = useTables<SupplierQuotation>({
+        data: data?.content ?? [],
+        columns,
+        getRowId: (row) => String(row.quotationId),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -238,177 +417,10 @@ export default function QuotationsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Number</TableHead>
-                                    <TableHead>Buyer</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Version</TableHead>
-                                    <TableHead>Validity</TableHead>
-                                    <TableHead>Created</TableHead>
-                                    <TableHead>Total</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map((q: SupplierQuotation) => (
-                                    <TableRow key={q.quotationId}>
-                                        <TableCell className="font-medium">
-                                            <Link
-                                                className="underline underline-offset-2"
-                                                href={`/supplier/quotations/${q.quotationId}`}
-                                            >
-                                                {q.quotationNumber}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            {q.buyerOrgName ||
-                                                q.buyerOrgId ||
-                                                '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge>{q.status}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            v{q.versionNumber ?? 1}
-                                        </TableCell>
-                                        <TableCell className="text-xs whitespace-nowrap">
-                                            {q.validFrom
-                                                ? new Date(
-                                                      q.validFrom
-                                                  ).toLocaleDateString()
-                                                : '-'}{' '}
-                                            →{' '}
-                                            {q.validTo
-                                                ? new Date(
-                                                      q.validTo
-                                                  ).toLocaleDateString()
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell className="text-xs whitespace-nowrap">
-                                            {q.createdAt ? (
-                                                <>
-                                                    <div>
-                                                        {new Date(
-                                                            q.createdAt
-                                                        ).toLocaleDateString()}
-                                                    </div>
-                                                    <div className="text-muted-foreground">
-                                                        {new Date(
-                                                            q.createdAt
-                                                        ).toLocaleTimeString(
-                                                            [],
-                                                            {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit',
-                                                            }
-                                                        )}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Money
-                                                amount={q.totalAmount}
-                                                currency={q.currency}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="flex flex-wrap gap-1">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={`/supplier/quotations/${q.quotationId}`}
-                                                >
-                                                    View
-                                                </Link>
-                                            </Button>
-                                            {q.status === 'DRAFT' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        setEditing(q)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                            )}
-                                            {q.status === 'DRAFT' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        transition(
-                                                            q.quotationId,
-                                                            'SENT'
-                                                        )
-                                                    }
-                                                >
-                                                    Send
-                                                </Button>
-                                            )}
-                                            {(q.status === 'DRAFT' ||
-                                                q.status === 'SENT') && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        transition(
-                                                            q.quotationId,
-                                                            'REJECTED'
-                                                        )
-                                                    }
-                                                >
-                                                    Reject
-                                                </Button>
-                                            )}
-                                            {q.status === 'SENT' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        transition(
-                                                            q.quotationId,
-                                                            'EXPIRED'
-                                                        )
-                                                    }
-                                                >
-                                                    Expire
-                                                </Button>
-                                            )}
-                                            {q.status !== 'ACCEPTED' &&
-                                                q.status !== 'CONVERTED' && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() =>
-                                                            setDeleting(q)
-                                                        }
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={8}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No quotations
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No quotations"
+                        />
                     )}
                 </CardContent>
             </Card>

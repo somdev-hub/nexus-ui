@@ -1,6 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Check, PackageCheck, Pencil } from 'lucide-react';
+import { IconCheck, IconDotsVertical, IconEdit } from '@tabler/icons-react';
+import { useEffect, useRef, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { AlertTriangle, Check, PackageCheck } from 'lucide-react';
 import type {
     LoadBoardShipment,
     ShipmentIncident,
@@ -10,14 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Select,
     SelectContent,
@@ -52,7 +46,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
-import { TablePagination } from '@/components/ui/table-pagination';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 
 const LIFECYCLE_NEXT: Record<string, string | null> = {
     // Driver surface: movement starts at pickup. Booking/assignment
@@ -82,8 +83,6 @@ export default function LogisticsShipmentsPage() {
         useState<PaginatedResponse<ShipmentIncident> | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [shipmentsPage, setShipmentsPage] = useState(0);
-    const SHIPMENTS_PAGE_SIZE = 10;
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;
@@ -129,23 +128,25 @@ export default function LogisticsShipmentsPage() {
         claimAmount: '',
     });
     const [incidentOpen, setIncidentOpen] = useState(false);
+    const [totalShipments, setTotalShipments] = useState(0);
     // Shipment dropdown options come straight from the board data.
     const shipmentOptions: LoadBoardShipment[] = shipments?.content ?? [];
     useQuickCreateIntent('logistics:incident', () => setIncidentOpen(true));
     useQuickCreateIntent('logistics:pod', () => setPodOpen(true));
 
-    const load = async (shipmentsPageNo: number = shipmentsPage) => {
+    const load = async () => {
         setLoading(true);
         try {
             const [s, i] = await Promise.all([
                 getMyShipmentBoard({
-                    page: shipmentsPageNo,
-                    size: SHIPMENTS_PAGE_SIZE,
+                    page: 0,
+                    size: 100,
                     search: search || undefined,
                 }),
-                getShipmentIncidents({ page: 0, size: 20 }),
+                getShipmentIncidents({ page: 0, size: 100 }),
             ]);
             setShipments(s);
+            setTotalShipments(s.totalElements ?? 0);
             setIncidents(i);
         } catch (e: unknown) {
             toast({
@@ -158,10 +159,17 @@ export default function LogisticsShipmentsPage() {
     };
     useEffect(() => {
         load();
-    }, [shipmentsPage]);
+    }, []);
+
+    // Re-run the (server-side) search when the term settles.
+    const searchInitialized = useRef(false);
     useEffect(() => {
+        if (!searchInitialized.current) {
+            searchInitialized.current = true;
+            return;
+        }
         const t = setTimeout(() => {
-            setShipmentsPage(0);
+            load();
         }, 400);
         return () => clearTimeout(t);
     }, [search]);
@@ -309,6 +317,251 @@ export default function LogisticsShipmentsPage() {
             });
         }
     };
+
+    const shipmentColumns: ColumnDef<LoadBoardShipment>[] = [
+        {
+            accessorKey: 'shipmentNumber',
+            header: 'Shipment',
+            cell: ({ row }) => (
+                <div>
+                    <div className="font-medium">
+                        {row.original.shipmentNumber}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                        #{row.original.shipmentId} •{' '}
+                        {row.original.carrierName ?? 'unassigned'}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            id: 'route',
+            accessorFn: (row) =>
+                `${row.pickupLocation ?? row.pickupAddress ?? '—'} → ${
+                    row.deliveryLocation ?? row.deliveryAddress ?? '—'
+                }`,
+            header: 'Route',
+            cell: ({ row }) => (
+                <div className="text-xs">
+                    <span className="inline-block max-w-48 truncate align-bottom">
+                        {row.original.pickupLocation ??
+                            row.original.pickupAddress ??
+                            '—'}{' '}
+                        →{' '}
+                        {row.original.deliveryLocation ??
+                            row.original.deliveryAddress ??
+                            '—'}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'DELIVERED'
+                            ? 'default'
+                            : row.original.status === 'EXCEPTION'
+                              ? 'destructive'
+                              : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'lifecycle',
+            header: 'Lifecycle',
+            cell: ({ row }) => {
+                const s = row.original;
+                if (s.status === 'BOOKED' || s.status === 'ASSIGNED') {
+                    return (
+                        <span className="text-xs text-muted-foreground">
+                            Assign on load board
+                        </span>
+                    );
+                }
+                const next = nextLifecycleState(s.status ?? '');
+                if (!next) {
+                    return (
+                        <span className="text-xs text-muted-foreground">
+                            Terminal
+                        </span>
+                    );
+                }
+                return (
+                    <div className="flex flex-wrap gap-1">
+                        <LoadingButton
+                            loading={
+                                busy === `ship-${s.shipmentId}-${next}`
+                            }
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                                withBusy(
+                                    `ship-${s.shipmentId}-${next}`,
+                                    () =>
+                                        handleTransition(
+                                            s.shipmentId,
+                                            next
+                                        )
+                                )
+                            }
+                        >
+                            <Check className="mr-1 h-3 w-3" />
+                            {next}
+                        </LoadingButton>
+                    </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'createdAt',
+            header: 'Created',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap text-xs text-muted-foreground">
+                    {row.original.createdAt
+                        ? new Date(row.original.createdAt).toLocaleString()
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'updatedAt',
+            header: 'Updated',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap text-xs text-muted-foreground">
+                    {row.original.updatedAt
+                        ? new Date(row.original.updatedAt).toLocaleString()
+                        : '—'}
+                </div>
+            ),
+        },
+    ];
+
+    const incidentColumns: ColumnDef<ShipmentIncident>[] = [
+        {
+            accessorKey: 'incidentNumber',
+            header: 'Incident',
+            cell: ({ row }) => (
+                <div>
+                    <div className="font-medium">
+                        {row.original.incidentNumber}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                        Shipment #{row.original.shipmentId} •{' '}
+                        {row.original.description ?? '-'}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'incidentType',
+            header: 'Type',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.incidentType}</Badge>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'OPEN'
+                            ? 'destructive'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const incident = row.original;
+                const editable =
+                    incident.status === 'OPEN' ||
+                    incident.status === 'IN_PROGRESS';
+                const busyKey = `incident-${incident.incidentId}`;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            {editable && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        setIncidentEdit({
+                                            id: incident.incidentId,
+                                            description:
+                                                incident.description ?? '',
+                                            claimAmount:
+                                                incident.claimAmount != null
+                                                    ? String(
+                                                          incident.claimAmount
+                                                      )
+                                                    : '',
+                                            notes: incident.notes ?? '',
+                                        })
+                                    }
+                                >
+                                    <IconEdit className="mr-2 h-4 w-4" />
+                                    Edit
+                                </DropdownMenuItem>
+                            )}
+                            {editable && (
+                                <DropdownMenuItem
+                                    disabled={busy === busyKey}
+                                    onClick={() =>
+                                        withBusy(
+                                            busyKey,
+                                            () =>
+                                                resolveIncident(
+                                                    incident.incidentId
+                                                )
+                                        )
+                                    }
+                                >
+                                    <IconCheck className="mr-2 h-4 w-4" />
+                                    {busy === busyKey
+                                        ? 'Resolving…'
+                                        : 'Resolve'}
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const shipmentData = shipments?.content ?? [];
+    const incidentData = incidents?.content ?? [];
+
+    const shipmentsTable = useTables<LoadBoardShipment>({
+        data: shipmentData,
+        columns: shipmentColumns,
+        getRowId: (row, index) => String(row.shipmentId ?? index),
+    });
+
+    const incidentsTable = useTables<ShipmentIncident>({
+        data: incidentData,
+        columns: incidentColumns,
+        getRowId: (row, index) => String(row.incidentId ?? index),
+    });
 
     return (
         <div className="p-4 lg:p-6 space-y-4 min-w-0 max-w-full">

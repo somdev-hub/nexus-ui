@@ -1,20 +1,20 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Eye, Loader2, Plus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Loader2, Plus } from 'lucide-react';
 import type { SupplierDigitalAsset } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -53,6 +53,13 @@ import {
     type PreviewableAsset,
 } from '@/components/asset-preview-dialog';
 import { useToast } from '@/hooks/use-toast';
+import {
+    IconDotsVertical,
+    IconEye,
+    IconTrash,
+} from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useTables } from '@/hooks/use-tables';
 
 export default function DigitalAssetsPage() {
     const { toast } = useToast();
@@ -70,10 +77,10 @@ export default function DigitalAssetsPage() {
     const [file, setFile] = useState<File | null>(null);
     const [deleting, setDeleting] = useState<SupplierDigitalAsset | null>(null);
     const [deleteBusy, setDeleteBusy] = useState(false);
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await getDigitalAssets({ page: 0, size: 20 });
+            const res = await getDigitalAssets({ page: 0, size: 100 });
             setData(res);
         } catch (e: unknown) {
             toast({
@@ -83,10 +90,10 @@ export default function DigitalAssetsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
     useEffect(() => {
         load();
-    }, []);
+    }, [load]);
     const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
     const handleFileChange = (selected: File | null) => {
@@ -176,6 +183,90 @@ export default function DigitalAssetsPage() {
             setDeleteBusy(false);
         }
     };
+    const rows = data?.content ?? [];
+    const columns: ColumnDef<SupplierDigitalAsset>[] = [
+        {
+            id: 'catalog',
+            accessorFn: (row) => row.catalogName || String(row.catalogId),
+            header: 'Catalog',
+        },
+        {
+            accessorKey: 'assetType',
+            header: 'Type',
+            cell: ({ row }) => <Badge>{row.original.assetType}</Badge>,
+        },
+        {
+            accessorKey: 'fileName',
+            header: 'File',
+            cell: ({ row }) => row.original.fileName,
+        },
+        {
+            id: 'dmsDocumentId',
+            accessorFn: (row) => row.dmsDocumentId ?? '',
+            header: 'DMS',
+            cell: ({ row }) => (
+                <div className="text-xs">
+                    {row.original.dmsDocumentId || '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const a = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                                disabled={!a.dmsDocumentUrl}
+                                title={
+                                    a.dmsDocumentUrl
+                                        ? 'Preview file'
+                                        : 'No file uploaded yet'
+                                }
+                                onClick={() =>
+                                    setPreview({
+                                        assetId: a.assetId,
+                                        name:
+                                            a.fileName ??
+                                            `Asset #${a.assetId}`,
+                                        url: a.dmsDocumentUrl,
+                                        type: a.assetType,
+                                    })
+                                }
+                            >
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setDeleting(a)}
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+    const table = useTables<SupplierDigitalAsset>({
+        data: rows,
+        columns,
+        getRowId: (row) => row.assetId.toString(),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -282,84 +373,10 @@ export default function DigitalAssetsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>File</TableHead>
-                                    <TableHead>DMS</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map(
-                                    (a: SupplierDigitalAsset) => (
-                                        <TableRow key={a.assetId}>
-                                            <TableCell>
-                                                {a.catalogName || a.catalogId}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>{a.assetType}</Badge>
-                                            </TableCell>
-                                            <TableCell>{a.fileName}</TableCell>
-                                            <TableCell className="text-xs">
-                                                {a.dmsDocumentId || '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        disabled={
-                                                            !a.dmsDocumentUrl
-                                                        }
-                                                        title={
-                                                            a.dmsDocumentUrl
-                                                                ? 'Preview file'
-                                                                : 'No file uploaded yet'
-                                                        }
-                                                        onClick={() =>
-                                                            setPreview({
-                                                                assetId:
-                                                                    a.assetId,
-                                                                name:
-                                                                    a.fileName ??
-                                                                    `Asset #${a.assetId}`,
-                                                                url: a.dmsDocumentUrl,
-                                                                type: a.assetType,
-                                                            })
-                                                        }
-                                                    >
-                                                        <Eye className="mr-1 h-3.5 w-3.5" />
-                                                        View
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() =>
-                                                            setDeleting(a)
-                                                        }
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                )}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No assets
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No assets"
+                        />
                     )}
                 </CardContent>
             </Card>

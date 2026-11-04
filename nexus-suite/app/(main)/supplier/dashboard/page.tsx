@@ -21,14 +21,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { getSupplierDashboard } from '@/lib/services/supplier-analytics-service';
 import { getSupplierCatalogs } from '@/lib/services/supplier-catalog-service';
-import {
-    getSupplierOrders,
-    getOrderSummary,
-} from '@/lib/services/supplier-orders-service';
-import {
-    getQuotations,
-    getQuotationSummary,
-} from '@/lib/services/supplier-commercial-service';
+import { getOrderSummary } from '@/lib/services/supplier-orders-service';
+import { getQuotationSummary } from '@/lib/services/supplier-commercial-service';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { setQuickCreateIntent } from '@/lib/quick-create';
@@ -36,9 +30,7 @@ import {
     IconPackage,
     IconShoppingCart,
     IconFileWord,
-    IconChartBar,
     IconDatabase,
-    IconTruck,
 } from '@tabler/icons-react';
 
 export default function SupplierDashboard() {
@@ -82,7 +74,7 @@ export default function SupplierDashboard() {
         return () => {
             active = false;
         };
-    }, []);
+    }, [toast]);
 
     if (loading) {
         return (

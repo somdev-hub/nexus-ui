@@ -1,21 +1,29 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Check, Truck } from 'lucide-react';
+import { Check } from 'lucide-react';
 import type { SupplierOrder } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+    IconCircleCheckFilled,
+    IconDotsVertical,
+    IconEye,
+    IconPackage,
+    IconTruck,
+} from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -40,7 +48,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,7 +63,10 @@ export default function SupplierOrdersPage() {
     const [partialOrder, setPartialOrder] = useState<SupplierOrder | null>(
         null
     );
-    const [podOpen, setPodOpen] = useState<number | null>(null);
+    const [podOpen, setPodOpen] = useState<{
+        shipmentId: number;
+        asnNumber: string;
+    } | null>(null);
     const [ackOrder, setAckOrder] = useState<SupplierOrder | null>(null);
     const [ackNotes, setAckNotes] = useState('');
     const [ackBusy, setAckBusy] = useState(false);
@@ -70,7 +80,7 @@ export default function SupplierOrdersPage() {
         try {
             const res = await getSupplierOrders({
                 page: 0,
-                size: 20,
+                size: 100,
                 status: status === 'all' ? undefined : status,
                 poNumber: search || undefined,
             });
@@ -86,10 +96,12 @@ export default function SupplierOrdersPage() {
     };
     useEffect(() => {
         load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [status]);
     useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
     const ack = async () => {
         if (!ackOrder || ackBusy) return;
@@ -127,6 +139,181 @@ export default function SupplierOrdersPage() {
         }));
         load();
     };
+    const columns = useMemo<ColumnDef<SupplierOrder>[]>(() => [
+        {
+            accessorKey: 'poNumber',
+            header: 'PO Number',
+            cell: ({ row }) => (
+                <div className="font-medium">{row.original.poNumber}</div>
+            ),
+        },
+        {
+            id: 'buyer',
+            header: 'Buyer',
+            cell: ({ row }) => {
+                const o = row.original;
+                return (
+                    o.buyerOrgName ||
+                    o.buyerOrg?.name ||
+                    (o.buyerOrgId !== undefined ? `Org #${o.buyerOrgId}` : '-')
+                );
+            },
+        },
+        {
+            id: 'orderDate',
+            header: 'Order Date',
+            cell: ({ row }) => {
+                const o = row.original;
+                return (
+                    <div className="whitespace-nowrap">
+                        {o.orderDate
+                            ? new Date(o.orderDate).toLocaleDateString()
+                            : o.createdAt
+                              ? new Date(o.createdAt).toLocaleDateString()
+                              : '-'}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'expectedDelivery',
+            header: 'Expected Delivery',
+            cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                    {row.original.expectedDeliveryDate
+                        ? new Date(
+                              row.original.expectedDeliveryDate
+                          ).toLocaleDateString()
+                        : '-'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => <Badge>{row.original.status}</Badge>,
+        },
+        {
+            accessorKey: 'totalAmount',
+            header: () => <div className="w-full text-right">Total</div>,
+            cell: ({ row }) => (
+                <div className="text-right">
+                    <Money
+                        amount={row.original.totalAmount}
+                        currency={row.original.currency}
+                    />
+                </div>
+            ),
+        },
+        {
+            id: 'paymentTerms',
+            header: 'Payment Terms',
+            cell: ({ row }) => row.original.paymentTerms || '-',
+        },
+        {
+            id: 'asn',
+            header: 'ASN / Shipment',
+            cell: ({ row }) => {
+                const o = row.original;
+                const sessionShip = shipmentByPo[o.purchaseOrderId];
+                const asnNumber =
+                    o.asnNumber ??
+                    sessionShip?.shipmentNumber ??
+                    o.shipmentNumber ??
+                    '—';
+                return (
+                    <div className="font-mono text-xs">
+                        {asnNumber}
+                        {o.remainingQuantity !== undefined && (
+                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                {o.totalShippedQuantity ?? 0} shipped
+                                {o.remainingQuantity > 0
+                                    ? ` · ${o.remainingQuantity} left`
+                                    : ' · complete'}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const o = row.original;
+                const sessionShip = shipmentByPo[o.purchaseOrderId];
+                const podShipmentId =
+                    sessionShip?.shipmentId ?? o.shipmentId ?? null;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem asChild>
+                                <Link href={`/supplier/orders/${o.purchaseOrderId}`}>
+                                    <IconEye className="mr-2 h-4 w-4" />
+                                    View
+                                </Link>
+                            </DropdownMenuItem>
+                            {o.status === 'SENT_TO_SUPPLIER' && (
+                                <DropdownMenuItem
+                                    onClick={() => {
+                                        setAckNotes('');
+                                        setAckOrder(o);
+                                    }}
+                                >
+                                    <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                    Acknowledge
+                                </DropdownMenuItem>
+                            )}
+                            {(o.status === 'ACKNOWLEDGED' ||
+                                o.status === 'PARTIALLY_RECEIVED' ||
+                                o.status === 'AWAITING_PICKUP' ||
+                                o.status === 'PICKED_UP') &&
+                                (o.remainingQuantity === undefined ||
+                                    o.remainingQuantity > 0) && (
+                                    <DropdownMenuItem
+                                        onClick={() => setPartialOrder(o)}
+                                    >
+                                        <IconTruck className="mr-2 h-4 w-4" />
+                                        Partial Ship
+                                    </DropdownMenuItem>
+                                )}
+                            {podShipmentId !== null && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        setPodOpen({
+                                            shipmentId: podShipmentId,
+                                            asnNumber:
+                                                o.asnNumber ??
+                                                sessionShip?.shipmentNumber ??
+                                                o.shipmentNumber ??
+                                                String(o.purchaseOrderId),
+                                        })
+                                    }
+                                >
+                                    <IconPackage className="mr-2 h-4 w-4" />
+                                    POD
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ], [shipmentByPo]);
+    const table = useTables<SupplierOrder>({
+        data: data?.content ?? [],
+        columns,
+        getRowId: (row) => String(row.purchaseOrderId),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -177,193 +364,10 @@ export default function SupplierOrdersPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>PO Number</TableHead>
-                                    <TableHead>Buyer</TableHead>
-                                    <TableHead>Order Date</TableHead>
-                                    <TableHead>Expected Delivery</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Total</TableHead>
-                                    <TableHead>Payment Terms</TableHead>
-                                    <TableHead>ASN / Shipment</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map((o: SupplierOrder) => {
-                                    const sessionShip =
-                                        shipmentByPo[o.purchaseOrderId];
-                                    const asnNumber =
-                                        o.asnNumber ??
-                                        sessionShip?.shipmentNumber ??
-                                        o.shipmentNumber ??
-                                        '—';
-                                    const podShipmentId =
-                                        sessionShip?.shipmentId ??
-                                        o.shipmentId ??
-                                        null;
-                                    return (
-                                        <TableRow key={o.purchaseOrderId}>
-                                            <TableCell className="font-medium">
-                                                {o.poNumber}
-                                            </TableCell>
-                                            <TableCell>
-                                                {o.buyerOrgName ||
-                                                    o.buyerOrg?.name ||
-                                                    (o.buyerOrgId !== undefined
-                                                        ? `Org #${o.buyerOrgId}`
-                                                        : '-')}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap">
-                                                {o.orderDate
-                                                    ? new Date(
-                                                          o.orderDate
-                                                      ).toLocaleDateString()
-                                                    : o.createdAt
-                                                      ? new Date(
-                                                            o.createdAt
-                                                        ).toLocaleDateString()
-                                                      : '-'}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap">
-                                                {o.expectedDeliveryDate
-                                                    ? new Date(
-                                                          o.expectedDeliveryDate
-                                                      ).toLocaleDateString()
-                                                    : '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>{o.status}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Money
-                                                    amount={o.totalAmount}
-                                                    currency={o.currency}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                {o.paymentTerms || '-'}
-                                            </TableCell>
-                                            <TableCell className="font-mono text-xs">
-                                                {asnNumber}
-                                                {o.remainingQuantity !==
-                                                    undefined && (
-                                                    <div className="mt-0.5 text-[11px] text-muted-foreground">
-                                                        {o.totalShippedQuantity ??
-                                                            0}{' '}
-                                                        shipped
-                                                        {o.remainingQuantity > 0
-                                                            ? ` · ${o.remainingQuantity} left`
-                                                            : ' · complete'}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/supplier/orders/${o.purchaseOrderId}`}
-                                                    >
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                                {o.status ===
-                                                    'SENT_TO_SUPPLIER' && (
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setAckNotes('');
-                                                            setAckOrder(o);
-                                                        }}
-                                                    >
-                                                        <Check className="mr-2 h-4 w-4" />
-                                                        Acknowledge
-                                                    </Button>
-                                                )}
-                                                {(o.status === 'ACKNOWLEDGED' ||
-                                                    o.status ===
-                                                        'PARTIALLY_RECEIVED' ||
-                                                    o.status ===
-                                                        'AWAITING_PICKUP' ||
-                                                    o.status === 'PICKED_UP') &&
-                                                    (o.remainingQuantity ===
-                                                        undefined ||
-                                                        o.remainingQuantity >
-                                                            0) && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                setPartialOrder(
-                                                                    o
-                                                                )
-                                                            }
-                                                        >
-                                                            <Truck className="mr-2 h-4 w-4" />
-                                                            Partial Ship
-                                                        </Button>
-                                                    )}
-                                                {podShipmentId !== null && (
-                                                    <Dialog
-                                                        open={
-                                                            podOpen ===
-                                                            o.purchaseOrderId
-                                                        }
-                                                        onOpenChange={(v) =>
-                                                            setPodOpen(
-                                                                v
-                                                                    ? o.purchaseOrderId
-                                                                    : null
-                                                            )
-                                                        }
-                                                    >
-                                                        <DialogTrigger asChild>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                            >
-                                                                POD
-                                                            </Button>
-                                                        </DialogTrigger>
-                                                        <DialogContent>
-                                                            <DialogHeader>
-                                                                <DialogTitle>
-                                                                    Proof of
-                                                                    Delivery ·{' '}
-                                                                    {asnNumber}
-                                                                </DialogTitle>
-                                                            </DialogHeader>
-                                                            <PodSection
-                                                                fetchPod={() =>
-                                                                    getSupplierPod(
-                                                                        podShipmentId
-                                                                    )
-                                                                }
-                                                            />
-                                                        </DialogContent>
-                                                    </Dialog>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={9}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No orders
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No orders"
+                        />
                     )}
                 </CardContent>
             </Card>
@@ -416,6 +420,25 @@ export default function SupplierOrdersPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+            {podOpen && (
+                <Dialog
+                    open
+                    onOpenChange={(v) => {
+                        if (!v) setPodOpen(null);
+                    }}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>
+                                Proof of Delivery · {podOpen.asnNumber}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <PodSection
+                            fetchPod={() => getSupplierPod(podOpen.shipmentId)}
+                        />
+                    </DialogContent>
+                </Dialog>
+            )}
             <PartialShipmentDialog
                 order={partialOrder}
                 open={partialOrder !== null}

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/ui/date-picker';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import {
     Dialog,
     DialogContent,
@@ -18,6 +19,13 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -28,15 +36,22 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { DEFAULT_TABLE_PAGE_SIZE, useTables } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+    IconArchive,
+    IconCheck,
+    IconCircleCheck,
+    IconClock,
+    IconDotsVertical,
+    IconEdit,
+    IconEye,
+    IconLock,
+    IconTrash,
+    IconWrench,
+    IconX,
+} from '@tabler/icons-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -74,10 +89,7 @@ import {
     Caravan,
     ChevronLeft,
     Container,
-    Info,
-    Pencil,
     Plus,
-    Trash2,
     Truck,
     Van,
     Wrench,
@@ -240,12 +252,12 @@ export default function FleetPage() {
             const [a, d, m] = await Promise.all([
                 getFleetAssets({
                     page: 0,
-                    size: 20,
+                    size: 100,
                     search: search || undefined,
                     status: assetStatus === 'all' ? undefined : assetStatus,
                 }),
-                getDrivers({ page: 0, size: 20, search: search || undefined }),
-                getMaintenanceRecords({ page: 0, size: 20 }),
+                getDrivers({ page: 0, size: 100, search: search || undefined }),
+                getMaintenanceRecords({ page: 0, size: 100 }),
             ]);
             setAssets(a);
             setDrivers(d);
@@ -539,6 +551,602 @@ export default function FleetPage() {
             });
         }
     };
+
+    const assetColumns: ColumnDef<FleetAsset>[] = [
+        {
+            accessorKey: 'assetNumber',
+            header: 'Asset',
+            cell: ({ row }) => {
+                const a = row.original;
+                const t = ASSET_TYPES.find((x) => x.value === a.assetType);
+                const AssetIcon = t?.icon ?? Boxes;
+                return (
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-muted">
+                            <AssetIcon
+                                className="h-5 w-5 text-foreground"
+                                strokeWidth={1.5}
+                            />
+                        </span>
+                        <div>
+                            <Link
+                                href={`/logistics/fleet/asset/${a.assetId}`}
+                                className="font-medium hover:underline"
+                            >
+                                {a.assetNumber}
+                            </Link>
+                            <div className="text-xs text-muted-foreground">
+                                {a.assetType} • {a.licensePlate ?? '-'}
+                            </div>
+                        </div>
+                    </div>
+                );
+            },
+            enableHiding: false,
+        },
+        {
+            id: 'spec',
+            header: 'Spec',
+            cell: ({ row }) => {
+                const a = row.original;
+                return (
+                    <div className="text-xs">
+                        {a.make ?? ''} {a.model ?? ''} •{' '}
+                        {a.capacityWeight ?? '-'} kg
+                    </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'AVAILABLE'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const a = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                size="icon"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem asChild>
+                                <Link
+                                    href={`/logistics/fleet/asset/${a.assetId}`}
+                                >
+                                    <IconEye className="mr-2 h-4 w-4" />
+                                    View Details
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    setAssetEdit({
+                                        id: a.assetId,
+                                        assetNumber: a.assetNumber,
+                                        make: a.make ?? '',
+                                        model: a.model ?? '',
+                                        manufactureYear:
+                                            a.manufactureYear != null
+                                                ? String(a.manufactureYear)
+                                                : '',
+                                        licensePlate: a.licensePlate ?? '',
+                                        vin: a.vin ?? '',
+                                        capacityWeight:
+                                            a.capacityWeight != null
+                                                ? String(a.capacityWeight)
+                                                : '',
+                                        capacityVolume:
+                                            a.capacityVolume != null
+                                                ? String(a.capacityVolume)
+                                                : '',
+                                        currentMileage:
+                                            a.currentMileage != null
+                                                ? String(a.currentMileage)
+                                                : '',
+                                        insuranceExpiry:
+                                            a.insuranceExpiry ?? '',
+                                        permitExpiry: a.permitExpiry ?? '',
+                                        notes: a.notes ?? '',
+                                    })
+                                }
+                            >
+                                <IconEdit className="mr-2 h-4 w-4" />
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {a.status === 'AVAILABLE' && (
+                                <DropdownMenuItem
+                                    disabled={busy === `asset-${a.assetId}`}
+                                    onClick={() =>
+                                        withBusy(
+                                            `asset-${a.assetId}`,
+                                            async () => {
+                                                await transitionAssetStatus(
+                                                    a.assetId,
+                                                    'IN_MAINTENANCE'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconWrench className="mr-2 h-4 w-4" />
+                                    To Maintenance
+                                </DropdownMenuItem>
+                            )}
+                            {a.status !== 'AVAILABLE' &&
+                                a.status !== 'RETIRED' && (
+                                    <DropdownMenuItem
+                                        disabled={busy === `asset-${a.assetId}`}
+                                        onClick={() =>
+                                            withBusy(
+                                                `asset-${a.assetId}`,
+                                                async () => {
+                                                    await transitionAssetStatus(
+                                                        a.assetId,
+                                                        'AVAILABLE'
+                                                    );
+                                                    load();
+                                                }
+                                            )
+                                        }
+                                    >
+                                        <IconCircleCheck className="mr-2 h-4 w-4" />
+                                        Release
+                                    </DropdownMenuItem>
+                                )}
+                            {(a.status === 'AVAILABLE' ||
+                                a.status === 'OUT_OF_SERVICE') && (
+                                <DropdownMenuItem
+                                    disabled={
+                                        busy === `asset-retire-${a.assetId}`
+                                    }
+                                    onClick={() =>
+                                        withBusy(
+                                            `asset-retire-${a.assetId}`,
+                                            async () => {
+                                                await transitionAssetStatus(
+                                                    a.assetId,
+                                                    'RETIRED'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconArchive className="mr-2 h-4 w-4" />
+                                    Retire
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busy === `asset-del-${a.assetId}`}
+                                onClick={() =>
+                                    withBusy(
+                                        `asset-del-${a.assetId}`,
+                                        async () => {
+                                            await deleteFleetAsset(a.assetId);
+                                            load();
+                                        }
+                                    )
+                                }
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const assetTable = useTables<FleetAsset>({
+        data: assets?.content ?? [],
+        columns: assetColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        getRowId: (row) => row.assetId.toString(),
+    });
+
+    const driverColumns: ColumnDef<Driver>[] = [
+        {
+            accessorKey: 'fullName',
+            header: 'Driver',
+            cell: ({ row }) => {
+                const d = row.original;
+                return (
+                    <div>
+                        <div className="font-medium">{d.fullName}</div>
+                        <div className="text-xs text-muted-foreground">
+                            {d.driverCode} • {d.phone ?? '-'}
+                        </div>
+                        <div className="pt-1">
+                            {d.iamUserId ? (
+                                <Badge variant="outline" className="text-xs">
+                                    IAM linked
+                                </Badge>
+                            ) : (
+                                <Badge
+                                    variant="destructive"
+                                    className="text-xs font-normal"
+                                >
+                                    No login
+                                </Badge>
+                            )}
+                        </div>
+                    </div>
+                );
+            },
+            enableHiding: false,
+        },
+        {
+            id: 'license',
+            header: 'License',
+            cell: ({ row }) => {
+                const d = row.original;
+                return (
+                    <div className="text-xs">
+                        {d.licenseNumber} ({d.licenseClass ?? '-'})
+                    </div>
+                );
+            },
+        },
+        {
+            accessorFn: (row) => row.totalTrips ?? 0,
+            id: 'performance',
+            header: 'Performance',
+            cell: ({ row }) => {
+                const d = row.original;
+                return (
+                    <div className="text-xs">
+                        OT {d.onTimeRate ?? 0}% • {d.totalTrips ?? 0} trips
+                    </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'AVAILABLE'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const d = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                size="icon"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => openDriverEdit(d)}>
+                                <IconEdit className="mr-2 h-4 w-4" />
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {(d.status === 'AVAILABLE' ||
+                                d.status === 'ASSIGNED') && (
+                                <>
+                                    <DropdownMenuItem
+                                        disabled={
+                                            busy === `driver-susp-${d.driverId}`
+                                        }
+                                        onClick={() =>
+                                            withBusy(
+                                                `driver-susp-${d.driverId}`,
+                                                async () => {
+                                                    await transitionDriverStatus(
+                                                        d.driverId,
+                                                        'SUSPENDED'
+                                                    );
+                                                    load();
+                                                }
+                                            )
+                                        }
+                                    >
+                                        <IconLock className="mr-2 h-4 w-4" />
+                                        Suspend
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        disabled={
+                                            busy === `driver-leave-${d.driverId}`
+                                        }
+                                        onClick={() =>
+                                            withBusy(
+                                                `driver-leave-${d.driverId}`,
+                                                async () => {
+                                                    await transitionDriverStatus(
+                                                        d.driverId,
+                                                        'ON_LEAVE'
+                                                    );
+                                                    load();
+                                                }
+                                            )
+                                        }
+                                    >
+                                        <IconClock className="mr-2 h-4 w-4" />
+                                        Leave
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {d.status !== 'AVAILABLE' &&
+                                d.status !== 'INACTIVE' && (
+                                    <DropdownMenuItem
+                                        disabled={
+                                            busy === `driver-${d.driverId}`
+                                        }
+                                        onClick={() =>
+                                            withBusy(
+                                                `driver-${d.driverId}`,
+                                                async () => {
+                                                    await transitionDriverStatus(
+                                                        d.driverId,
+                                                        'AVAILABLE'
+                                                    );
+                                                    load();
+                                                }
+                                            )
+                                        }
+                                    >
+                                        <IconCircleCheck className="mr-2 h-4 w-4" />
+                                        Release
+                                    </DropdownMenuItem>
+                                )}
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busy === `driver-del-${d.driverId}`}
+                                onClick={() =>
+                                    withBusy(
+                                        `driver-del-${d.driverId}`,
+                                        async () => {
+                                            await deleteDriver(d.driverId);
+                                            load();
+                                        }
+                                    )
+                                }
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const driverTable = useTables<Driver>({
+        data: drivers?.content ?? [],
+        columns: driverColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        getRowId: (row) => row.driverId.toString(),
+    });
+
+    const maintColumns: ColumnDef<MaintenanceRecord>[] = [
+        {
+            accessorKey: 'maintenanceNumber',
+            header: 'Record',
+            cell: ({ row }) => (
+                <div>
+                    <div className="font-medium">
+                        {row.original.maintenanceNumber}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                        Asset #{row.original.assetId} •{' '}
+                        {row.original.scheduledDate ?? '-'}
+                    </div>
+                </div>
+            ),
+            enableHiding: false,
+        },
+        {
+            accessorKey: 'maintenanceType',
+            header: 'Type',
+            cell: ({ row }) => (
+                <Badge
+                    variant={row.original.isBreakdown ? 'destructive' : 'outline'}
+                >
+                    {row.original.maintenanceType}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'COMPLETED'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const m = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                size="icon"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            {(m.status === 'SCHEDULED' ||
+                                m.status === 'IN_PROGRESS') && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        setMaintEdit({
+                                            id: m.maintenanceId,
+                                            maintenanceType: m.maintenanceType,
+                                            description: m.description ?? '',
+                                            scheduledDate:
+                                                m.scheduledDate ?? '',
+                                            odometerReading:
+                                                m.odometerReading != null
+                                                    ? String(m.odometerReading)
+                                                    : '',
+                                            cost:
+                                                m.cost != null
+                                                    ? String(m.cost)
+                                                    : '',
+                                            serviceProvider:
+                                                m.serviceProvider ?? '',
+                                            notes: m.notes ?? '',
+                                        })
+                                    }
+                                >
+                                    <IconEdit className="mr-2 h-4 w-4" />
+                                    Edit
+                                </DropdownMenuItem>
+                            )}
+                            {(m.status === 'SCHEDULED' ||
+                                m.status === 'OVERDUE') && (
+                                <DropdownMenuItem
+                                    disabled={busy === `maint-${m.maintenanceId}`}
+                                    onClick={() =>
+                                        withBusy(
+                                            `maint-${m.maintenanceId}`,
+                                            async () => {
+                                                await transitionMaintenanceStatus(
+                                                    m.maintenanceId,
+                                                    'IN_PROGRESS'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconWrench className="mr-2 h-4 w-4" />
+                                    Start
+                                </DropdownMenuItem>
+                            )}
+                            {m.status === 'IN_PROGRESS' && (
+                                <DropdownMenuItem
+                                    disabled={busy === `maint-${m.maintenanceId}`}
+                                    onClick={() =>
+                                        withBusy(
+                                            `maint-${m.maintenanceId}`,
+                                            async () => {
+                                                await transitionMaintenanceStatus(
+                                                    m.maintenanceId,
+                                                    'COMPLETED'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconCheck className="mr-2 h-4 w-4" />
+                                    Complete
+                                </DropdownMenuItem>
+                            )}
+                            {(m.status === 'SCHEDULED' ||
+                                m.status === 'IN_PROGRESS' ||
+                                m.status === 'OVERDUE') && (
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    disabled={
+                                        busy === `maint-cancel-${m.maintenanceId}`
+                                    }
+                                    onClick={() =>
+                                        withBusy(
+                                            `maint-cancel-${m.maintenanceId}`,
+                                            async () => {
+                                                await transitionMaintenanceStatus(
+                                                    m.maintenanceId,
+                                                    'CANCELLED'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconX className="mr-2 h-4 w-4" />
+                                    Cancel
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busy === `maint-del-${m.maintenanceId}`}
+                                onClick={() =>
+                                    withBusy(
+                                        `maint-del-${m.maintenanceId}`,
+                                        async () => {
+                                            await deleteMaintenanceRecord(
+                                                m.maintenanceId
+                                            );
+                                            toast({
+                                                title: 'Record deleted',
+                                                variant: 'success',
+                                            });
+                                            load();
+                                        }
+                                    )
+                                }
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const maintTable = useTables<MaintenanceRecord>({
+        data: maintenance?.content ?? [],
+        columns: maintColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        getRowId: (row) => row.maintenanceId.toString(),
+    });
 
     return (
         <div className="p-4 lg:p-6 space-y-4">

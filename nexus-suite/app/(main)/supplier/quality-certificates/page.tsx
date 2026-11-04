@@ -1,18 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
 import type { SupplierQualityCertificate } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -38,13 +37,15 @@ import {
     getSupplierOrders,
 } from '@/lib/services/supplier-orders-service';
 import type { SupplierOrder } from '@/types/supplier';
+import type { ColumnDef } from '@tanstack/react-table';
+import { IconDotsVertical, IconTrash } from '@tabler/icons-react';
+import { useTables } from '@/hooks/use-tables';
 import { CatalogSelect } from '@/components/catalog-select';
 import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function QualityCertsPage() {
-    const { toast } = useToast();
-    const [data, setData] =
+    const { toast } = useToast();    const [data, setData] =
         useState<PaginatedResponse<SupplierQualityCertificate> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
@@ -57,7 +58,7 @@ export default function QualityCertsPage() {
         certificateNumber: '',
     });
     const [orders, setOrders] = useState<SupplierOrder[]>([]);
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         try {
             const [certs, ords] = await Promise.all([
@@ -74,10 +75,10 @@ export default function QualityCertsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
     useEffect(() => {
         load();
-    }, []);
+    }, [load]);
     const handleCreate = async () => {
         if (saving) return;
         setSaving(true);
@@ -114,6 +115,84 @@ export default function QualityCertsPage() {
             });
         }
     };
+    const columns: ColumnDef<SupplierQualityCertificate>[] = [
+        {
+            id: 'po',
+            accessorFn: (row) =>
+                row.poNumber ??
+                (row.purchaseOrderId !== undefined
+                    ? String(row.purchaseOrderId)
+                    : ''),
+            header: 'PO',
+            cell: ({ row }) =>
+                row.original.poNumber || row.original.purchaseOrderId || '-',
+        },
+        {
+            id: 'catalog',
+            accessorFn: (row) =>
+                row.catalogName ??
+                (row.catalogId !== undefined ? String(row.catalogId) : ''),
+            header: 'Catalog',
+            cell: ({ row }) =>
+                row.original.catalogName || row.original.catalogId || '-',
+        },
+        {
+            accessorKey: 'certificateType',
+            header: 'Type',
+            cell: ({ row }) => (
+                <Badge>{row.original.certificateType}</Badge>
+            ),
+        },
+        {
+            accessorKey: 'certificateNumber',
+            header: 'Number',
+            cell: ({ row }) => row.original.certificateNumber || '-',
+        },
+        {
+            accessorKey: 'dmsDocumentId',
+            header: 'DMS',
+            cell: ({ row }) => (
+                <div className="text-xs">{row.original.dmsDocumentId || '-'}</div>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Action',
+            cell: ({ row }) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                        >
+                            <IconDotsVertical />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() =>
+                                handleDelete(row.original.certificateId)
+                            }
+                        >
+                            <IconTrash className="mr-2 h-4 w-4" />
+                            Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ),
+        },
+    ];
+    const table = useTables<SupplierQualityCertificate>({
+        data: data?.content ?? [],
+        columns,
+        getRowId: (row, index) =>
+            row.certificateId !== undefined
+                ? String(row.certificateId)
+                : String(index),
+    });
     return (
         <div className="p-4 lg:p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -230,70 +309,10 @@ export default function QualityCertsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>PO</TableHead>
-                                    <TableHead>Catalog</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Number</TableHead>
-                                    <TableHead>DMS</TableHead>
-                                    <TableHead>Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.content?.map(
-                                    (c: SupplierQualityCertificate) => (
-                                        <TableRow key={c.certificateId}>
-                                            <TableCell>
-                                                {c.poNumber ||
-                                                    c.purchaseOrderId ||
-                                                    '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {c.catalogName ||
-                                                    c.catalogId ||
-                                                    '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>
-                                                    {c.certificateType}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {c.certificateNumber || '-'}
-                                            </TableCell>
-                                            <TableCell className="text-xs">
-                                                {c.dmsDocumentId || '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() =>
-                                                        handleDelete(
-                                                            c.certificateId
-                                                        )
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                )}
-                                {!data?.content?.length && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={6}
-                                            className="text-center text-sm text-muted-foreground"
-                                        >
-                                            No certificates
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No certificates"
+                        />
                     )}
                 </CardContent>
             </Card>

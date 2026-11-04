@@ -1,4 +1,5 @@
 'use client';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import { Money } from '@/components/money';
 import {
     AlertDialog,
@@ -20,6 +21,13 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -30,16 +38,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useTables } from '@/hooks/use-tables';
 import { CURRENCIES } from '@/lib/currency';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 import {
@@ -52,14 +53,15 @@ import {
 import type { PaginatedResponse } from '@/types/paginated-response';
 import type { SupplierCatalog } from '@/types/supplier';
 import {
-    Archive,
-    Check,
-    Loader2,
-    Pencil,
-    Plus,
-    RotateCcw,
-    Trash2,
-} from 'lucide-react';
+    IconArchive,
+    IconCircleCheckFilled,
+    IconDotsVertical,
+    IconEdit,
+    IconRotate,
+    IconTrash,
+} from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Loader2, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 const ACCESS_LEVELS = ['PUBLIC', 'PRIVATE', 'PARTNER_ONLY'];
@@ -102,7 +104,7 @@ export default function SupplierCatalogPage() {
 		try {
 			const res = await getSupplierCatalogs({
 				page: 0,
-				size: 20,
+				size: 100,
 				search: search || undefined,
 				status: status === 'all' ? undefined : status,
 			});
@@ -259,6 +261,157 @@ export default function SupplierCatalogPage() {
 			setDeleteBusy(false);
 		}
 	};
+
+	const rows = data?.content ?? [];
+	const columns: ColumnDef<SupplierCatalog>[] = [
+		{
+			accessorKey: 'name',
+			header: 'Name',
+			cell: ({ row }) => (
+				<div>
+					<div className="font-medium">{row.original.name}</div>
+					<div className="text-xs text-muted-foreground">
+						{row.original.code} • {row.original.sku}
+					</div>
+				</div>
+			),
+		},
+		{
+			id: 'hierarchy',
+			accessorFn: (row) =>
+				`${row.category ?? ''} → ${row.family ?? ''} → ${row.sku ?? ''}`,
+			header: 'Hierarchy',
+			cell: ({ row }) => (
+				<div className="text-xs">
+					{row.original.category} → {row.original.family} →{' '}
+					{row.original.sku}
+				</div>
+			),
+		},
+		{
+			id: 'basePrice',
+			accessorFn: (row) => row.basePrice ?? 0,
+			header: () => <div className="w-full text-right">Price</div>,
+			cell: ({ row }) => (
+				<div className="text-right">
+					{row.original.basePrice ? (
+						<Money
+							amount={row.original.basePrice}
+							currency={row.original.currency}
+						/>
+					) : (
+						'-'
+					)}
+				</div>
+			),
+		},
+		{
+			accessorKey: 'status',
+			header: 'Status',
+			cell: ({ row }) => (
+				<Badge
+					variant={
+						row.original.status === 'PUBLISHED'
+							? 'default'
+							: 'secondary'
+					}
+				>
+					{row.original.status}
+				</Badge>
+			),
+		},
+		{
+			accessorKey: 'accessLevel',
+			header: 'Access',
+			cell: ({ row }) => (
+				<Badge variant="outline">{row.original.accessLevel}</Badge>
+			),
+		},
+		{
+			id: 'actions',
+			cell: ({ row }) => {
+				const c = row.original;
+				return (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+							>
+								<IconDotsVertical />
+								<span className="sr-only">Open menu</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-40">
+							<DropdownMenuItem onClick={() => openEdit(c)}>
+								<IconEdit className="mr-2 h-4 w-4" />
+								Edit
+							</DropdownMenuItem>
+							{c.status === 'DRAFT' && (
+								<DropdownMenuItem
+									onClick={() =>
+										transition(
+											c.catalogId,
+											'PUBLISHED',
+											c.accessLevel || 'PRIVATE'
+										)
+									}
+								>
+									<IconCircleCheckFilled className="mr-2 h-4 w-4" />
+									Publish
+								</DropdownMenuItem>
+							)}
+							{c.status === 'PUBLISHED' && (
+								<DropdownMenuItem
+									onClick={() =>
+										transition(c.catalogId, 'DRAFT')
+									}
+								>
+									<IconRotate className="mr-2 h-4 w-4" />
+									Unpublish
+								</DropdownMenuItem>
+							)}
+							{c.status !== 'ARCHIVED' && (
+								<DropdownMenuItem
+									onClick={() =>
+										transition(c.catalogId, 'ARCHIVED')
+									}
+								>
+									<IconArchive className="mr-2 h-4 w-4" />
+									Archive
+								</DropdownMenuItem>
+							)}
+							{c.status === 'ARCHIVED' && (
+								<DropdownMenuItem
+									onClick={() =>
+										transition(c.catalogId, 'DRAFT')
+									}
+								>
+									<IconRotate className="mr-2 h-4 w-4" />
+									Restore
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								variant="destructive"
+								onClick={() => setDeleting(c)}
+							>
+								<IconTrash className="mr-2 h-4 w-4" />
+								Delete
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				);
+			},
+		},
+	];
+
+	const table = useTables<SupplierCatalog>({
+		data: rows,
+		columns,
+		getRowId: (row) => row.catalogId.toString(),
+	});
 
 	const renderFormFields = (
 		value: typeof emptyForm,
@@ -550,155 +703,10 @@ export default function SupplierCatalogPage() {
 							<Skeleton className="h-10 w-full" />
 						</div>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Name</TableHead>
-									<TableHead>Hierarchy</TableHead>
-									<TableHead>Price</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Access</TableHead>
-									<TableHead>Action</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{data?.content?.map((c: SupplierCatalog) => (
-									<TableRow key={c.catalogId}>
-										<TableCell>
-											<div className="font-medium">
-												{c.name}
-											</div>
-											<div className="text-xs text-muted-foreground">
-												{c.code} • {c.sku}
-											</div>
-										</TableCell>
-										<TableCell className="text-xs">
-											{c.category} → {c.family} → {c.sku}
-										</TableCell>
-										<TableCell>
-											{c.basePrice ? (
-												<Money
-													amount={c.basePrice}
-													currency={c.currency}
-												/>
-											) : (
-												'-'
-											)}
-										</TableCell>
-										<TableCell>
-											<Badge
-												variant={
-													c.status === 'PUBLISHED'
-														? 'default'
-														: 'secondary'
-												}
-											>
-												{c.status}
-											</Badge>
-										</TableCell>
-										<TableCell>
-											<Badge variant="outline">
-												{c.accessLevel}
-											</Badge>
-										</TableCell>
-										<TableCell>
-											<div className="flex flex-wrap gap-1">
-												<Button
-													size="sm"
-													variant="outline"
-													onClick={() => openEdit(c)}
-												>
-													<Pencil className="mr-1 h-3 w-3" />
-													Edit
-												</Button>
-												{c.status === 'DRAFT' && (
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() =>
-															transition(
-																c.catalogId,
-																'PUBLISHED',
-																c.accessLevel ||
-																'PRIVATE'
-															)
-														}
-													>
-														<Check className="mr-1 h-3 w-3" />
-														Publish
-													</Button>
-												)}
-												{c.status === 'PUBLISHED' && (
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() =>
-															transition(
-																c.catalogId,
-																'DRAFT'
-															)
-														}
-													>
-														<RotateCcw className="mr-1 h-3 w-3" />
-														Unpublish
-													</Button>
-												)}
-												{c.status !== 'ARCHIVED' && (
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() =>
-															transition(
-																c.catalogId,
-																'ARCHIVED'
-															)
-														}
-													>
-														<Archive className="mr-1 h-3 w-3" />
-														Archive
-													</Button>
-												)}
-												{c.status === 'ARCHIVED' && (
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() =>
-															transition(
-																c.catalogId,
-																'DRAFT'
-															)
-														}
-													>
-														<RotateCcw className="mr-1 h-3 w-3" />
-														Restore
-													</Button>
-												)}
-												<Button
-													size="sm"
-													variant="destructive"
-													onClick={() =>
-														setDeleting(c)
-													}
-												>
-													<Trash2 className="mr-1 h-3 w-3" />
-													Delete
-												</Button>
-											</div>
-										</TableCell>
-									</TableRow>
-								))}
-								{!data?.content?.length && (
-									<TableRow>
-										<TableCell
-											colSpan={6}
-											className="text-center text-sm text-muted-foreground"
-										>
-											No catalog items
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
+						<CentralizedDataTable
+							table={table}
+							emptyMessage="No catalog items"
+						/>
 					)}
 				</CardContent>
 			</Card>

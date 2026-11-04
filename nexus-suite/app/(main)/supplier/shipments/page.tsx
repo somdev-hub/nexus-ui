@@ -10,7 +10,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Info, MapPin } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ShipmentMap from '@/components/shipment-map';
 import PartialShipmentDialog from '@/components/supplier-handover-dialog';
@@ -23,17 +23,18 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { TablePagination } from '@/components/ui/table-pagination';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { PaginatedResponse } from '@/types/paginated-response';
+import type { ColumnDef, PaginationState } from '@tanstack/react-table';
+import { IconDotsVertical, IconEye, IconMapPin } from '@tabler/icons-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTables } from '@/hooks/use-tables';
 import {
     getSupplierShipments,
     getSupplierShipmentEta,
@@ -51,6 +52,17 @@ import {
 
 const ADDRESS_PREVIEW_CHARS = 28;
 
+/** Shipment/consignment addresses are sometimes stored URL-encoded. */
+function decodeAddress(value?: string | null): string {
+    const text = (value ?? '').trim();
+    if (!text) return '';
+    try {
+        return decodeURIComponent(text);
+    } catch {
+        return text;
+    }
+}
+
 function truncateMiddle(value: string, limit: number): string {
     const text = (value ?? '').trim();
     if (text.length <= limit) return text;
@@ -64,8 +76,8 @@ function AddressCell({
     pickup?: string;
     delivery?: string;
 }) {
-    const fullPickup = (pickup ?? '').trim() || '—';
-    const fullDelivery = (delivery ?? '').trim() || '—';
+    const fullPickup = decodeAddress(pickup) || '—';
+    const fullDelivery = decodeAddress(delivery) || '—';
     const preview = `${truncateMiddle(fullPickup, ADDRESS_PREVIEW_CHARS)} → ${truncateMiddle(fullDelivery, ADDRESS_PREVIEW_CHARS)}`;
     const full = `${fullPickup} → ${fullDelivery}`;
     return (
@@ -137,26 +149,20 @@ function Section({
     );
 }
 
-const SHIPMENTS_PAGE_SIZE = 10;
-
-function truncate(value: string, max = 40): string {
-    let v = value;
-    try {
-        v = decodeURIComponent(v);
-    } catch {
-        // keep original
-    }
-    return v.length > max ? v.slice(0, max) + '…' : v;
-}
-
 export default function SupplierShipmentsPage() {
     const { toast } = useToast();
-    const [data, setData] =
-        useState<PaginatedResponse<SupplierShipment> | null>(null);
+    const [shipments, setShipments] = useState<SupplierShipment[]>([]);
     const [coreShipments, setCoreShipments] = useState<SupplierShipment[]>([]);
+    const [totalShipments, setTotalShipments] = useState(0);
+    const [coreTotal, setCoreTotal] = useState(0);
+    const [corePageCount, setCorePageCount] = useState(1);
+    const [coreLoading, setCoreLoading] = useState(true);
+    const [corePagination, setCorePagination] = useState<PaginationState>({
+        pageIndex: 0,
+        pageSize: 10,
+    });
     const [handoverShipment, setHandoverShipment] =
         useState<SupplierShipment | null>(null);
-    const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(true);
     const [viewing, setViewing] = useState<SupplierShipment | null>(null);
     const [tracking, setTracking] = useState<SupplierShipment | null>(null);
@@ -175,48 +181,63 @@ export default function SupplierShipmentsPage() {
             );
     };
 
-    const load = useCallback(
-        async (pageNo: number = page) => {
-            setLoading(true);
-            try {
-                const ships = await getSupplierShipments({
-                    page: pageNo,
-                    size: SHIPMENTS_PAGE_SIZE,
-                });
-                setData(ships);
-                try {
-                    const res = await apiClient.get<
-                        PaginatedResponse<SupplierShipment> | SupplierShipment[]
-                    >('/iam/core/supplier/core-shipments?size=100');
-                    const d = res.data;
-                    const list = Array.isArray(d) ? d : (d.content ?? []);
-                    setCoreShipments(
-                        list.filter(
-                            (s) =>
-                                s.referenceType === 'CONSIGNMENT_FILL' ||
-                                s.referenceType === 'VMI_REPLENISHMENT'
-                        )
-                    );
-                } catch {
-                    setCoreShipments([]);
-                }
-            } catch (e: unknown) {
-                toast({
-                    title: e instanceof Error ? e.message : String(e),
-                    variant: 'destructive',
-                });
-            } finally {
-                setLoading(false);
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const ships = await getSupplierShipments({ page: 0, size: 100 });
+            setShipments(ships.content ?? []);
+            setTotalShipments(ships.totalElements ?? 0);
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    const loadCoreShipments = useCallback(async () => {
+        setCoreLoading(true);
+        try {
+            const res = await apiClient.get<
+                PaginatedResponse<SupplierShipment> | SupplierShipment[]
+            >(
+                `/iam/core/supplier/core-shipments?page=${corePagination.pageIndex}&size=${corePagination.pageSize}`
+            );
+            const d = res.data;
+            const raw = Array.isArray(d) ? d : (d.content ?? []);
+            // Defensive filter: the table must only ever show core shipments,
+            // even if an older backend returns the full supplier-org list.
+            const list = raw.filter(
+                (s) =>
+                    s.referenceType === 'CONSIGNMENT_FILL' ||
+                    s.referenceType === 'VMI_REPLENISHMENT'
+            );
+            setCoreShipments(list);
+            if (Array.isArray(d)) {
+                setCoreTotal(list.length);
+                setCorePageCount(1);
+            } else {
+                setCoreTotal(d.totalElements ?? list.length);
+                setCorePageCount(Math.max(1, d.totalPages ?? 1));
             }
-        },
-        [toast, page]
-    );
+        } catch {
+            setCoreShipments([]);
+            setCoreTotal(0);
+            setCorePageCount(1);
+        } finally {
+            setCoreLoading(false);
+        }
+    }, [corePagination.pageIndex, corePagination.pageSize]);
 
     useEffect(() => {
         load();
     }, [load]);
 
-    const shipments = data?.content ?? [];
+    useEffect(() => {
+        loadCoreShipments();
+    }, [loadCoreShipments]);
 
     const ordered = viewing?.orderedQuantity;
     const backordered = viewing?.backorderedQuantity ?? 0;
@@ -230,6 +251,259 @@ export default function SupplierShipmentsPage() {
         viewing?.packageHeight !== undefined
             ? `${viewing?.packageLength ?? '—'} × ${viewing?.packageWidth ?? '—'} × ${viewing?.packageHeight ?? '—'} ${viewing?.packageDimensionUom ?? ''}`.trim()
             : undefined;
+
+    const renderExpectedDelivery = (s: SupplierShipment) => {
+        const when =
+            s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate;
+        return when ? new Date(when as string).toLocaleString() : '—';
+    };
+
+    const shipmentColumns: ColumnDef<SupplierShipment>[] = [
+        {
+            id: 'shipmentNumber',
+            accessorFn: (row) =>
+                row.shipmentNumber ?? String(row.shipmentId ?? ''),
+            header: 'Shipment #',
+            cell: ({ row }) => (
+                <div className="font-mono text-sm">
+                    {row.original.shipmentNumber ?? row.original.shipmentId}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => <Badge>{row.original.status ?? '—'}</Badge>,
+        },
+        {
+            id: 'po',
+            accessorFn: (row) => row.purchaseOrder?.poNumber ?? '',
+            header: 'PO',
+            cell: ({ row }) => row.original.purchaseOrder?.poNumber ?? '—',
+        },
+        {
+            accessorKey: 'backorderedQuantity',
+            header: 'Backordered',
+            cell: ({ row }) => {
+                const qty = row.original.backorderedQuantity;
+                return qty !== undefined && qty !== null && qty > 0 ? (
+                    <Badge variant="secondary">{qty} pending</Badge>
+                ) : (
+                    <span className="text-xs text-muted-foreground">
+                        Full qty
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'expectedDelivery',
+            accessorFn: (row) =>
+                row.scheduledDeliveryDate ||
+                row.estimatedArrival ||
+                row.deliveryDate ||
+                '',
+            header: 'Expected Delivery',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {renderExpectedDelivery(row.original)}
+                </div>
+            ),
+        },
+        {
+            id: 'tracking',
+            accessorFn: (row) =>
+                row.carrierTrackingNumber || row.trackingNumber || '',
+            header: 'Tracking',
+            cell: ({ row }) => (
+                <div className="font-mono text-xs">
+                    {row.original.carrierTrackingNumber ||
+                        row.original.trackingNumber ||
+                        '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'addresses',
+            header: 'Pickup → Delivery',
+            cell: ({ row }) => (
+                <AddressCell
+                    pickup={
+                        row.original.pickupAddress ||
+                        row.original.pickupLocation
+                    }
+                    delivery={
+                        row.original.deliveryAddress ||
+                        row.original.deliveryLocation
+                    }
+                />
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                        >
+                            <IconDotsVertical />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                            onClick={() => setViewing(row.original)}
+                        >
+                            <IconEye className="mr-2 h-4 w-4" />
+                            View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={() => openTracking(row.original)}
+                        >
+                            <IconMapPin className="mr-2 h-4 w-4" />
+                            Track
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ),
+        },
+    ];
+
+    const coreShipmentColumns: ColumnDef<SupplierShipment>[] = [
+        {
+            id: 'shipmentNumber',
+            accessorFn: (row) =>
+                row.shipmentNumber ?? String(row.shipmentId ?? ''),
+            header: 'Shipment #',
+            cell: ({ row }) => (
+                <div className="font-mono text-sm">
+                    {row.original.shipmentNumber ?? row.original.shipmentId}
+                </div>
+            ),
+        },
+        {
+            id: 'referenceType',
+            accessorFn: (row) =>
+                row.referenceType === 'CONSIGNMENT_FILL'
+                    ? 'Consignment'
+                    : row.referenceType === 'VMI_REPLENISHMENT'
+                      ? 'VMI'
+                      : 'PO',
+            header: 'Type',
+            cell: ({ row }) => (
+                <span className="text-sm">
+                    {row.original.referenceType === 'CONSIGNMENT_FILL'
+                        ? 'Consignment'
+                        : row.original.referenceType === 'VMI_REPLENISHMENT'
+                          ? 'VMI'
+                          : 'PO'}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => <Badge>{row.original.status ?? '—'}</Badge>,
+        },
+        {
+            id: 'expectedDelivery',
+            accessorFn: (row) =>
+                row.scheduledDeliveryDate ||
+                row.estimatedArrival ||
+                row.deliveryDate ||
+                '',
+            header: 'Expected Delivery',
+            cell: ({ row }) => (
+                <div className="text-xs whitespace-nowrap">
+                    {renderExpectedDelivery(row.original)}
+                </div>
+            ),
+        },
+        {
+            id: 'tracking',
+            accessorFn: (row) =>
+                row.carrierTrackingNumber || row.trackingNumber || '',
+            header: 'Tracking',
+            cell: ({ row }) => (
+                <div className="font-mono text-xs">
+                    {row.original.carrierTrackingNumber ||
+                        row.original.trackingNumber ||
+                        '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'addresses',
+            header: 'Pickup → Delivery',
+            cell: ({ row }) => (
+                <AddressCell
+                    pickup={
+                        row.original.pickupAddress ||
+                        row.original.pickupLocation
+                    }
+                    delivery={
+                        row.original.deliveryAddress ||
+                        row.original.deliveryLocation
+                    }
+                />
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                        >
+                            <IconDotsVertical />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem asChild>
+                            <Link href={`/retailer/shipments/${row.original.shipmentId}`}>
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </Link>
+                        </DropdownMenuItem>
+                        {row.original.status === 'DRAFT' && (
+                            <DropdownMenuItem
+                                onClick={() => setHandoverShipment(row.original)}
+                            >
+                                <IconMapPin className="mr-2 h-4 w-4" />
+                                Handover
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ),
+        },
+    ];
+
+    const shipmentsTable = useTables<SupplierShipment>({
+        data: shipments,
+        columns: shipmentColumns,
+        getRowId: (row, index) =>
+            row.shipmentId !== undefined ? String(row.shipmentId) : String(index),
+    });
+
+    const coreShipmentsTable = useTables<SupplierShipment>({
+        data: coreShipments,
+        columns: coreShipmentColumns,
+        getRowId: (row, index) =>
+            row.shipmentId !== undefined ? String(row.shipmentId) : String(index),
+        manualPagination: true,
+        pageCount: corePageCount,
+        pagination: corePagination,
+        onPaginationChange: setCorePagination,
+    });
 
     return (
         <div className="p-4 lg:p-6 space-y-4 min-w-0 max-w-full">
@@ -257,7 +531,7 @@ export default function SupplierShipmentsPage() {
             <Card className="p-4 gap-2 min-w-0">
                 <CardHeader className="p-0">
                     <CardTitle>
-                        My Shipments ({data?.totalElements ?? 0})
+                        My Shipments ({totalShipments})
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 min-w-0">
@@ -268,214 +542,33 @@ export default function SupplierShipmentsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (
-                        <div className="max-w-full overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Shipment #</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>PO</TableHead>
-                                        <TableHead>Backordered</TableHead>
-                                        <TableHead>Expected Delivery</TableHead>
-                                        <TableHead>Tracking</TableHead>
-                                        <TableHead>Pickup → Delivery</TableHead>
-                                        <TableHead>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {shipments.map((s) => (
-                                        <TableRow key={s.shipmentId}>
-                                            <TableCell className="font-mono">
-                                                {s.shipmentNumber ??
-                                                    s.shipmentId}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>{s.status ?? '—'}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {(
-                                                    s.purchaseOrder as
-                                                        | { poNumber?: string }
-                                                        | undefined
-                                                )?.poNumber ?? '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {s.backorderedQuantity !==
-                                                    undefined &&
-                                                s.backorderedQuantity !==
-                                                    null &&
-                                                s.backorderedQuantity > 0 ? (
-                                                    <Badge variant="secondary">
-                                                        {s.backorderedQuantity}{' '}
-                                                        pending
-                                                    </Badge>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Full qty
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap text-xs">
-                                                {(s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate)
-                                                    ? new Date(
-                                                          (s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate) as string
-                                                      ).toLocaleString()
-                                                    : '—'}
-                                            </TableCell>
-                                            <TableCell className="font-mono text-xs">
-                                                {s.carrierTrackingNumber || s.trackingNumber || '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <AddressCell
-                                                    pickup={s.pickupAddress || s.pickupLocation}
-                                                    delivery={
-                                                        s.deliveryAddress || s.deliveryLocation
-                                                    }
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            setViewing(s)
-                                                        }
-                                                    >
-                                                        View
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        title="Live tracking"
-                                                        onClick={() =>
-                                                            openTracking(s)
-                                                        }
-                                                    >
-                                                        <MapPin className="mr-1 h-3 w-3" />
-                                                        Track
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {!shipments.length && (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={8}
-                                                className="text-center text-sm text-muted-foreground"
-                                            >
-                                                No shipments yet — create one
-                                                from an acknowledged order via
-                                                Partial Ship.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                    {!loading && (
-                        <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
-                            <span className="text-sm text-muted-foreground">
-                                {data?.totalElements ?? 0} shipment(s)
-                            </span>
-                            <TablePagination
-                                pageIndex={page}
-                                pageCount={data?.totalPages ?? 0}
-                                canPreviousPage={page > 0}
-                                canNextPage={data ? !data.last : false}
-                                onPageChange={setPage}
-                                onPreviousPage={() =>
-                                    setPage((p) => Math.max(0, p - 1))
-                                }
-                                onNextPage={() => setPage((p) => p + 1)}
-                                showFirstLast={false}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                                Page {page + 1} of {data?.totalPages ?? 1}
-                            </span>
-                        </div>
+                        <CentralizedDataTable
+                            table={shipmentsTable}
+                            emptyMessage="No shipments yet — create one from an acknowledged order via Partial Ship."
+                        />
                     )}
                 </CardContent>
             </Card>
 
             <Card className="p-4 gap-2 min-w-0">
                 <CardHeader className="p-0">
-                    <CardTitle>Core Shipments (Consignment / VMI)</CardTitle>
+                    <CardTitle>
+                        Core Shipments (Consignment / VMI) ({coreTotal})
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 min-w-0">
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Shipment #</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Expected Delivery</TableHead>
-                                    <TableHead>Tracking</TableHead>
-                                    <TableHead>Pickup → Delivery</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {coreShipments.map((s) => (
-                                    <TableRow key={s.shipmentId}>
-                                        <TableCell className="font-mono">
-                                            {s.shipmentNumber ?? s.shipmentId}
-                                        </TableCell>
-                                        <TableCell>
-                                            {s.referenceType === 'CONSIGNMENT_FILL'
-                                                ? 'Consignment'
-                                                : s.referenceType === 'VMI_REPLENISHMENT'
-                                                ? 'VMI'
-                                                : 'PO'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge>{s.status ?? '—'}</Badge>
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap text-xs">
-                                            {(s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate)
-                                                ? new Date((s.scheduledDeliveryDate || s.estimatedArrival || s.deliveryDate) as string).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="font-mono text-xs">
-                                            {s.carrierTrackingNumber || s.trackingNumber || '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="text-xs">
-                                                {truncate(s.pickupAddress || s.pickupLocation || '—')} → {truncate(s.deliveryAddress || s.deliveryLocation || '—')}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <Button size="sm" variant="outline" asChild>
-                                                    <Link href={`/retailer/shipments/${s.shipmentId}`}>View</Link>
-                                                </Button>
-                                                {s.status === 'DRAFT' && (
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setHandoverShipment(s)
-                                                        }
-                                                    >
-                                                        Handover
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {coreShipments.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                            No core shipments
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    {coreLoading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : (
+                        <CentralizedDataTable
+                            table={coreShipmentsTable}
+                            emptyMessage="No core shipments"
+                        />
+                    )}
                 </CardContent>
             </Card>
 
@@ -810,7 +903,8 @@ export default function SupplierShipmentsPage() {
                 }}
                 onHandedOver={() => {
                     setHandoverShipment(null);
-                    load(0);
+                    load();
+                    loadCoreShipments();
                 }}
             />
         </div>
