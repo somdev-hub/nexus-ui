@@ -126,6 +126,11 @@ const retailerSections = [
                 url: '/retailer/procurement/three-way',
                 icon: IconEye,
             },
+            {
+                title: 'Inbound Shipments',
+                url: '/retailer/shipments',
+                icon: IconTruck,
+            },
         ],
     },
     {

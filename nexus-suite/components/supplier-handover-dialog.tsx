@@ -24,6 +24,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { CURRENCIES, normalizeCurrency } from '@/lib/currency';
 import {
     formatOrgAddress,
     orgAddressOptionLabel,
@@ -166,7 +167,9 @@ export function PartialShipmentDialog({
         setPackageHeight('');
         setPackageDimensionUom('M');
         setFreightCost('');
-        setFreightCurrency(order?.currency || shipment?.currency || 'USD');
+        setFreightCurrency(
+            normalizeCurrency(order?.currency || shipment?.currency)
+        );
         setFreightTerms('');
         setShipmentNotes('');
         setOptions(null);
@@ -318,7 +321,7 @@ export function PartialShipmentDialog({
                     shippedQuantity: Number(shippedQty),
                     trackingNumber: 'TRK-' + Date.now(),
                     freightCost: freight,
-                    currency: freightCurrency.trim() || undefined,
+                    currency: normalizeCurrency(freightCurrency),
                     freightTerms: freightTerms || undefined,
                     notes: notes ? notes : undefined,
                     ...packagePayload,
@@ -337,7 +340,7 @@ export function PartialShipmentDialog({
                 const res = await handoverShipment(shipment.shipmentId, {
                     notes: notes ? notes : undefined,
                     freightCost: freight,
-                    currency: freightCurrency.trim() || undefined,
+                    currency: normalizeCurrency(freightCurrency),
                     freightTerms: freightTerms || undefined,
                     ...packagePayload,
                     ...handoverPayload,
@@ -533,13 +536,24 @@ export function PartialShipmentDialog({
                             </div>
                             <div className="grid gap-2">
                                 <Label>Currency</Label>
-                                <Input
-                                    placeholder="USD"
-                                    value={freightCurrency}
-                                    onChange={(e) =>
-                                        setFreightCurrency(e.target.value)
-                                    }
-                                />
+                                <Select
+                                    value={normalizeCurrency(freightCurrency)}
+                                    onValueChange={setFreightCurrency}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {CURRENCIES.map((c) => (
+                                            <SelectItem
+                                                key={c.code}
+                                                value={c.code}
+                                            >
+                                                {c.code} — {c.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid gap-2">
                                 <Label>Freight terms</Label>

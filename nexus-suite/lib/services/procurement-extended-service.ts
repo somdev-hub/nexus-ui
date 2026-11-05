@@ -37,6 +37,13 @@ export async function getGoodsReceipts(
     return res.data;
 }
 
+export async function getGoodsReceiptSource(shipmentId: number): Promise<Record<string, unknown>> {
+    const res = await apiClient.get<Record<string, unknown>>(
+        `${GR_BASE}/source/${shipmentId}`
+    );
+    return res.data ?? {};
+}
+
 export async function getGoodsReceiptById(id: number): Promise<GoodsReceipt> {
     const res = await apiClient.get<GoodsReceipt>(`${GR_BASE}/${id}`);
     return res.data;

@@ -13,6 +13,7 @@ export type InvoiceStatus =
 export interface GoodsReceiptLineItem {
     grLineItemId?: number;
     poLineItemId?: number;
+    materialId?: number;
     lineNumber?: number;
     quantityReceived?: number;
     quantityAccepted?: number;
@@ -25,7 +26,9 @@ export interface GoodsReceiptLineItem {
 export interface GoodsReceipt {
     goodsReceiptId: number;
     grNumber: string;
-    purchaseOrderId: number;
+    purchaseOrderId?: number;
+    shipmentId?: number;
+    asnId?: number;
     poNumber?: string;
     supplierId: number;
     supplierName?: string;
@@ -48,6 +51,7 @@ export interface GoodsReceiptFilter {
     status?: GoodsReceiptStatus;
     purchaseOrderId?: number;
     supplierId?: number;
+    shipmentId?: number;
     pageNo?: number;
     pageOffset?: number;
 }

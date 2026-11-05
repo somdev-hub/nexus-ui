@@ -18,7 +18,6 @@ import type { LucideIcon } from 'lucide-react';
 import type {
     AssetDriverHistory,
     AssetShipment,
-    Driver,
     FleetAsset,
     MaintenanceRecord,
 } from '@/types/logistics-ops';
@@ -196,6 +195,7 @@ export default function AssetDetailPage() {
         } finally {
             setLoading(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assetId]);
 
     const toFilterValue = (d?: Date) =>
@@ -223,6 +223,7 @@ export default function AssetDetailPage() {
         } finally {
             setOpsLoading(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assetId, page, status, from, to]);
 
     useEffect(() => {
@@ -712,7 +713,7 @@ export default function AssetDetailPage() {
                                                                             }
                                                                             currency={
                                                                                 (
-                                                                                    s as any
+                                                                                    s as { currency?: string | null }
                                                                                 )
                                                                                     .currency
                                                                             }
@@ -919,7 +920,7 @@ export default function AssetDetailPage() {
                                                             <Money
                                                                 amount={m.cost}
                                                                 currency={
-                                                                    (m as any)
+                                                                    (m as { currency?: string | null })
                                                                         .currency
                                                                 }
                                                             />

@@ -7,6 +7,7 @@ export type ShipmentStatus =
     | 'IN_TRANSIT'
     | 'OUT_FOR_DELIVERY'
     | 'DELIVERED'
+    | 'PARTIALLY_DELIVERED'
     | 'EXCEPTION'
     | 'CANCELLED'
     | 'RETURNED'
@@ -112,6 +113,21 @@ export interface Shipment {
     estimatedArrival?: string;
     actualArrival?: string;
     notes?: string;
+    packageWeight?: number;
+    packageLength?: number;
+    packageWidth?: number;
+    packageHeight?: number;
+    packageDimensionUom?: string;
+    purchaseOrderId?: number;
+    purchaseOrderNumber?: string;
+    orderedQuantity?: number;
+    backorderedQuantity?: number;
+    isPartialShipment?: boolean;
+    shippedQuantity?: number;
+    materialId?: number;
+    materialName?: string;
+    quantityUom?: string;
+    receivedAt?: string;
     version: number;
     createdAt: string;
     updatedAt: string;

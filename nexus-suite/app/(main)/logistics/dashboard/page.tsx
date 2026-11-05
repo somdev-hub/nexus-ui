@@ -51,6 +51,7 @@ export default function LogisticsDashboardPage() {
         return () => {
             active = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (loading) {

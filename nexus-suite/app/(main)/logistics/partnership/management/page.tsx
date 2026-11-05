@@ -16,14 +16,24 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    IconDotsVertical,
+    IconEdit,
+    IconEye,
+    IconFilePlus,
+    IconRoute,
+    IconTrash,
+    IconX,
+} from '@tabler/icons-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     counterpartyLabelOf,
     counterpartyOf,
@@ -229,6 +239,7 @@ export default function LogisticsPartnershipsPage() {
         return () => {
             active = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Deep-link highlight: the load board's shipment dialog links here with
@@ -607,7 +618,7 @@ export default function LogisticsPartnershipsPage() {
           )
         : [];
 
-    const useAgreedLine = (line: Record<string, unknown>) => {
+    const applyAgreedLine = (line: Record<string, unknown>) => {
         setNewRoute((prev) => ({
             ...prev,
             originLane: String(line.fromLane ?? line.from ?? ''),
@@ -760,6 +771,299 @@ export default function LogisticsPartnershipsPage() {
         );
     };
 
+
+    const partnershipColumns: ColumnDef<OrgPartnership>[] = [
+        {
+            accessorKey: 'partnershipId',
+            header: 'ID',
+            cell: ({ row }) => (
+                <div className="font-medium">
+                    {row.original.partnershipId}
+                    {row.original.partnershipId === highlightContractId && (
+                        <Badge variant="outline" className="ml-2">
+                            From shipment
+                        </Badge>
+                    )}
+                </div>
+            ),
+        },
+        {
+            id: 'partnerOrg',
+            header: 'Partner Org',
+            accessorFn: (row) => partnerNameOf(row),
+            cell: ({ row }) => partnerNameOf(row.original),
+        },
+        {
+            accessorKey: 'term',
+            header: 'Terms',
+            cell: ({ row }) => (
+                <div className="max-w-xs truncate">
+                    {row.original.term || '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'termChip',
+            header: 'Term',
+            accessorFn: (row) =>
+                String(
+                    (row as unknown as Record<string, unknown>)
+                        .partnershipTermType ?? ''
+                ),
+            cell: ({ row }) => termChipOf(row.original),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.status || '—'}</Badge>
+            ),
+        },
+        {
+            accessorKey: 'startDate',
+            header: 'Start',
+            cell: ({ row }) => formatDate(row.original.startDate),
+        },
+        {
+            accessorKey: 'endDate',
+            header: 'End',
+            cell: ({ row }) => formatDate(row.original.endDate),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const p = row.original;
+                const isLongTerm =
+                    String(
+                        (p as unknown as Record<string, unknown>)
+                            .partnershipTermType ?? ''
+                    )
+                        .toUpperCase() === 'LONG_TERM';
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            {isLongTerm && (
+                                <DropdownMenuItem
+                                    onClick={() => openRoutesManager(p)}
+                                >
+                                    <IconRoute className="mr-2 h-4 w-4" />
+                                    Routes
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => openEdit(p)}>
+                                <IconEdit className="mr-2 h-4 w-4" />
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busyId === p.partnershipId}
+                                onClick={() => setConfirmTerminate(p)}
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                Terminate
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const inviteColumns: ColumnDef<PartnershipInvitation>[] = [
+        {
+            id: 'invitationId',
+            header: 'ID',
+            accessorFn: (row) => String(invitationIdOf(row)),
+            cell: ({ row }) => invitationIdOf(row.original),
+        },
+        {
+            id: 'supplier',
+            header: 'Supplier',
+            accessorFn: (row) => inviterNameOf(row) ?? '',
+            cell: ({ row }) =>
+                inviterNameOf(row.original) ??
+                `Org ${row.original.invitingOrg ?? row.original.inviterOrgId ?? '—'}`,
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const inv = row.original;
+                const invId = invitationIdOf(inv);
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                                onClick={() => void viewProposal(inv)}
+                            >
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busyId === invId}
+                                onClick={() => void respond(inv, 'REJECT')}
+                            >
+                                <IconX className="mr-2 h-4 w-4" />
+                                Reject
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                disabled={busyId === invId}
+                                onClick={() => openQuoteDialog(inv)}
+                            >
+                                <IconFilePlus className="mr-2 h-4 w-4" />
+                                Raise Quotation
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const quoteColumns: ColumnDef<LogisticsPartnershipQuotation>[] = [
+        {
+            id: 'quote',
+            header: 'Quote',
+            accessorFn: (row) =>
+                String(row.quotationNumber ?? row.quotationId),
+            cell: ({ row }) => (
+                <span className="font-mono text-xs">
+                    {row.original.quotationNumber ?? row.original.quotationId}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.status ?? '—'}</Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const q = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                                onClick={() => setQuoteViewing(q)}
+                            >
+                                <IconEye className="mr-2 h-4 w-4" />
+                                View
+                            </DropdownMenuItem>
+                            {q.status === 'ACCEPTED' && q.partnershipId && (
+                                <DropdownMenuItem
+                                    onClick={() => openRoutesForQuotation(q)}
+                                >
+                                    <IconRoute className="mr-2 h-4 w-4" />
+                                    Manage Routes
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const closedColumns: ColumnDef<OrgPartnership>[] = [
+        {
+            accessorKey: 'partnershipId',
+            header: 'ID',
+            cell: ({ row }) => (
+                <div className="font-medium">{row.original.partnershipId}</div>
+            ),
+        },
+        {
+            id: 'partnerOrg',
+            header: 'Partner Org',
+            accessorFn: (row) => partnerNameOf(row),
+            cell: ({ row }) => partnerNameOf(row.original),
+        },
+        {
+            id: 'termChip',
+            header: 'Term',
+            accessorFn: (row) =>
+                String(
+                    (row as unknown as Record<string, unknown>)
+                        .partnershipTermType ?? ''
+                ),
+            cell: ({ row }) => termChipOf(row.original),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.status}</Badge>
+            ),
+        },
+        {
+            accessorKey: 'startDate',
+            header: 'Start',
+            cell: ({ row }) => formatDate(row.original.startDate),
+        },
+        {
+            accessorKey: 'endDate',
+            header: 'End',
+            cell: ({ row }) => formatDate(row.original.endDate),
+        },
+    ];
+
+    const partnershipsTable = useTables<OrgPartnership>({
+        data: activePartnerships,
+        columns: partnershipColumns,
+        getRowId: (r) => String(r.partnershipId),
+    });
+    const invitesTable = useTables<PartnershipInvitation>({
+        data: longTermPending,
+        columns: inviteColumns,
+        getRowId: (r, index) => String(invitationIdOf(r) ?? index),
+    });
+    const quotesTable = useTables<LogisticsPartnershipQuotation>({
+        data: quotations,
+        columns: quoteColumns,
+        getRowId: (r) => String(r.quotationId),
+    });
+    const closedTable = useTables<OrgPartnership>({
+        data: closedPartnerships,
+        columns: closedColumns,
+        getRowId: (r) => String(r.partnershipId),
+    });
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
@@ -787,115 +1091,10 @@ export default function LogisticsPartnershipsPage() {
                                     below to get started.
                                 </p>
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>ID</TableHead>
-                                            <TableHead>Partner Org</TableHead>
-                                            <TableHead>Terms</TableHead>
-                                            <TableHead>Term</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Start</TableHead>
-                                            <TableHead>End</TableHead>
-                                            <TableHead className="text-right">
-                                                Actions
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {activePartnerships.map((p) => (
-                                            <TableRow
-                                                key={p.partnershipId}
-                                                className={
-                                                    p.partnershipId ===
-                                                    highlightContractId
-                                                        ? 'bg-amber-50 ring-1 ring-inset ring-amber-300 dark:bg-amber-950/40'
-                                                        : undefined
-                                                }
-                                            >
-                                                <TableCell>
-                                                    {p.partnershipId}
-                                                    {p.partnershipId ===
-                                                        highlightContractId && (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="ml-2"
-                                                        >
-                                                            From shipment
-                                                        </Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {partnerNameOf(p)}
-                                                </TableCell>
-                                                <TableCell className="max-w-xs truncate">
-                                                    {p.term || '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {termChipOf(p)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {p.status || '—'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {formatDate(p.startDate)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {formatDate(p.endDate)}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        {String(
-                                                            (
-                                                                p as unknown as Record<
-                                                                    string,
-                                                                    unknown
-                                                                >
-                                                            )
-                                                                .partnershipTermType ??
-                                                                ''
-                                                        ).toUpperCase() ===
-                                                            'LONG_TERM' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    openRoutesManager(
-                                                                        p
-                                                                    )
-                                                                }
-                                                            >
-                                                                Routes
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                openEdit(p)
-                                                            }
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                setConfirmTerminate(
-                                                                    p
-                                                                )
-                                                            }
-                                                        >
-                                                            Terminate
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                <CentralizedDataTable
+                                    table={partnershipsTable}
+                                    emptyMessage="No active partnerships"
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -913,81 +1112,10 @@ export default function LogisticsPartnershipsPage() {
                                         No long-term proposals awaiting review.
                                     </p>
                                 ) : (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Supplier</TableHead>
-                                                <TableHead className="text-right">
-                                                    Actions
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {longTermPending.map((inv) => (
-                                                <TableRow
-                                                    key={invitationIdOf(inv)}
-                                                >
-                                                    <TableCell>
-                                                        {invitationIdOf(inv)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {inviterNameOf(inv) ??
-                                                            `Org ${inv.invitingOrg ?? inv.inviterOrgId ?? '—'}`}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    viewProposal(
-                                                                        inv
-                                                                    )
-                                                                }
-                                                            >
-                                                                View
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                disabled={
-                                                                    busyId ===
-                                                                    invitationIdOf(
-                                                                        inv
-                                                                    )
-                                                                }
-                                                                onClick={() =>
-                                                                    respond(
-                                                                        inv,
-                                                                        'REJECT'
-                                                                    )
-                                                                }
-                                                            >
-                                                                Reject
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                disabled={
-                                                                    busyId ===
-                                                                    invitationIdOf(
-                                                                        inv
-                                                                    )
-                                                                }
-                                                                onClick={() =>
-                                                                    openQuoteDialog(
-                                                                        inv
-                                                                    )
-                                                                }
-                                                            >
-                                                                Raise Quotation
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                    <CentralizedDataTable
+                                        table={invitesTable}
+                                        emptyMessage="No proposals"
+                                    />
                                 )}
                             </CardContent>
                         </Card>
@@ -1012,62 +1140,10 @@ export default function LogisticsPartnershipsPage() {
                                         No quotations raised yet.
                                     </p>
                                 ) : (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Quote</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">
-                                                    Actions
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {quotations.map((q) => (
-                                                <TableRow key={q.quotationId}>
-                                                    <TableCell className="font-mono text-xs">
-                                                        {q.quotationNumber ??
-                                                            q.quotationId}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">
-                                                            {q.status ?? '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    setQuoteViewing(
-                                                                        q
-                                                                    )
-                                                                }
-                                                            >
-                                                                View
-                                                            </Button>
-                                                            {q.status ===
-                                                                'ACCEPTED' &&
-                                                                q.partnershipId && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() =>
-                                                                            openRoutesForQuotation(
-                                                                                q
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Manage
-                                                                        Routes
-                                                                    </Button>
-                                                                )}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                    <CentralizedDataTable
+                                        table={quotesTable}
+                                        emptyMessage="No quotations"
+                                    />
                                 )}
                             </CardContent>
                         </Card>
@@ -1095,48 +1171,12 @@ export default function LogisticsPartnershipsPage() {
                             </CardHeader>
                             <CardContent className="p-0">
                                 {closedPartnerships.length > 0 && (
-                                    <Table className="mb-4">
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>
-                                                    Partner Org
-                                                </TableHead>
-                                                <TableHead>Term</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Start</TableHead>
-                                                <TableHead>End</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {closedPartnerships.map((p) => (
-                                                <TableRow key={p.partnershipId}>
-                                                    <TableCell>
-                                                        {p.partnershipId}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {partnerNameOf(p)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {termChipOf(p)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">
-                                                            {p.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {formatDate(
-                                                            p.startDate
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {formatDate(p.endDate)}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                    <div className="mb-4">
+                                        <CentralizedDataTable
+                                            table={closedTable}
+                                            emptyMessage="No closed partnerships"
+                                        />
+                                    </div>
                                 )}
                                 <PartnershipInvitationList
                                     invitations={receivedHistory}
@@ -1920,7 +1960,7 @@ export default function LogisticsPartnershipsPage() {
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() =>
-                                                            useAgreedLine(l)
+                                                            applyAgreedLine(l)
                                                         }
                                                     >
                                                         Use

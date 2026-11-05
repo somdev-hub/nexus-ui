@@ -17,6 +17,15 @@ export interface AsnDocument {
     purchaseOrderId?: number;
     poNumber?: string;
     shipmentId?: number;
+    referenceType?: string;
+    referenceId?: number;
+    materialId?: number;
+    materialName?: string;
+    unitOfMeasure?: string;
+    buyerOrgId?: number;
+    supplierOrgId?: number;
+    buyerOrgName?: string;
+    supplierOrgName?: string;
     status?: string;
     // Dispatch detail: what is physically on this truck (the ASN's own
     // purpose — the PO stays the commercial order: what was asked for).
@@ -199,6 +208,18 @@ export async function getRetailerPod(
         `/iam/core/retailer/shipments/${shipmentId}/pod`
     );
     return res.data ?? null;
+}
+
+export async function getRetailerAsnByShipment(
+    shipmentId: number
+): Promise<AsnDocument[]> {
+    const res = await apiClient.get<AsnDocument[] | AsnDocument>(
+        `/iam/core/retailer/asn/shipment/${shipmentId}`
+    );
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') return [data as AsnDocument];
+    return [];
 }
 
 // ── Supplier ──

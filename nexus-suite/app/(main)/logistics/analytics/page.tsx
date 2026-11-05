@@ -34,6 +34,7 @@ export default function LogisticsAnalyticsPage() {
         return () => {
             active = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (loading) {

@@ -467,11 +467,11 @@ export default function SupplierShipmentsPage() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem asChild>
-                            <Link href={`/retailer/shipments/${row.original.shipmentId}`}>
-                                <IconEye className="mr-2 h-4 w-4" />
-                                View
-                            </Link>
+                        <DropdownMenuItem
+                            onClick={() => setViewing(row.original)}
+                        >
+                            <IconEye className="mr-2 h-4 w-4" />
+                            View
                         </DropdownMenuItem>
                         {row.original.status === 'DRAFT' && (
                             <DropdownMenuItem

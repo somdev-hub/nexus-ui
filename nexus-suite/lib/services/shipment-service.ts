@@ -67,12 +67,27 @@ function buildQueryParams(filter: ShipmentFilter = {}): string {
     return params.toString();
 }
 
+const DEFAULT_PAGE_SIZE = 20;
+
 export async function getShipments(
     filter: ShipmentFilter = {}
 ): Promise<ShipmentPaginatedResponse> {
     const query = buildQueryParams(filter);
     const url = query ? `${BASE_PATH}?${query}` : BASE_PATH;
     const response = await apiClient.get<ShipmentPaginatedResponse>(url);
+    return response.data;
+}
+
+export async function getRetailerCoreShipments(
+    page = 0,
+    size = DEFAULT_PAGE_SIZE
+): Promise<ShipmentPaginatedResponse> {
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('size', String(size));
+    const response = await apiClient.get<ShipmentPaginatedResponse>(
+        `/iam/core/retailer/core-shipments?${params.toString()}`
+    );
     return response.data;
 }
 

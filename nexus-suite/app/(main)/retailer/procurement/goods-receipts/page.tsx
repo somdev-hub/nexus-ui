@@ -35,6 +35,7 @@ import {
     createGoodsReceipt,
     getGoodsReceiptById,
     getGoodsReceipts,
+    getGoodsReceiptSource,
     transitionGoodsReceipt,
     updateGoodsReceipt,
 } from '@/lib/services/procurement-extended-service';
@@ -45,9 +46,14 @@ import {
 import {
     getRetailerAsnByPo,
     getRetailerAsnByPoNumber,
+    getRetailerAsnByShipment,
     getRetailerAsns,
     type AsnDocument,
 } from '@/lib/services/counterparty-docs-service';
+import {
+    getRetailerCoreShipments,
+    type Shipment,
+} from '@/lib/services/shipment-service';
 import type {
     GoodsReceipt,
     GoodsReceiptPaginatedResponse,
@@ -248,7 +254,9 @@ export default function GoodsReceiptsPage() {
     const [poLines, setPoLines] = useState<PoLineOption[]>([]);
     const [poLinesLoading, setPoLinesLoading] = useState(false);
     const [form, setForm] = useState({
+        sourceType: 'PO' as 'PO' | 'SHIPMENT',
         purchaseOrderId: '',
+        shipmentId: '',
         grNumber: newGrNumber(),
         receivedDate: today(),
         deliveryNoteNumber: '',
@@ -268,6 +276,7 @@ export default function GoodsReceiptsPage() {
         notes: '',
         lines: [] as {
             poLineItemId?: number;
+            materialId?: number;
             lineNumber?: number;
             quantityReceived: string;
         }[],
@@ -277,6 +286,11 @@ export default function GoodsReceiptsPage() {
         status: string;
     } | null>(null);
     const [transitioning, setTransitioning] = useState(false);
+
+    // Shipment-based receipt source
+    const [shipmentOptions, setShipmentOptions] = useState<Shipment[]>([]);
+    const [shipmentSource, setShipmentSource] = useState<Record<string, unknown> | null>(null);
+    const [shipmentSourceLoading, setShipmentSourceLoading] = useState(false);
 
     // Allowed next statuses per current GR status (backend-validated too).
     // RECEIVED → SENT_TO_SUPPLIER shares the receipt with the supplier,
@@ -413,6 +427,53 @@ export default function GoodsReceiptsPage() {
         };
     }, [form.purchaseOrderId]);
 
+    useEffect(() => {
+        if (form.sourceType !== 'SHIPMENT') {
+            setShipmentOptions([]);
+            setShipmentSource(null);
+            return;
+        }
+        let active = true;
+        (async () => {
+            try {
+                const r = await getRetailerCoreShipments(0, 200);
+                const opts = (r.content ?? []).filter(
+                    (s) =>
+                        s.status === 'DELIVERED' || s.status === 'PARTIALLY_DELIVERED'
+                );
+                if (active) setShipmentOptions(opts);
+            } catch {
+                // Non-fatal: dropdown stays empty.
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, [form.sourceType]);
+
+    useEffect(() => {
+        if (form.sourceType !== 'SHIPMENT' || !form.shipmentId) {
+            setShipmentSource(null);
+            return;
+        }
+        let active = true;
+        setShipmentSourceLoading(true);
+        const sid = Number(form.shipmentId);
+        getGoodsReceiptSource(sid)
+            .then((ctx) => {
+                if (active) setShipmentSource(ctx);
+            })
+            .catch(() => {
+                if (active) setShipmentSource(null);
+            })
+            .finally(() => {
+                if (active) setShipmentSourceLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [form.shipmentId, form.sourceType]);
+
     const set =
         (k: keyof typeof form) =>
         (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -422,18 +483,43 @@ export default function GoodsReceiptsPage() {
         const query = asnPoId.trim();
         if (!query) {
             toast.error(
-                'Enter a Purchase Order ID or PO number (e.g. PO-634684)'
+                'Enter a Purchase Order ID, PO number, or Shipment ID (e.g. PO-634684 / 12345)'
             );
             return;
         }
         setAsnLoading(true);
         try {
-            // Numeric input = internal PO id, anything else = PO number.
-            const result = /^\d+$/.test(query)
-                ? await getRetailerAsnByPo(Number(query))
-                : await getRetailerAsnByPoNumber(query);
+            let result: AsnDocument[] = [];
+            const isNumeric = /^\d+$/.test(query);
+            // Try PO lookup first (numeric = internal PO id, else PO number).
+            try {
+                const poResult = isNumeric
+                    ? await getRetailerAsnByPo(Number(query))
+                    : await getRetailerAsnByPoNumber(query);
+                result = result.concat(poResult);
+            } catch {
+                // PO not found — fall through to shipment lookup below.
+            }
+            // Also try a shipment-based lookup (numeric = shipment id).
+            if (isNumeric) {
+                try {
+                    const shipmentResult = await getRetailerAsnByShipment(
+                        Number(query)
+                    );
+                    // Deduplicate by asnId.
+                    const seen = new Set(result.map((a) => a.asnId));
+                    for (const a of shipmentResult) {
+                        if (!seen.has(a.asnId)) {
+                            seen.add(a.asnId);
+                            result.push(a);
+                        }
+                    }
+                } catch {
+                    // Not a shipment either.
+                }
+            }
             setAsns(result);
-            if (result.length === 0) toast.info('No ASN found for this PO');
+            if (result.length === 0) toast.info('No ASN found');
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'ASN lookup failed');
         } finally {
@@ -460,45 +546,88 @@ export default function GoodsReceiptsPage() {
     }, []);
 
     const handleCreate = async () => {
-        if (!form.purchaseOrderId) {
-            toast.error('Purchase Order is required');
-            return;
-        }
-        if (
-            resolvedSupplierId === null ||
-            resolvedSupplierId === undefined ||
-            !Number.isFinite(resolvedSupplierId)
-        ) {
-            toast.error('Selected PO has no supplier — cannot create receipt');
-            return;
-        }
-        if (!form.poLineItemId || !form.quantityReceived) {
-            toast.error('PO Line Item ID and received quantity are required');
-            return;
+        if (form.sourceType === 'PO') {
+            if (!form.purchaseOrderId) {
+                toast.error('Purchase Order is required');
+                return;
+            }
+            if (
+                resolvedSupplierId === null ||
+                resolvedSupplierId === undefined ||
+                !Number.isFinite(resolvedSupplierId)
+            ) {
+                toast.error('Selected PO has no supplier — cannot create receipt');
+                return;
+            }
+            if (!form.poLineItemId || !form.quantityReceived) {
+                toast.error('PO Line Item ID and received quantity are required');
+                return;
+            }
+        } else {
+            if (!form.shipmentId) {
+                toast.error('Shipment is required');
+                return;
+            }
+            if (!shipmentSource) {
+                toast.error('Shipment source not loaded — try again');
+                return;
+            }
+            if (!form.quantityReceived) {
+                toast.error('Received quantity is required');
+                return;
+            }
         }
         setSaving(true);
         try {
+            const isShipment = form.sourceType === 'SHIPMENT';
+            const shipmentId = isShipment ? Number(form.shipmentId) : undefined;
+            if (isShipment && !shipmentSource) {
+                toast.error('Shipment source not loaded — try again');
+                return;
+            }
+            const materialId = isShipment
+                ? Number(shipmentSource!.materialId)
+                : undefined;
+            const supplierId = isShipment
+                ? Number(shipmentSource!.supplierId)
+                : resolvedSupplierId;
+            const quantity = Number(form.quantityReceived);
             await createGoodsReceipt({
-                purchaseOrderId: Number(form.purchaseOrderId),
-                // Supplier is fixed by the PO; the backend re-validates the match.
-                supplierId: resolvedSupplierId,
+                purchaseOrderId: isShipment ? undefined : Number(form.purchaseOrderId),
+                shipmentId,
+                supplierId,
                 grNumber: form.grNumber.trim() || undefined,
                 receivedDate: form.receivedDate,
                 deliveryNoteNumber: form.deliveryNoteNumber || undefined,
                 notes: form.notes || undefined,
                 lineItems: [
                     {
-                        poLineItemId: Number(form.poLineItemId),
-                        lineNumber: 1,
-                        quantityReceived: Number(form.quantityReceived),
-                        notes: form.notes || undefined,
+                        ...(isShipment
+                            ? {
+                                  materialId,
+                                  lineNumber: 1,
+                                  quantityReceived: quantity,
+                                  unitOfMeasure:
+                                      shipmentSource!.unitOfMeasure ??
+                                      undefined,
+                                  description: shipmentSource!.materialName ??
+                                      undefined,
+                              }
+                            : {
+                                  poLineItemId: Number(form.poLineItemId),
+                                  lineNumber: 1,
+                                  quantityReceived: quantity,
+                                  notes: form.notes || undefined,
+                              }),
                     },
                 ],
             });
             toast.success('Goods receipt created');
             setOpen(false);
             setForm({
+                sourceType: 'PO',
                 purchaseOrderId: '',
+                shipmentId: '',
                 grNumber: newGrNumber(),
                 receivedDate: today(),
                 deliveryNoteNumber: '',
@@ -506,6 +635,7 @@ export default function GoodsReceiptsPage() {
                 quantityReceived: '',
                 notes: '',
             });
+            setShipmentSource(null);
             load();
         } catch (e) {
             const message = apiErrorMessage(e, 'Failed to create');
@@ -618,7 +748,9 @@ export default function GoodsReceiptsPage() {
                     ? {
                           lineItems: (pendingTransition.gr.lineItems ?? []).map(
                               (li) => ({
-                                  poLineItemId: li.poLineItemId,
+                                  ...(li.materialId !== undefined
+                                      ? { materialId: li.materialId }
+                                      : { poLineItemId: li.poLineItemId }),
                                   lineNumber: li.lineNumber,
                                   quantityReceived: li.quantityReceived,
                               })
@@ -688,6 +820,19 @@ export default function GoodsReceiptsPage() {
             cell: ({ row }) => (
                 <div className="font-mono">
                     {row.original.deliveryNoteNumber || '—'}
+                </div>
+            ),
+        },
+        {
+            id: 'source',
+            header: 'Source',
+            accessorFn: (row) =>
+                (row as GoodsReceipt).shipmentId ? 'Shipment' : 'PO',
+            cell: ({ row }) => (
+                <div className="text-xs font-mono whitespace-nowrap">
+                    {row.original.shipmentId
+                        ? `Shipment ${row.original.shipmentId}`
+                        : `PO ${row.original.purchaseOrderId ?? '—'}`}
                 </div>
             ),
         },
@@ -902,6 +1047,40 @@ export default function GoodsReceiptsPage() {
                             </DialogHeader>
                             <div className="grid gap-6">
                                 <div className="grid gap-2">
+                                    <Label>Receipt Source</Label>
+                                    <Select
+                                        value={form.sourceType}
+                                        onValueChange={(v) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                sourceType: v as 'PO' | 'SHIPMENT',
+                                                purchaseOrderId: '',
+                                                shipmentId: '',
+                                                poLineItemId: '',
+                                                quantityReceived: '',
+                                            }))
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue
+                                                placeholder={
+                                                    form.sourceType === 'SHIPMENT'
+                                                        ? 'Shipment receipt'
+                                                        : 'PO receipt'
+                                                }
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem key="PO" value="PO">
+                                                Purchase Order
+                                            </SelectItem>
+                                            <SelectItem key="SHIPMENT" value="SHIPMENT">
+                                                Core Shipment (Consignment / VMI)
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
                                     <Label>Purchase Order</Label>
                                     <Select
                                         value={form.purchaseOrderId}
@@ -937,6 +1116,59 @@ export default function GoodsReceiptsPage() {
                                         </p>
                                     )}
                                 </div>
+                                {form.sourceType === 'SHIPMENT' ? (
+                                    <div className="grid gap-2">
+                                        <Label>Shipment</Label>
+                                        <Select
+                                            value={form.shipmentId}
+                                            onValueChange={(v) =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    shipmentId: v,
+                                                }))
+                                            }
+                                            disabled={
+                                                shipmentOptions.length === 0 ||
+                                                shipmentSourceLoading
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue
+                                                    placeholder={
+                                                        shipmentOptions.length === 0
+                                                            ? 'No delivered shipments'
+                                                            : shipmentSourceLoading
+                                                            ? 'Loading source…'
+                                                            : 'Select shipment'
+                                                    }
+                                                />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {shipmentOptions.map((s) => (
+                                                    <SelectItem
+                                                        key={s.shipmentId}
+                                                        value={String(s.shipmentId)}
+                                                    >
+                                                        {s.shipmentNumber}{' '}
+                                                        - {s.referenceType ?? 'core'}
+                                                        ({s.supplierOrgName ?? '—'})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {shipmentSource && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Material:{' '}
+                                                {String(shipmentSource.materialName ?? '—')}
+                                                {shipmentSource.unitOfMeasure ? ` • ${
+                                                    shipmentSource.unitOfMeasure
+                                                }` : ''}{' '}
+                                                • Dispatched:{' '}
+                                                {String(shipmentSource.quantity ?? '—')}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : null}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="grid gap-2">
                                         <Label>GR Number</Label>
@@ -1054,7 +1286,7 @@ export default function GoodsReceiptsPage() {
                     </p>
                     <div className="flex gap-4">
                         <Input
-                            placeholder="PO ID or PO number (e.g. PO-634684)"
+                            placeholder="PO ID, PO number, or Shipment ID (e.g. PO-634684 / 12345)"
                             value={asnPoId}
                             onChange={(e) => setAsnPoId(e.target.value)}
                             className="max-w-xs"
@@ -1143,6 +1375,14 @@ export default function GoodsReceiptsPage() {
                                             viewing.purchaseOrderId}
                                     </p>
                                 </div>
+                                {viewing.shipmentId ? (
+                                    <div>
+                                        <p className="text-muted-foreground">Shipment</p>
+                                        <p className="font-medium font-mono">
+                                            {viewing.shipmentId}
+                                        </p>
+                                    </div>
+                                ) : null}
                                 <div>
                                     <p className="text-muted-foreground">
                                         Received Date

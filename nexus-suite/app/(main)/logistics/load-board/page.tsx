@@ -20,14 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -40,7 +32,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -65,7 +56,16 @@ import ShipmentMap from '@/components/shipment-map';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
-import { TablePagination } from '@/components/ui/table-pagination';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { DEFAULT_TABLE_PAGE_SIZE, useTables } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
+import { IconDotsVertical } from '@tabler/icons-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function LoadBoardPage() {
     const { toast } = useToast();
@@ -78,10 +78,7 @@ export default function LoadBoardPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [mode, setMode] = useState('all');
-    const [loadsPage, setLoadsPage] = useState(0);
-    const [pickedUpPage, setPickedUpPage] = useState(0);
-    const [deliveredPage, setDeliveredPage] = useState(0);
-    const PAGE_SIZE = 10;
+    const PAGE_SIZE = 100;
     const [busy, setBusy] = useState<string | null>(null);
     const withBusy = async (key: string, fn: () => Promise<unknown>) => {
         if (busy) return;
@@ -92,15 +89,6 @@ export default function LoadBoardPage() {
             setBusy(null);
         }
     };
-    const [form, setForm] = useState({
-        shipmentId: '',
-        baseRate: '',
-        fuelSurcharge: '',
-        accessorialCharges: '',
-        accessorialDetails: '',
-        validUntil: '',
-        notes: '',
-    });
     const [details, setDetails] = useState<LoadBoardShipment | null>(null);
     const [detailStops, setDetailStops] = useState<ShipmentStop[]>([]);
     const [detailTracking, setDetailTracking] = useState<TrackingEvent[]>([]);
@@ -226,28 +214,18 @@ export default function LoadBoardPage() {
         return `${from} → ${to}`;
     };
 
-    const load = async (
-        loadsPageNo: number = loadsPage,
-        pickedUpPageNo: number = pickedUpPage,
-        deliveredPageNo: number = deliveredPage
-    ) => {
+    const load = async () => {
         setLoading(true);
         try {
             const [l, p, d] = await Promise.all([
                 getLoadBoard({
-                    page: loadsPageNo,
+                    page: 0,
                     size: PAGE_SIZE,
                     search: search || undefined,
                     mode: mode === 'all' ? undefined : mode,
                 }),
-                getPickedUpLoads({
-                    page: pickedUpPageNo,
-                    size: PAGE_SIZE,
-                }),
-                getDeliveredLoads({
-                    page: deliveredPageNo,
-                    size: PAGE_SIZE,
-                }),
+                getPickedUpLoads({ page: 0, size: PAGE_SIZE }),
+                getDeliveredLoads({ page: 0, size: PAGE_SIZE }),
             ]);
             setLoads(l);
             setPickedUp(p);
@@ -262,16 +240,546 @@ export default function LoadBoardPage() {
         }
     };
     useEffect(() => {
-        load();
-    }, [mode, loadsPage, pickedUpPage, deliveredPage]);
+        void load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
     useEffect(() => {
         const t = setTimeout(() => {
-            setLoadsPage(0);
-            setPickedUpPage(0);
-            setDeliveredPage(0);
+            void load();
         }, 400);
         return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
+
+    const loadsColumns: ColumnDef<LoadBoardShipment>[] = [
+        {
+            id: 'shipment',
+            header: 'Shipment',
+            accessorFn: (row) => row.shipmentNumber ?? `#${row.shipmentId}`,
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div>
+                        <div className="font-medium font-mono text-xs">
+                            {s.shipmentNumber ?? `#${s.shipmentId}`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {s.poNumber || 'No PO'}
+                            {s.isPartialShipment ? ' · Partial' : ''}
+                        </div>
+                        {s.backorderedQuantity !== undefined &&
+                            s.backorderedQuantity !== null &&
+                            s.backorderedQuantity > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                    Backordered: {s.backorderedQuantity}
+                                </div>
+                            )}
+                    </div>
+                );
+            },
+            enableHiding: false,
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => row.status ?? '',
+            cell: ({ row }) => (
+                <Badge variant="secondary">
+                    {row.original.status ?? '—'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'mode',
+            header: 'Mode',
+            accessorFn: (row) =>
+                row.routeMode ?? row.shipmentMode ?? row.mode ?? '',
+            cell: ({ row }) => (
+                <Badge variant="outline">
+                    {row.original.routeMode ??
+                        row.original.shipmentMode ??
+                        row.original.mode ??
+                        '—'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'route',
+            header: 'Route',
+            accessorFn: (row) => routeText(row),
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <span className="inline-flex max-w-48 items-center gap-1">
+                        <span className="truncate">{routeText(s)}</span>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label={`Full route: ${routeText(s)}`}
+                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                >
+                                    <Info className="h-3.5 w-3.5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                                side="top"
+                                className="max-w-xs whitespace-pre-wrap"
+                            >
+                                {routeText(s)}
+                            </TooltipContent>
+                        </Tooltip>
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'dates',
+            header: 'Dates',
+            accessorFn: (row) => row.pickupDate ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="whitespace-nowrap text-xs">
+                        <div>P: {shortDate(s.pickupDate)}</div>
+                        <div>
+                            D:{' '}
+                            {shortDate(s.deliveryDate ?? s.estimatedArrival)}
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'load',
+            header: 'Load',
+            accessorFn: (row) => row.totalWeight ?? 0,
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="whitespace-nowrap text-xs">
+                        <div>{s.totalWeight ?? '—'} kg</div>
+                        <div className="text-muted-foreground">
+                            {s.totalVolume ?? '—'} m³ ·{' '}
+                            {s.totalPackages ?? '—'} pkgs
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'freight',
+            header: 'Freight',
+            accessorFn: (row) => row.freightCost ?? 0,
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="whitespace-nowrap text-xs">
+                        {s.freightCost !== undefined &&
+                        s.freightCost !== null ? (
+                            <>
+                                {s.freightCost} {s.currency ?? 'USD'}
+                                {s.freightTerms
+                                    ? ` · ${s.freightTerms}`
+                                    : ''}
+                            </>
+                        ) : (
+                            '—'
+                        )}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'parties',
+            header: 'Parties',
+            accessorFn: (row) => row.supplierOrgName ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="text-xs">
+                        <div className="max-w-40 truncate">
+                            {s.supplierOrgName ?? '—'} →{' '}
+                            {s.retailerOrgName ?? '—'}
+                        </div>
+                        {s.carrierName && (
+                            <div className="text-muted-foreground">
+                                via {s.carrierName}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem
+                                onClick={() => openDetails(s, 'loads')}
+                            >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openAssign(s)}>
+                                <Truck className="mr-2 h-4 w-4" />
+                                Assign driver & asset
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const pickedUpColumns: ColumnDef<LoadBoardShipment>[] = [
+        {
+            id: 'shipment',
+            header: 'Shipment',
+            accessorFn: (row) => row.shipmentNumber ?? `#${row.shipmentId}`,
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div>
+                        <div className="font-medium font-mono text-xs">
+                            {s.shipmentNumber ?? `#${s.shipmentId}`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {s.poNumber || 'No PO'}
+                        </div>
+                    </div>
+                );
+            },
+            enableHiding: false,
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => row.status ?? '',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'IN_TRANSIT'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status ?? '—'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'mode',
+            header: 'Mode',
+            accessorFn: (row) =>
+                row.routeMode ?? row.shipmentMode ?? row.mode ?? '',
+            cell: ({ row }) => (
+                <Badge variant="outline">
+                    {row.original.routeMode ??
+                        row.original.shipmentMode ??
+                        row.original.mode ??
+                        '—'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'route',
+            header: 'Route',
+            accessorFn: (row) => routeText(row),
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <span className="inline-flex max-w-48 items-center gap-1">
+                        <span className="truncate">{routeText(s)}</span>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label={`Full route: ${routeText(s)}`}
+                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                >
+                                    <Info className="h-3.5 w-3.5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                                side="top"
+                                className="max-w-xs whitespace-pre-wrap"
+                            >
+                                {routeText(s)}
+                            </TooltipContent>
+                        </Tooltip>
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'pickedUp',
+            header: 'Picked Up',
+            accessorFn: (row) => row.actualDeparture ?? row.pickupDate ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="whitespace-nowrap text-xs">
+                        {s.actualDeparture
+                            ? new Date(s.actualDeparture).toLocaleString()
+                            : shortDate(s.pickupDate)}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'eta',
+            header: 'ETA',
+            accessorFn: (row) => row.estimatedArrival ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="whitespace-nowrap text-xs">
+                        {s.estimatedArrival
+                            ? new Date(s.estimatedArrival).toLocaleString()
+                            : '—'}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'driverAsset',
+            header: 'Driver / Asset',
+            accessorFn: (row) => row.carrierName ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="text-xs">
+                        <div>{s.carrierName ?? '—'}</div>
+                        <div className="font-mono text-muted-foreground">
+                            {s.carrierReference ?? ''}
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const s = row.original;
+                const busyKey = `eta-${s.shipmentId}`;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                                onClick={() => openDetails(s, 'picked-up')}
+                            >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                disabled={busy === busyKey}
+                                onClick={() =>
+                                    withBusy(busyKey, () =>
+                                        handleEta(s.shipmentId)
+                                    )
+                                }
+                            >
+                                <MapPin className="mr-2 h-4 w-4" />
+                                {busy === busyKey ? 'Loading…' : 'ETA'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    setMapShipmentId(s.shipmentId);
+                                    setMapOpen(true);
+                                }}
+                            >
+                                <MapIcon className="mr-2 h-4 w-4" />
+                                Live map
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const deliveredColumns: ColumnDef<LoadBoardShipment>[] = [
+        {
+            id: 'shipment',
+            header: 'Shipment',
+            accessorFn: (row) => row.shipmentNumber ?? `#${row.shipmentId}`,
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div>
+                        <div className="font-medium font-mono text-xs">
+                            {s.shipmentNumber ?? `#${s.shipmentId}`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {s.poNumber || 'No PO'}
+                        </div>
+                    </div>
+                );
+            },
+            enableHiding: false,
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => row.status ?? '',
+            cell: ({ row }) => (
+                <Badge variant="default">
+                    {row.original.status ?? '—'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'mode',
+            header: 'Mode',
+            accessorFn: (row) =>
+                row.routeMode ?? row.shipmentMode ?? row.mode ?? '',
+            cell: ({ row }) => (
+                <Badge variant="outline">
+                    {row.original.routeMode ??
+                        row.original.shipmentMode ??
+                        row.original.mode ??
+                        '—'}
+                </Badge>
+            ),
+        },
+        {
+            id: 'route',
+            header: 'Route',
+            accessorFn: (row) => routeText(row),
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <span className="inline-flex max-w-48 items-center gap-1">
+                        <span className="truncate">{routeText(s)}</span>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label={`Full route: ${routeText(s)}`}
+                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                >
+                                    <Info className="h-3.5 w-3.5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                                side="top"
+                                className="max-w-xs whitespace-pre-wrap"
+                            >
+                                {routeText(s)}
+                            </TooltipContent>
+                        </Tooltip>
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'deliveredAt',
+            header: 'Delivered At',
+            accessorFn: (row) => row.actualArrival ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="whitespace-nowrap text-xs">
+                        {s.actualArrival
+                            ? new Date(s.actualArrival).toLocaleString()
+                            : '—'}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'driverAsset',
+            header: 'Driver / Asset',
+            accessorFn: (row) => row.carrierName ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="text-xs">
+                        <div>{s.carrierName ?? '—'}</div>
+                        <div className="font-mono text-muted-foreground">
+                            {s.carrierReference ?? ''}
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                                onClick={() => openDetails(s, 'delivered')}
+                            >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View details
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const loadsTable = useTables<LoadBoardShipment>({
+        data: loads?.content ?? [],
+        columns: loadsColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        getRowId: (row, index) => String(row.shipmentId ?? index),
+    });
+
+    const pickedUpTable = useTables<LoadBoardShipment>({
+        data: pickedUp?.content ?? [],
+        columns: pickedUpColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        getRowId: (row, index) => String(row.shipmentId ?? index),
+    });
+
+    const deliveredTable = useTables<LoadBoardShipment>({
+        data: delivered?.content ?? [],
+        columns: deliveredColumns,
+        pageSize: DEFAULT_TABLE_PAGE_SIZE,
+        getRowId: (row, index) => String(row.shipmentId ?? index),
+    });
 
     return (
         <div className="p-4 lg:p-6 space-y-4 min-w-0 max-w-full">
@@ -295,7 +803,7 @@ export default function LoadBoardPage() {
                 <TabsContent value="loads">
                     <Card className="p-4 gap-2 min-w-0">
                         <CardHeader className="p-0">
-                            <CardTitle className="flex flex-wrap gap-2">
+                            <CardTitle className="flex justify-between w-full gap-2">
                                 <Input
                                     placeholder="Search shipment or PO number"
                                     value={search}
@@ -306,10 +814,9 @@ export default function LoadBoardPage() {
                                     value={mode}
                                     onValueChange={(v) => {
                                         setMode(v);
-                                        setLoadsPage(0);
                                     }}
                                 >
-                                    <SelectTrigger className="w-full">
+                                    <SelectTrigger className="">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -332,229 +839,20 @@ export default function LoadBoardPage() {
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
-                                <div className="max-w-full overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Shipment</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Mode</TableHead>
-                                                <TableHead>Route</TableHead>
-                                                <TableHead>Dates</TableHead>
-                                                <TableHead>Load</TableHead>
-                                                <TableHead>Freight</TableHead>
-                                                <TableHead>Parties</TableHead>
-                                                <TableHead>Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {loads?.content?.map((s) => (
-                                                <TableRow key={s.shipmentId}>
-                                                    <TableCell>
-                                                        <div className="font-medium font-mono text-xs">
-                                                            {s.shipmentNumber ??
-                                                                `#${s.shipmentId}`}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber ||
-                                                                'No PO'}
-                                                            {s.isPartialShipment
-                                                                ? ' · Partial'
-                                                                : ''}
-                                                        </div>
-                                                        {s.backorderedQuantity !==
-                                                            undefined &&
-                                                            s.backorderedQuantity !==
-                                                                null &&
-                                                            s.backorderedQuantity >
-                                                                0 && (
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    Backordered:{' '}
-                                                                    {
-                                                                        s.backorderedQuantity
-                                                                    }
-                                                                </div>
-                                                            )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary">
-                                                            {s.status ?? '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">
-                                                            {s.routeMode ??
-                                                                s.shipmentMode ??
-                                                                s.mode ??
-                                                                '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        <span className="inline-flex max-w-48 items-center gap-1">
-                                                            <span className="truncate">
-                                                                {routeText(s)}
-                                                            </span>
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <button
-                                                                        type="button"
-                                                                        aria-label={`Full route: ${routeText(s)}`}
-                                                                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                                                                    >
-                                                                        <Info className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent
-                                                                    side="top"
-                                                                    className="max-w-xs whitespace-pre-wrap"
-                                                                >
-                                                                    {routeText(
-                                                                        s
-                                                                    )}
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        <div>
-                                                            P:{' '}
-                                                            {shortDate(
-                                                                s.pickupDate
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            D:{' '}
-                                                            {shortDate(
-                                                                s.deliveryDate ??
-                                                                    s.estimatedArrival
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        <div>
-                                                            {s.totalWeight ??
-                                                                '—'}{' '}
-                                                            kg
-                                                        </div>
-                                                        <div className="text-muted-foreground">
-                                                            {s.totalVolume ??
-                                                                '—'}{' '}
-                                                            m³ ·{' '}
-                                                            {s.totalPackages ??
-                                                                '—'}{' '}
-                                                            pkgs
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        {s.freightCost !==
-                                                            undefined &&
-                                                        s.freightCost !==
-                                                            null ? (
-                                                            <>
-                                                                {s.freightCost}{' '}
-                                                                {s.currency ??
-                                                                    'USD'}
-                                                                {s.freightTerms
-                                                                    ? ` · ${s.freightTerms}`
-                                                                    : ''}
-                                                            </>
-                                                        ) : (
-                                                            '—'
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        <div className="max-w-40 truncate">
-                                                            {s.supplierOrgName ??
-                                                                '—'}{' '}
-                                                            →{' '}
-                                                            {s.retailerOrgName ??
-                                                                '—'}
-                                                        </div>
-                                                        {s.carrierName && (
-                                                            <div className="text-muted-foreground">
-                                                                via{' '}
-                                                                {s.carrierName}
-                                                            </div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Shipment details"
-                                                                onClick={() =>
-                                                                    openDetails(
-                                                                        s,
-                                                                        'loads'
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Eye className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                title="Assign driver and asset"
-                                                                onClick={() =>
-                                                                    openAssign(
-                                                                        s
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Truck className="mr-2 h-4 w-4" />
-                                                                Assign
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {!loads?.content?.length && (
-                                                <TableRow>
-                                                    <TableCell
-                                                        colSpan={9}
-                                                        className="text-center text-sm text-muted-foreground"
-                                                    >
-                                                        No available loads
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                            {!loading && (
-                                <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
-                                    <span className="text-sm text-muted-foreground">
-                                        {loads?.totalElements ?? 0} load(s)
-                                    </span>
-                                    <TablePagination
-                                        pageIndex={loadsPage}
-                                        pageCount={loads?.totalPages ?? 0}
-                                        canPreviousPage={loadsPage > 0}
-                                        canNextPage={
-                                            loads ? !loads.last : false
-                                        }
-                                        onPageChange={setLoadsPage}
-                                        onPreviousPage={() =>
-                                            setLoadsPage((p) =>
-                                                Math.max(0, p - 1)
-                                            )
-                                        }
-                                        onNextPage={() =>
-                                            setLoadsPage((p) => p + 1)
-                                        }
-                                        showFirstLast={false}
+                                <>
+                                    <CentralizedDataTable
+                                        table={loadsTable}
+                                        emptyMessage="No available loads"
                                     />
-                                    <span className="text-sm text-muted-foreground">
-                                        Page {loadsPage + 1} of{' '}
-                                        {loads?.totalPages ?? 1}
-                                    </span>
-                                </div>
+                                    <div className="pt-2">
+                                        <span className="text-sm text-muted-foreground">
+                                            {loads?.totalElements ?? 0}{' '}
+                                            load(s)
+                                        </span>
+                                    </div>
+                                </>
                             )}
-                        </CardContent>
+                            </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="picked-up">
@@ -572,209 +870,20 @@ export default function LoadBoardPage() {
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
-                                <div className="max-w-full overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Shipment</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Mode</TableHead>
-                                                <TableHead>Route</TableHead>
-                                                <TableHead>Picked Up</TableHead>
-                                                <TableHead>ETA</TableHead>
-                                                <TableHead>
-                                                    Driver / Asset
-                                                </TableHead>
-                                                <TableHead>Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {pickedUp?.content?.map((s) => (
-                                                <TableRow key={s.shipmentId}>
-                                                    <TableCell>
-                                                        <div className="font-medium font-mono text-xs">
-                                                            {s.shipmentNumber ??
-                                                                `#${s.shipmentId}`}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber ||
-                                                                'No PO'}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            variant={
-                                                                s.status ===
-                                                                'IN_TRANSIT'
-                                                                    ? 'default'
-                                                                    : 'secondary'
-                                                            }
-                                                        >
-                                                            {s.status ?? '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">
-                                                            {s.routeMode ??
-                                                                s.shipmentMode ??
-                                                                s.mode ??
-                                                                '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        <span className="inline-flex max-w-48 items-center gap-1">
-                                                            <span className="truncate">
-                                                                {routeText(s)}
-                                                            </span>
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <button
-                                                                        type="button"
-                                                                        aria-label={`Full route: ${routeText(s)}`}
-                                                                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                                                                    >
-                                                                        <Info className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent
-                                                                    side="top"
-                                                                    className="max-w-xs whitespace-pre-wrap"
-                                                                >
-                                                                    {routeText(
-                                                                        s
-                                                                    )}
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        {s.actualDeparture
-                                                            ? new Date(
-                                                                  s.actualDeparture
-                                                              ).toLocaleString()
-                                                            : shortDate(
-                                                                  s.pickupDate
-                                                              )}
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        {s.estimatedArrival
-                                                            ? new Date(
-                                                                  s.estimatedArrival
-                                                              ).toLocaleString()
-                                                            : '—'}
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        <div>
-                                                            {s.carrierName ??
-                                                                '—'}
-                                                        </div>
-                                                        <div className="font-mono text-muted-foreground">
-                                                            {s.carrierReference ??
-                                                                ''}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex gap-1">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Shipment details"
-                                                                onClick={() =>
-                                                                    openDetails(
-                                                                        s,
-                                                                        'picked-up'
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Eye className="h-4 w-4" />
-                                                            </Button>
-                                                            <LoadingButton
-                                                                loading={
-                                                                    busy ===
-                                                                    `eta-${s.shipmentId}`
-                                                                }
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Tracking & ETA"
-                                                                onClick={() =>
-                                                                    withBusy(
-                                                                        `eta-${s.shipmentId}`,
-                                                                        () =>
-                                                                            handleEta(
-                                                                                s.shipmentId
-                                                                            )
-                                                                    )
-                                                                }
-                                                            >
-                                                                <MapPin className="mr-1 h-3 w-3" />
-                                                                ETA
-                                                            </LoadingButton>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Live map"
-                                                                onClick={() => {
-                                                                    setMapShipmentId(
-                                                                        s.shipmentId
-                                                                    );
-                                                                    setMapOpen(
-                                                                        true
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <MapIcon className="mr-1 h-3 w-3" />
-                                                                Map
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {!pickedUp?.content?.length && (
-                                                <TableRow>
-                                                    <TableCell
-                                                        colSpan={8}
-                                                        className="text-center text-sm text-muted-foreground"
-                                                    >
-                                                        No picked up loads
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                            {!loading && (
-                                <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
-                                    <span className="text-sm text-muted-foreground">
-                                        {pickedUp?.totalElements ?? 0} load(s)
-                                    </span>
-                                    <TablePagination
-                                        pageIndex={pickedUpPage}
-                                        pageCount={pickedUp?.totalPages ?? 0}
-                                        canPreviousPage={pickedUpPage > 0}
-                                        canNextPage={
-                                            pickedUp ? !pickedUp.last : false
-                                        }
-                                        onPageChange={setPickedUpPage}
-                                        onPreviousPage={() =>
-                                            setPickedUpPage((p) =>
-                                                Math.max(0, p - 1)
-                                            )
-                                        }
-                                        onNextPage={() =>
-                                            setPickedUpPage((p) => p + 1)
-                                        }
-                                        showFirstLast={false}
+                                <>
+                                    <CentralizedDataTable
+                                        table={pickedUpTable}
+                                        emptyMessage="No picked up loads"
                                     />
-                                    <span className="text-sm text-muted-foreground">
-                                        Page {pickedUpPage + 1} of{' '}
-                                        {pickedUp?.totalPages ?? 1}
-                                    </span>
-                                </div>
+                                    <div className="pt-2">
+                                        <span className="text-sm text-muted-foreground">
+                                            {pickedUp?.totalElements ?? 0}{' '}
+                                            load(s)
+                                        </span>
+                                    </div>
+                                </>
                             )}
-                        </CardContent>
+                            </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="delivered">
@@ -792,155 +901,20 @@ export default function LoadBoardPage() {
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
-                                <div className="max-w-full overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Shipment</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Mode</TableHead>
-                                                <TableHead>Route</TableHead>
-                                                <TableHead>
-                                                    Delivered At
-                                                </TableHead>
-                                                <TableHead>
-                                                    Driver / Asset
-                                                </TableHead>
-                                                <TableHead>Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {delivered?.content?.map((s) => (
-                                                <TableRow key={s.shipmentId}>
-                                                    <TableCell>
-                                                        <div className="font-medium font-mono text-xs">
-                                                            {s.shipmentNumber ??
-                                                                `#${s.shipmentId}`}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {s.poNumber ||
-                                                                'No PO'}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="default">
-                                                            {s.status ?? '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">
-                                                            {s.routeMode ??
-                                                                s.shipmentMode ??
-                                                                s.mode ??
-                                                                '—'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        <span className="inline-flex max-w-48 items-center gap-1">
-                                                            <span className="truncate">
-                                                                {routeText(s)}
-                                                            </span>
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <button
-                                                                        type="button"
-                                                                        aria-label={`Full route: ${routeText(s)}`}
-                                                                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                                                                    >
-                                                                        <Info className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent
-                                                                    side="top"
-                                                                    className="max-w-xs whitespace-pre-wrap"
-                                                                >
-                                                                    {routeText(
-                                                                        s
-                                                                    )}
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs">
-                                                        {s.actualArrival
-                                                            ? new Date(
-                                                                  s.actualArrival
-                                                              ).toLocaleString()
-                                                            : '—'}
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        <div>
-                                                            {s.carrierName ??
-                                                                '—'}
-                                                        </div>
-                                                        <div className="font-mono text-muted-foreground">
-                                                            {s.carrierReference ??
-                                                                ''}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            title="Shipment details"
-                                                            onClick={() =>
-                                                                openDetails(
-                                                                    s,
-                                                                    'delivered'
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {!delivered?.content?.length && (
-                                                <TableRow>
-                                                    <TableCell
-                                                        colSpan={7}
-                                                        className="text-center text-sm text-muted-foreground"
-                                                    >
-                                                        No delivered loads
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                            {!loading && (
-                                <div className="flex flex-wrap items-center justify-between gap-4 pt-3">
-                                    <span className="text-sm text-muted-foreground">
-                                        {delivered?.totalElements ?? 0} load(s)
-                                    </span>
-                                    <TablePagination
-                                        pageIndex={deliveredPage}
-                                        pageCount={delivered?.totalPages ?? 0}
-                                        canPreviousPage={deliveredPage > 0}
-                                        canNextPage={
-                                            delivered ? !delivered.last : false
-                                        }
-                                        onPageChange={setDeliveredPage}
-                                        onPreviousPage={() =>
-                                            setDeliveredPage((p) =>
-                                                Math.max(0, p - 1)
-                                            )
-                                        }
-                                        onNextPage={() =>
-                                            setDeliveredPage((p) => p + 1)
-                                        }
-                                        showFirstLast={false}
+                                <>
+                                    <CentralizedDataTable
+                                        table={deliveredTable}
+                                        emptyMessage="No delivered loads"
                                     />
-                                    <span className="text-sm text-muted-foreground">
-                                        Page {deliveredPage + 1} of{' '}
-                                        {delivered?.totalPages ?? 1}
-                                    </span>
-                                </div>
+                                    <div className="pt-2">
+                                        <span className="text-sm text-muted-foreground">
+                                            {delivered?.totalElements ?? 0}{' '}
+                                            load(s)
+                                        </span>
+                                    </div>
+                                </>
                             )}
-                        </CardContent>
+                            </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>

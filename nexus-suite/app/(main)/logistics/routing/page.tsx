@@ -1,6 +1,6 @@
 ﻿'use client';
 import { useEffect, useState } from 'react';
-import { CalendarClock, Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarClock, Check, Plus } from 'lucide-react';
 import type {
     CapacityForecast,
     ConsolidationGroup,
@@ -10,14 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Dialog,
     DialogContent,
@@ -66,141 +58,127 @@ import { useQuickCreateIntent } from '@/lib/quick-create';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import Link from 'next/link';
+import { CentralizedDataTable } from '@/components/centralized-data-table';
+import { useTables } from '@/hooks/use-tables';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconLock,
+    IconTrash,
+    IconTruck,
+} from '@tabler/icons-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-function CapacityTableRow({
-    c,
-    showPartnership,
-    deleting,
-    onExtend,
-    onEdit,
-    onDelete,
-}: {
-    c: CapacityForecast;
-    showPartnership: boolean;
-    deleting: boolean;
-    onExtend: (c: CapacityForecast) => void;
-    onEdit: (c: CapacityForecast) => void;
-    onDelete: (c: CapacityForecast) => void;
-}) {
+function CapacityLaneCell({ c }: { c: CapacityForecast }) {
     return (
-        <TableRow key={c.forecastId}>
-            <TableCell className="text-xs">
-                {c.originLane ?? '?'} → {c.destinationLane ?? '?'}
-            </TableCell>
-            {showPartnership && (
-                <TableCell>
-                    <Link
-                        href="/logistics/partnership/management"
-                        title="Open partnership management"
-                    >
-                        <Badge variant="secondary">#{c.partnershipId}</Badge>
-                    </Link>
-                </TableCell>
-            )}
-            <TableCell>
-                <Badge variant="outline">{c.equipmentType ?? '-'}</Badge>
-                {c.transportMode && (
-                    <Badge variant="secondary" className="ml-1">
-                        {c.transportMode}
-                    </Badge>
-                )}
-            </TableCell>
-            <TableCell className="text-xs">
-                {c.periodStart ?? '-'} → {c.periodEnd ?? '-'}
-            </TableCell>
-            <TableCell className="text-xs">
-                <span>
-                    avail {c.availableCapacity ?? 0}{' '}
-                    {capacityUnitLabel(c.capacityUnit)}
-                </span>
-                <span className="text-muted-foreground">
-                    {' '}
-                    • booked {c.bookedCapacity ?? 0}
-                </span>
-                {formatUnitSpecs(c) && (
-                    <span className="block text-muted-foreground">
-                        {formatUnitSpecs(c)}
-                    </span>
-                )}
-                {c.unitPrice !== undefined && c.unitPrice !== null && (
-                    <span className="block font-medium">
-                        {c.unitPrice} {c.currency ?? 'USD'} /{' '}
-                        {capacityUnitLabel(c.capacityUnit).replace(/s$/, '')}
-                    </span>
-                )}
-                {(c.fuelSurcharge !== undefined && c.fuelSurcharge !== null) ||
-                (c.driverFees !== undefined && c.driverFees !== null) ||
-                (c.miscPrice !== undefined && c.miscPrice !== null) ? (
-                    <span className="block text-muted-foreground">
-                        {[
-                            c.fuelSurcharge !== undefined &&
-                            c.fuelSurcharge !== null
-                                ? `fuel +${c.fuelSurcharge}`
-                                : null,
-                            c.driverFees !== undefined && c.driverFees !== null
-                                ? `driver +${c.driverFees}`
-                                : null,
-                            c.miscPrice !== undefined && c.miscPrice !== null
-                                ? `misc +${c.miscPrice}`
-                                : null,
-                        ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                    </span>
-                ) : null}
-                {(c.totalDistance !== undefined && c.totalDistance !== null) ||
-                (c.averageDeliveryTime !== undefined &&
-                    c.averageDeliveryTime !== null) ? (
-                    <span className="block text-muted-foreground">
-                        {c.totalDistance !== undefined &&
-                        c.totalDistance !== null
-                            ? `${c.totalDistance} km`
-                            : ''}
-                        {c.totalDistance !== undefined &&
-                        c.totalDistance !== null &&
-                        c.averageDeliveryTime !== undefined &&
-                        c.averageDeliveryTime !== null
-                            ? ' · '
-                            : ''}
-                        {c.averageDeliveryTime !== undefined &&
-                        c.averageDeliveryTime !== null
-                            ? `~${c.averageDeliveryTime} ${(c.deliveryTimeUom ?? 'HOURS').toLowerCase()}`
-                            : ''}
-                    </span>
-                ) : null}
-            </TableCell>
-            <TableCell>
-                <div className="flex gap-2">
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        title="Extend period for LONG_TERM partner"
-                        onClick={() => onExtend(c)}
-                    >
-                        <CalendarClock className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        title="Edit capacity"
-                        onClick={() => onEdit(c)}
-                    >
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <LoadingButton
-                        loading={deleting}
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onDelete(c)}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </LoadingButton>
-                </div>
-            </TableCell>
-        </TableRow>
+        <div className="text-xs">
+            {c.originLane ?? '?'} → {c.destinationLane ?? '?'}
+        </div>
     );
 }
 
+function CapacityPartnershipCell({ c }: { c: CapacityForecast }) {
+    return (
+        <Link
+            href="/logistics/partnership/management"
+            title="Open partnership management"
+        >
+            <Badge variant="secondary">#{c.partnershipId}</Badge>
+        </Link>
+    );
+}
+
+function CapacityEquipmentCell({ c }: { c: CapacityForecast }) {
+    return (
+        <div>
+            <Badge variant="outline">{c.equipmentType ?? '-'}</Badge>
+            {c.transportMode && (
+                <Badge variant="secondary" className="ml-1">
+                    {c.transportMode}
+                </Badge>
+            )}
+        </div>
+    );
+}
+
+function CapacityPeriodCell({ c }: { c: CapacityForecast }) {
+    return (
+        <div className="text-xs">
+            {c.periodStart ?? '-'} → {c.periodEnd ?? '-'}
+        </div>
+    );
+}
+
+function CapacityDetailCell({ c }: { c: CapacityForecast }) {
+    return (
+        <div className="text-xs">
+            <span>
+                avail {c.availableCapacity ?? 0}{' '}
+                {capacityUnitLabel(c.capacityUnit)}
+            </span>
+            <span className="text-muted-foreground">
+                {' '}
+                • booked {c.bookedCapacity ?? 0}
+            </span>
+            {formatUnitSpecs(c) && (
+                <span className="block text-muted-foreground">
+                    {formatUnitSpecs(c)}
+                </span>
+            )}
+            {c.unitPrice !== undefined && c.unitPrice !== null && (
+                <span className="block font-medium">
+                    {c.unitPrice} {c.currency ?? 'USD'} /{' '}
+                    {capacityUnitLabel(c.capacityUnit).replace(/s$/, '')}
+                </span>
+            )}
+            {(c.fuelSurcharge !== undefined && c.fuelSurcharge !== null) ||
+            (c.driverFees !== undefined && c.driverFees !== null) ||
+            (c.miscPrice !== undefined && c.miscPrice !== null) ? (
+                <span className="block text-muted-foreground">
+                    {[
+                        c.fuelSurcharge !== undefined &&
+                        c.fuelSurcharge !== null
+                            ? `fuel +${c.fuelSurcharge}`
+                            : null,
+                        c.driverFees !== undefined && c.driverFees !== null
+                            ? `driver +${c.driverFees}`
+                            : null,
+                        c.miscPrice !== undefined && c.miscPrice !== null
+                            ? `misc +${c.miscPrice}`
+                            : null,
+                    ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                </span>
+            ) : null}
+            {(c.totalDistance !== undefined && c.totalDistance !== null) ||
+            (c.averageDeliveryTime !== undefined &&
+                c.averageDeliveryTime !== null) ? (
+                <span className="block text-muted-foreground">
+                    {c.totalDistance !== undefined && c.totalDistance !== null
+                        ? `${c.totalDistance} km`
+                        : ''}
+                    {c.totalDistance !== undefined &&
+                    c.totalDistance !== null &&
+                    c.averageDeliveryTime !== undefined &&
+                    c.averageDeliveryTime !== null
+                        ? ' · '
+                        : ''}
+                    {c.averageDeliveryTime !== undefined &&
+                    c.averageDeliveryTime !== null
+                        ? `~${c.averageDeliveryTime} ${(c.deliveryTimeUom ?? 'HOURS').toLowerCase()}`
+                        : ''}
+                </span>
+            ) : null}
+        </div>
+    );
+}
 export default function RoutingPage() {
     const { toast } = useToast();
     const [groups, setGroups] =
@@ -313,12 +291,12 @@ export default function RoutingPage() {
             const [g, c] = await Promise.all([
                 getConsolidationGroups({
                     page: 0,
-                    size: 20,
+                    size: 100,
                     search: search || undefined,
                 }),
                 getCapacityForecasts({
                     page: 0,
-                    size: 20,
+                    size: 100,
                     search: search || undefined,
                 }),
             ]);
@@ -335,10 +313,12 @@ export default function RoutingPage() {
     };
     useEffect(() => {
         load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     useEffect(() => {
         const t = setTimeout(load, 400);
         return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
     const handleGroupCreate = async () => {
@@ -718,6 +698,383 @@ export default function RoutingPage() {
             await deleteCapacityForecast(c.forecastId);
             load();
         });
+
+    const groupColumns: ColumnDef<ConsolidationGroup>[] = [
+        {
+            id: 'group',
+            header: 'Group',
+            accessorFn: (row) => row.groupNumber ?? '',
+            cell: ({ row }) => {
+                const g = row.original;
+                return (
+                    <div>
+                        <div className="font-medium">{g.groupNumber}</div>
+                        <div className="text-xs text-muted-foreground">
+                            #{g.groupId}
+                        </div>
+                    </div>
+                );
+            },
+            enableHiding: false,
+        },
+        {
+            id: 'shipments',
+            header: 'Shipments',
+            accessorFn: (row) => row.shipmentIds?.join(', ') ?? '',
+            cell: ({ row }) => (
+                <div className="text-xs">
+                    {row.original.shipmentIds?.join(', ') || '-'}
+                </div>
+            ),
+        },
+        {
+            id: 'totals',
+            header: 'Totals',
+            accessorFn: (row) => row.totalWeight ?? 0,
+            cell: ({ row }) => (
+                <div className="text-xs">
+                    {row.original.totalWeight ?? 0} kg •{' '}
+                    {row.original.totalVolume ?? 0} m³
+                </div>
+            ),
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => row.status ?? '',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'OPEN' ? 'default' : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const g = row.original;
+                const lockDispatchKey = `group-${g.groupId}`;
+                const delKey = `group-del-${g.groupId}`;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            {g.status === 'OPEN' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        setGroupEdit({
+                                            id: g.groupId,
+                                            notes: g.notes ?? '',
+                                        })
+                                    }
+                                >
+                                    <IconEdit className="mr-2 h-4 w-4" />
+                                    Edit notes
+                                </DropdownMenuItem>
+                            )}
+                            {g.status === 'OPEN' && (
+                                <DropdownMenuItem
+                                    disabled={busy === lockDispatchKey}
+                                    onClick={() =>
+                                        void withBusy(
+                                            lockDispatchKey,
+                                            async () => {
+                                                await transitionGroupStatus(
+                                                    g.groupId,
+                                                    'LOCKED'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconLock className="mr-2 h-4 w-4" />
+                                    {busy === lockDispatchKey
+                                        ? 'Updating…'
+                                        : 'Lock'}
+                                </DropdownMenuItem>
+                            )}
+                            {g.status === 'LOCKED' && (
+                                <DropdownMenuItem
+                                    disabled={busy === lockDispatchKey}
+                                    onClick={() =>
+                                        void withBusy(
+                                            lockDispatchKey,
+                                            async () => {
+                                                await transitionGroupStatus(
+                                                    g.groupId,
+                                                    'IN_TRANSIT'
+                                                );
+                                                load();
+                                            }
+                                        )
+                                    }
+                                >
+                                    <IconTruck className="mr-2 h-4 w-4" />
+                                    {busy === lockDispatchKey
+                                        ? 'Updating…'
+                                        : 'Dispatch'}
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busy === delKey}
+                                onClick={() =>
+                                    void withBusy(delKey, async () => {
+                                        await deleteConsolidationGroup(
+                                            g.groupId
+                                        );
+                                        load();
+                                    })
+                                }
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                {busy === delKey ? 'Deleting…' : 'Delete'}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const makeCapColumns = (
+        showPartnership: boolean
+    ): ColumnDef<CapacityForecast>[] => {
+        const cols: ColumnDef<CapacityForecast>[] = [
+            {
+                id: 'lane',
+                header: 'Lane',
+                accessorFn: (row) =>
+                    `${row.originLane ?? '?'} → ${row.destinationLane ?? '?'}`,
+                cell: ({ row }) => <CapacityLaneCell c={row.original} />,
+                enableHiding: false,
+            },
+        ];
+        if (showPartnership) {
+            cols.push({
+                id: 'partnership',
+                header: 'Partnership',
+                accessorFn: (row) => String(row.partnershipId ?? ''),
+                cell: ({ row }) => <CapacityPartnershipCell c={row.original} />,
+            });
+        }
+        cols.push(
+            {
+                id: 'equipment',
+                header: 'Equipment',
+                accessorFn: (row) => row.equipmentType ?? '',
+                cell: ({ row }) => <CapacityEquipmentCell c={row.original} />,
+            },
+            {
+                id: 'period',
+                header: 'Period',
+                accessorFn: (row) => row.periodStart ?? '',
+                cell: ({ row }) => <CapacityPeriodCell c={row.original} />,
+            },
+            {
+                id: 'capacity',
+                header: 'Capacity',
+                accessorFn: (row) => row.availableCapacity ?? 0,
+                cell: ({ row }) => <CapacityDetailCell c={row.original} />,
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => {
+                    const cap = row.original;
+                    const delKey = `cap-del-${cap.forecastId}`;
+                    return (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                >
+                                    <IconDotsVertical />
+                                    <span className="sr-only">Open menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem
+                                    onClick={() => handleCapExtendRow(cap)}
+                                >
+                                    <CalendarClock className="mr-2 h-4 w-4" />
+                                    Extend period
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => handleCapEditRow(cap)}
+                                >
+                                    <IconEdit className="mr-2 h-4 w-4" />
+                                    Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    disabled={busy === delKey}
+                                    onClick={() => void handleCapDeleteRow(cap)}
+                                >
+                                    <IconTrash className="mr-2 h-4 w-4" />
+                                    {busy === delKey ? 'Deleting…' : 'Delete'}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    );
+                },
+            }
+        );
+        return cols;
+    };
+
+    const stopColumns: ColumnDef<ShipmentStop>[] = [
+        {
+            accessorKey: 'sequenceNumber',
+            header: 'Seq',
+            cell: ({ row }) => (
+                <div className="font-medium">{row.original.sequenceNumber}</div>
+            ),
+        },
+        {
+            accessorKey: 'stopType',
+            header: 'Type',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.stopType}</Badge>
+            ),
+        },
+        {
+            id: 'location',
+            header: 'Location',
+            accessorFn: (row) => row.location ?? '',
+            cell: ({ row }) => {
+                const s = row.original;
+                return (
+                    <div className="text-xs">
+                        {s.location ?? '-'}
+                        <div className="text-muted-foreground">
+                            {s.address ?? ''}
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorFn: (row) => row.status ?? '',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'COMPLETED'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => {
+                const s = row.original;
+                const advKey = `stop-${s.stopId}`;
+                const delKey = `stop-del-${s.stopId}`;
+                const canAdvance = ['PENDING', 'ARRIVED', 'DEPARTED'].includes(
+                    s.status
+                );
+                const advanceNext =
+                    s.status === 'PENDING'
+                        ? 'Arrived'
+                        : s.status === 'ARRIVED'
+                          ? 'Departed'
+                          : 'Completed';
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            {canAdvance && (
+                                <DropdownMenuItem
+                                    disabled={busy === advKey}
+                                    onClick={() =>
+                                        void withBusy(advKey, () =>
+                                            handleStopAdvance(
+                                                s.stopId,
+                                                s.status
+                                            )
+                                        )
+                                    }
+                                >
+                                    <Check className="mr-2 h-4 w-4" />
+                                    {busy === advKey
+                                        ? 'Updating…'
+                                        : `Advance (${advanceNext})`}
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                                variant="destructive"
+                                disabled={busy === delKey}
+                                onClick={() =>
+                                    void withBusy(delKey, () =>
+                                        handleStopRemove(s.stopId)
+                                    )
+                                }
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                {busy === delKey ? 'Deleting…' : 'Remove stop'}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
+    const groupsTable = useTables<ConsolidationGroup>({
+        data: groups?.content ?? [],
+        columns: groupColumns,
+        getRowId: (r) => String(r.groupId),
+    });
+
+    const publicCapTable = useTables<CapacityForecast>({
+        data: publicCapacities,
+        columns: makeCapColumns(false),
+        getRowId: (r) => String(r.forecastId),
+    });
+
+    const dedicatedCapTable = useTables<CapacityForecast>({
+        data: dedicatedCapacities,
+        columns: makeCapColumns(true),
+        getRowId: (r) => String(r.forecastId),
+    });
+
+    const stopsTable = useTables<ShipmentStop>({
+        data: stops,
+        columns: stopColumns,
+        getRowId: (r) => String(r.stopId),
+    });
 
     return (
         <div className="p-4 lg:p-6 space-y-4">
@@ -1313,157 +1670,10 @@ export default function RoutingPage() {
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Group</TableHead>
-                                            <TableHead>Shipments</TableHead>
-                                            <TableHead>Totals</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {groups?.content?.map((g) => (
-                                            <TableRow key={g.groupId}>
-                                                <TableCell>
-                                                    <div className="font-medium">
-                                                        {g.groupNumber}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        #{g.groupId}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    {g.shipmentIds?.join(
-                                                        ', '
-                                                    ) || '-'}
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    {g.totalWeight ?? 0} kg •{' '}
-                                                    {g.totalVolume ?? 0} m³
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            g.status === 'OPEN'
-                                                                ? 'default'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {g.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex gap-2">
-                                                        {g.status ===
-                                                            'OPEN' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                title="Edit group"
-                                                                onClick={() =>
-                                                                    setGroupEdit(
-                                                                        {
-                                                                            id: g.groupId,
-                                                                            notes:
-                                                                                g.notes ??
-                                                                                '',
-                                                                        }
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                        {g.status ===
-                                                            'OPEN' && (
-                                                            <LoadingButton
-                                                                loading={
-                                                                    busy ===
-                                                                    `group-${g.groupId}`
-                                                                }
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    withBusy(
-                                                                        `group-${g.groupId}`,
-                                                                        async () => {
-                                                                            await transitionGroupStatus(
-                                                                                g.groupId,
-                                                                                'LOCKED'
-                                                                            );
-                                                                            load();
-                                                                        }
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Check className="mr-2 h-4 w-4" />
-                                                                Lock
-                                                            </LoadingButton>
-                                                        )}
-                                                        {g.status ===
-                                                            'LOCKED' && (
-                                                            <LoadingButton
-                                                                loading={
-                                                                    busy ===
-                                                                    `group-${g.groupId}`
-                                                                }
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    withBusy(
-                                                                        `group-${g.groupId}`,
-                                                                        async () => {
-                                                                            await transitionGroupStatus(
-                                                                                g.groupId,
-                                                                                'IN_TRANSIT'
-                                                                            );
-                                                                            load();
-                                                                        }
-                                                                    )
-                                                                }
-                                                            >
-                                                                Dispatch
-                                                            </LoadingButton>
-                                                        )}
-                                                        <LoadingButton
-                                                            loading={
-                                                                busy ===
-                                                                `group-del-${g.groupId}`
-                                                            }
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                withBusy(
-                                                                    `group-del-${g.groupId}`,
-                                                                    async () => {
-                                                                        await deleteConsolidationGroup(
-                                                                            g.groupId
-                                                                        );
-                                                                        load();
-                                                                    }
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </LoadingButton>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {!groups?.content?.length && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={5}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No groups
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                <CentralizedDataTable
+                                    table={groupsTable}
+                                    emptyMessage="No groups"
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -1480,43 +1690,10 @@ export default function RoutingPage() {
                             {loading ? (
                                 <TableSkeleton rows={6} />
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Lane</TableHead>
-                                            <TableHead>Equipment</TableHead>
-                                            <TableHead>Period</TableHead>
-                                            <TableHead>Capacity</TableHead>
-                                            <TableHead>Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {publicCapacities.map((c) => (
-                                            <CapacityTableRow
-                                                key={c.forecastId}
-                                                c={c}
-                                                showPartnership={false}
-                                                deleting={
-                                                    busy ===
-                                                    `cap-del-${c.forecastId}`
-                                                }
-                                                onExtend={handleCapExtendRow}
-                                                onEdit={handleCapEditRow}
-                                                onDelete={handleCapDeleteRow}
-                                            />
-                                        ))}
-                                        {publicCapacities.length === 0 && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={5}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No public routes
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                <CentralizedDataTable
+                                    table={publicCapTable}
+                                    emptyMessage="No public routes"
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -1535,44 +1712,10 @@ export default function RoutingPage() {
                             {loading ? (
                                 <TableSkeleton rows={3} />
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Lane</TableHead>
-                                            <TableHead>Partnership</TableHead>
-                                            <TableHead>Equipment</TableHead>
-                                            <TableHead>Period</TableHead>
-                                            <TableHead>Capacity</TableHead>
-                                            <TableHead>Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {dedicatedCapacities.map((c) => (
-                                            <CapacityTableRow
-                                                key={c.forecastId}
-                                                c={c}
-                                                showPartnership={true}
-                                                deleting={
-                                                    busy ===
-                                                    `cap-del-${c.forecastId}`
-                                                }
-                                                onExtend={handleCapExtendRow}
-                                                onEdit={handleCapEditRow}
-                                                onDelete={handleCapDeleteRow}
-                                            />
-                                        ))}
-                                        {dedicatedCapacities.length === 0 && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={6}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No dedicated routes
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                <CentralizedDataTable
+                                    table={dedicatedCapTable}
+                                    emptyMessage="No dedicated routes"
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -1608,112 +1751,10 @@ export default function RoutingPage() {
                                     route
                                 </div>
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Seq</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead>Location</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {stops.map((s) => (
-                                            <TableRow key={s.stopId}>
-                                                <TableCell className="font-medium">
-                                                    {s.sequenceNumber}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">
-                                                        {s.stopType}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    {s.location ?? '-'}
-                                                    <div className="text-muted-foreground">
-                                                        {s.address ?? ''}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            s.status ===
-                                                            'COMPLETED'
-                                                                ? 'default'
-                                                                : 'secondary'
-                                                        }
-                                                    >
-                                                        {s.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex gap-2">
-                                                        {[
-                                                            'PENDING',
-                                                            'ARRIVED',
-                                                            'DEPARTED',
-                                                        ].includes(
-                                                            s.status
-                                                        ) && (
-                                                            <LoadingButton
-                                                                loading={
-                                                                    busy ===
-                                                                    `stop-${s.stopId}`
-                                                                }
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    withBusy(
-                                                                        `stop-${s.stopId}`,
-                                                                        () =>
-                                                                            handleStopAdvance(
-                                                                                s.stopId,
-                                                                                s.status
-                                                                            )
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Check className="mr-2 h-4 w-4" />
-                                                                Advance
-                                                            </LoadingButton>
-                                                        )}
-                                                        <LoadingButton
-                                                            loading={
-                                                                busy ===
-                                                                `stop-del-${s.stopId}`
-                                                            }
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() =>
-                                                                withBusy(
-                                                                    `stop-del-${s.stopId}`,
-                                                                    () =>
-                                                                        handleStopRemove(
-                                                                            s.stopId
-                                                                        )
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </LoadingButton>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {!stops.length && (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={5}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No stops on this shipment
-                                                    yet
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                <CentralizedDataTable
+                                    table={stopsTable}
+                                    emptyMessage="No stops on this shipment yet"
+                                />
                             )}
                             {stopsLoaded && (
                                 <div className="grid gap-6 border-t pt-4">
