@@ -471,10 +471,6 @@ export interface LoadBoardShipment {
     specialInstructions?: string;
     hazardousMaterial?: boolean;
     temperatureControlled?: boolean;
-    pickupContactName?: string;
-    pickupContactPhone?: string;
-    deliveryContactName?: string;
-    deliveryContactPhone?: string;
     supplierOrgId?: number;
     supplierOrgName?: string;
     retailerOrgId?: number;

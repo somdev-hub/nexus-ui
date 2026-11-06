@@ -53,6 +53,7 @@ const STATUS_COLOR: Record<string, string> = {
 	EXCEPTION: 'bg-red-50 text-red-700 border border-red-200',
 	CANCELLED: 'bg-slate-50 text-slate-700 border border-slate-200',
 	CLOSED: 'bg-slate-100 text-slate-600 border border-slate-200',
+	BOOKED: 'bg-blue-100 text-blue-800 border border-blue-300',
 };
 
 const SHIPMENT_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
@@ -156,24 +157,36 @@ export default function RetailerShipmentsPage() {
 		{
 			id: 'supplier',
 			header: 'Supplier',
-			accessorFn: (row) => row.supplierOrgName ?? '—',
+			accessorFn: (row) => row.supplierName ?? '—',
 			cell: ({ row }) => (
 				<div className="text-sm whitespace-nowrap">
-					{row.original.supplierOrgName ?? '—'}
+					{row.original.supplierName ?? '—'}
 				</div>
 			),
 		},
 		{
 			id: 'eta',
 			header: 'ETA',
-			accessorFn: (row) => row.estimatedArrival ?? row.deliveryDate ?? '—',
+			accessorFn: (row) => row.estimatedArrival ?? row.scheduledDeliveryDate ?? '—',
 			cell: ({ row }) => (
 				<div className="text-sm whitespace-nowrap">
 					{row.original.estimatedArrival
 						? new Date(row.original.estimatedArrival).toLocaleDateString()
-						: row.original.deliveryDate
-							? new Date(row.original.deliveryDate).toLocaleDateString()
-							: '—'}
+						: row.original.scheduledDeliveryDate
+						? new Date(row.original.scheduledDeliveryDate).toLocaleDateString()
+						: '—'}
+				</div>
+			),
+		},
+		{
+			id: 'createdDate',
+			header: 'Created',
+			accessorFn: (row) => row.createdAt,
+			cell: ({ row }) => (
+				<div className="text-xs whitespace-nowrap">
+					{row.original.createdAt
+						? new Date(row.original.createdAt).toLocaleString()
+						: '—'}
 				</div>
 			),
 		},
@@ -410,7 +423,7 @@ export default function RetailerShipmentsPage() {
 								<div>
 									<p className="text-muted-foreground">Supplier</p>
 									<p className="font-medium">
-										{viewShipment.supplierOrgName ?? '—'}
+										{viewShipment.supplierName ?? '—'}
 									</p>
 								</div>
 								<div>
@@ -441,7 +454,7 @@ export default function RetailerShipmentsPage() {
 								<div>
 									<p className="text-muted-foreground">ETA</p>
 									<p className="font-medium text-sm">
-										{viewShipment.estimatedArrival ?? viewShipment.deliveryDate ?? '—'}
+										{viewShipment.estimatedArrival ?? viewShipment.scheduledDeliveryDate ?? '—'}
 									</p>
 								</div>
 								<div>

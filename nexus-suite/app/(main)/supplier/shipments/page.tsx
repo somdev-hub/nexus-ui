@@ -310,15 +310,14 @@ export default function SupplierShipmentsPage() {
             ),
         },
         {
-            id: 'tracking',
-            accessorFn: (row) =>
-                row.carrierTrackingNumber || row.trackingNumber || '',
-            header: 'Tracking',
+            id: 'createdDate',
+            header: 'Created',
+            accessorFn: (row) => row.createdAt,
             cell: ({ row }) => (
-                <div className="font-mono text-xs">
-                    {row.original.carrierTrackingNumber ||
-                        row.original.trackingNumber ||
-                        '—'}
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.createdAt
+                        ? new Date(row.original.createdAt).toLocaleString()
+                        : '—'}
                 </div>
             ),
         },
@@ -423,15 +422,14 @@ export default function SupplierShipmentsPage() {
             ),
         },
         {
-            id: 'tracking',
-            accessorFn: (row) =>
-                row.carrierTrackingNumber || row.trackingNumber || '',
-            header: 'Tracking',
+            id: 'createdDate',
+            header: 'Created',
+            accessorFn: (row) => row.createdAt,
             cell: ({ row }) => (
-                <div className="font-mono text-xs">
-                    {row.original.carrierTrackingNumber ||
-                        row.original.trackingNumber ||
-                        '—'}
+                <div className="text-xs whitespace-nowrap">
+                    {row.original.createdAt
+                        ? new Date(row.original.createdAt).toLocaleString()
+                        : '—'}
                 </div>
             ),
         },
@@ -593,16 +591,6 @@ export default function SupplierShipmentsPage() {
                         <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1">
                             <Section title="Shipment">
                                 <Detail label="Status" value={viewing.status} />
-                                <Detail
-                                    label="Tracking number"
-                                    value={
-                                        viewing.trackingNumber ? (
-                                            <span className="font-mono break-all">
-                                                {viewing.trackingNumber}
-                                            </span>
-                                        ) : undefined
-                                    }
-                                />
                                 <Detail
                                     label="Carrier"
                                     value={viewing.carrierName}

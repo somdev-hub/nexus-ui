@@ -319,7 +319,6 @@ export function PartialShipmentDialog({
             if (order) {
                 const res = await createPartialShipment(order.purchaseOrderId, {
                     shippedQuantity: Number(shippedQty),
-                    trackingNumber: 'TRK-' + Date.now(),
                     freightCost: freight,
                     currency: normalizeCurrency(freightCurrency),
                     freightTerms: freightTerms || undefined,

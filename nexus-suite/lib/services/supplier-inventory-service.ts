@@ -43,13 +43,19 @@ export async function deleteConsignment(id: number): Promise<void> {
     await apiClient.delete(`${CONS_BASE}/${id}`);
 }
 
-export async function fillConsignment(id: number, pickupAddress?: string, deliveryAddress?: string) {
-    const params = new URLSearchParams();
-    if (pickupAddress) params.set('pickupAddress', pickupAddress);
-    if (deliveryAddress) params.set('deliveryAddress', deliveryAddress);
-    const q = params.toString();
-    const url = q ? `${CONS_BASE}/${id}/fill?${q}` : `${CONS_BASE}/${id}/fill`;
-    const res = await apiClient.post<any>(url, {});
+export async function fillConsignment(
+    id: number,
+    pickupAddress?: string,
+    deliveryAddress?: string,
+    quantity?: number
+) {
+    const body: Record<string, unknown> = {};
+    if (pickupAddress) body.pickupAddress = pickupAddress;
+    if (deliveryAddress) body.deliveryAddress = deliveryAddress;
+    if (quantity !== undefined && quantity !== null) {
+        body.quantity = quantity;
+    }
+    const res = await apiClient.post<any>(`${CONS_BASE}/${id}/fill`, body);
     return res.data;
 }
 

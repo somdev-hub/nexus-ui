@@ -185,6 +185,7 @@ export default function ConsignmentPage() {
     const [filling, setFilling] = useState<ConsignmentStock | null>(null);
     const [pickupAddressId, setPickupAddressId] = useState('');
     const [deliveryAddressId, setDeliveryAddressId] = useState('');
+    const [fillQuantity, setFillQuantity] = useState('');
     const [supplierAddresses, setSupplierAddresses] = useState<OrgAddress[]>([]);
     const [retailerAddresses, setRetailerAddresses] = useState<OrgAddress[]>([]);
     const [editCatalogId, setEditCatalogId] = useState('');
@@ -215,6 +216,7 @@ export default function ConsignmentPage() {
     const [deleting, setDeleting] = useState<ConsignmentStock | null>(null);
     const [saving, setSaving] = useState(false);
     const [deleteBusy, setDeleteBusy] = useState(false);
+    const [fillingBusy, setFillingBusy] = useState(false);
     const [contractError, setContractError] = useState('');
     const load = async () => {
         setLoading(true);
@@ -700,17 +702,28 @@ export default function ConsignmentPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="grid gap-2">
+                            <Label>Quantity</Label>
+                            <Input type="number" placeholder="e.g. 100" value={fillQuantity} onChange={(e) => setFillQuantity(e.target.value)} min="1" />
+                        </div>
                         <Button onClick={async () => {
                             if (!filling) return;
+    const fillQty = Number(fillQuantity);
+                            if (!fillQty || fillQty <= 0) {
+                                toast({ title: 'Quantity is required', variant: 'destructive' });
+                                return;
+                            }
                             const pickup = supplierAddresses.find((a) => String(a.orgAddressId) === pickupAddressId);
                             const delivery = retailerAddresses.find((a) => String(a.orgAddressId) === deliveryAddressId);
                             try {
+                                setFillingBusy(true);
                                 await fillConsignment(
                                     filling.consignmentId,
                                     pickup ? formatOrgAddress(pickup) : undefined,
-                                    delivery ? formatOrgAddress(delivery) : undefined
+                                    delivery ? formatOrgAddress(delivery) : undefined,
+                                    fillQty
                                 );
-                                toast({ title: 'Consignment filled', variant: 'success' });
+                                toast({ title: 'Consignment shipment generated', variant: 'success' });
                                 setFilling(null);
                                 load();
                             } catch (e) {
@@ -718,8 +731,12 @@ export default function ConsignmentPage() {
                                     title: e instanceof Error ? e.message : String(e),
                                     variant: 'destructive',
                                 });
+                            } finally {
+                                setFillingBusy(false);
                             }
-                        }}>Fill Consignment</Button>
+                        }} disabled={fillingBusy || !fillQuantity || Number(fillQuantity) <= 0}>
+                            {fillingBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <IconTruck className="mr-2 h-4 w-4" />} Fill Consignment
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

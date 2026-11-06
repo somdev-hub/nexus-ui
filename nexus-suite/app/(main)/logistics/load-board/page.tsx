@@ -1080,28 +1080,6 @@ export default function LoadBoardPage() {
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">
-                                        Pickup contact
-                                    </p>
-                                    <p className="font-medium">
-                                        {details.pickupContactName ?? '—'}
-                                        {details.pickupContactPhone
-                                            ? ` · ${details.pickupContactPhone}`
-                                            : ''}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground">
-                                        Delivery contact
-                                    </p>
-                                    <p className="font-medium">
-                                        {details.deliveryContactName ?? '—'}
-                                        {details.deliveryContactPhone
-                                            ? ` · ${details.deliveryContactPhone}`
-                                            : ''}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground">
                                         Flags
                                     </p>
                                     <p className="font-medium">

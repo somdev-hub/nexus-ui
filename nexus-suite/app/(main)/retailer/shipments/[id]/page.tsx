@@ -382,12 +382,6 @@ export default function RetailerShipmentDetailPage() {
                         </CardHeader>
                         <CardContent className="p-3 space-y-2 text-sm">
                             <div className="grid gap-2">
-                                <div>
-                                    <p className="text-muted-foreground text-xs">Received At</p>
-                                    <p className="font-medium">
-                                        {shipment.receivedAt ?? '—'}
-                                    </p>
-                                </div>
                             </div>
                             {pod ? (
                                 <div className="pt-2 border-t">
