@@ -33,6 +33,8 @@ import {
     type SupplierDirectoryEntry,
 } from '@/lib/services/supplier-market-service';
 import { getRetailerSentInvitations } from '@/lib/services/partnership-invitations-service';
+import { getSupplierReviewSummary } from '@/lib/services/shipment-service';
+import type { SupplierReviewSummary } from '@/types/shipment';
 
 interface SupplierDiscoveryRow {
     entry: SupplierDirectoryEntry;
@@ -80,6 +82,9 @@ const SupplierMarketPage = () => {
     // Org ids with an outstanding PENDING invitation from us. Card Invite
     // buttons stay disabled for these until accepted/rejected.
     const [pendingOrgIds, setPendingOrgIds] = useState<Set<number>>(new Set());
+    const [reviewSummaryMap, setReviewSummaryMap] = useState<
+        Map<number, SupplierReviewSummary>
+    >(new Map());
 
     const loadSentInvitations = async () => {
         try {
@@ -108,9 +113,10 @@ const SupplierMarketPage = () => {
             setLoadError(null);
             // Parallel fetch: org directory (all suppliers) + public catalog
             // browse. Joined client-side below by org id.
-            const [dirResult, browseResult] = await Promise.allSettled([
+            const [dirResult, browseResult, reviewResult] = await Promise.allSettled([
                 getSupplierDirectory(''),
                 browseSupplierCatalog({ pageNo: 0, pageOffset: 100 }),
+                getSupplierReviewSummary(),
             ]);
             if (isActive) {
                 void loadSentInvitations();
@@ -124,6 +130,13 @@ const SupplierMarketPage = () => {
                         ? dirResult.reason.message
                         : 'Failed to load supplier directory'
                 );
+            }
+            if (reviewResult.status === 'fulfilled') {
+                const map = new Map<number, SupplierReviewSummary>();
+                for (const s of reviewResult.value ?? []) {
+                    if (s.supplierOrgId) map.set(s.supplierOrgId, s);
+                }
+                setReviewSummaryMap(map);
             }
             if (browseResult.status === 'fulfilled') {
                 setBrowseItems(browseResult.value?.content ?? []);
@@ -374,6 +387,17 @@ const SupplierMarketPage = () => {
                                                             {entry.trustScore}
                                                         </Badge>
                                                     ) : null}
+                                                     {reviewSummaryMap.get(entry.id) ? (
+                                                         <Badge
+                                                             variant="secondary"
+                                                             className="flex items-center gap-1"
+                                                         >
+                                                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                                             {reviewSummaryMap.get(entry.id)!.avgRating?.toFixed(1)}
+                                                             {' '}
+                                                             ({reviewSummaryMap.get(entry.id)!.reviewCount})
+                                                         </Badge>
+                                                     ) : null}
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="flex flex-1 flex-col gap-3 p-0">

@@ -336,6 +336,29 @@ export interface FreightCostUpdateRequest {
 }
 
 export type ShipmentPaginatedResponse = PaginatedResponse<Shipment>;
+
+export interface ShipmentReview {
+    reviewId: number;
+    shipmentId: number;
+    shipmentNumber?: string;
+    supplierName?: string;
+    rating?: number;
+    qualityScore?: number;
+    expectedDelivery?: string;
+    actualDelivery?: string;
+    expectedQuantity?: number;
+    actualQuantity?: number;
+    comments?: string;
+    createdAt?: string;
+}
+
+export interface SupplierReviewSummary {
+    supplierOrgId: number;
+    supplierName?: string;
+    avgRating?: number;
+    reviewCount?: number;
+    avgQuality?: number;
+}
 export type ShipmentStopPaginatedResponse = PaginatedResponse<ShipmentStop>;
 export type TrackingEventPaginatedResponse = PaginatedResponse<TrackingEvent>;
 export type ShipmentDocumentPaginatedResponse =

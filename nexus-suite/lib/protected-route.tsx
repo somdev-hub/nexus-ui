@@ -30,8 +30,8 @@ export function ProtectedRoute({
         if (!isLoading && requiredRole && user?.role !== requiredRole) {
             router.push('/unauthorized');
         }
-        if (!isLoading && requiredOrgType && (user as any)?.orgType) {
-            const actual = String((user as any).orgType).toUpperCase();
+        if (!isLoading && requiredOrgType && (user as { orgType?: string | number })?.orgType) {
+            const actual = String((user as { orgType?: string | number }).orgType).toUpperCase();
             if (actual !== requiredOrgType.toUpperCase())
                 router.push('/unauthorized');
         }
@@ -54,8 +54,8 @@ export function ProtectedRoute({
     if (requiredRole && user?.role !== requiredRole) return null;
     if (
         requiredOrgType &&
-        (user as any)?.orgType &&
-        String((user as any).orgType).toUpperCase() !==
+        (user as { orgType?: string | number })?.orgType &&
+        String((user as { orgType?: string | number }).orgType).toUpperCase() !==
             requiredOrgType.toUpperCase()
     )
         return null;

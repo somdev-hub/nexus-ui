@@ -12,6 +12,8 @@ import type {
     TrackingEventCreateRequest,
     ShipmentDocument,
     ShipmentDocumentCreateRequest,
+    ShipmentReview,
+    SupplierReviewSummary,
     FreightCostUpdateRequest,
     ShipmentPaginatedResponse,
     ShipmentStopPaginatedResponse,
@@ -38,6 +40,8 @@ export type {
     TrackingEventCreateRequest,
     ShipmentDocument,
     ShipmentDocumentCreateRequest,
+    ShipmentReview,
+    SupplierReviewSummary,
     FreightCostUpdateRequest,
     ShipmentPaginatedResponse,
     ShipmentStopPaginatedResponse,
@@ -68,6 +72,45 @@ function buildQueryParams(filter: ShipmentFilter = {}): string {
 }
 
 const DEFAULT_PAGE_SIZE = 20;
+
+export async function getSupplierReviewSummary(): Promise<SupplierReviewSummary[]> {
+    const res = await apiClient.get<SupplierReviewSummary[]>(
+        `/iam/core/retailer/shipments/review-summary`
+    );
+    return res.data;
+}
+
+export async function getShipmentReviews(
+    filter: { pageNo?: number; pageOffset?: number } = {}
+): Promise<PaginatedResponse<ShipmentReview>> {
+    const params = new URLSearchParams();
+    if (filter.pageNo !== undefined) params.append('page', String(filter.pageNo));
+    if (filter.pageOffset !== undefined) params.append('size', String(filter.pageOffset));
+    const query = params.toString();
+    const url = query
+        ? `/iam/core/retailer/shipments/reviews?${query}`
+        : `/iam/core/retailer/shipments/reviews`;
+    const res = await apiClient.get<PaginatedResponse<ShipmentReview>>(url);
+    return res.data;
+}
+
+export async function getReviewedShipmentIds(): Promise<number[]> {
+    const res = await apiClient.get<number[]>(
+        `/iam/core/retailer/shipments/reviewed`
+    );
+    return res.data;
+}
+
+export async function reviewDeliveredShipment(
+    shipmentId: number,
+    review: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+    const res = await apiClient.post<Record<string, unknown>>(
+        `/iam/core/retailer/shipments/${shipmentId}/review`,
+        review
+    );
+    return res.data;
+}
 
 export async function getShipments(
     filter: ShipmentFilter = {}

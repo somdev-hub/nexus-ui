@@ -39,7 +39,7 @@ import {
 import { IconDotsVertical, IconEye, IconTruck } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -75,7 +75,7 @@ export default function RetailerShipmentsPage() {
 	const [receiving, setReceiving] = useState(false);
 	const [viewShipment, setViewShipment] = useState<Shipment | null>(null);
 
-	const load = async () => {
+	const load = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			const res = await getShipments({
@@ -92,7 +92,7 @@ export default function RetailerShipmentsPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [page, pageSize, referenceTypeFilter, searchQuery, statusFilter]);
 
 	useEffect(() => {
 		// Debounce search input to avoid refetching on every keystroke.
@@ -103,7 +103,7 @@ export default function RetailerShipmentsPage() {
 		}, 300);
 		debounceTimer.current = timer;
 		return () => clearTimeout(timer);
-	}, [searchQuery, statusFilter, referenceTypeFilter, page, pageSize]);
+	}, [searchQuery, statusFilter, referenceTypeFilter, page, pageSize, load]);
 
 	const columns: ColumnDef<Shipment>[] = [
 		{
@@ -149,7 +149,7 @@ export default function RetailerShipmentsPage() {
 			header: 'Dispatched Qty',
 			accessorFn: (row) => row.shippedQuantity ?? 0,
 			cell: ({ row }) => (
-				<div className="text-sm whitespace-nowrap font-mono text-xs">
+				<div className="text-sm whitespace-nowrap font-mono md:text-xs">
 					{row.original.shippedQuantity ?? '—'}
 				</div>
 			),

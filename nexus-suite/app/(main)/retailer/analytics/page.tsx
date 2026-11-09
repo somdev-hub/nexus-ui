@@ -194,9 +194,6 @@ export default function AnalyticsPage() {
                                 <p className="text-2xl font-bold">
                                     {dashboard.otifPercentage}%
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                    Avg Perf {dashboard.avgSupplierPerformance}%
-                                </p>
                             </CardContent>
                         </Card>
                     </div>

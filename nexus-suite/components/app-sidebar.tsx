@@ -183,14 +183,9 @@ const retailerSections = [
                 icon: IconFileWord,
             },
             {
-                title: 'Performance',
+                title: 'Delivery Reviews',
                 url: '/retailer/suppliers/performance',
                 icon: IconChartBar,
-            },
-            {
-                title: 'Risk Monitoring',
-                url: '/retailer/suppliers/risk',
-                icon: IconEye,
             },
             {
                 title: 'Contracts',
