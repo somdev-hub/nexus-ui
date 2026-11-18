@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { getRetailerDashboard } from '@/lib/services/retailer-analytics-service';
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -128,7 +130,7 @@ const chartConfig = {
         label: 'Visitors',
     },
     desktop: {
-        label: 'Desktop',
+        label: 'Trade',
         color: 'var(--primary)',
     },
     mobile: {
@@ -137,9 +139,16 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-export function ChartAreaInteractive() {
+export interface ChartAreaInteractiveProps {
+    data?: { date: string; desktop: number; mobile?: number }[];
+}
+
+export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps = {}) {
     const isMobile = useIsMobile();
     const [timeRange, setTimeRange] = React.useState('90d');
+    const [fetchedData, setFetchedData] = useState<
+        { date: string; desktop: number; mobile: number }[] | null
+    >(null);
 
     React.useEffect(() => {
         if (isMobile) {
@@ -147,9 +156,55 @@ export function ChartAreaInteractive() {
         }
     }, [isMobile]);
 
-    const filteredData = chartData.filter((item) => {
+    useEffect(() => {
+        if (data && data.length > 0) return;
+        let active = true;
+        getRetailerDashboard()
+            .then((dashboard) => {
+                if (!active) return;
+                const trend = (dashboard?.spendTrend ?? []).map((item) => ({
+                    date:
+                        item.period && item.period.length === 7
+                            ? `${item.period}-01`
+                            : item.period,
+                    desktop: Number(item.spend ?? 0),
+                    mobile: 0,
+                }));
+                setFetchedData(trend.length > 0 ? trend : null);
+            })
+            .catch(() => {
+                if (active) setFetchedData(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [data]);
+
+    const sourceData =
+        data && data.length > 0
+            ? data.map((item) => ({
+                  date: item.date,
+                  desktop: item.desktop,
+                  mobile: item.mobile ?? 0,
+              }))
+            : fetchedData && fetchedData.length > 0
+              ? fetchedData
+              : chartData;
+
+    const referenceDate = sourceData.length
+        ? new Date(
+              Math.max(
+                  ...sourceData.map((item) => {
+                      const t = new Date(item.date).getTime();
+                      return Number.isNaN(t) ? 0 : t;
+                  })
+              )
+          )
+        : new Date('2024-06-30');
+
+    const filteredData = sourceData.filter((item) => {
         const date = new Date(item.date);
-        const referenceDate = new Date('2024-06-30');
+        if (Number.isNaN(date.getTime())) return true;
         let daysToSubtract = 90;
         if (timeRange === '30d') {
             daysToSubtract = 30;
@@ -162,7 +217,7 @@ export function ChartAreaInteractive() {
     });
 
     return (
-        <Card className="@container/card p-4">
+        <Card className="@container/card p-4 h-full">
             <CardHeader className="p-0">
                 <CardTitle>Total Trade</CardTitle>
                 <CardDescription>
@@ -285,13 +340,6 @@ export function ChartAreaInteractive() {
                                     indicator="dot"
                                 />
                             }
-                        />
-                        <Area
-                            dataKey="mobile"
-                            type="natural"
-                            fill="url(#fillMobile)"
-                            stroke="var(--color-mobile)"
-                            stackId="a"
                         />
                         <Area
                             dataKey="desktop"
