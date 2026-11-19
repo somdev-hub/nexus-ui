@@ -17,17 +17,17 @@ export default function UnauthorizedPage() {
     const dashboard = getDashboardPathForOrgType(orgType);
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
-            <Card className="w-full max-w-md">
-                <CardHeader>
+            <Card className="w-full max-w-md p-4 gap-2">
+                <CardHeader className="p-0">
                     <CardTitle className="text-2xl">Access Denied</CardTitle>
                     <CardDescription>
-                        You don't have permission to access this page
+                        You don&apos;t have permission to access this page
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 p-0">
                     <p className="text-sm text-muted-foreground">
                         Your current role or organization type (
-                        {orgType || 'unknown'}) doesn't have access to this
+                        {orgType || 'unknown'}) doesn&apos;t have access to this
                         section. Please contact an administrator if you believe
                         this is a mistake.
                     </p>

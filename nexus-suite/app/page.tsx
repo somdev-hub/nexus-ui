@@ -26,7 +26,6 @@ export default function Home() {
         if (
             !isLoading &&
             isAuthenticated &&
-            !resolvedOrgType &&
             orgId &&
             !resolving
         ) {

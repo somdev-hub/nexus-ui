@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     async function enrichUserWithOrgType(u: User | null): Promise<User | null> {
-        if (!u || !u.orgId || u.orgType) return u;
+        if (!u || !u.orgId) return u;
         // try to fetch orgType if missing; don't block on failure
         try {
             const { getOrganizationById } =
