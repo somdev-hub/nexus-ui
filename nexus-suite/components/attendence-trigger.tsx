@@ -14,7 +14,7 @@ import { Field, FieldLabel } from './ui/field';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Progress } from './ui/progress';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 function parseAttendanceDateTime(value: string): Date | null {
     if (!value) {
@@ -137,6 +137,7 @@ const AttendenceTrigger = () => {
         isLoading: isUserLoading,
         isAuthenticated,
     } = useUserMetadata();
+    const { toast } = useToast();
     const loadAttendance = useCallback(async () => {
         if (isUserLoading || !isAuthenticated || !userId) {
             return;
@@ -158,11 +159,12 @@ const AttendenceTrigger = () => {
                 '[SiteHeader] Failed to load attendance quick update:',
                 error
             );
-            toast.error(
-                error instanceof Error
+            toast({
+                title: error instanceof Error
                     ? error.message
-                    : 'Unable to load attendance details'
-            );
+                    : 'Unable to load attendance details',
+                variant: 'destructive'
+            });
             setAttendance(null);
         } finally {
             setIsLoadingAttendance(false);
@@ -179,28 +181,36 @@ const AttendenceTrigger = () => {
 
     const handleToggleAttendance = async () => {
         if (!userId) {
-            toast.error(
-                'Not authenticated - Please log in to update attendance'
-            );
+            toast({
+                title: 'Not authenticated - Please log in to update attendance',
+                variant: 'destructive'
+            });
             return;
         }
         const numericId = Number(userId);
         if (!Number.isFinite(numericId)) {
-            toast.error(`Invalid userId: ${String(userId)}`);
+            toast({
+                title: `Invalid userId: ${String(userId)}`,
+                variant: 'destructive'
+            });
             return;
         }
         try {
             setIsTogglingAttendance(true);
             const response = await toggleAttendance(numericId);
             setAttendance(mapToggleResponseToQuickUpdate(response));
-            toast.success(response.message || 'Attendance updated');
+            toast({
+                title: response.message || 'Attendance updated',
+                variant: 'success'
+            });
         } catch (error) {
             console.error('[SiteHeader] Failed to toggle attendance:', error);
-            toast.error(
-                error instanceof Error
+            toast({
+                title: error instanceof Error
                     ? error.message
-                    : 'Unable to update attendance'
-            );
+                    : 'Unable to update attendance',
+                variant: 'destructive'
+            });
         } finally {
             setIsTogglingAttendance(false);
         }

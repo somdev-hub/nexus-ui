@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -45,6 +45,7 @@ export function PartnershipEditDialog({
     const [discountRate, setDiscountRate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (open) {
@@ -67,13 +68,14 @@ export function PartnershipEditDialog({
                 discountRate: parseOptionalFloat(discountRate),
                 endDate: endDate || undefined,
             });
-            toast.success('Partnership updated');
+            toast({ title: 'Partnership updated', variant: 'success' });
             onOpenChange(false);
             onSaved?.();
         } catch (err: unknown) {
-            toast.error(
-                err instanceof Error ? err.message : 'Failed to update'
-            );
+            toast({
+                title: err instanceof Error ? err.message : 'Failed to update',
+                variant: 'destructive'
+            });
         } finally {
             setSubmitting(false);
         }

@@ -19,7 +19,7 @@ import {
 } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import * as React from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 import { CentralizedDataTable } from '@/components/centralized-data-table';
 import { Money } from '@/components/money';
@@ -383,6 +383,7 @@ export function PurchaseOrderTable({
     purchaseOrders: PurchaseOrder[];
 }) {
     const [data, setData] = React.useState(() => initialData);
+    const { toast } = useToast();
 
     const [confirming, setConfirming] = React.useState<{
         action: 'submit' | 'send' | 'delete';
@@ -403,14 +404,14 @@ export function PurchaseOrderTable({
                     p.purchaseOrderId === po.purchaseOrderId ? next : p
                 )
             );
-            toast.success('Purchase order submitted for approval');
+            toast({ title: 'Purchase order submitted for approval', variant: 'success' });
         } catch (error) {
             console.error('Failed to submit purchase order:', error);
-            toast.error('Failed to submit purchase order');
+            toast({ title: 'Failed to submit purchase order', variant: 'destructive' });
         } finally {
             setConfirming(null);
         }
-    }, [confirming]);
+    }, [confirming, toast]);
 
     const handleSend = React.useCallback(async () => {
         if (!confirming || confirming.action !== 'send') return;
@@ -426,14 +427,14 @@ export function PurchaseOrderTable({
                     p.purchaseOrderId === po.purchaseOrderId ? next : p
                 )
             );
-            toast.success('Purchase order sent to supplier');
+            toast({ title: 'Purchase order sent to supplier', variant: 'success' });
         } catch (error) {
             console.error('Failed to send purchase order:', error);
-            toast.error('Failed to send purchase order');
+            toast({ title: 'Failed to send purchase order', variant: 'destructive' });
         } finally {
             setConfirming(null);
         }
-    }, [confirming]);
+    }, [confirming, toast]);
 
     const handleDelete = React.useCallback(async () => {
         if (!confirming || confirming.action !== 'delete') return;
@@ -443,14 +444,14 @@ export function PurchaseOrderTable({
             setData((prev) =>
                 prev.filter((p) => p.purchaseOrderId !== po.purchaseOrderId)
             );
-            toast.success('Purchase order deleted');
+            toast({ title: 'Purchase order deleted', variant: 'success' });
         } catch (error) {
             console.error('Failed to delete purchase order:', error);
-            toast.error('Failed to delete purchase order');
+            toast({ title: 'Failed to delete purchase order', variant: 'destructive' });
         } finally {
             setConfirming(null);
         }
-    }, [confirming]);
+    }, [confirming, toast]);
 
     const requestSubmit = React.useCallback((po: PurchaseOrder) => {
         setConfirming({ action: 'submit', po });

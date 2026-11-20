@@ -18,7 +18,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 import {
     AlertDialog,
@@ -276,6 +276,7 @@ export function SupplierContractTable({
     onApprove?: (contract: SupplierContract) => void;
 }) {
     const [data, setData] = React.useState(() => initialData);
+    const { toast } = useToast();
 
     const [confirming, setConfirming] = React.useState<SupplierContract | null>(
         null
@@ -293,14 +294,14 @@ export function SupplierContractTable({
                     c.contractId === confirming.contractId ? updated : c
                 )
             );
-            toast.success('Contract submitted for approval');
+            toast({ title: 'Contract submitted for approval', variant: 'success' });
         } catch (error) {
             console.error('Failed to submit contract:', error);
-            toast.error('Failed to submit contract');
+            toast({ title: 'Failed to submit contract', variant: 'destructive' });
         } finally {
             setConfirming(null);
         }
-    }, [confirming]);
+    }, [confirming, toast]);
 
     const requestSubmit = React.useCallback((contract: SupplierContract) => {
         setConfirming(contract);

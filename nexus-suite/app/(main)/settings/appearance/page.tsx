@@ -15,7 +15,7 @@ import {
     Sun,
     Type,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,6 +171,7 @@ function ChartSwatchGrid({
 }
 
 export default function AppearanceSettingsPage() {
+    const { toast } = useToast();
     const { state, update, reset, preferencesResolved } = useThemeConfig();
     const { theme, setTheme } = useTheme();
     const { user } = useAuth();
@@ -206,12 +207,12 @@ export default function AppearanceSettingsPage() {
     const handleReset = () => {
         reset();
         setTheme('system');
-        toast.success('Appearance reset to default');
+        toast({ title: 'Appearance reset to default', variant: 'success' });
     };
 
     const handleSave = async () => {
         if (!persistUserId) {
-            toast.error('Sign in to save your appearance');
+            toast({ title: 'Sign in to save your appearance', variant: 'destructive' });
             return;
         }
         setSaving(true);
@@ -226,13 +227,12 @@ export default function AppearanceSettingsPage() {
             );
             setSavedState(state);
             setSavedMode(currentMode);
-            toast.success('Appearance saved');
+            toast({ title: 'Appearance saved', variant: 'success' });
         } catch (error) {
-            toast.error(
+            toast({ title:
                 error instanceof Error
                     ? error.message
-                    : 'Could not save appearance'
-            );
+                    : 'Could not save appearance', variant: 'destructive' });
         } finally {
             setSaving(false);
         }

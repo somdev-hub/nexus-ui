@@ -9,7 +9,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 import {
     AlertDialog,
@@ -216,6 +216,7 @@ export function PartnershipTable({
     onPartnershipUpdated?: (partnership: Partnership) => void;
 }) {
     const [data, setData] = React.useState(() => initialData);
+    const { toast } = useToast();
 
     const [editing, setEditing] = React.useState<{
         id: number;
@@ -247,7 +248,7 @@ export function PartnershipTable({
             })
             .catch(() => {
                 // Fall back to a blank form rather than blocking the edit.
-                toast.error('Could not load current terms — editing blank');
+                toast({ title: 'Could not load current terms — editing blank', variant: 'destructive' });
                 setEditing({ id: partnership.partnershipId, initial: {} });
             });
     }, []);
@@ -269,10 +270,10 @@ export function PartnershipTable({
                 )
             );
             onPartnershipUpdated?.(updated);
-            toast.success('Partnership terminated');
+            toast({ title: 'Partnership terminated', variant: 'success' });
         } catch (error) {
             console.error('Failed to terminate partnership:', error);
-            toast.error('Failed to terminate partnership');
+            toast({ title: 'Failed to terminate partnership', variant: 'destructive' });
         } finally {
             setTerminating(null);
         }

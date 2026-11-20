@@ -1,39 +1,36 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Money } from '@/components/finances/money';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { getLogisticsDashboard } from '@/lib/services/logistics-ops-service';
-import { getMyShipmentBoard } from '@/lib/services/logistics-ops-service';
-import type { LogisticsDashboard } from '@/types/logistics-ops';
-import type { LoadBoardShipment } from '@/types/logistics-ops';
 import { CentralizedDataTable } from '@/components/centralized-data-table';
-import { useTables } from '@/hooks/use-tables';
-import type { ColumnDef } from '@tanstack/react-table';
+import { Money } from '@/components/finances/money';
+import { Button } from '@/components/ui/button';
 import {
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-	type ChartConfig,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    type ChartConfig,
 } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
-import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTables } from '@/hooks/use-tables';
 import { useToast } from '@/hooks/use-toast';
+import { getLogisticsDashboard, getMyShipmentBoard } from '@/lib/services/logistics-ops-service';
+import type { LoadBoardShipment, LogisticsDashboard } from '@/types/logistics-ops';
 import {
-	IconTruck,
-	IconPackage,
-	IconChartBar,
-	IconDatabase,
+    IconChartBar,
+    IconDatabase,
+    IconPackage,
+    IconTruck,
 } from '@tabler/icons-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Plus } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
 
 interface ShipmentRow {
 	id: number;
@@ -126,15 +123,69 @@ export default function LogisticsDashboardPage() {
 		fill: `var(--chart-${(i % 5) + 1})`,
 	}));
 
+	const deliveryMap = shipments.reduce<Record<string, { date: string; expected: number; actual: number }>>(
+		(acc, sh) => {
+			const expectedRaw = sh.estimatedArrival || sh.deliveryDate || sh.pickupDate;
+			const actualRaw = sh.actualArrival || sh.deliveryDate;
+			if (expectedRaw) {
+				const key = formatDate(expectedRaw);
+				if (!acc[key]) acc[key] = { date: key, expected: 0, actual: 0 };
+				acc[key].expected += 1;
+			}
+			if (actualRaw) {
+				const key = formatDate(actualRaw);
+				if (!acc[key]) acc[key] = { date: key, expected: 0, actual: 0 };
+				acc[key].actual += 1;
+			}
+			return acc;
+		},
+		{}
+	);
+	const deliveryChartData = Object.values(deliveryMap).sort(
+		(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+	);
+
 	if (loading) {
 		return (
-			<div className="flex flex-1 flex-col gap-4 p-4">
-				<div className="grid gap-4 md:grid-cols-4">
+			<div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
+				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 					{Array.from({ length: 4 }).map((_, i) => (
-						<Skeleton key={i} className="h-32" />
+						<div
+							key={i}
+							className="rounded-xl border bg-card p-4 space-y-3"
+						>
+							<Skeleton className="h-4 w-24" />
+							<Skeleton className="h-8 w-16" />
+							<Skeleton className="h-3 w-32" />
+						</div>
 					))}
 				</div>
-				<Skeleton className="h-64" />
+				<div className="grid gap-4 md:grid-cols-2">
+					{Array.from({ length: 2 }).map((_, i) => (
+						<div
+							key={i}
+							className="rounded-xl border bg-card p-4 space-y-3"
+						>
+							<Skeleton className="h-5 w-32" />
+							<Skeleton className="h-3 w-48" />
+							<div className="space-y-2">
+								{Array.from({ length: 3 }).map((_, j) => (
+									<Skeleton key={j} className="h-6 w-full" />
+								))}
+							</div>
+						</div>
+					))}
+				</div>
+				<div className="rounded-xl border bg-card p-4 space-y-3">
+					<Skeleton className="h-5 w-32" />
+					<Skeleton className="h-48 w-full" />
+				</div>
+				<div className="rounded-xl border bg-card p-4 space-y-3">
+					<Skeleton className="h-5 w-40" />
+					{Array.from({ length: 5 }).map((_, i) => (
+						<Skeleton key={i} className="h-10 w-full" />
+					))}
+				</div>
 			</div>
 		);
 	}
@@ -172,10 +223,6 @@ export default function LogisticsDashboardPage() {
 		},
 	];
 
-	const utilization =
-		dashboard?.equipmentUtilization != null
-			? `${(dashboard.equipmentUtilization * 100).toFixed(1)}%`
-			: '-';
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -230,85 +277,60 @@ export default function LogisticsDashboardPage() {
 				))}
 			</div>
 
-			<div className="grid gap-4 md:grid-cols-2">
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
 				<Card className="p-4 gap-2">
 					<CardHeader className="p-0">
-						<CardTitle>Execution</CardTitle>
+						<CardTitle>Shipment Status</CardTitle>
 						<CardDescription>
-							Delivery progress and fleet utilization
+							Current shipment pipeline
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-2 p-0">
-						<div className="flex justify-between">
-							<span className="text-sm">Delivered</span>
-							<Badge>
-								{dashboard?.deliveredShipments ?? 0} /{' '}
-								{dashboard?.totalShipments ?? 0}
-							</Badge>
-						</div>
-						<div className="flex justify-between">
-							<span className="text-sm">
-								Equipment Utilization
-							</span>
-							<Badge variant="outline">{utilization}</Badge>
-						</div>
-						<div className="flex justify-between">
-							<span className="text-sm">Available Assets</span>
-							<span className="text-sm font-medium">
-								{dashboard?.availableAssets ?? 0}
-							</span>
-						</div>
-						<Button
-							asChild
-							variant="outline"
-							size="sm"
-							className="w-full mt-2"
+					<CardContent className="p-0">
+						<ChartContainer
+							config={(
+								{ count: { label: 'Shipments', color: 'var(--chart-1)' } } satisfies ChartConfig
+							)}
+							className="h-64 w-full"
 						>
-							<Link href="/logistics/shipments">
-								Go to Shipments
-							</Link>
-						</Button>
+							<BarChart data={statusChartData}>
+								<CartesianGrid vertical={false} />
+								<XAxis dataKey="status" tickLine={false} axisLine={false} />
+								<ChartTooltip content={<ChartTooltipContent />} />
+								<Bar dataKey="count" radius={4} />
+							</BarChart>
+						</ChartContainer>
 					</CardContent>
 				</Card>
+
 				<Card className="p-4 gap-2">
 					<CardHeader className="p-0">
-						<CardTitle>Settlement</CardTitle>
-						<CardDescription>Revenue</CardDescription>
+						<CardTitle>Expected vs Actual Delivery</CardTitle>
+						<CardDescription>
+							Delivery performance over time
+						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-2 p-0">
-						<div className="flex justify-between">
-							<span className="text-sm">Total Revenue</span>
-							<span className="text-sm font-medium">
-								<Money amount={dashboard?.totalRevenue ?? 0} />
-							</span>
-						</div>
+					<CardContent className="p-0">
+						<ChartContainer
+							config={(
+								{
+									expected: { label: 'Expected', color: 'var(--chart-1)' },
+									actual: { label: 'Actual', color: 'var(--chart-2)' },
+								} satisfies ChartConfig
+							)}
+							className="h-64 w-full"
+						>
+							<BarChart data={deliveryChartData}>
+								<CartesianGrid vertical={false} />
+								<XAxis dataKey="date" tickLine={false} axisLine={false} />
+								<ChartTooltip content={<ChartTooltipContent />} />
+								<Bar dataKey="expected" fill="var(--chart-1)" radius={4} />
+								<Bar dataKey="actual" fill="var(--chart-2)" radius={4} />
+							</BarChart>
+						</ChartContainer>
 					</CardContent>
 				</Card>
 			</div>
-
-			<Card className="p-4 gap-2">
-				<CardHeader className="p-0">
-					<CardTitle>Shipment Status</CardTitle>
-					<CardDescription>
-						Current shipment pipeline
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="p-0">
-					<ChartContainer
-						config={(
-							{ count: { label: 'Shipments', color: 'var(--chart-1)' } } satisfies ChartConfig
-						)}
-						className="h-56 w-full"
-					>
-						<BarChart data={statusChartData}>
-							<CartesianGrid vertical={false} />
-							<XAxis dataKey="status" tickLine={false} axisLine={false} />
-							<ChartTooltip content={<ChartTooltipContent />} />
-							<Bar dataKey="count" radius={4} />
-						</BarChart>
-					</ChartContainer>
-				</CardContent>
-			</Card>
 
 			<div className="">
 				<CentralizedDataTable

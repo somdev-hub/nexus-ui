@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import {
     IconCircleCheckFilled,
@@ -63,6 +63,7 @@ const ACTIONABLE = new Set([
 ]);
 
 export default function SupplierContractsPage() {
+    const { toast } = useToast();
     const { name } = useUserMetadata();
     const [contracts, setContracts] = useState<SupplierContract[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -79,9 +80,7 @@ export default function SupplierContractsPage() {
             const res = await getSupplierContractsForSupplier(0, 100);
             setContracts(res.content ?? []);
         } catch (err: unknown) {
-            toast.error(
-                err instanceof Error ? err.message : 'Failed to load contracts'
-            );
+            toast({ title: err instanceof Error ? err.message : 'Failed to load contracts', variant: 'destructive' });
         } finally {
             setIsLoading(false);
         }
@@ -101,7 +100,7 @@ export default function SupplierContractsPage() {
         if (!confirm || busy) return;
         const { action, contract } = confirm;
         if (action !== 'approve' && !comments.trim()) {
-            toast.error('Please add comments');
+            toast({ title: 'Please add comments', variant: 'destructive' });
             return;
         }
         setBusy(true);
@@ -125,15 +124,13 @@ export default function SupplierContractsPage() {
                             decidedBy
                         );
             refreshContract(updated);
-            toast.success(
-                action === 'approve'
-                    ? 'Contract approved'
-                    : action === 'reject'
-                      ? 'Contract rejected'
-                      : 'Amendments requested'
-            );
+            toast({ title: action === 'approve'
+                ? 'Contract approved'
+                : action === 'reject'
+                  ? 'Contract rejected'
+                  : 'Amendments requested', variant: 'success' });
         } catch (err: unknown) {
-            toast.error(err instanceof Error ? err.message : 'Action failed');
+            toast({ title: err instanceof Error ? err.message : 'Action failed', variant: 'destructive' });
         } finally {
             setBusy(false);
             setConfirm(null);

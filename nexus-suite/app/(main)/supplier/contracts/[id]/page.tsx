@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Money } from '@/components/money';
@@ -45,6 +45,7 @@ const ACTIONABLE = new Set(['PENDING_APPROVAL', 'ACTIVE']);
 
 export default function SupplierContractDetailPage() {
     const params = useParams();
+    const { toast } = useToast();
     const { name } = useUserMetadata();
     const id = params.id as string;
     const numericId = Number(id);
@@ -89,7 +90,7 @@ export default function SupplierContractDetailPage() {
                         ? err.message
                         : 'Failed to load contract'
                 );
-                toast.error('Failed to load contract');
+                toast({ title: 'Failed to load contract', variant: 'destructive' });
             } finally {
                 if (active) setIsLoading(false);
             }
@@ -110,7 +111,7 @@ export default function SupplierContractDetailPage() {
     const handleConfirm = async () => {
         if (!contract || !confirm || busy) return;
         if (confirm !== 'approve' && !comments.trim()) {
-            toast.error('Please add comments');
+            toast({ title: 'Please add comments', variant: 'destructive' });
             return;
         }
         setBusy(true);
@@ -134,15 +135,13 @@ export default function SupplierContractDetailPage() {
                             decidedBy
                         );
             setContract(updated);
-            toast.success(
-                confirm === 'approve'
-                    ? 'Contract approved'
-                    : confirm === 'reject'
-                      ? 'Contract rejected'
-                      : 'Amendments requested'
-            );
+            toast({ title: confirm === 'approve'
+                ? 'Contract approved'
+                : confirm === 'reject'
+                  ? 'Contract rejected'
+                  : 'Amendments requested', variant: 'success' });
         } catch (err: unknown) {
-            toast.error(err instanceof Error ? err.message : 'Action failed');
+            toast({ title: err instanceof Error ? err.message : 'Action failed', variant: 'destructive' });
         } finally {
             setBusy(false);
             setConfirm(null);

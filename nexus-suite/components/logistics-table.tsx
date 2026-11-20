@@ -36,11 +36,10 @@ import {
     IconRoute,
     IconPackage,
 } from '@tabler/icons-react';
-import { toast } from 'sonner';
-
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     DropdownMenu,
@@ -245,6 +244,7 @@ export function LogisticsTable({
     isLoading = false,
 }: LogisticsTableProps) {
     const isMobile = useIsMobile();
+    const { toast } = useToast();
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] =
         React.useState<ColumnFiltersState>([]);
@@ -269,10 +269,10 @@ export function LogisticsTable({
                 status: 'TERMINATED',
             });
             setRemovedIds((prev) => [...prev, terminating.partnershipId]);
-            toast.success('Partnership terminated');
+            toast({ title: 'Partnership terminated', variant: 'success' });
         } catch (error) {
             console.error('Failed to terminate partnership:', error);
-            toast.error('Failed to terminate partnership');
+            toast({ title: 'Failed to terminate partnership', variant: 'destructive' });
         } finally {
             setTerminating(null);
         }

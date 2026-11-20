@@ -5,13 +5,14 @@ import { ProductTable } from '@/components/product-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getProducts } from '@/lib/services/products-service';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/types/products';
 
 export default function Page() {
     const [products, setProducts] = useState<Product[]>([]);
     const [totalElements, setTotalElements] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
         let isActive = true;
@@ -24,11 +25,12 @@ export default function Page() {
                 setTotalElements(res.totalElements);
             } catch (err: unknown) {
                 if (!isActive) return;
-                toast.error(
-                    err instanceof Error
+                toast({
+                    title: err instanceof Error
                         ? err.message
-                        : 'Failed to load products'
-                );
+                        : 'Failed to load products',
+                    variant: 'destructive'
+                });
             } finally {
                 if (isActive) setIsLoading(false);
             }

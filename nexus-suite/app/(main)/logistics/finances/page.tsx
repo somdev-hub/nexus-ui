@@ -47,7 +47,7 @@ import {
     Wallet,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 const PAGE_SIZE = 10;
 
@@ -72,13 +72,15 @@ export default function LogisticsFinancesPage() {
         { id: number; name: string }[]
     >([]);
 
+    const { toast } = useToast();
+
     const loadSummary = useCallback(async () => {
         try {
             setSummary(await getLogisticsFinanceSummary(period));
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Summary failed');
+            toast({ title: e instanceof Error ? e.message : 'Summary failed', variant: 'destructive' });
         }
-    }, [period]);
+    }, [period, toast]);
 
     const loadTxns = useCallback(async () => {
         setTxnLoading(true);
@@ -95,11 +97,11 @@ export default function LogisticsFinancesPage() {
                 })
             );
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Transactions failed');
+            toast({ title: e instanceof Error ? e.message : 'Transactions failed', variant: 'destructive' });
         } finally {
             setTxnLoading(false);
         }
-    }, [filter]);
+    }, [filter, toast]);
 
     useEffect(() => {
         setLoading(true);
@@ -141,11 +143,11 @@ export default function LogisticsFinancesPage() {
             setTrips(t.trips ?? []);
             setStatements(s?.statements ?? []);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Billing failed');
+            toast({ title: e instanceof Error ? e.message : 'Billing failed', variant: 'destructive' });
         } finally {
             setBillingLoading(false);
         }
-    }, [partnershipId]);
+    }, [partnershipId, toast]);
 
     useEffect(() => {
         loadBilling();

@@ -8,11 +8,12 @@ import { transitionInvoice } from '@/lib/services/procurement-extended-service';
 import type { SuiteIntent } from '@/types/payments';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 function CheckoutContent() {
     const params = useSearchParams();
     const ref = params.get('ref');
+    const { toast } = useToast();
 
     // Record settlement in the core ledger but stay on the success
     // screen — the checkout handles the delayed return itself.
@@ -26,11 +27,9 @@ function CheckoutContent() {
                         intent.mockPayment?.transactionReference ??
                         `SUITE-${intent.intentId}`,
                 });
-                toast.success(
-                    r.fullyCovered
-                        ? 'Settlement recorded — quote fully covered'
-                        : 'Settlement recorded — partial payment applied oldest-first'
-                );
+                toast({ title: r.fullyCovered
+                    ? 'Settlement recorded — quote fully covered'
+                    : 'Settlement recorded — partial payment applied oldest-first', variant: 'success' });
                 return;
             }
             if (!intent.invoiceId) return;
@@ -40,13 +39,12 @@ function CheckoutContent() {
                     `SUITE-${intent.intentId}`,
                 pmsPaymentId: intent.mockPaymentId,
             });
-            toast.success('Invoice marked PAID in ledger');
+            toast({ title: 'Invoice marked PAID in ledger', variant: 'success' });
         } catch (e) {
-            toast.error(
+            toast({ title:
                 e instanceof Error
                     ? `Paid, but ledger update failed: ${e.message}`
-                    : 'Paid, but ledger update failed'
-            );
+                    : 'Paid, but ledger update failed', variant: 'destructive' });
         }
     };
 

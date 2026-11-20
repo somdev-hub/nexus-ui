@@ -33,7 +33,7 @@ import {
 import Link from 'next/link';
 import { signup, createOrganization } from '@/lib/auth-service';
 import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 const organizationSchema = z.object({
     orgName: z.string().min(2, 'Organization name is required'),
@@ -58,6 +58,7 @@ export default function OrganizationPage() {
     const [personalData, setPersonalData] = useState<PersonalData | null>(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
 
     const form = useForm<OrganizationFormData>({
         resolver: zodResolver(organizationSchema),
@@ -111,7 +112,7 @@ export default function OrganizationPage() {
             };
             localStorage.setItem('auth_user', JSON.stringify(updatedUser));
             sessionStorage.removeItem('signupPersonalData');
-            toast.success('Account created successfully!');
+            toast({ title: 'Account created successfully!', variant: 'success' });
             router.push('/retailer/dashboard');
         } catch (err) {
             const errorMessage =
@@ -119,7 +120,7 @@ export default function OrganizationPage() {
                     ? err.message
                     : 'Signup failed. Please try again.';
             setError(errorMessage);
-            toast.error(errorMessage);
+            toast({ title: errorMessage, variant: 'destructive' });
         } finally {
             setIsLoading(false);
         }

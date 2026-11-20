@@ -13,7 +13,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { createProduct, deleteProduct } from '@/lib/services/products-service';
 
@@ -80,7 +80,8 @@ interface Product {
 
 const createColumns = (
     onDelete: (productId: number, productCode: string) => void,
-    onDuplicate: (product: Product) => void
+    onDuplicate: (product: Product) => void,
+    toast: (options: { title: string; variant: 'default' | 'destructive' | 'success' | 'warning' | 'info' }) => void
 ): ColumnDef<Product>[] => [
     {
         accessorKey: 'productName',
@@ -166,9 +167,10 @@ const createColumns = (
                         onSelect={() => {
                             const id = row.original.productId;
                             if (!id) {
-                                toast.error(
-                                    'Product ID missing — please refresh the list'
-                                );
+                                toast({
+                                    title: 'Product ID missing — please refresh the list',
+                                    variant: 'destructive'
+                                });
                                 return;
                             }
                             window.location.href = `/retailer/products/${id}`;
@@ -181,9 +183,10 @@ const createColumns = (
                         onSelect={() => {
                             const id = row.original.productId;
                             if (!id) {
-                                toast.error(
-                                    'Product ID missing — please refresh the list'
-                                );
+                                toast({
+                                    title: 'Product ID missing — please refresh the list',
+                                    variant: 'destructive'
+                                });
                                 return;
                             }
                             window.location.href = `/retailer/products/${id}/edit`;
@@ -223,6 +226,7 @@ export function ProductTable({
     products: Product[];
 }) {
     const [data, setData] = React.useState(() => initialData);
+    const { toast } = useToast();
 
     const [confirmingDelete, setConfirmingDelete] = React.useState<{
         productId: number;
@@ -235,13 +239,13 @@ export function ProductTable({
         try {
             await deleteProduct(productId);
             setData((prev) => prev.filter((p) => p.productId !== productId));
-            toast.success('Product deleted');
+            toast({ title: 'Product deleted', variant: 'success' });
         } catch {
-            toast.error('Failed to delete product. Please try again.');
+            toast({ title: 'Failed to delete product. Please try again.', variant: 'destructive' });
         } finally {
             setConfirmingDelete(null);
         }
-    }, [confirmingDelete]);
+    }, [confirmingDelete, toast]);
 
     const handleDuplicate = React.useCallback(async (product: Product) => {
         const copyCode = `${product.productCode || 'PRD'}-COPY-${Date.now().toString().slice(-6)}`;
@@ -268,11 +272,11 @@ export function ProductTable({
                 tags: product.tags,
             });
             setData((prev) => [created, ...prev]);
-            toast.success(`Duplicated as ${created.productCode}`);
+            toast({ title: `Duplicated as ${created.productCode}`, variant: 'success' });
         } catch {
-            toast.error('Failed to duplicate product. Please try again.');
+            toast({ title: 'Failed to duplicate product. Please try again.', variant: 'destructive' });
         }
-    }, []);
+    }, [toast]);
 
     const requestDelete = React.useCallback(
         (productId: number, productCode: string) => {
@@ -282,8 +286,8 @@ export function ProductTable({
     );
 
     const columns = React.useMemo(
-        () => createColumns(requestDelete, handleDuplicate),
-        [requestDelete, handleDuplicate]
+        () => createColumns(requestDelete, handleDuplicate, toast),
+        [requestDelete, handleDuplicate, toast]
     );
 
     const table = useTables<Product>({

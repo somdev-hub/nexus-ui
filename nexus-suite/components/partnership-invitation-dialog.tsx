@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -107,6 +107,7 @@ export function PartnershipInvitationDialog({
     onCreated,
 }: PartnershipInvitationDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
+    const { toast } = useToast();
     const isControlled = open !== undefined;
     const dialogOpen = isControlled ? open : internalOpen;
     const setDialogOpen = (v: boolean) => {
@@ -148,7 +149,7 @@ export function PartnershipInvitationDialog({
                 );
             })
             .catch(() => {
-                if (active) toast.error('Failed to load organizations');
+                if (active) toast({ title: 'Failed to load organizations', variant: 'destructive' });
             })
             .finally(() => {
                 if (active) setDirectoryLoading(false);
@@ -205,7 +206,7 @@ export function PartnershipInvitationDialog({
                 );
             })
             .catch(() => {
-                if (active) toast.error('Failed to load organizations');
+                if (active) toast({ title: 'Failed to load organizations', variant: 'destructive' });
             })
             .finally(() => {
                 if (active) setDirectoryLoading(false);
@@ -218,13 +219,14 @@ export function PartnershipInvitationDialog({
     const handleSubmit = async () => {
         const orgId = locked ? lockedOrgId : Number(selectedOrgId);
         if (!Number.isFinite(orgId) || orgId < 1) {
-            toast.error('Please select a counterparty organization');
+            toast({ title: 'Please select a counterparty organization', variant: 'destructive' });
             return;
         }
         if (pendingOrgIds.has(orgId)) {
-            toast.error(
-                'An invitation to this organization is already pending'
-            );
+            toast({
+                title: 'An invitation to this organization is already pending',
+                variant: 'destructive'
+            });
             return;
         }
         setSubmitting(true);
@@ -242,7 +244,7 @@ export function PartnershipInvitationDialog({
             } else {
                 await createRetailerInvitation(payload);
             }
-            toast.success('Partnership invitation sent');
+            toast({ title: 'Partnership invitation sent', variant: 'success' });
             setSelectedOrgId('');
             setProposedTerms('');
             setRetailerSupplierId('');
@@ -250,7 +252,7 @@ export function PartnershipInvitationDialog({
             setDialogOpen(false);
             onCreated?.();
         } catch (err: unknown) {
-            toast.error(extractServerMessage(err));
+            toast({ title: extractServerMessage(err), variant: 'destructive' });
         } finally {
             setSubmitting(false);
         }

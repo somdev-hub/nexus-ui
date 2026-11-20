@@ -24,9 +24,10 @@ import {
 } from '@/lib/services/organization-service';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 export default function OrganizationSettingsPage() {
+    const { toast } = useToast();
     const { orgId } = useUserMetadata();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -54,11 +55,9 @@ export default function OrganizationSettingsPage() {
                 setDisplayCurrency(current);
             } catch (err: unknown) {
                 if (!active) return;
-                toast.error(
-                    err instanceof Error
-                        ? err.message
-                        : 'Failed to load organization settings'
-                );
+                toast({ title: err instanceof Error
+                    ? err.message
+                    : 'Failed to load organization settings', variant: 'destructive' });
             } finally {
                 if (active) setLoading(false);
             }
@@ -75,13 +74,11 @@ export default function OrganizationSettingsPage() {
         try {
             await updateOrganizationCurrency(orgId, currency);
             setDisplayCurrency(currency);
-            toast.success('Default currency updated');
+            toast({ title: 'Default currency updated', variant: 'success' });
         } catch (err: unknown) {
-            toast.error(
-                err instanceof Error
-                    ? err.message
-                    : 'Failed to update default currency'
-            );
+            toast({ title: err instanceof Error
+                ? err.message
+                : 'Failed to update default currency', variant: 'destructive' });
         } finally {
             setSaving(false);
         }
