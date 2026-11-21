@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/lib/auth-context';
-import { resolveNotificationRoute } from '@/lib/notification-routes';
 import { notificationWebSocketService } from '@/lib/notification-websocket';
 import { NotificationMessage, NotificationPush } from '@/types/notifications';
 

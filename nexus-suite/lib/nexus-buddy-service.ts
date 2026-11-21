@@ -574,6 +574,115 @@ export async function getSeedStatus(): Promise<{ message: string; customEndpoint
 }
 
 // ============================================================================
+// CONVERSATION HISTORY APIs
+// ============================================================================
+
+export interface ServerConversation {
+    id: number;
+    userId: string;
+    orgId?: number;
+    title: string;
+    context?: string;
+    messagesJson: string;
+    backendConversationId?: string;
+    createdAt: string;
+    updatedAt: string;
+    isActive: boolean;
+}
+
+/**
+ * Get all conversations for a user.
+ */
+export async function getConversations(userId: string): Promise<ServerConversation[]> {
+    try {
+        const response = await apiClient.get<ServerConversation[]>(
+            `/nexusbuddy/api/conversations?userId=${encodeURIComponent(userId)}`
+        );
+        return response.data;
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to get conversations";
+        console.error("Get conversations error:", error);
+        throw new Error(errorMsg);
+    }
+}
+
+/**
+ * Get a specific conversation by ID.
+ */
+export async function getConversation(id: number, userId: string): Promise<ServerConversation> {
+    try {
+        const response = await apiClient.get<ServerConversation>(
+            `/nexusbuddy/api/conversations/${id}?userId=${encodeURIComponent(userId)}`
+        );
+        return response.data;
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to get conversation";
+        console.error("Get conversation error:", error);
+        throw new Error(errorMsg);
+    }
+}
+
+/**
+ * Create a new conversation.
+ */
+export async function createConversation(payload: {
+    userId: string;
+    orgId?: string;
+    title?: string;
+    context?: string;
+    messagesJson: string;
+    backendConversationId?: string;
+}): Promise<ServerConversation> {
+    try {
+        const response = await apiClient.post<ServerConversation>(
+            "/nexusbuddy/api/conversations",
+            payload
+        );
+        return response.data;
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to create conversation";
+        console.error("Create conversation error:", error);
+        throw new Error(errorMsg);
+    }
+}
+
+/**
+ * Update a conversation.
+ */
+export async function updateConversation(id: number, payload: {
+    userId: string;
+    title?: string;
+    messagesJson?: string;
+    backendConversationId?: string;
+    context?: string;
+}): Promise<ServerConversation> {
+    try {
+        const response = await apiClient.put<ServerConversation>(
+            `/nexusbuddy/api/conversations/${id}`,
+            payload
+        );
+        return response.data;
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to update conversation";
+        console.error("Update conversation error:", error);
+        throw new Error(errorMsg);
+    }
+}
+
+/**
+ * Delete a conversation.
+ */
+export async function deleteServerConversation(id: number, userId: string): Promise<void> {
+    try {
+        await apiClient.delete(`/nexusbuddy/api/conversations/${id}?userId=${encodeURIComponent(userId)}`);
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to delete conversation";
+        console.error("Delete conversation error:", error);
+        throw new Error(errorMsg);
+    }
+}
+
+// ============================================================================
 // HEALTH CHECK
 // ============================================================================
 

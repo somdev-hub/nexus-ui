@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    environment {
+        REGISTRY = "000000000000.dkr.ecr.us-east-1.localhost:4566"
+        IMAGE = "${REGISTRY}/nexus-admin"
+        AWS_REGION = "us-east-1"
+        CLUSTER_NAME = "nexus-cluster"
+        NAMESPACE = "default"
+        SERVICE_DIR = "nexus-ui/nexus-admin"
+        K8S_MANIFEST = "k8s/nexus-admin-deployment.yaml"
+        DEPLOYMENT_NAME = "nexus-admin"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Test') {
+            steps {
+                sh '''
+                    cd nexus-ui/nexus-admin
+                    npm ci
+                    npm test -- --watchAll=false
+                    cd ../..
+                '''
+            }
+        }
+        stage('Build & Push Image') {
+            steps {
+                script {
+                    docker.withRegistry("", "aws-ecr-credentials") {
+                        def img = docker.build("${IMAGE}:${env.BUILD_NUMBER}", "${SERVICE_DIR}")
+                        img.push("${env.BUILD_NUMBER}")
+                        img.push("latest")
+                    }
+                }
+            }
+        }
+        stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
+                    kubectl apply -f ${K8S_MANIFEST}
+                    kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=300s
+                '''
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

@@ -1,43 +1,77 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import {
-    nexusBuddyChat,
+    createConversation,
+    deleteServerConversation,
     executeNexusBuddyTool,
+    getConversations,
+    nexusBuddyChat,
+    updateConversation,
 } from "@/lib/nexus-buddy-service";
-import type { 
-    NexusBuddyChatRequest, 
-    NexusBuddyChatResponse, 
-    NexusBuddyToolCall,
-    ChatMessage 
+import type {
+    ChatMessage,
+    NexusBuddyChatRequest,
+    NexusBuddyToolCall
 } from "@/types/nexus-buddy";
+import { useCallback, useEffect, useState } from "react";
 
 interface UseNexusBuddyOptions {
-    useStreaming?: boolean;
     model?: string;
     temperature?: number;
     maxTokens?: number;
-    context?: string;  // Current page/context the chat is attached to
-    allowedTools?: string[];  // Guardrail: only allow specific tools (frontend-enforced allowlist)
+    context?: string;
+    allowedTools?: string[];
     onError?: (error: Error) => void;
+}
+
+export interface StoredConversation {
+    id: string;
+    title: string;
+    messages: ChatMessage[];
+    createdAt: string;
+    updatedAt: string;
+    context?: string;
+    conversationId?: string;
+    serverId?: number;
+}
+
+const formatToolResult = (result: unknown): string => {
+    if (typeof result === 'string') {
+        return result;
+    }
+    if (typeof result === 'object') {
+        try {
+            return JSON.stringify(result, null, 2);
+        } catch {
+            return String(result);
+        }
+    }
+    return String(result);
+};
+
+function generateTitle(content: string): string {
+    const cleaned = content.replace(/\n/g, " ").trim();
+    if (cleaned.length <= 40) return cleaned;
+    return cleaned.substring(0, 40) + "...";
 }
 
 export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
+    const [conversations, setConversations] = useState<StoredConversation[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const [activeServerId, setActiveServerId] = useState<number | null>(null);
     const { toast } = useToast();
 
-    // Get user context for data guardrails (user ID and org for backend filtering)
     const { user } = useAuth();
+    const userId = user?.id;
+    const orgId = user?.orgId;
 
     const {
-        useStreaming = true,
         model,
         temperature,
         maxTokens,
@@ -46,28 +80,40 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
         onError,
     } = options;
 
-    // Format tool result for display (defined here to avoid closure issues)
-    const formatToolResult = (result: unknown): string => {
-        if (typeof result === 'string') {
-            return result;
-        }
-        if (typeof result === 'object') {
+    // Load conversations from server on mount
+    useEffect(() => {
+        if (!userId) return;
+        let cancelled = false;
+        const load = async () => {
             try {
-                return JSON.stringify(result, null, 2);
-            } catch {
-                return String(result);
+                const serverConvs = await getConversations(userId);
+                if (cancelled) return;
+                const converted: StoredConversation[] = serverConvs.map(sc => ({
+                    id: String(sc.id),
+                    title: sc.title || "New Conversation",
+                    messages: sc.messagesJson ? JSON.parse(sc.messagesJson).map((m: ChatMessage) => ({
+                        ...m,
+                        timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp),
+                    })) : [],
+                    createdAt: sc.createdAt,
+                    updatedAt: sc.updatedAt,
+                    context: sc.context,
+                    conversationId: sc.backendConversationId,
+                    serverId: sc.id,
+                }));
+                setConversations(converted);
+            } catch (e) {
+                if (!cancelled) console.error("Failed to load conversations from server:", e);
             }
-        }
-        return String(result);
-    };
+        };
+        load();
+        return () => { cancelled = true; };
+    }, [userId]);
 
-    // Build chat request with user context for guardrails
-    // Backend will enforce data isolation based on userId, orgId, and context
     const buildChatRequest = useCallback((
         userMessage: string,
-        conversationHistory: Array<{ role: "user" | "assistant" | "system" | "tool"; content: string; toolCalls?: any }>
+        conversationHistory: Array<{ role: "user" | "assistant" | "system" | "tool"; content: string; toolCalls?: NexusBuddyToolCall[] }>
     ): NexusBuddyChatRequest => {
-        // Get permissions from localStorage if available (HR module pattern)
         const storedUser = typeof window !== 'undefined' 
             ? localStorage.getItem('auth_user') 
             : null;
@@ -84,48 +130,32 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
         return {
             message: userMessage,
             history: conversationHistory,
-            clientIds: undefined, // Let backend fetch all active client configs
+            clientIds: undefined,
             model,
             temperature,
             maxTokens,
             metadata: {
-                userId: user?.id,
-                orgId: user?.orgId,
+                userId: userId,
+                orgId: orgId,
                 context: context,
                 permissions: userPermissions,
                 allowedTools: allowedTools
             }
         };
-    }, [
-        user?.id, 
-        user?.orgId, 
-        model, 
-        temperature, 
-        maxTokens, 
-        context, 
-        allowedTools
-    ]);
+    }, [userId, orgId, model, temperature, maxTokens, context, allowedTools]);
 
-    // GUARDRAIL CHECK: Verify user has permission for tool (frontend enforcement)
-    // This is a defense-in-depth measure - backend is the source of truth
     const canUserUseTool = useCallback((toolName: string): boolean => {
-        // If allowedTools is specified (context-specific allowlist), use it
         if (allowedTools && allowedTools.length > 0) {
             return allowedTools.includes(toolName);
         }
-        
-        // If no allowlist specified, allow the tool (backend will still check permissions)
         return true;
     }, [allowedTools]);
 
-    // Execute tool with guardrails
     const resolveToolCall = useCallback(async (toolCall: NexusBuddyToolCall) => {
-        // GUARDRAIL CHECK: Verify tool is in allowlist
         if (!canUserUseTool(toolCall.name)) {
             throw new Error(`Tool '${toolCall.name}' is not allowed in this context`);
         }
 
-        // Add tool call to messages as pending
         const toolMessageId = `tool-${crypto.randomUUID()}`;
         const toolMessage: ChatMessage = {
             id: toolMessageId,
@@ -137,7 +167,6 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
         setMessages(prev => [...prev, toolMessage]);
 
         try {
-            // Get permissions from localStorage
             const storedUser = typeof window !== 'undefined' 
                 ? localStorage.getItem('auth_user') 
                 : null;
@@ -151,18 +180,15 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
                 // ignore parsing errors
             }
 
-            // Execute tool via backend API (NOT client-side!)
-            // Backend validates user/org permissions and enforces data guardrails
             const result = await executeNexusBuddyTool({
                 toolName: toolCall.name,
                 arguments: toolCall.arguments,
-                userId: user?.id,
-                orgId: user?.orgId,
+                userId: userId,
+                orgId: orgId,
                 context: context,
                 permissions: userPermissions
             });
 
-            // Update tool message with result
             setMessages(prev => prev.map(m => 
                 m.id === toolMessageId 
                     ? { 
@@ -173,7 +199,6 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
                     : m
             ));
 
-            // Add tool result as user message for context (per OpenAI semantics)
             const resultMessage: ChatMessage = {
                 id: crypto.randomUUID(),
                 role: "user",
@@ -199,16 +224,14 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
             
             return { success: false, error: errorMsg };
         }
-    }, [allowedTools, canUserUseTool, context, formatToolResult, user?.orgId, user?.id]);
+    }, [canUserUseTool, context, userId, orgId]);
 
-    // Main send function - handles message and tool calls
     const sendMessage = useCallback(async (content: string) => {
         if (isLoading) return;
 
         setIsLoading(true);
         setError(null);
 
-        // Add user message
         const user_msg: ChatMessage = {
             id: crypto.randomUUID(),
             role: "user",
@@ -219,15 +242,11 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
         setMessages(prev => [...prev, user_msg]);
 
         try {
-            // Build request with user context
             const request = buildChatRequest(content, messages);
 
-            // Send to Nexus Buddy
             const response = await nexusBuddyChat(request);
 
-            // Handle tool calls in response
             if (response.toolCalls && response.toolCalls.length > 0) {
-                // Process each tool call
                 for (const toolCall of response.toolCalls) {
                     const fullToolCall: NexusBuddyToolCall = {
                         ...toolCall,
@@ -247,7 +266,6 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
                     }
                 }
 
-                // Send follow-up message with tool results context
                 const followUpMessages = messages.filter(m => m.toolCall?.status === "completed");
                 if (followUpMessages.length > 0) {
                     const allMessagesForFollowup = [
@@ -274,7 +292,6 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
                     setConversationId(followUpResponse.conversationId);
                 }
             } else {
-                // No tool calls, just add assistant response
                 const assistantMessage: ChatMessage = {
                     id: crypto.randomUUID(),
                     role: "assistant",
@@ -307,33 +324,111 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
             onError?.(err as Error);
         } finally {
             setIsLoading(false);
-            setIsStreaming(false);
         }
-    }, [
-        isLoading,
-        messages,
-        buildChatRequest,
-        canUserUseTool,
-        context,
-        user?.orgId,
-        user?.id,
-        allowedTools,
-        onError,
-        setConversationId,
-        toast,
-        setError,
-        setIsLoading,
-        setIsStreaming
-    ]);
+    }, [isLoading, buildChatRequest, messages, resolveToolCall, toast, onError]);
 
-    // Retry failed message
+    // Save conversation to server when messages change
+    useEffect(() => {
+        if (messages.length === 0 || !userId) return;
+        
+        const messagesJson = JSON.stringify(messages);
+        
+        const save = async () => {
+            try {
+                if (activeServerId) {
+                    // Update existing
+                    await updateConversation(activeServerId, {
+                        userId,
+                        title: generateTitle(messages[0].content),
+                        messagesJson,
+                        backendConversationId: conversationId || undefined,
+                        context,
+                    });
+                } else {
+                    // Create new
+                    const created = await createConversation({
+                        userId,
+                        orgId: orgId,
+                        title: generateTitle(messages[0].content),
+                        context,
+                        messagesJson,
+                        backendConversationId: conversationId || undefined,
+                    });
+                    setActiveServerId(created.id);
+                    // Update conversations list
+                    const newConv: StoredConversation = {
+                        id: String(created.id),
+                        title: created.title || "New Conversation",
+                        messages,
+                        createdAt: created.createdAt,
+                        updatedAt: created.updatedAt,
+                        context,
+                        conversationId: created.backendConversationId,
+                        serverId: created.id,
+                    };
+                    setConversations(prev => [newConv, ...prev]);
+                }
+            } catch (e) {
+                console.error("Failed to save conversation to server:", e);
+            }
+        };
+        
+        // Debounce save
+        const timer = setTimeout(save, 1000);
+        return () => clearTimeout(timer);
+    }, [messages, activeServerId, userId, orgId, conversationId, context]);
+
+    const loadConversation = useCallback((convId: string) => {
+        const conv = conversations.find(c => c.id === convId);
+        if (conv) {
+            const messagesWithDates = conv.messages.map(m => ({
+                ...m,
+                timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp),
+            }));
+            setMessages(messagesWithDates);
+            setConversationId(conv.conversationId || null);
+            setActiveConversationId(conv.id);
+            setActiveServerId(conv.serverId || null);
+            setError(null);
+        }
+    }, [conversations]);
+
+    const newConversation = useCallback(() => {
+        setMessages([]);
+        setConversationId(null);
+        setError(null);
+        setActiveConversationId(null);
+        setActiveServerId(null);
+    }, []);
+
+    const deleteConversation = useCallback(async (convId: string) => {
+        const conv = conversations.find(c => c.id === convId);
+        if (!conv || !userId) return;
+        
+        try {
+            if (conv.serverId) {
+                await deleteServerConversation(conv.serverId, userId);
+            }
+            setConversations(prev => prev.filter(c => c.id !== convId));
+            if (activeConversationId === convId) {
+                newConversation();
+            }
+        } catch (e) {
+            console.error("Failed to delete conversation:", e);
+            toast({
+                title: "Error",
+                description: "Failed to delete conversation",
+                variant: "destructive",
+            });
+        }
+    }, [conversations, userId, activeConversationId, newConversation, toast]);
+
     const retryLastMessage = useCallback(() => {
         const lastUserMessage = [...messages]
             .reverse()
             .find((m) => m.role === "user");
         
         if (lastUserMessage) {
-            // Remove any failed assistant response
             setMessages(prev =>
                 prev.filter(
                     (m) =>
@@ -345,14 +440,14 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
         }
     }, [messages, sendMessage]);
 
-    // Clear conversation
     const clearConversation = useCallback(() => {
         setMessages([]);
         setConversationId(null);
         setError(null);
+        setActiveConversationId(null);
+        setActiveServerId(null);
     }, []);
 
-    // Clear only failed messages
     const clearFailedMessages = useCallback(() => {
         setMessages(prev => prev.filter(m => 
             !(m.role === "assistant" && m.status === "error")
@@ -362,12 +457,16 @@ export function useNexusBuddy(options: UseNexusBuddyOptions = {}) {
     return {
         messages,
         isLoading,
-        isStreaming,
         error,
         conversationId,
+        conversations,
+        activeConversationId,
         sendMessage,
         clearConversation,
         retryLastMessage,
         clearFailedMessages,
+        loadConversation,
+        newConversation,
+        deleteConversation,
     };
 }
