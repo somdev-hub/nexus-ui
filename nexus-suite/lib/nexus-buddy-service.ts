@@ -687,6 +687,20 @@ export async function deleteServerConversation(id: number, userId: string): Prom
 // ============================================================================
 
 /**
+ * Check if NexusBuddy service is online.
+ */
+export async function checkNexusBuddyHealth(): Promise<boolean> {
+    try {
+        const response = await apiClient.get<{ status: string }>(
+            "/nexusbuddy/api/chat/health"
+        );
+        return response.status === 200;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Check Nexus Buddy health status
  */
 export async function nexusBuddyHealthCheck(): Promise<{ status: string }> {

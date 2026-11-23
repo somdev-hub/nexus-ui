@@ -40,8 +40,25 @@ export function NexusBuddyChat({
 }: NexusBuddyChatProps) {
 	const [inputValue, setInputValue] = useState("");
 	const [copiedId, setCopiedId] = useState<string | null>(null);
+	const [isOnline, setIsOnline] = useState<boolean | null>(null);
 
 	const { toast } = useToast();
+
+	// Check health on mount
+	useEffect(() => {
+		let cancelled = false;
+		const check = async () => {
+			try {
+				const { checkNexusBuddyHealth } = await import("@/lib/nexus-buddy-service");
+				const online = await checkNexusBuddyHealth();
+				if (!cancelled) setIsOnline(online);
+			} catch {
+				if (!cancelled) setIsOnline(false);
+			}
+		};
+		check();
+		return () => { cancelled = true; };
+	}, []);
 
 	const {
 		messages: rawMessages,
@@ -157,12 +174,21 @@ export function NexusBuddyChat({
 								<Sparkles className="h-5 w-5" />
 							</AvatarFallback>
 						</Avatar>
-						<span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+						<span className={cn(
+							"absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
+							isOnline === false ? "bg-destructive" : "bg-green-500"
+						)} />
 					</div>
 					<div className="flex-1">
 						<h3 className="font-semibold text-base">{title}</h3>
 						<p className="text-xs text-muted-foreground">
-							{context ? `Context: ${context}` : "Online"}
+							{isOnline === false ? (
+								<span className="text-destructive">Offline • Service unavailable</span>
+							) : isOnline === true ? (
+								context ? `Context: ${context}` : "Online"
+							) : (
+								"Checking..."
+							)}
 						</p>
 					</div>
 					{allowedTools && allowedTools.length > 0 && (
@@ -365,6 +391,7 @@ export function NexusBuddyFloatingChat({
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [showHistory, setShowHistory] = useState(false);
+	const [isOnline, setIsOnline] = useState<boolean | null>(null);
 
 	// Lock body scroll when chat is open
 	useEffect(() => {
@@ -376,6 +403,23 @@ export function NexusBuddyFloatingChat({
 		return () => {
 			document.body.style.overflow = "";
 		};
+	}, [isOpen]);
+
+	// Check NexusBuddy health when chat opens
+	useEffect(() => {
+		if (!isOpen) return;
+		let cancelled = false;
+		const check = async () => {
+			try {
+				const { checkNexusBuddyHealth } = await import("@/lib/nexus-buddy-service");
+				const online = await checkNexusBuddyHealth();
+				if (!cancelled) setIsOnline(online);
+			} catch {
+				if (!cancelled) setIsOnline(false);
+			}
+		};
+		check();
+		return () => { cancelled = true; };
 	}, [isOpen]);
 
 	const [conversations, setConversations] = useState<Array<{
@@ -412,8 +456,9 @@ export function NexusBuddyFloatingChat({
 		}
 	}, []);
 
-	// Load on mount and when chat opens
+	// Load conversations only when chat is open
 	useEffect(() => {
+		if (!isOpen) return;
 		const timer = setTimeout(() => {
 			loadConversationsFromServer();
 		}, 0);
@@ -501,12 +546,21 @@ export function NexusBuddyFloatingChat({
 											<Sparkles className="h-5 w-5" />
 										</AvatarFallback>
 									</Avatar>
-									<span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+									<span className={cn(
+										"absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
+										isOnline === false ? "bg-destructive" : "bg-green-500"
+									)} />
 								</div>
 								<div>
 									<h3 className="font-semibold text-base">Nexus Buddy</h3>
 									<p className="text-xs text-muted-foreground">
-										{context ? `Context: ${context}` : "Online • AI Assistant"}
+										{isOnline === false ? (
+											<span className="text-destructive">Offline • Service unavailable</span>
+										) : isOnline === true ? (
+											context ? `Context: ${context}` : "Online • AI Assistant"
+										) : (
+											"Checking..."
+										)}
 									</p>
 								</div>
 							</div>
@@ -616,7 +670,23 @@ export function NexusBuddyChatBubble({
 	entityName?: string;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
+	const [isOnline, setIsOnline] = useState<boolean | null>(null);
 	const effectiveContext = context;
+
+	useEffect(() => {
+		let cancelled = false;
+		const check = async () => {
+			try {
+				const { checkNexusBuddyHealth } = await import("@/lib/nexus-buddy-service");
+				const online = await checkNexusBuddyHealth();
+				if (!cancelled) setIsOnline(online);
+			} catch {
+				if (!cancelled) setIsOnline(false);
+			}
+		};
+		check();
+		return () => { cancelled = true; };
+	}, []);
 
 	return (
 		<>
@@ -645,7 +715,13 @@ export function NexusBuddyChatBubble({
 										{entityName ? `AI Assistant for ${entityName}` : "Nexus Buddy"}
 									</h3>
 									<p className="text-xs text-muted-foreground">
-										{context ? `Context: ${context}` : "Online • AI Assistant"}
+										{isOnline === false ? (
+											<span className="text-destructive">Offline • Service unavailable</span>
+										) : isOnline === true ? (
+											context ? `Context: ${context}` : "Online • AI Assistant"
+										) : (
+											"Checking..."
+										)}
 									</p>
 								</div>
 							</div>

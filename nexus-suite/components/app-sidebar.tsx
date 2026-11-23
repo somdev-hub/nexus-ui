@@ -14,6 +14,7 @@ import {
     IconInnerShadowTop,
     IconLink,
     IconMail,
+    IconMessage,
     IconPackage,
     IconShare3,
     IconShoppingCart,
@@ -52,6 +53,8 @@ import {
 } from '@/components/ui/sidebar';
 import { requestQuickCreateMenu } from '@/lib/quick-create';
 import Link from 'next/link';
+import ChatDialog from '@/components/chat/ChatDialog';
+import { useState } from 'react';
 
 const retailerSections = [
     {
@@ -452,9 +455,10 @@ interface SidebarSection {
 
 interface SidebarNavSectionProps {
     section: SidebarSection;
+    onOpenChat?: () => void;
 }
 
-function SidebarNavSection({ section }: SidebarNavSectionProps) {
+function SidebarNavSection({ section, onOpenChat }: SidebarNavSectionProps) {
     const { isMobile } = useSidebar();
     const pathname = usePathname();
     const router = useRouter();
@@ -500,9 +504,10 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
                                 size="icon"
                                 className="size-8 group-data-[collapsible=icon]:opacity-0"
                                 variant="outline"
+                                onClick={onOpenChat}
                             >
                                 <IconMail />
-                                <span className="sr-only">Inbox</span>
+                                <span className="sr-only">Messages</span>
                             </Button>
                         </SidebarMenuItem>
                     </SidebarMenu>
@@ -596,6 +601,8 @@ function SidebarNavSection({ section }: SidebarNavSectionProps) {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const { user, isAuthenticated } = useAuth();
+    const [openChatDialog, setOpenChatDialog] = useState(false);
+    const handleOpenChat = () => setOpenChatDialog(true);
     const orgType = (user as any)?.orgType
         ? String((user as any).orgType).toUpperCase()
         : undefined;
@@ -659,6 +666,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             <SidebarNavSection
                                 key={section.id}
                                 section={section}
+                                onOpenChat={handleOpenChat}
                             />
                         ))
                     ) : (
@@ -689,6 +697,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarFooter>
             </Sidebar>
             <QuickCreateDialog />
+            <ChatDialog showDialog={openChatDialog} setOpenChatDialog={setOpenChatDialog} />
         </>
     );
 }
