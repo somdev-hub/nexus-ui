@@ -253,6 +253,7 @@ const SignupFormFourthPage = ({
 	control: Control<SignupForm, SignupForm>;
 }) => {
 	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	return (
 		<>
@@ -286,12 +287,27 @@ const SignupFormFourthPage = ({
 				render={({ field }) => (
 					<Field>
 						<FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
-						<Input
-							id="confirmPassword"
-							type="password"
-							placeholder="********"
-							{...field}
-						/>
+						<div className="relative">
+							<Input
+								id="confirmPassword"
+								type={showConfirmPassword ? "text" : "password"}
+								placeholder="********"
+								{...field}
+							/>
+							<div className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500">
+								{showConfirmPassword ? (
+									<EyeOff
+										onClick={() => setShowConfirmPassword(false)}
+										className="h-4 w-4"
+									/>
+								) : (
+									<Eye
+										onClick={() => setShowConfirmPassword(true)}
+										className="h-4 w-4"
+									/>
+								)}
+							</div>
+						</div>
 					</Field>
 				)}
 			/>

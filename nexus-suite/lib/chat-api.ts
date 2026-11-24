@@ -39,6 +39,7 @@ export interface ChatConversationParticipant {
   lastRead: string;
   lastMessageId?: number;
   updatedAt: string;
+  isAdmin?: boolean;
   isActive: boolean;
   // Inter-org fields
   orgId?: number;
@@ -216,9 +217,9 @@ class ChatApiService {
       return response.data;
     } catch (error) {
       const err = error as { response?: { data?: { description?: string; message?: string; serviceName?: string; serviceMethod?: string } }; message?: string };
-      const errorMsg = err?.response?.data?.description 
-        || err?.response?.data?.message 
-        || err?.message 
+      const errorMsg = err?.response?.data?.description
+        || err?.response?.data?.message
+        || err?.message
         || "Unknown error";
       console.error("[CHAT API] Error creating conversation:", JSON.stringify(err?.response?.data), error);
       throw new Error(errorMsg);
@@ -279,7 +280,8 @@ class ChatApiService {
     name?: string,
     description?: string,
     avatar?: File,
-    orgId?: number
+    orgId?: number,
+    participantId?: number
   ): Promise<ChatConversation> {
     try {
       const formData = new FormData();
@@ -298,8 +300,14 @@ class ChatApiService {
         formData.append("chatConversationAvatar", avatar);
       }
 
+      let url = `${this.apiPath}/conversation`;
+      const params = new URLSearchParams();
+      if (participantId) params.append("participantId", String(participantId));
+      if (orgId) params.append("orgId", String(orgId));
+      if (params.toString()) url += `?${params.toString()}`;
+
       const response = await apiClient.put<ChatConversation>(
-        `${this.apiPath}/conversation`,
+        url,
         formData
       );
       return response.data;
@@ -327,7 +335,8 @@ class ChatApiService {
 
   async sendMessage(
     payload: CreateMessagePayload,
-    files?: File[]
+    files?: File[],
+    orgId?: number
   ): Promise<ChatMessage> {
     try {
       const formData = new FormData();
@@ -342,8 +351,14 @@ class ChatApiService {
         });
       }
 
+      const params = new URLSearchParams();
+      params.append("participantId", String(payload.participantId));
+      if (orgId) {
+        params.append("orgId", String(orgId));
+      }
+
       const response = await apiClient.post<ChatMessage>(
-        `${this.apiPath}/message/`,
+        `${this.apiPath}/message?${params.toString()}`,
         formData
       );
       return response.data;
@@ -392,7 +407,7 @@ class ChatApiService {
       };
 
       const response = await apiClient.put<ChatMessage>(
-        `${this.apiPath}/message/`,
+        `${this.apiPath}/message`,
         payload
       );
       return response.data;
@@ -448,6 +463,73 @@ class ChatApiService {
       );
     } catch (error) {
       console.error("[CHAT API] Error removing participant:", error);
+      throw error;
+    }
+  }
+
+  async setAdmin(conversationId: number, participantId: number, adminId: number, isAdmin: boolean, orgId: number): Promise<void> {
+    try {
+      await apiClient.put(
+        `${this.apiPath}/conversation/${conversationId}/participants/${participantId}/admin?adminId=${adminId}&isAdmin=${isAdmin}&orgId=${orgId}`,
+        {}
+      );
+    } catch (error) {
+      console.error("[CHAT API] Error setting admin:", error);
+      throw error;
+    }
+  }
+
+  async deleteConversation(conversationId: number, participantId: number, orgId: number): Promise<void> {
+    try {
+      await apiClient.delete(`${this.apiPath}/conversation/${conversationId}?participantId=${participantId}&orgId=${orgId}`);
+    } catch (error) {
+      console.error("[CHAT API] Error deleting conversation:", error);
+      throw error;
+    }
+  }
+
+  async clearChatForSelf(conversationId: number, participantId: number, orgId: number): Promise<void> {
+    try {
+      await apiClient.post(`${this.apiPath}/conversation/${conversationId}/clear?participantId=${participantId}&orgId=${orgId}`, {});
+    } catch (error) {
+      console.error("[CHAT API] Error clearing chat:", error);
+      throw error;
+    }
+  }
+
+  async downloadChat(conversationId: number, participantId: number, orgId: number): Promise<Blob> {
+    try {
+      const response = await apiClient.get(`${this.apiPath}/conversation/${conversationId}/download?participantId=${participantId}&orgId=${orgId}`, {
+        responseType: 'text',
+      });
+      let text = response.data;
+      // If the response is a JSON-encoded string, parse it
+      if (typeof text === 'string') {
+        if (text.startsWith('"') && text.endsWith('"')) {
+          try {
+            text = JSON.parse(text);
+          } catch {
+            // Not JSON, use as-is
+          }
+        }
+        // Replace escaped newlines with actual newlines
+        text = text.replace(/\\n/g, '\n');
+      } else {
+        text = JSON.stringify(text);
+      }
+      return new Blob([text], { type: 'text/plain;charset=utf-8' });
+    } catch (error) {
+      console.error("[CHAT API] Error downloading chat:", error);
+      throw error;
+    }
+  }
+
+  async searchMessages(conversationId: number, participantId: number, orgId: number, query: string): Promise<ChatMessage[]> {
+    try {
+      const response = await apiClient.get(`${this.apiPath}/conversation/${conversationId}/search?participantId=${participantId}&orgId=${orgId}&query=${encodeURIComponent(query)}`);
+      return response.data;
+    } catch (error) {
+      console.error("[CHAT API] Error searching messages:", error);
       throw error;
     }
   }

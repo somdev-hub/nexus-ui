@@ -1,5 +1,3 @@
-import apiClient from '@/lib/api-client';
-import apiClientPublic from '@/lib/api-client-public';
 
 export interface LoginRequest {
     email: string;

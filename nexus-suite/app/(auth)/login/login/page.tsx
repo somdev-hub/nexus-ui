@@ -26,6 +26,7 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 const loginSchema = z.object({
     email: z.string().email('Please enter a valid email address'),
@@ -38,6 +39,7 @@ export default function LoginPage() {
     const { login, isLoading } = useAuth();
     const router = useRouter();
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const form = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
@@ -128,14 +130,28 @@ export default function LoginPage() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Password</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="password"
-                                                placeholder="••••••••"
-                                                disabled={isLoading}
-                                                {...field}
-                                            />
-                                        </FormControl>
+                                        <div className="relative">
+                                            <FormControl>
+                                                <Input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    placeholder="••••••••"
+                                                    disabled={isLoading}
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                                aria-label="Toggle password visibility"
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                         <FormMessage />
                                     </FormItem>
                                 )}

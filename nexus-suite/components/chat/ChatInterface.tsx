@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,7 +14,8 @@ import { useUserMetadata } from "@/hooks/use-user-metadata";
 import { chatApiService, ChatConversation, ChatConversationParticipant, ChatMessage, CreateConversationPayload, User } from "@/lib/chat-api";
 import { chatWebSocketService } from "@/lib/chat-websocket";
 import { cn } from "@/lib/utils";
-import { Building2, Check, CheckCheck, Loader2, MessageCircle, Plus, Search, Send, Users } from "lucide-react";
+import { Building2, Check, CheckCheck, Loader2, MessageCircle, Plus, Search, Send, Users, Trash2, Download, ArrowUpToLine, MessageSquare } from "lucide-react";
+import { IconDotsVertical } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface WsMessagePayload {
@@ -61,6 +63,7 @@ export function ChatInterface() {
 	const [selectedGroupUsers, setSelectedGroupUsers] = useState<User[]>([]);
 	const [groupSearchQuery, setGroupSearchQuery] = useState("");
 	const [groupSearchResults, setGroupSearchResults] = useState<User[]>([]);
+	const [isGroupSearching, setIsGroupSearching] = useState(false);
 	const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 	// Group management
 	const [isManageGroupOpen, setIsManageGroupOpen] = useState(false);
@@ -68,7 +71,15 @@ export function ChatInterface() {
 	const [manageGroupDescription, setManageGroupDescription] = useState("");
 	const [manageSearchQuery, setManageSearchQuery] = useState("");
 	const [manageSearchResults, setManageSearchResults] = useState<User[]>([]);
+	const [isManageSearching, setIsManageSearching] = useState(false);
 	const [selectedToAdd, setSelectedToAdd] = useState<User[]>([]);
+	const [actionLoading, setActionLoading] = useState<{ memberId: number; action: "admin" | "remove" } | null>(null);
+	const [isSavingGroupDetails, setIsSavingGroupDetails] = useState(false);
+	const [isAddingMembers, setIsAddingMembers] = useState(false);
+	const [isSearchingInChat, setIsSearchingInChat] = useState(false);
+	const [isClearingChat, setIsClearingChat] = useState(false);
+	const [isDeletingConversation, setIsDeletingConversation] = useState(false);
+	const [isDownloadingChat, setIsDownloadingChat] = useState(false);
 	const [selectedConvId, setSelectedConvId] = useState<number | null>(null);
 	const [selectedConvDetailsState, setSelectedConvDetails] = useState<ChatConversation | null>(null);
 	const selectedConvDetails = selectedConvId ? selectedConvDetailsState : null;
@@ -76,6 +87,7 @@ export function ChatInterface() {
 	const [typingUsers, setTypingUsers] = useState<number[]>([]);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+
 
 
 	// WebSocket connection lifecycle
@@ -284,11 +296,14 @@ export function ChatInterface() {
 			return () => clearTimeout(t);
 		}
 		const timer = setTimeout(async () => {
+			setIsGroupSearching(true);
 			try {
 				const results = await chatApiService.searchUsers(groupSearchQuery);
 				setGroupSearchResults(results);
 			} catch (e) {
 				console.error(e);
+			} finally {
+				setIsGroupSearching(false);
 			}
 		}, 500);
 		return () => clearTimeout(timer);
@@ -301,11 +316,14 @@ export function ChatInterface() {
 			return () => clearTimeout(t);
 		}
 		const timer = setTimeout(async () => {
+			setIsManageSearching(true);
 			try {
 				const results = await chatApiService.searchUsers(manageSearchQuery);
 				setManageSearchResults(results);
 			} catch (e) {
 				console.error(e);
+			} finally {
+				setIsManageSearching(false);
 			}
 		}, 500);
 		return () => clearTimeout(timer);
@@ -430,18 +448,22 @@ export function ChatInterface() {
 
 	const handleSaveGroupDetails = useCallback(async () => {
 		if (!selectedConvId || !userId || !orgId) return;
+		setIsSavingGroupDetails(true);
 		try {
-			const updated = await chatApiService.updateConversation(selectedConvId, manageGroupName.trim() || undefined, manageGroupDescription.trim() || undefined, undefined, orgId);
+			const updated = await chatApiService.updateConversation(selectedConvId, manageGroupName.trim() || undefined, manageGroupDescription.trim() || undefined, undefined, orgId, userId ?? undefined);
 			setSelectedConvDetails(updated);
 			setConversations((prev) => prev.map((c) => (c.chatConversationId === selectedConvId ? { ...c, chatConversationName: updated.chatConversationName } : c)));
 			toast({ title: "Group updated" });
 		} catch (e: unknown) {
 			toast({ title: "Failed to update group", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+		} finally {
+			setIsSavingGroupDetails(false);
 		}
 	}, [selectedConvId, userId, orgId, manageGroupName, manageGroupDescription, toast]);
 
 	const handleAddGroupMembers = useCallback(async () => {
 		if (!selectedConvId || !orgId || !userId || selectedToAdd.length === 0) return;
+		setIsAddingMembers(true);
 		try {
 			await chatApiService.addParticipants(selectedConvId, selectedToAdd.map((u) => u.id), orgId, userId);
 			// refresh details
@@ -453,33 +475,134 @@ export function ChatInterface() {
 			toast({ title: "Members added" });
 		} catch (e: unknown) {
 			toast({ title: "Failed to add members", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+		} finally {
+			setIsAddingMembers(false);
 		}
 	}, [selectedConvId, orgId, userId, selectedToAdd, toast]);
 
 	const handleRemoveMember = useCallback(async (memberId: number) => {
 		if (!selectedConvId || !orgId || !userId) return;
+		setActionLoading({ memberId, action: "remove" });
 		try {
 			await chatApiService.removeParticipant(selectedConvId, memberId, orgId, userId);
 			const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
 			setSelectedConvDetails(details);
 			toast({ title: "Member removed" });
 		} catch (e: unknown) {
-			toast({ title: "Failed to remove member", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+			const msg = e instanceof Error ? e.message : "Unknown error";
+			console.error("[REMOVE_MEMBER] Error:", e);
+			toast({ title: "Failed to remove member", description: msg, variant: "destructive" });
+		} finally {
+			console.log("[REMOVE_MEMBER] Resetting loading state");
+			setActionLoading(null);
 		}
 	}, [selectedConvId, orgId, userId, toast]);
+
+	const handleSetAdmin = useCallback(async (memberId: number, isAdmin: boolean) => {
+		if (!selectedConvId || !orgId || !userId) return;
+		setActionLoading({ memberId, action: "admin" });
+		try {
+			await chatApiService.setAdmin(selectedConvId, memberId, userId, isAdmin, orgId);
+			const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+			setSelectedConvDetails(details);
+			toast({ title: isAdmin ? "Admin granted" : "Admin removed" });
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : "Unknown error";
+			console.error("[SET_ADMIN] Error:", e);
+			toast({ title: "Failed to update admin", description: msg, variant: "destructive" });
+		} finally {
+			console.log("[SET_ADMIN] Resetting loading state");
+			setActionLoading(null);
+		}
+	}, [selectedConvId, orgId, userId, toast]);
+
+	const handleClearChat = useCallback(async () => {
+		if (!selectedConvId || !orgId || !userId) return;
+		setIsClearingChat(true);
+		try {
+			await chatApiService.clearChatForSelf(selectedConvId, userId, orgId);
+			const msgs = await chatApiService.getMessages(selectedConvId, userId, orgId);
+			setMessages(msgs);
+			toast({ title: "Chat cleared for you" });
+		} catch (e: unknown) {
+			toast({ title: "Failed to clear chat", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+		} finally {
+			setIsClearingChat(false);
+		}
+	}, [selectedConvId, orgId, userId, toast]);
+
+	const handleDeleteConversation = useCallback(async () => {
+		if (!selectedConvId || !orgId || !userId) return;
+		setIsDeletingConversation(true);
+		try {
+			await chatApiService.deleteConversation(selectedConvId, userId, orgId);
+			setConversations((prev) => prev.filter((c) => c.chatConversationId !== selectedConvId));
+			setSelectedConvId(null);
+			setSelectedConvDetails(null);
+			setMessages([]);
+			toast({ title: "Conversation deleted" });
+		} catch (e: unknown) {
+			toast({ title: "Failed to delete conversation", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+		} finally {
+			setIsDeletingConversation(false);
+		}
+	}, [selectedConvId, orgId, userId, toast]);
+
+	const handleDownloadChat = useCallback(async () => {
+		if (!selectedConvId || !orgId || !userId) return;
+		setIsDownloadingChat(true);
+		try {
+			const blob = await chatApiService.downloadChat(selectedConvId, userId, orgId);
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `chat-${selectedConvId}.txt`;
+			document.body.appendChild(a);
+			a.click();
+			window.URL.revokeObjectURL(url);
+			document.body.removeChild(a);
+			toast({ title: "Chat downloaded" });
+		} catch (e: unknown) {
+			toast({ title: "Failed to download chat", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+		} finally {
+			setIsDownloadingChat(false);
+		}
+	}, [selectedConvId, orgId, userId, toast]);
+
+	const [searchQueryInChat, setSearchQueryInChat] = useState("");
+	const [searchResultsInChat, setSearchResultsInChat] = useState<ChatMessage[]>([]);
+	const [isSearchInChatOpen, setIsSearchInChatOpen] = useState(false);
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+	const handleSearchInChat = useCallback(async () => {
+		if (!selectedConvId || !orgId || !userId || !searchQueryInChat.trim()) return;
+		setIsSearchingInChat(true);
+		try {
+			const results = await chatApiService.searchMessages(selectedConvId, userId, orgId, searchQueryInChat);
+			setSearchResultsInChat(results);
+		} catch (e: unknown) {
+			toast({ title: "Search failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+		} finally {
+			setIsSearchingInChat(false);
+		}
+	}, [selectedConvId, orgId, userId, searchQueryInChat, toast]);
 
 	const handleSendMessage = useCallback(async () => {
 		if (!newMessage.trim() || !selectedConvId || !userId) return;
 		setIsSending(true);
 		try {
-			const msg = await chatApiService.sendMessage({
-				chatConversationId: selectedConvId,
-				participantId: userId,
-				chatMessageText: newMessage,
-				chatMessageType: "TEXT",
-				chatMessageAttachmentList: [],
-				clientMessageId: (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()),
-			});
+			const msg = await chatApiService.sendMessage(
+				{
+					chatConversationId: selectedConvId,
+					participantId: userId,
+					chatMessageText: newMessage,
+					chatMessageType: "TEXT",
+					chatMessageAttachmentList: [],
+					clientMessageId: (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()),
+				},
+				undefined,
+				orgId ?? undefined
+			);
 			setMessages(prev => (prev.some((m) => m.chatMessageId === msg.chatMessageId) ? prev : [...prev, msg]));
 			setNewMessage("");
 			setConversations((prev) => {
@@ -501,7 +624,7 @@ export function ChatInterface() {
 		} finally {
 			setIsSending(false);
 		}
-	}, [newMessage, selectedConvId, userId, toast]);
+	}, [newMessage, selectedConvId, userId, orgId, toast]);
 
 	const selectedConv = conversations.find(c => c.chatConversationId === selectedConvId);
 
@@ -647,6 +770,11 @@ export function ChatInterface() {
 													)}
 												</div>
 											))}
+											{isSearching && (
+												<div className="flex items-center justify-center py-4">
+													<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+												</div>
+											)}
 											{searchResults.length === 0 && searchQuery && !isSearching && (
 												<p className="text-sm text-muted-foreground text-center py-4">
 													No users found
@@ -669,6 +797,11 @@ export function ChatInterface() {
 									<Input placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
 									<Input placeholder="Description (optional)" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} />
 									<Input placeholder="Search users to add..." value={groupSearchQuery} onChange={(e) => setGroupSearchQuery(e.target.value)} />
+									{isGroupSearching && (
+										<div className="flex items-center justify-center py-2">
+											<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+										</div>
+									)}
 									<ScrollArea className="h-40">
 										<div className="space-y-2">
 											{groupSearchResults.map((user) => {
@@ -722,14 +855,23 @@ export function ChatInterface() {
 						) : (
 							// Sort: conversations without lastMessageAt (new) first, then by lastMessageAt descending
 							[...conversations].sort((a, b) => {
-								const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : -Infinity;
-								const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : -Infinity;
+								const aNew = !a.lastMessageAt;
+								const bNew = !b.lastMessageAt;
+								if (aNew !== bNew) return aNew ? -1 : 1;
+								if (aNew) {
+									const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+									const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+									return cb - ca;
+								}
+								const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+								const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
 								return timeB - timeA;
 							}).map((conv) => {
 								const displayName = conv.chatConversationName || conv.otherParticipantName || "Conversation";
 								const avatarUrl = conv.otherParticipantAvatar;
-								const avatarFallback = conv.otherParticipantName?.charAt(0) || displayName.charAt(0);
-								const lastMsg = conv.lastMessage || <span className="font-bold">Start a conversation</span>;
+								const isGroup = conv.chatConversationType === "GROUP";
+								const avatarFallback = isGroup ? null : (conv.otherParticipantName?.charAt(0) || displayName.charAt(0));
+								const lastMsg = conv.lastMessage || <span className="text-primary font-medium">Start a conversation</span>;
 								const lastMsgTime = conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
 
 								return (
@@ -741,14 +883,25 @@ export function ChatInterface() {
 										)}
 										onClick={() => { setSelectedConvDetails(null); setSelectedConvId(conv.chatConversationId); setTypingUsers([]); }}
 									>
-										<div className="flex items-start gap-3">
+										<div className="flex items-center gap-3">
 											<Avatar className="h-10 w-10 shrink-0">
 												<AvatarImage src={avatarUrl} />
-												<AvatarFallback>{avatarFallback}</AvatarFallback>
+												<AvatarFallback className={isGroup ? "bg-primary/10" : ""}>
+													{isGroup ? <Users className="h-5 w-5 text-primary" /> : avatarFallback}
+												</AvatarFallback>
 											</Avatar>
 											<div className="flex-1 min-w-0">
 												<div className="flex items-center justify-between gap-2">
-													<p className="text-sm font-medium truncate">{displayName}</p>
+													<div className="flex gap-2 items-center">
+														<p className="text-sm font-medium truncate">{displayName}</p>
+														{conv.isInterOrg && (
+															<div className="mt-1">
+																<Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+																	Inter-org
+																</Badge>
+															</div>
+														)}
+													</div>
 													<div className="flex items-center gap-1 shrink-0">
 														{lastMsgTime && <span className="text-xs text-muted-foreground">{lastMsgTime}</span>}
 														{(conv.unreadCount ?? 0) > 0 && (
@@ -761,13 +914,7 @@ export function ChatInterface() {
 												<p className="text-sm text-muted-foreground truncate mt-0.5">
 													{lastMsg}
 												</p>
-												{conv.isInterOrg && (
-													<div className="mt-1">
-														<Badge variant="outline" className="text-[10px]">
-															Inter-org
-														</Badge>
-													</div>
-												)}
+
 											</div>
 										</div>
 									</div>
@@ -786,7 +933,8 @@ export function ChatInterface() {
 							{(() => {
 								const displayName = selectedConvDetails?.chatConversationName || selectedConv?.chatConversationName || selectedConv?.otherParticipantName || "Conversation";
 								const avatarUrl = selectedConvDetails?.chatConversationAvatar || selectedConv?.otherParticipantAvatar;
-								const avatarFallback = selectedConvDetails?.chatConversationName?.charAt(0) || selectedConv?.otherParticipantName?.charAt(0) || displayName.charAt(0);
+								const isGroupChat = selectedConvDetails?.chatConversationType === "GROUP" || selectedConv?.chatConversationType === "GROUP";
+								const avatarFallback = isGroupChat ? null : (selectedConvDetails?.chatConversationName?.charAt(0) || selectedConv?.otherParticipantName?.charAt(0) || displayName.charAt(0));
 
 								// Use conversation details for status, fallback to conversation list data
 								const participants = selectedConvDetails?.chatConversationParticipants;
@@ -797,7 +945,9 @@ export function ChatInterface() {
 										<div className="relative shrink-0">
 											<Avatar className="h-10 w-10">
 												<AvatarImage src={avatarUrl} />
-												<AvatarFallback>{avatarFallback}</AvatarFallback>
+												<AvatarFallback className={isGroupChat ? "bg-primary/10" : ""}>
+													{isGroupChat ? <Users className="h-5 w-5 text-primary" /> : avatarFallback}
+												</AvatarFallback>
 											</Avatar>
 											{/* Online indicator dot for direct chats */}
 											{participants && participants.length <= 2 && (
@@ -812,27 +962,91 @@ export function ChatInterface() {
 											)}
 										</div>
 										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2">
-												<h3 className="font-semibold truncate">{displayName}</h3>
+											<div className="flex items-center justify-between gap-2">
+												<div className="">
+													<div className="flex items-center gap-2 min-w-0">
+														<h3 className="font-semibold truncate">{displayName}</h3>
+														{selectedConvDetails?.isInterOrg && (
+															<Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Inter-org</Badge>
+														)}
+													</div>
 
-												{selectedConvDetails?.isInterOrg && (
-													<Badge variant="outline" className="text-xs">Inter-org</Badge>
-												)}
+													<p className="text-xs text-muted-foreground truncate">
+														{statusText || selectedConvDetails?.chatConversationDescription || "No status available"}
+													</p>
+												</div>
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button size="icon" variant="outline" className="h-9 w-9" aria-label="Conversation options">
+															<IconDotsVertical className="h-5 w-5" />
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent className="w-56" align="end">
+														<DropdownMenuItem
+															onClick={handleClearChat}
+															disabled={isClearingChat}
+															className="flex items-center gap-2"
+														>
+															{isClearingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+															Clear Chat (Self)
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															onClick={() => setIsDeleteDialogOpen(true)}
+															disabled={isDeletingConversation}
+															className="flex items-center gap-2 text-destructive"
+														>
+															{isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+															{selectedConvDetails?.chatConversationType === "GROUP" ? "Delete Group" : "Delete Conversation"}
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															onClick={handleDownloadChat}
+															disabled={isDownloadingChat}
+															className="flex items-center gap-2"
+														>
+															{isDownloadingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+															Download Chat
+														</DropdownMenuItem>
+														{selectedConvDetails?.chatConversationType === "GROUP" && (
+															<DropdownMenuItem
+																onClick={() => {
+																	openManageGroup();
+																}}
+																className="flex items-center gap-2"
+															>
+																<Users className="h-4 w-4" />
+																Edit Group Info
+															</DropdownMenuItem>
+														)}
+														<DropdownMenuItem
+															onClick={() => setIsSearchInChatOpen(true)}
+															className="flex items-center gap-2"
+														>
+															<Search className="h-4 w-4" />
+															Search in Chat
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															onClick={() => {
+																const scrollArea = document.querySelector('[data-messages-scroll]');
+																const viewport = scrollArea?.querySelector('[data-slot="scroll-area-viewport"]');
+																if (viewport) {
+																	viewport.scrollTo({ top: 0, behavior: 'smooth' });
+																}
+															}}
+															className="flex items-center gap-2"
+														>
+															<ArrowUpToLine className="h-4 w-4" />
+															Go to First Message
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+
 											</div>
-											<p className="text-xs text-muted-foreground truncate">
-												{statusText || selectedConvDetails?.chatConversationDescription || "No status available"}
-											</p>
-											{selectedConvDetails?.chatConversationType === "GROUP" && (
-												<Button size="sm" variant="outline" onClick={openManageGroup} className="mt-1">
-													Manage Group
-												</Button>
-											)}
 										</div>
 									</div>
 								);
 							})()}
 						</div>
-						<ScrollArea className="flex-1 min-h-0 p-4">
+						<ScrollArea data-messages-scroll className="flex-1 min-h-0 p-4">
 							{isLoadingMessages ? (
 								<div className="space-y-4">
 									{Array.from({ length: 5 }).map((_, i) => (
@@ -939,26 +1153,71 @@ export function ChatInterface() {
 				)}
 			</div>
 			<Dialog open={isManageGroupOpen} onOpenChange={setIsManageGroupOpen}>
-				<DialogContent>
+				<DialogContent className="max-h-[80vh] overflow-y-auto thin-scrollbar">
 					<DialogHeader>
 						<DialogTitle>Manage Group</DialogTitle>
 					</DialogHeader>
-					<div className="space-y-4">
+					<div className="space-y-3">
+						<div className="flex items-center gap-4">
+							<Avatar className="h-12 w-12">
+								<AvatarImage src={selectedConvDetails?.chatConversationAvatar} />
+								<AvatarFallback className="bg-primary/10">
+									<Users className="h-6 w-6 text-primary" />
+								</AvatarFallback>
+							</Avatar>
+							<div className="flex-1">
+								<label className="text-sm font-medium mb-1 block">Group Photo</label>
+								<input
+									type="file"
+									accept="image/*"
+									className="text-sm"
+									onChange={async (e) => {
+										const file = e.target.files?.[0];
+										if (!file || !selectedConvId || !userId || !orgId) return;
+										try {
+											await chatApiService.updateConversation(selectedConvId, manageGroupName || undefined, manageGroupDescription || undefined, file, orgId, userId ?? undefined);
+											const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+											setSelectedConvDetails(details);
+											toast({ title: "Group photo updated" });
+										} catch (err) {
+											toast({ title: "Failed to update photo", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+										}
+									}}
+								/>
+							</div>
+						</div>
 						<Input placeholder="Group name" value={manageGroupName} onChange={(e) => setManageGroupName(e.target.value)} />
 						<Input placeholder="Description" value={manageGroupDescription} onChange={(e) => setManageGroupDescription(e.target.value)} />
-						<Button onClick={handleSaveGroupDetails} className="w-full">Save Details</Button>
+						<Button onClick={handleSaveGroupDetails} disabled={isSavingGroupDetails} className="w-full">
+							{isSavingGroupDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Details"}
+						</Button>
 						<div className="border-t pt-3">
 							<p className="text-sm font-medium mb-2">Members</p>
-							<div className="space-y-2 max-h-40 overflow-y-auto">
+							<div className="space-y-2 max-h-32 overflow-y-auto thin-scrollbar">
 								{selectedConvDetails?.chatConversationParticipants?.map((m) => (
 									<div key={m.participantId} className="flex items-center gap-3 p-2 rounded-lg">
 										<Avatar className="h-8 w-8"><AvatarImage src={m.participantAvatar} /><AvatarFallback>{(m.participantName || "?").charAt(0)}</AvatarFallback></Avatar>
 										<div className="flex-1 min-w-0">
-											<p className="text-sm font-medium truncate">{m.participantName}</p>
+											<div className="flex items-center gap-2">
+												<p className="text-sm font-medium truncate">{m.participantName}</p>
+												{(m.isAdmin || m.isChatCreator) && <Badge variant="secondary" className="text-[9px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">Admin</Badge>}
+												{m.isChatCreator && <Badge variant="secondary" className="text-[9px] bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Creator</Badge>}
+											</div>
 											<p className="text-xs text-muted-foreground truncate">{m.participantRole}</p>
 										</div>
 										{m.participantId !== userId && (
-											<Button size="sm" variant="destructive" onClick={() => handleRemoveMember(m.participantId)}>Remove</Button>
+											<div className="flex items-center gap-1">
+												{(selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isAdmin || selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isChatCreator) && (
+													<Button size="sm" variant="outline" className="h-7 text-xs" disabled={actionLoading?.memberId === m.participantId} onClick={() => handleSetAdmin(m.participantId, !m.isAdmin)}>
+														{actionLoading?.memberId === m.participantId && actionLoading?.action === "admin" ? <Loader2 className="h-3 w-3 animate-spin" /> : (m.isAdmin ? "Remove Admin" : "Make Admin")}
+													</Button>
+												)}
+												{(selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isAdmin || selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isChatCreator) && (
+													<Button size="sm" variant="destructive" className="h-7 text-xs" disabled={actionLoading?.memberId === m.participantId} onClick={() => handleRemoveMember(m.participantId)}>
+														{actionLoading?.memberId === m.participantId && actionLoading?.action === "remove" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Remove"}
+													</Button>
+												)}
+											</div>
 										)}
 									</div>
 								))}
@@ -967,7 +1226,12 @@ export function ChatInterface() {
 						<div className="border-t pt-3">
 							<p className="text-sm font-medium mb-2">Add Members</p>
 							<Input placeholder="Search users..." value={manageSearchQuery} onChange={(e) => setManageSearchQuery(e.target.value)} />
-							<ScrollArea className="h-32 mt-2">
+							{isManageSearching && (
+								<div className="flex items-center justify-center py-2">
+									<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+								</div>
+							)}
+							<ScrollArea className="h-24 mt-2" scrollbarClassName="w-1.5">
 								<div className="space-y-2">
 									{manageSearchResults
 										.filter((u) => !selectedConvDetails?.chatConversationParticipants?.some((m) => m.participantId === u.id))
@@ -991,12 +1255,81 @@ export function ChatInterface() {
 								</div>
 							</ScrollArea>
 							{selectedToAdd.length > 0 && (
-								<Button onClick={handleAddGroupMembers} className="w-full mt-2">Add Selected ({selectedToAdd.length})</Button>
+								<Button onClick={handleAddGroupMembers} disabled={isAddingMembers} className="w-full mt-2">
+									{isAddingMembers ? <Loader2 className="h-4 w-4 animate-spin" /> : `Add Selected (${selectedToAdd.length})`}
+								</Button>
 							)}
+						</div>
+						<div className="border-t pt-3">
+							<Button variant="destructive" className="w-full" disabled={isDeletingConversation} onClick={() => {
+								setIsManageGroupOpen(false);
+								setIsDeleteDialogOpen(true);
+							}}>
+								{isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+								Delete Group
+							</Button>
 						</div>
 					</div>
 				</DialogContent>
 			</Dialog>
+			<Dialog open={isSearchInChatOpen} onOpenChange={setIsSearchInChatOpen}>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Search in Chat</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4">
+						<div className="flex gap-2">
+							<Input
+								placeholder="Search messages..."
+								value={searchQueryInChat}
+								onChange={(e) => setSearchQueryInChat(e.target.value)}
+								onKeyDown={(e) => e.key === "Enter" && handleSearchInChat()}
+							/>
+							<Button onClick={handleSearchInChat} disabled={!searchQueryInChat.trim() || isSearchingInChat}>
+								{isSearchingInChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+							</Button>
+						</div>
+						{searchResultsInChat.length > 0 && (
+							<ScrollArea className="h-80">
+								<div className="space-y-2">
+									{searchResultsInChat.map((msg) => (
+										<div key={msg.chatMessageId} className="p-3 border rounded-lg hover:bg-muted cursor-pointer">
+											<div className="flex items-center gap-2 mb-1">
+												<Avatar className="h-6 w-6">
+													<AvatarImage src={msg.chatConversationParticipant?.participantAvatar} />
+													<AvatarFallback>{msg.chatConversationParticipant?.participantName?.charAt(0) || "?"}</AvatarFallback>
+												</Avatar>
+												<p className="text-sm font-medium">{msg.chatConversationParticipant?.participantName}</p>
+												<p className="text-xs text-muted-foreground">{new Date(msg.sentAt).toLocaleString()}</p>
+											</div>
+											<p className="text-sm ml-8">{msg.chatMessageText}</p>
+										</div>
+									))}
+								</div>
+							</ScrollArea>
+						)}
+						{searchQueryInChat && searchResultsInChat.length === 0 && !isSearchInChatOpen && (
+							<p className="text-sm text-muted-foreground text-center py-4">No results found</p>
+						)}
+					</div>
+				</DialogContent>
+			</Dialog>
+			<AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will permanently delete {selectedConvDetails?.chatConversationType === "GROUP" ? "this group and all its messages" : "this conversation and all its messages"}. This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleDeleteConversation} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

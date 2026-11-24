@@ -249,6 +249,7 @@ const SignupFormFourthPage = ({
     control: Control<SignupForm, SignupForm>
 }) => {
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const profilePhotoRef = React.useRef<HTMLInputElement | null>(null);
     return (
         <>
@@ -321,7 +322,12 @@ const SignupFormFourthPage = ({
                 render={({ field }) => (
                     <Field>
                         <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
-                        <Input id="confirmPassword" type="password" placeholder="********" {...field} />
+                        <div className="relative">
+                            <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="********" {...field} />
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500 hover:*:text-gray-700">
+                                {showConfirmPassword ? <EyeOff onClick={() => setShowConfirmPassword(false)} className=" w-4 h-4" /> : <Eye onClick={() => setShowConfirmPassword(true)} className="w-4 h-4" />}
+                            </div>
+                        </div>
                     </Field>
                 )}
             />

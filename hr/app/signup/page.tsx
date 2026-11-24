@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Eye, EyeOff } from "lucide-react";
 import { FieldSeparator } from "@/components/ui/field";
 import type { PersonalFormData } from "@/types";
 
@@ -46,6 +46,8 @@ export default function SignupPage() {
     dateOfBirth: null
   });
   const [profilePreview, setProfilePreview] = useState<string>("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -436,16 +438,30 @@ export default function SignupPage() {
               <div className="flex gap-4 w-full">
                 <div className="space-y-2 flex-1">
                   <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    disabled={isLoading}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      disabled={isLoading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      aria-label="Toggle password visibility"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Minimum 6 characters
                   </p>
@@ -453,16 +469,30 @@ export default function SignupPage() {
 
                 <div className="space-y-2 flex-1">
                   <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    disabled={isLoading}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      disabled={isLoading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      aria-label="Toggle password visibility"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

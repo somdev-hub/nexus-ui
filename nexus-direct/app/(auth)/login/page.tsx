@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '@/components/ui/spinner';
-import { LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 
 const loginSchema = z.object({
     personalEmail: z.email({ message: "Invalid email address" }),
@@ -40,6 +40,7 @@ export function LoginForm({
         },
     })
     const [loading, setLoading] = React.useState(false);
+    const [showPassword, setShowPassword] = React.useState(false);
     const { toast } = useToast();
     const router = useRouter();
 
@@ -128,7 +129,12 @@ export function LoginForm({
                                                     Forgot your password?
                                                 </Link>
                                             </div>
-                                            <Input id="password" placeholder="••••••••" type="password" required {...field} />
+                                            <div className="relative">
+                                                <Input id="password" placeholder="••••••••" type={showPassword ? "text" : "password"} required {...field} />
+                                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-label="Toggle password visibility">
+                                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
                                             {fieldState.error && (
                                                 <FieldDescription className="text-destructive">
                                                     {fieldState.error.message}

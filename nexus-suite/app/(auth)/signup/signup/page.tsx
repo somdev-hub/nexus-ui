@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 const signupDetailedSchema = z
     .object({
@@ -46,6 +47,8 @@ export default function SignupPage() {
     const router = useRouter();
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const form = useForm<SignupDetailedFormData>({
         resolver: zodResolver(signupDetailedSchema),
@@ -184,14 +187,28 @@ export default function SignupPage() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Password *</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="password"
-                                                placeholder="••••••••"
-                                                disabled={isLoading}
-                                                {...field}
-                                            />
-                                        </FormControl>
+                                        <div className="relative">
+                                            <FormControl>
+                                                <Input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    placeholder="••••••••"
+                                                    disabled={isLoading}
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                                aria-label="Toggle password visibility"
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                         <FormMessage />
                                         <p className="text-xs text-muted-foreground">
                                             Minimum 6 characters
@@ -207,14 +224,28 @@ export default function SignupPage() {
                                         <FormLabel>
                                             Confirm Password *
                                         </FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="password"
-                                                placeholder="••••••••"
-                                                disabled={isLoading}
-                                                {...field}
-                                            />
-                                        </FormControl>
+                                        <div className="relative">
+                                            <FormControl>
+                                                <Input
+                                                    type={showConfirmPassword ? 'text' : 'password'}
+                                                    placeholder="••••••••"
+                                                    disabled={isLoading}
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                                aria-label="Toggle password visibility"
+                                            >
+                                                {showConfirmPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                         <FormMessage />
                                     </FormItem>
                                 )}

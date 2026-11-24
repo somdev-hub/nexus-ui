@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 const loginSchema = z.object({
     email: z.string().email("Please enter a valid email address"),
@@ -30,6 +30,7 @@ export default function LoginPage() {
     const { login, isLoading: authLoading } = useAuth();
     const router = useRouter();
     const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const {
@@ -93,13 +94,27 @@ export default function LoginPage() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="••••••••"
-                            disabled={isLoading || authLoading}
-                            {...register("password")}
-                        />
+                        <div className="relative">
+                            <Input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                disabled={isLoading || authLoading}
+                                {...register("password")}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                aria-label="Toggle password visibility"
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                ) : (
+                                    <Eye className="h-4 w-4" />
+                                )}
+                            </button>
+                        </div>
                         {errors.password && (
                             <p className="text-sm text-destructive">
                                 {errors.password.message}

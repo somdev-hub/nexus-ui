@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils';
 function ScrollArea({
     className,
     children,
+    scrollbarClassName,
     ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & { scrollbarClassName?: string }) {
     return (
         <ScrollAreaPrimitive.Root
             data-slot="scroll-area"
@@ -22,7 +23,7 @@ function ScrollArea({
             >
                 {children}
             </ScrollAreaPrimitive.Viewport>
-            <ScrollBar />
+            <ScrollBar className={scrollbarClassName} />
             <ScrollAreaPrimitive.Corner />
         </ScrollAreaPrimitive.Root>
     );
