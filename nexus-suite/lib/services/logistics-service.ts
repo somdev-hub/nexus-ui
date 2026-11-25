@@ -1,12 +1,11 @@
 import apiClient from '@/lib/api-client';
-import { PaginatedResponse } from '@/types/paginated-response';
 import type {
     LogisticsPartner,
     LogisticsPartnerCreateRequest,
-    LogisticsPartnerUpdateRequest,
     LogisticsPartnerFilter,
-    LogisticsPartnerPaginatedResponse,
+    LogisticsPartnerUpdateRequest
 } from '@/types/logistics';
+import { PaginatedResponse } from '@/types/paginated-response';
 
 // ─────────────────────────────────────────────────────────────
 // Logistics Partners API Service

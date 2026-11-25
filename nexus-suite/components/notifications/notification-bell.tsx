@@ -1,6 +1,7 @@
 'use client';
 
 import { Bell } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,8 @@ import { useAuth } from '@/lib/auth-context';
 
 export function NotificationBell() {
     const { user } = useAuth();
+    const shownRef = useRef<Set<number>>(new Set());
+    const [open, setOpen] = useState(false);
     const {
         unreadCount,
         items,
@@ -26,11 +29,21 @@ export function NotificationBell() {
         onNotification: (push) => {
             if (push.message) {
                 const m = push.message;
+                if (shownRef.current.has(m.notificationId)) return;
+                shownRef.current.add(m.notificationId);
                 toast(m.title, {
                     description: m.body,
                     action: {
                         label: 'Open',
                         onClick: () => {
+                            if (m.entityType === 'CHAT') {
+                                window.dispatchEvent(
+                                    new CustomEvent('open-chat-dialog', {
+                                        detail: { conversationId: m.entityId },
+                                    })
+                                );
+                                return;
+                            }
                             window.location.href = resolveNotificationRoute(
                                 m.entityType,
                                 m.entityId,
@@ -44,7 +57,7 @@ export function NotificationBell() {
     });
 
     return (
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
@@ -93,6 +106,17 @@ export function NotificationBell() {
                             className="flex w-full flex-col gap-1 border-b px-3 py-2 text-left transition hover:bg-accent/50 last:border-b-0"
                             onClick={() => {
                                 markRead(item.notificationId);
+                                setOpen(false);
+                                if (item.entityType === "CHAT") {
+                                    setTimeout(() => {
+                                        window.dispatchEvent(
+                                            new CustomEvent("open-chat-dialog", {
+                                                detail: { conversationId: item.entityId },
+                                            })
+                                        );
+                                    }, 0);
+                                    return;
+                                }
                                 window.location.href = resolveNotificationRoute(
                                     item.entityType,
                                     item.entityId,

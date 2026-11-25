@@ -1,7 +1,7 @@
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 
-export type ChatEventHandler = (data: any) => void;
+export type ChatEventHandler = (data: unknown) => void;
 
 export interface WebSocketConfig {
   onConnect?: () => void;
@@ -18,7 +18,7 @@ const TOKEN_ENDPOINT = "/api/chat/ws-token";
 class ChatWebSocketService {
   private client: Client | null = null;
   private config: WebSocketConfig | null = null;
-  private subscriptions: Map<string, any> = new Map();
+  private subscriptions: Map<string, unknown> = new Map();
   private isManualDisconnect = false;
 
   async connect(config: WebSocketConfig): Promise<void> {
@@ -67,7 +67,7 @@ class ChatWebSocketService {
     this.subscriptions.clear();
   }
 
-  subscribe(destination: string, callback: (data: any) => void): () => void {
+  subscribe(destination: string, callback: ChatEventHandler): () => void {
     if (!this.client || !this.client.connected) {
       console.warn("[WS] Not connected, cannot subscribe to", destination);
       return () => {};
@@ -89,7 +89,7 @@ class ChatWebSocketService {
     };
   }
 
-  send(destination: string, body: any): void {
+  send(destination: string, body: unknown): void {
     if (!this.client || !this.client.connected) {
       console.warn("[WS] Not connected, cannot send to", destination);
       return;

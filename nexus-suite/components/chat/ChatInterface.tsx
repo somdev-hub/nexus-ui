@@ -1,43 +1,24 @@
 "use client";
 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
-import { chatApiService, ChatConversation, ChatConversationParticipant, ChatMessage, CreateConversationPayload, User } from "@/lib/chat-api";
-import { chatWebSocketService } from "@/lib/chat-websocket";
+import { chatService } from "@/lib/services";
+import type { ChatConversation, ChatConversationParticipant, ChatMessage, CreateConversationPayload, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { Building2, Check, CheckCheck, Loader2, MessageCircle, Plus, Search, Send, Users, Trash2, Download, ArrowUpToLine, MessageSquare } from "lucide-react";
 import { IconDotsVertical } from "@tabler/icons-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUpToLine, Building2, Check, CheckCheck, Download, Loader2, MessageCircle, MessageSquare, Plus, Search, Send, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-interface WsMessagePayload {
-	chatMessageId?: number;
-	chatMessageText?: string;
-	chatMessageType?: ChatMessage["chatMessageType"];
-	chatMessageStatus?: ChatMessage["chatMessageStatus"];
-	sentAt?: string;
-	deliveredAt?: string;
-	receivedAt?: string;
-	updatedAt?: string;
-	chatConversationParticipant?: {
-		participantId?: number;
-		participantName?: string;
-		participantEmail?: string;
-		participantAvatar?: string;
-	};
-	chatMessageAttachmentList?: ChatMessage["chatMessageAttachmentList"];
-	messageSeenByList?: ChatMessage["messageSeenByList"];
-}
-
-export function ChatInterface() {
+export function ChatInterface({ initialConversationId }: { initialConversationId?: number | null }) {
 	const { userId: userIdStr, orgId: orgIdStr, name: userName, avatar: userAvatar } = useUserMetadata();
 	const userId = userIdStr ? Number(userIdStr) : null;
 	const orgId = orgIdStr ? Number(orgIdStr) : null;
@@ -80,9 +61,22 @@ export function ChatInterface() {
 	const [isClearingChat, setIsClearingChat] = useState(false);
 	const [isDeletingConversation, setIsDeletingConversation] = useState(false);
 	const [isDownloadingChat, setIsDownloadingChat] = useState(false);
-	const [selectedConvId, setSelectedConvId] = useState<number | null>(null);
+	const [selectedConvId, setSelectedConvId] = useState<number | null>(() => initialConversationId ?? null);
+	const firstUnreadIndex = useMemo(() => {
+		const idx = messages.findIndex((m) => {
+			const isMe = m.chatConversationParticipant?.participantId === userId;
+			if (isMe) return false;
+			return !(m.messageSeenByList && m.messageSeenByList.some((s) => s.participantId === userId));
+		});
+		return idx;
+	}, [messages, userId]);
 	const [selectedConvDetailsState, setSelectedConvDetails] = useState<ChatConversation | null>(null);
 	const selectedConvDetails = selectedConvId ? selectedConvDetailsState : null;
+	const selectedConvDetailsRef = useRef<ChatConversation | null>(null);
+	useEffect(() => { selectedConvDetailsRef.current = selectedConvDetails; }, [selectedConvDetails]);
+	const selectedConvIdRef = useRef<number | null>(null);
+	useEffect(() => { selectedConvIdRef.current = selectedConvId; }, [selectedConvId]);
+	const convSubsRef = useRef<Map<number, () => void>>(new Map());
 	const [wsConnected, setWsConnected] = useState(false);
 	const [typingUsers, setTypingUsers] = useState<number[]>([]);
 
@@ -94,8 +88,8 @@ export function ChatInterface() {
 	useEffect(() => {
 		if (!userId || !orgId) return;
 		let active = true;
-		chatWebSocketService
-			.connect({
+		chatService
+			.connectWebSocket({
 				onConnect: () => { if (active) setWsConnected(true); },
 				onDisconnect: () => { if (active) setWsConnected(false); },
 				onError: (err) => { if (active) console.error("[CHAT WS] error:", err); },
@@ -104,7 +98,7 @@ export function ChatInterface() {
 			.catch((e) => { if (active) { setWsConnected(false); console.error("[CHAT WS] connect failed:", e); } });
 		return () => {
 			active = false;
-			chatWebSocketService.disconnect();
+			chatService.disconnectWebSocket();
 			setWsConnected(false);
 		};
 	}, [userId, orgId]);
@@ -116,7 +110,7 @@ export function ChatInterface() {
 		const load = async () => {
 			setIsLoadingConvs(true);
 			try {
-				const convs = await chatApiService.getConversations(userId, orgId);
+				const convs = await chatService.getConversations(userId, orgId);
 				setConversations(convs);
 			} catch (e) {
 				console.error("Failed to load conversations:", e);
@@ -132,8 +126,13 @@ export function ChatInterface() {
 		const load = async () => {
 			setIsLoadingMessages(true);
 			try {
-				const msgs = await chatApiService.getMessages(selectedConvId, userId, orgId);
-				setMessages(msgs);
+				const msgs = await chatService.getMessages(selectedConvId, userId, orgId);
+				setMessages([...msgs].reverse());
+				setConversations((prev) =>
+					prev.map((c) =>
+						c.chatConversationId === selectedConvId ? { ...c, unreadCount: 0 } : c
+					)
+				);
 			} catch (e) {
 				console.error("Failed to load messages:", e);
 			} finally {
@@ -141,14 +140,27 @@ export function ChatInterface() {
 			}
 		};
 		load();
-	}, [selectedConvId, userId, orgId]);
+	}, [selectedConvId, userId, orgId, selectedConvDetails]);
 
 	// Fetch conversation details (includes participant statuses)
 	useEffect(() => {
 		if (!selectedConvId || !userId || !orgId) return;
 		const loadDetails = async () => {
 			try {
-				const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+				const details = await chatService.getConversationDetails(selectedConvId, userId, orgId);
+				// Fetch initial presence so already-online participants show as online
+				try {
+					const ids = details.chatConversationParticipants?.map((p) => p.participantId) ?? [];
+					if (ids.length) {
+						const statuses = await chatService.getPresenceStatuses(ids);
+						details.chatConversationParticipants = details.chatConversationParticipants?.map((p) => ({
+							...p,
+							chatParticipantCurrentStatus: statuses[p.participantId] ? "ONLINE" : (p.chatParticipantCurrentStatus || "OFFLINE"),
+						}));
+					}
+				} catch (e) {
+					console.warn("Failed to fetch presence statuses", e);
+				}
 				setSelectedConvDetails(details);
 			} catch (e) {
 				const axiosError = e as { response?: { data: unknown; status: number }; message?: string };
@@ -175,14 +187,12 @@ export function ChatInterface() {
 	// Subscribe to presence updates over WebSocket
 	useEffect(() => {
 		if (!wsConnected) return;
-		const unsub = chatWebSocketService.subscribe("/topic/presence", (data: unknown) => {
-			const evt = (data ?? {}) as { userId?: number; status?: string; at?: string };
-			if (!evt.userId) return;
+		const unsub = chatService.subscribeToPresence((evt) => {
 			setSelectedConvDetails((prev) => {
 				if (!prev?.chatConversationParticipants) return prev;
 				const updated = prev.chatConversationParticipants.map((p) =>
 					p.participantId === evt.userId
-						? { ...p, chatParticipantCurrentStatus: (evt.status === "ONLINE" ? "ONLINE" : "OFFLINE") as "ONLINE" | "OFFLINE", lastSeenAt: evt.at || p.lastSeenAt }
+						? { ...p, chatParticipantCurrentStatus: evt.status, lastSeenAt: evt.at || p.lastSeenAt }
 						: p
 				);
 				return { ...prev, chatConversationParticipants: updated };
@@ -191,14 +201,27 @@ export function ChatInterface() {
 		return () => unsub();
 	}, [wsConnected]);
 
-	// Subscribe to the selected conversation's real-time messages + typing
+	// Heartbeat to keep presence online
+	useEffect(() => {
+		if (!wsConnected || !userId) return;
+		const send = () => chatService.sendHeartbeat(userId);
+		send();
+		const interval = setInterval(send, 20000);
+		return () => clearInterval(interval);
+	}, [wsConnected, userId]);
+
+	// Subscribe to the selected conversation's real-time messages + typing + status updates
 	useEffect(() => {
 		if (!wsConnected || !selectedConvId) return;
-		const dest = `/topic/conversations/${selectedConvId}`;
-		const unsubMsg = chatWebSocketService.subscribe(dest, (data: unknown) => {
-			const evt = (data ?? {}) as { message?: WsMessagePayload } & WsMessagePayload;
-			const m = (evt.message ?? evt) as WsMessagePayload;
+
+		// Subscribe to new messages
+		const unsubMsg = chatService.subscribeToConversationMessages(selectedConvId, (m) => {
 			if (!m || typeof m.chatMessageId !== "number") return;
+			// Auto-ack messages from others to trigger read receipts
+			const senderParticipantId = m.chatConversationParticipant?.participantId;
+			if (senderParticipantId && senderParticipantId !== userId) {
+				chatService.acknowledgeMessage(m.chatMessageId);
+			}
 			const normalized: ChatMessage = {
 				chatMessageId: m.chatMessageId,
 				chatMessageText: m.chatMessageText,
@@ -242,8 +265,9 @@ export function ChatInterface() {
 				)
 			);
 		});
-		const unsubTyping = chatWebSocketService.subscribe(`/topic/conversations/${selectedConvId}/typing`, (data: unknown) => {
-			const evt = (data ?? {}) as { userId?: number; isTyping?: boolean };
+
+		// Subscribe to typing indicators
+		const unsubTyping = chatService.subscribeToTyping(selectedConvId, (evt) => {
 			const typingUserId = evt.userId;
 			if (typeof typingUserId !== "number" || typingUserId === userId) return;
 			setTypingUsers((prev) => {
@@ -254,11 +278,102 @@ export function ChatInterface() {
 				setTimeout(() => setTypingUsers((prev) => prev.filter((id) => id !== typingUserId)), 6000);
 			}
 		});
+
+		// Subscribe to status updates (read receipts)
+		const unsubStatus = chatService.subscribeToStatusUpdates(selectedConvId, (evt) => {
+			const msgId = evt.messageId;
+			const otherParticipants = (selectedConvDetailsRef.current?.chatConversationParticipants ?? []).filter((p) => p.participantId !== userId);
+			setMessages((prev) =>
+				prev.map((m) => {
+					if (m.chatMessageId > msgId) return m;
+					const seenBy = m.messageSeenByList && m.messageSeenByList.length
+						? m.messageSeenByList
+						: otherParticipants.map((p) => ({
+							participantId: p.participantId,
+							participantName: p.participantName,
+							participantAvatar: p.participantAvatar,
+						}));
+					return { ...m, chatMessageStatus: evt.status, messageSeenByList: seenBy };
+				})
+			);
+		});
+
 		return () => {
 			unsubMsg();
 			unsubTyping();
+			unsubStatus();
 		};
 	}, [wsConnected, selectedConvId, userId]);
+
+	// Polling fallback to keep conversation list fresh even if websocket misses an event
+	useEffect(() => {
+		if (!userId || !orgId) return;
+		const interval = setInterval(async () => {
+			try {
+				const fresh = await chatService.getConversations(userId, orgId);
+				setConversations((prev) => {
+					const prevMap = new Map(prev.map((c) => [c.chatConversationId, c]));
+					return fresh.map((c) => {
+						const old = prevMap.get(c.chatConversationId);
+						if (!old) return c;
+						const hadNew =
+							!!c.lastMessageAt &&
+							!!old.lastMessageAt &&
+							new Date(c.lastMessageAt).getTime() > new Date(old.lastMessageAt).getTime();
+						return {
+							...c,
+							unreadCount: hadNew
+								? (old.unreadCount ?? 0) + 1
+								: selectedConvIdRef.current === c.chatConversationId
+									? 0
+									: (old.unreadCount ?? c.unreadCount ?? 0),
+						};
+					});
+				});
+			} catch {
+				// ignore
+			}
+		}, 5000);
+		return () => clearInterval(interval);
+	}, [userId, orgId]);
+
+	// Global subscription: keep conversation list ordered and unread counts live
+	useEffect(() => {
+		if (!wsConnected) return;
+		const ids = conversations.map((c) => c.chatConversationId).sort((a, b) => a - b);
+		const unsubs = chatService.subscribeToGlobalConversations(ids, (evt) => {
+			setConversations((prev) => {
+				const idx = prev.findIndex((c) => c.chatConversationId === evt.conversationId);
+				if (idx === -1) return prev;
+				const updated = [...prev];
+				const conv = { ...updated[idx] };
+				if (evt.lastMessage) conv.lastMessage = evt.lastMessage;
+				if (evt.lastMessageAt) conv.lastMessageAt = evt.lastMessageAt;
+				if (evt.senderId != null) conv.lastMessageSenderId = evt.senderId;
+				if (evt.conversationId !== selectedConvIdRef.current && evt.senderId != null && evt.senderId !== userId) {
+					conv.unreadCount = (conv.unreadCount ?? 0) + 1;
+				}
+				updated.splice(idx, 1);
+				updated.unshift(conv);
+				return updated;
+			});
+		});
+		// Store unsubscribes in ref for cleanup
+		unsubs.forEach((unsub, index) => {
+			convSubsRef.current.set(ids[index], unsub);
+		});
+		// Capture current ref value for cleanup
+		const currentSubs = convSubsRef.current;
+		// cleanup removed conversations on re-run
+		return () => {
+			for (const [id, unsub] of Array.from(currentSubs.entries())) {
+				if (!ids.includes(id)) {
+					try { unsub(); } catch { /* ignore */ }
+					currentSubs.delete(id);
+				}
+			}
+		};
+	}, [wsConnected, selectedConvId, userId, conversations]);
 
 	const handleSearch = useCallback(async (query: string) => {
 		if (!query.trim()) {
@@ -267,7 +382,7 @@ export function ChatInterface() {
 		}
 		setIsSearching(true);
 		try {
-			const results = await chatApiService.searchUsers(query);
+			const results = await chatService.searchUsers(query);
 			setSearchResults(results);
 		} catch (e) {
 			console.error("Search failed:", e);
@@ -298,7 +413,7 @@ export function ChatInterface() {
 		const timer = setTimeout(async () => {
 			setIsGroupSearching(true);
 			try {
-				const results = await chatApiService.searchUsers(groupSearchQuery);
+				const results = await chatService.searchUsers(groupSearchQuery);
 				setGroupSearchResults(results);
 			} catch (e) {
 				console.error(e);
@@ -318,7 +433,7 @@ export function ChatInterface() {
 		const timer = setTimeout(async () => {
 			setIsManageSearching(true);
 			try {
-				const results = await chatApiService.searchUsers(manageSearchQuery);
+				const results = await chatService.searchUsers(manageSearchQuery);
 				setManageSearchResults(results);
 			} catch (e) {
 				console.error(e);
@@ -334,7 +449,7 @@ export function ChatInterface() {
 
 		setCreatingUserId(targetUser.id);
 		try {
-			const conv = await chatApiService.createConversation(
+			const conv = await chatService.createConversation(
 				{
 					chatConversationType: "DIRECT",
 					orgId: orgId,
@@ -408,7 +523,7 @@ export function ChatInterface() {
 					orgType: u.orgType,
 				})),
 			];
-			const conv = await chatApiService.createConversation(
+			const conv = await chatService.createConversation(
 				{
 					chatConversationName: groupName.trim(),
 					chatConversationDescription: groupDescription.trim() || undefined,
@@ -450,7 +565,7 @@ export function ChatInterface() {
 		if (!selectedConvId || !userId || !orgId) return;
 		setIsSavingGroupDetails(true);
 		try {
-			const updated = await chatApiService.updateConversation(selectedConvId, manageGroupName.trim() || undefined, manageGroupDescription.trim() || undefined, undefined, orgId, userId ?? undefined);
+			const updated = await chatService.updateConversation(selectedConvId, manageGroupName.trim() || undefined, manageGroupDescription.trim() || undefined, undefined, orgId, userId ?? undefined);
 			setSelectedConvDetails(updated);
 			setConversations((prev) => prev.map((c) => (c.chatConversationId === selectedConvId ? { ...c, chatConversationName: updated.chatConversationName } : c)));
 			toast({ title: "Group updated" });
@@ -465,9 +580,9 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId || selectedToAdd.length === 0) return;
 		setIsAddingMembers(true);
 		try {
-			await chatApiService.addParticipants(selectedConvId, selectedToAdd.map((u) => u.id), orgId, userId);
+			await chatService.addParticipants(selectedConvId, selectedToAdd.map((u) => u.id), orgId, userId);
 			// refresh details
-			const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+			const details = await chatService.getConversationDetails(selectedConvId, userId, orgId);
 			setSelectedConvDetails(details);
 			setSelectedToAdd([]);
 			setManageSearchQuery("");
@@ -484,8 +599,8 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId) return;
 		setActionLoading({ memberId, action: "remove" });
 		try {
-			await chatApiService.removeParticipant(selectedConvId, memberId, orgId, userId);
-			const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+			await chatService.removeParticipant(selectedConvId, memberId, orgId, userId);
+			const details = await chatService.getConversationDetails(selectedConvId, userId, orgId);
 			setSelectedConvDetails(details);
 			toast({ title: "Member removed" });
 		} catch (e: unknown) {
@@ -502,8 +617,8 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId) return;
 		setActionLoading({ memberId, action: "admin" });
 		try {
-			await chatApiService.setAdmin(selectedConvId, memberId, userId, isAdmin, orgId);
-			const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+			await chatService.setAdmin(selectedConvId, memberId, userId, isAdmin, orgId);
+			const details = await chatService.getConversationDetails(selectedConvId, userId, orgId);
 			setSelectedConvDetails(details);
 			toast({ title: isAdmin ? "Admin granted" : "Admin removed" });
 		} catch (e: unknown) {
@@ -520,9 +635,9 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId) return;
 		setIsClearingChat(true);
 		try {
-			await chatApiService.clearChatForSelf(selectedConvId, userId, orgId);
-			const msgs = await chatApiService.getMessages(selectedConvId, userId, orgId);
-			setMessages(msgs);
+			await chatService.clearChatForSelf(selectedConvId, userId, orgId);
+			const msgs = await chatService.getMessages(selectedConvId, userId, orgId);
+			setMessages([...msgs].reverse());
 			toast({ title: "Chat cleared for you" });
 		} catch (e: unknown) {
 			toast({ title: "Failed to clear chat", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
@@ -535,7 +650,7 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId) return;
 		setIsDeletingConversation(true);
 		try {
-			await chatApiService.deleteConversation(selectedConvId, userId, orgId);
+			await chatService.deleteConversation(selectedConvId, userId, orgId);
 			setConversations((prev) => prev.filter((c) => c.chatConversationId !== selectedConvId));
 			setSelectedConvId(null);
 			setSelectedConvDetails(null);
@@ -552,7 +667,7 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId) return;
 		setIsDownloadingChat(true);
 		try {
-			const blob = await chatApiService.downloadChat(selectedConvId, userId, orgId);
+			const blob = await chatService.downloadChat(selectedConvId, userId, orgId);
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
@@ -578,7 +693,7 @@ export function ChatInterface() {
 		if (!selectedConvId || !orgId || !userId || !searchQueryInChat.trim()) return;
 		setIsSearchingInChat(true);
 		try {
-			const results = await chatApiService.searchMessages(selectedConvId, userId, orgId, searchQueryInChat);
+			const results = await chatService.searchMessages(selectedConvId, userId, orgId, searchQueryInChat);
 			setSearchResultsInChat(results);
 		} catch (e: unknown) {
 			toast({ title: "Search failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
@@ -591,7 +706,7 @@ export function ChatInterface() {
 		if (!newMessage.trim() || !selectedConvId || !userId) return;
 		setIsSending(true);
 		try {
-			const msg = await chatApiService.sendMessage(
+			const msg = await chatService.sendMessage(
 				{
 					chatConversationId: selectedConvId,
 					participantId: userId,
@@ -990,14 +1105,17 @@ export function ChatInterface() {
 															{isClearingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
 															Clear Chat (Self)
 														</DropdownMenuItem>
-														<DropdownMenuItem
-															onClick={() => setIsDeleteDialogOpen(true)}
-															disabled={isDeletingConversation}
-															className="flex items-center gap-2 text-destructive"
-														>
-															{isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-															{selectedConvDetails?.chatConversationType === "GROUP" ? "Delete Group" : "Delete Conversation"}
-														</DropdownMenuItem>
+														{(selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isAdmin ||
+															selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isChatCreator) && (
+																<DropdownMenuItem
+																	onClick={() => setIsDeleteDialogOpen(true)}
+																	disabled={isDeletingConversation}
+																	className="flex items-center gap-2 text-destructive"
+																>
+																	{isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+																	{selectedConvDetails?.chatConversationType === "GROUP" ? "Delete Group" : "Delete Conversation"}
+																</DropdownMenuItem>
+															)}
 														<DropdownMenuItem
 															onClick={handleDownloadChat}
 															disabled={isDownloadingChat}
@@ -1006,17 +1124,19 @@ export function ChatInterface() {
 															{isDownloadingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
 															Download Chat
 														</DropdownMenuItem>
-														{selectedConvDetails?.chatConversationType === "GROUP" && (
-															<DropdownMenuItem
-																onClick={() => {
-																	openManageGroup();
-																}}
-																className="flex items-center gap-2"
-															>
-																<Users className="h-4 w-4" />
-																Edit Group Info
-															</DropdownMenuItem>
-														)}
+														{selectedConvDetails?.chatConversationType === "GROUP" &&
+															(selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isAdmin ||
+																selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isChatCreator) && (
+																<DropdownMenuItem
+																	onClick={() => {
+																		openManageGroup();
+																	}}
+																	className="flex items-center gap-2"
+																>
+																	<Users className="h-4 w-4" />
+																	Edit Group Info
+																</DropdownMenuItem>
+															)}
 														<DropdownMenuItem
 															onClick={() => setIsSearchInChatOpen(true)}
 															className="flex items-center gap-2"
@@ -1065,50 +1185,64 @@ export function ChatInterface() {
 								</p>
 							) : (
 								<div className="space-y-4">
-									{messages.map((msg) => {
+									{messages.map((msg, index) => {
 										const participant = msg.chatConversationParticipant;
+										const showNewDivider = index === firstUnreadIndex && firstUnreadIndex !== -1;
 										const isMe = participant?.participantId === userId;
 										return (
-											<div
-												key={msg.chatMessageId}
-												className={cn("flex gap-2", isMe ? "flex-row-reverse" : "flex-row")}
-											>
-												<Avatar className="h-8 w-8 shrink-0">
-													<AvatarImage src={participant?.participantAvatar} />
-													<AvatarFallback>{(participant?.participantName || "?").charAt(0)}</AvatarFallback>
-												</Avatar>
-												<div className={cn("max-w-[70%]", isMe ? "items-end" : "items-start")}>
-													<div className="flex items-center gap-1 mb-1">
-														<span className="text-xs font-medium">{participant?.participantName || "Unknown"}</span>
-														{participant?.orgType && (
-															<Badge className={cn("text-[9px] px-1", getOrgBadgeColor(participant.orgType))}>
-																{participant.orgType}
-															</Badge>
-														)}
+											<div key={msg.chatMessageId} className="space-y-2">
+												{showNewDivider && (
+													<div className="flex items-center gap-2 py-2">
+														<div className="flex-1 h-px bg-border" />
+														<span className="text-xs text-muted-foreground font-medium">New Messages</span>
+														<div className="flex-1 h-px bg-border" />
 													</div>
-													<div className={cn(
-														"rounded-2xl px-3 py-2 text-sm",
-														isMe ? "bg-primary text-primary-foreground" : "bg-muted"
-													)}>
-														{msg.chatMessageText}
+												)}
+												{!msg.chatConversationParticipant ? (
+													<div className="flex justify-center">
+														<span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">{msg.chatMessageText}</span>
 													</div>
-													<div className="flex items-center gap-1 mt-1">
-														<p className="text-[10px] text-muted-foreground">
-															{new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-														</p>
-														{isMe && (
-															<span className="text-muted-foreground">
-																{msg.messageSeenByList && msg.messageSeenByList.length > 0 ? (
-																	<CheckCheck className="h-3 w-3 text-blue-500" />
-																) : msg.chatMessageStatus === "DELIVERED" || msg.chatMessageStatus === "RECEIVED" ? (
-																	<CheckCheck className="h-3 w-3" />
-																) : (
-																	<Check className="h-3 w-3" />
+												) : (
+													<div className={cn("flex gap-2 items-center", isMe ? "flex-row-reverse" : "flex-row")}>
+														<Avatar className="h-8 w-8 shrink-0">
+															<AvatarImage src={participant?.participantAvatar} />
+															<AvatarFallback>{(participant?.participantName || "?").charAt(0)}</AvatarFallback>
+														</Avatar>
+														<div className={cn("max-w-[70%]", isMe ? "items-end" : "items-start")}>
+															<div className="flex items-center gap-1 mb-1">
+																<span className="text-xs font-medium">{participant?.participantName || "Unknown"}</span>
+																{participant?.orgType && (
+																	<Badge className={cn("text-[9px] px-1", getOrgBadgeColor(participant.orgType))}>
+																		{participant.orgType}
+																	</Badge>
 																)}
-															</span>
-														)}
+															</div>
+															<div className={cn(
+																"rounded-2xl px-3 py-2 text-sm",
+																isMe ? "bg-primary text-primary-foreground" : "bg-muted"
+															)}>
+																{msg.chatMessageText}
+															</div>
+															<div className="flex items-center gap-1 mt-1">
+																<p className="text-[10px] text-muted-foreground">
+																	{new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+																</p>
+																{isMe && (
+																	<span className="text-muted-foreground">
+																		{msg.messageSeenByList && msg.messageSeenByList.length > 0 ? (
+																			<CheckCheck className="h-3 w-3 text-blue-500" />
+																		) : msg.chatMessageStatus === "DELIVERED" || msg.chatMessageStatus === "RECEIVED" ? (
+																			<CheckCheck className="h-3 w-3" />
+																		) : (
+																			<Check className="h-3 w-3" />
+																		)}
+																	</span>
+																)}
+															</div>
+														</div>
 													</div>
-												</div>
+												)
+												}
 											</div>
 										);
 									})}
@@ -1130,8 +1264,8 @@ export function ChatInterface() {
 								value={newMessage}
 								onChange={(e) => {
 									setNewMessage(e.target.value);
-									if (wsConnected && selectedConvId) {
-										chatWebSocketService.send(`/app/cms/chat/ws/typing/${selectedConvId}`, {});
+									if (wsConnected && selectedConvId && userId) {
+										chatService.sendTypingIndicator(selectedConvId, userId, true);
 									}
 								}}
 								onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
@@ -1175,8 +1309,8 @@ export function ChatInterface() {
 										const file = e.target.files?.[0];
 										if (!file || !selectedConvId || !userId || !orgId) return;
 										try {
-											await chatApiService.updateConversation(selectedConvId, manageGroupName || undefined, manageGroupDescription || undefined, file, orgId, userId ?? undefined);
-											const details = await chatApiService.getConversationDetails(selectedConvId, userId, orgId);
+											await chatService.updateConversation(selectedConvId, manageGroupName || undefined, manageGroupDescription || undefined, file, orgId, userId ?? undefined);
+											const details = await chatService.getConversationDetails(selectedConvId, userId, orgId);
 											setSelectedConvDetails(details);
 											toast({ title: "Group photo updated" });
 										} catch (err) {

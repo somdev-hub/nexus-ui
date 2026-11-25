@@ -38,7 +38,30 @@ export interface NotificationState {
 export function useNotifications(options: UseNotificationsOptions = {}): NotificationState {
     const { user } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
-    const [items, setItems] = useState<NotificationMessage[]>([]);
+    const CHAT_NOTIFICATIONS_KEY = 'chat_notifications';
+
+    function loadChatNotifications(): NotificationMessage[] {
+        try {
+            const raw = localStorage.getItem(CHAT_NOTIFICATIONS_KEY);
+            return raw ? (JSON.parse(raw) as NotificationMessage[]) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function saveChatNotifications(items: NotificationMessage[]) {
+        try {
+            localStorage.setItem(CHAT_NOTIFICATIONS_KEY, JSON.stringify(items));
+        } catch {
+            // ignore
+        }
+    }
+
+    const [items, setItems] = useState<NotificationMessage[]>(() => loadChatNotifications());
+
+    useEffect(() => {
+        saveChatNotifications(items.filter((i) => i.entityType === 'CHAT'));
+    }, [items]);
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +81,13 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
             switch (push.type) {
                 case 'MESSAGE':
                     if (push.message) {
+                        // Suppress chat notifications while the chat dialog is open.
+                        if (
+                            push.message.entityType === 'CHAT' &&
+                            (window as any).__chatDialogOpen
+                        ) {
+                            return;
+                        }
                         console.log('[NOTIFICATIONS] New message notification:', push.message.title);
                         onNotificationRef.current?.(push);
                         setItems((prev) => {
@@ -65,15 +95,21 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
                             if (prev.some((i) => i.notificationId === push.message!.notificationId)) {
                                 return prev;
                             }
-                            return [push.message!, ...prev];
+                            const next = [push.message!, ...prev];
+                            if (push.message!.entityType === 'CHAT') {
+                                saveChatNotifications(next.filter((i) => i.entityType === 'CHAT'));
+                            }
+                            return next;
                         });
                         setUnreadCount((c) => c + 1);
                     }
                     break;
                 case 'SNAPSHOT':
                     if (push.snapshot) {
-                        setItems(push.snapshot.items);
-                        setUnreadCount(push.snapshot.unreadCount);
+                        const chatItems = loadChatNotifications();
+                        const merged = [...chatItems, ...push.snapshot.items];
+                        setItems(merged);
+                        setUnreadCount(push.snapshot.unreadCount + chatItems.length);
                     }
                     break;
                 case 'ACK':
@@ -162,6 +198,15 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
     }, [user, orgId, handlePush]);
 
     const markRead = useCallback((notificationId: number) => {
+        const item = items.find((i) => i.notificationId === notificationId);
+        if (item?.entityType === 'CHAT') {
+            // Remove persisted chat notification locally
+            const remaining = loadChatNotifications().filter((i) => i.notificationId !== notificationId);
+            saveChatNotifications(remaining);
+            setItems((prev) => prev.filter((i) => i.notificationId !== notificationId));
+            setUnreadCount((c) => Math.max(0, c - 1));
+            return;
+        }
         notificationWebSocketService.send(
             '/app/nexus/notifications/ws/mark-read',
             { notificationId }
@@ -174,13 +219,15 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
             )
         );
         setUnreadCount((c) => Math.max(0, c - 1));
-    }, []);
+    }, [items]);
 
     const markAllRead = useCallback(() => {
         notificationWebSocketService.send(
             '/app/nexus/notifications/ws/mark-all-read',
             {}
         );
+        saveChatNotifications([]);
+        setItems((prev) => prev.filter((i) => i.entityType !== 'CHAT'));
         setUnreadCount(0);
     }, []);
 

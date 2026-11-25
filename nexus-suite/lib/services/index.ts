@@ -5,6 +5,9 @@
 // Auth
 export * from './auth-service';
 
+// Chat
+export * from './chat-service';
+
 // Core Domain Services
 export * from './products-service';
 export * from './materials-service';

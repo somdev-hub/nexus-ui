@@ -10,10 +10,12 @@ import { cn } from "@/lib/utils";
 
 const ChatDialog = ({
   showDialog,
-  setOpenChatDialog
+  setOpenChatDialog,
+  initialConversationId,
 }: {
   showDialog: boolean;
   setOpenChatDialog: (open: boolean) => void;
+  initialConversationId?: number | null;
 }) => {
   const { isLoading } = useUserMetadata();
   const renderCount = useRef(0);
@@ -24,6 +26,7 @@ const ChatDialog = ({
 
   // Lock body scroll when dialog is open
   useEffect(() => {
+    (window as any).__chatDialogOpen = showDialog;
     if (showDialog) {
       document.body.style.overflow = "hidden";
       document.body.style.height = "100vh";
@@ -96,7 +99,7 @@ const ChatDialog = ({
         <VisuallyHidden>
           <span>Chat</span>
         </VisuallyHidden>
-        <ChatInterface />
+        <ChatInterface initialConversationId={initialConversationId} />
       </div>
     </div>
   );

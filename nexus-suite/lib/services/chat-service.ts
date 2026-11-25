@@ -1,149 +1,20 @@
 import apiClient from "@/lib/api-client";
+import { ChatEventHandler, chatWebSocketService, WebSocketConfig } from "@/lib/chat-websocket";
+import type {
+    ChatConversation,
+    ChatMessage,
+    ChatMessageAttachment,
+    CreateConversationPayload,
+    CreateMessagePayload,
+    User,
+    WsConversationEvent,
+    WsMessagePayload,
+    WsPresenceEvent,
+    WsStatusUpdateEvent,
+    WsTypingEvent
+} from "@/types/chat";
 
 const CHAT_V2_PATH = "/iam/chat/v2";
-
-// ============ TYPES ============
-
-export interface ChatMessageAttachment {
-  chatMessageAttachmentId: number;
-  fileName: string;
-  dmsId: string;
-  filePath: string;
-  attachmentType: string;
-  createdAt: string;
-  updatedAt: string;
-  isActive: boolean;
-}
-
-export interface ChatMessageIndividualStatus {
-  chatMessageIndividualStatusId: number;
-  status: "SENT" | "DELIVERED" | "RECEIVED" | "PARTIALLY_RECEIVED";
-  deliveredAt?: string;
-  receivedAt?: string;
-}
-
-export interface ChatConversationParticipant {
-  chatConversationParticipantsId: number;
-  participantId: number;
-  participantName: string;
-  participantEmail: string;
-  participantMob: string;
-  participantRole: string;
-  participantAvatar?: string;
-  isChatCreator: boolean;
-  chatParticipantType: "DIRECT" | "GROUP";
-  joinedAt: string;
-  lastSeenAt: string;
-  chatParticipantStatus: "JOINED" | "LEFT";
-  chatParticipantCurrentStatus: "ONLINE" | "OFFLINE" | "AWAY";
-  lastRead: string;
-  lastMessageId?: number;
-  updatedAt: string;
-  isAdmin?: boolean;
-  isActive: boolean;
-  // Inter-org fields
-  orgId?: number;
-  orgName?: string;
-  orgType?: string;
-}
-
-export interface ChatMessage {
-  chatMessageId: number;
-  chatMessageText?: string;
-  chatMessageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
-  chatMessageStatus: "SENT" | "DELIVERED" | "RECEIVED" | "PARTIALLY_RECEIVED";
-  sentAt: string;
-  deliveredAt?: string;
-  receivedAt?: string;
-  updatedAt: string;
-  isEdited: boolean;
-  chatConversationParticipant: ChatConversationParticipant;
-  chatMessageAttachmentList: ChatMessageAttachment[];
-  chatMessageIndividualStatuses: ChatMessageIndividualStatus[];
-  messageSeenByList?: Array<{
-    participantId: number;
-    participantName: string;
-    participantAvatar?: string;
-  }>;
-}
-
-export interface ChatConversation {
-  chatConversationId: number;
-  chatConversationName: string;
-  chatConversationAvatar?: string;
-  chatConversationDescription?: string;
-  chatConversationType: "DIRECT" | "GROUP";
-  createdAt: string;
-  lastModifiedAt: string;
-  lastMessageAt?: string;
-  isActive: boolean;
-  totalParticipants: number;
-  totalMessages: number;
-  orgId: number;
-  isInterOrg?: boolean;
-  participantOrgIds?: string;
-  unreadCount?: number;
-  lastMessage?: string;
-  lastMessageSenderId?: number;
-  lastMessageSenderName?: string;
-  otherParticipantId?: number;
-  otherParticipantName?: string;
-  otherParticipantAvatar?: string;
-  chatConversationParticipants?: ChatConversationParticipant[];
-  imageAndVideoAttachments?: ChatMessageAttachment[];
-  fileAttachments?: ChatMessageAttachment[];
-}
-
-export interface CreateConversationPayload {
-  chatConversationName?: string;
-  chatConversationDescription?: string;
-  chatConversationType: "DIRECT" | "GROUP";
-  orgId: number;
-  participantIds: number[];
-  participants?: Array<{
-    participantId: number;
-    participantName: string;
-    participantEmail: string;
-    isChatCreator?: boolean;
-    participantMob?: string;
-    participantRole?: string;
-    chatParticipantType?: string;
-    participantAvatar?: string;
-    orgId?: number;
-    orgName?: string;
-    orgType?: string;
-  }>;
-}
-
-export interface CreateMessagePayload {
-  chatConversationId: number;
-  participantId: number;
-  chatMessageId?: number;
-  chatMessageText: string;
-  chatMessageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
-  chatMessageAttachmentList: ChatMessageAttachment[];
-  clientMessageId?: string;
-}
-
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  profilePhoto?: string;
-  department?: string;
-  role?: string;
-  address?: string;
-  phone?: string;
-  orgId?: number;
-  orgName?: string;
-  orgType?: string;
-}
-
-export interface PresenceStatusResponse {
-  [userId: number]: boolean;
-}
-
-// ============ API SERVICE ============
 
 class ChatApiService {
   private readonly apiPath = CHAT_V2_PATH;
@@ -193,7 +64,6 @@ class ChatApiService {
         chatConversationType: payload.chatConversationType,
         orgId: orgId,
         isInterOrg: payload.participantIds.some((id, idx) => {
-          // Check if participants have different orgs
           const orgs = new Set(payload.participants?.map(p => p.orgId).filter(Boolean));
           return orgs.size > 1;
         }),
@@ -270,7 +140,6 @@ class ChatApiService {
       return response.data;
     } catch (error) {
       console.error("[CHAT API] Error fetching conversation details:", error);
-      // Re-throw the original error to preserve the full response
       throw error;
     }
   }
@@ -503,7 +372,6 @@ class ChatApiService {
         responseType: 'text',
       });
       let text = response.data;
-      // If the response is a JSON-encoded string, parse it
       if (typeof text === 'string') {
         if (text.startsWith('"') && text.endsWith('"')) {
           try {
@@ -512,7 +380,6 @@ class ChatApiService {
             // Not JSON, use as-is
           }
         }
-        // Replace escaped newlines with actual newlines
         text = text.replace(/\\n/g, '\n');
       } else {
         text = JSON.stringify(text);
@@ -536,7 +403,6 @@ class ChatApiService {
 
   async searchUsers(name: string): Promise<User[]> {
     try {
-      // Use cross-org search endpoint
       const response = await apiClient.get<User[]>(
         `/iam/users/search-cross-org?name=${encodeURIComponent(name)}`
       );
@@ -547,6 +413,131 @@ class ChatApiService {
       throw error;
     }
   }
+
+  // ============ WEBSOCKET METHODS ============
+
+  async connectWebSocket(config: WebSocketConfig): Promise<void> {
+    return chatWebSocketService.connect(config);
+  }
+
+  disconnectWebSocket(): void {
+    chatWebSocketService.disconnect();
+  }
+
+  isWebSocketConnected(): boolean {
+    return chatWebSocketService.isConnected;
+  }
+
+  subscribeToWebSocket(destination: string, callback: ChatEventHandler): () => void {
+    return chatWebSocketService.subscribe(destination, callback);
+  }
+
+  sendWebSocketMessage(destination: string, body: unknown): void {
+    chatWebSocketService.send(destination, body);
+  }
+
+  subscribeToPresence(callback: (event: WsPresenceEvent) => void): () => void {
+    return this.subscribeToWebSocket("/topic/presence", (data) => {
+      const evt = (data ?? {}) as WsPresenceEvent;
+      if (evt.userId) {
+        callback({
+          userId: evt.userId,
+          status: evt.status || "OFFLINE",
+          at: evt.at,
+        });
+      }
+    });
+  }
+
+  subscribeToConversationMessages(
+    conversationId: number,
+    callback: (message: WsMessagePayload) => void
+  ): () => void {
+    return this.subscribeToWebSocket(
+      `/topic/conversations/${conversationId}`,
+      (data) => {
+        const evt = (data ?? {}) as WsConversationEvent;
+        const message = evt.message ?? evt;
+        if (message && (message.chatMessageId || message.chatMessageText || message.content)) {
+          callback(message as WsMessagePayload);
+        }
+      }
+    );
+  }
+
+  subscribeToTyping(
+    conversationId: number,
+    callback: (event: WsTypingEvent) => void
+  ): () => void {
+    return this.subscribeToWebSocket(
+      `/topic/conversations/${conversationId}/typing`,
+      (data) => {
+        const evt = (data ?? {}) as WsTypingEvent;
+        if (typeof evt.userId === "number") {
+          callback({
+            userId: evt.userId,
+            isTyping: evt.isTyping ?? false,
+          });
+        }
+      }
+    );
+  }
+
+  subscribeToStatusUpdates(
+    conversationId: number,
+    callback: (event: WsStatusUpdateEvent) => void
+  ): () => void {
+    return this.subscribeToWebSocket(
+      `/topic/conversations/${conversationId}`,
+      (data) => {
+        const evt = (data ?? {}) as WsConversationEvent;
+        if (typeof evt.messageId === "number" && evt.status && !evt.message && !evt.conversationId) {
+          callback({
+            messageId: evt.messageId,
+            status: evt.status,
+            conversationId: evt.conversationId,
+          });
+        }
+      }
+    );
+  }
+
+  subscribeToGlobalConversations(
+    conversationIds: number[],
+    callback: (event: { conversationId: number; lastMessage: string; lastMessageAt: string; senderId: number }) => void
+  ): Array<() => void> {
+    return conversationIds.map((id) =>
+      this.subscribeToWebSocket(`/topic/conversations/${id}`, (data) => {
+        const evt = (data ?? {}) as WsConversationEvent;
+        const m = evt?.message ?? evt;
+        if (!m || !(m.chatMessageText || m.content || m.chatMessageId)) return;
+        const convId = evt?.conversationId ?? m?.chatConversationId ?? id;
+        const senderId = evt?.participantId ?? m?.chatConversationParticipant?.participantId;
+        const text = m?.chatMessageText ?? m?.content;
+        const sentAt = m?.sentAt ?? m?.timestamp;
+        if (text && sentAt && senderId != null) {
+          callback({
+            conversationId: convId,
+            lastMessage: text,
+            lastMessageAt: sentAt,
+            senderId,
+          });
+        }
+      })
+    );
+  }
+
+  sendHeartbeat(userId: number): void {
+    this.sendWebSocketMessage("/app/heartbeat", { userId });
+  }
+
+  sendTypingIndicator(conversationId: number, userId: number, isTyping: boolean): void {
+    this.sendWebSocketMessage(`/app/cms/chat/ws/typing/${conversationId}`, { userId, isTyping });
+  }
+
+  acknowledgeMessage(messageId: number): void {
+    this.sendWebSocketMessage(`/app/cms/chat/ws/ack/${messageId}`, {});
+  }
 }
 
-export const chatApiService = new ChatApiService();
+export const chatService = new ChatApiService();

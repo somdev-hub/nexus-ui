@@ -1,12 +1,11 @@
 import apiClient from '@/lib/api-client';
-import { PaginatedResponse } from '@/types/paginated-response';
 import type {
     Material,
     MaterialCreateRequest,
-    MaterialUpdateRequest,
     MaterialFilter,
-    MaterialPaginatedResponse,
+    MaterialUpdateRequest
 } from '@/types/materials';
+import { PaginatedResponse } from '@/types/paginated-response';
 
 // ─────────────────────────────────────────────────────────────
 // Materials API Service

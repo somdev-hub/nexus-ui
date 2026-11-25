@@ -54,6 +54,7 @@ import {
 import { requestQuickCreateMenu } from '@/lib/quick-create';
 import Link from 'next/link';
 import ChatDialog from '@/components/chat/ChatDialog';
+import { ChatNotificationListener } from '@/components/chat/ChatNotificationListener';
 import { useState } from 'react';
 
 const retailerSections = [
@@ -602,6 +603,18 @@ function SidebarNavSection({ section, onOpenChat }: SidebarNavSectionProps) {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const { user, isAuthenticated } = useAuth();
     const [openChatDialog, setOpenChatDialog] = useState(false);
+    const [chatInitialConversationId, setChatInitialConversationId] = useState<number | null>(null);
+    React.useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail?.conversationId) {
+                setChatInitialConversationId(detail.conversationId);
+            }
+            setOpenChatDialog(true);
+        };
+        window.addEventListener("open-chat-dialog", handler);
+        return () => window.removeEventListener("open-chat-dialog", handler);
+    }, []);
     const handleOpenChat = () => setOpenChatDialog(true);
     const orgType = (user as any)?.orgType
         ? String((user as any).orgType).toUpperCase()
@@ -697,7 +710,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarFooter>
             </Sidebar>
             <QuickCreateDialog />
-            <ChatDialog showDialog={openChatDialog} setOpenChatDialog={setOpenChatDialog} />
+            {!openChatDialog && <ChatNotificationListener />}
+            <ChatDialog showDialog={openChatDialog} setOpenChatDialog={setOpenChatDialog} initialConversationId={chatInitialConversationId} />
         </>
     );
 }

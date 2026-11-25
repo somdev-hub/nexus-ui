@@ -49,6 +49,8 @@ export function resolveNotificationRoute(
                 : `/retailer/partnerships/${entityId}`;
         case "PAYMENT":
             return `/retailer/payments/${entityId}`;
+        case "CHAT":
+            return `/chat`;
         default:
             return `/`;
     }
