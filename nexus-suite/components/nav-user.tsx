@@ -10,7 +10,6 @@ import {
     IconPalette,
     IconSettings,
     IconUserCircle,
-    IconSparkles,
 } from '@tabler/icons-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -120,21 +119,17 @@ export function NavUser({
                             </DropdownMenuItem>
                             <DropdownMenuItem
                                 onClick={() =>
-                                    router.push('/settings/nexus-buddy')
-                                }
-                            >
-                                <IconSparkles />
-                                Nexus Buddy
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() =>
                                     router.push('/settings/appearance')
                                 }
                             >
                                 <IconPalette />
                                 Appearance
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    router.push('/profile')
+                                }
+                            >
                                 <IconUserCircle />
                                 Account
                             </DropdownMenuItem>

@@ -1,6 +1,9 @@
 // ============================================================================
 // NEXUS BUDDY TYPES FOR NEXUS-SUITE
 // ============================================================================
+// This file contains only chat-related types.
+// Admin/config types (ClientConfig, ToolsConfig, ToolsParamConfig, ToolExecutionRequest)
+// are handled in nexus-admin and have been removed from nexus-suite.
 
 /**
  * Represents a tool that can be called by Nexus Buddy
@@ -96,67 +99,6 @@ export interface NexusBuddyAvailableToolsResponse {
         permissions?: string[];
     }>;
     permissions: string[];
-}
-
-/**
- * Client configuration for tool access
- */
-export interface NexusBuddyClientConfig {
-    clientConfigId: number;
-    clientName: string;
-    connectionUrl: string;
-    healthCheckPath: string;
-    isActive: boolean;
-    createdOn: string;
-    updatedOn: string;
-    allowedUsersList?: string[];
-}
-
-/**
- * Tool configuration
- */
-export interface NexusBuddyToolsConfig {
-    toolsConfigId: number;
-    toolName: string;
-    toolDescription?: string;
-    endpoint: string;
-    httpMethod: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-    isActive: boolean;
-    clientConfigId: number;
-    paramConfigs?: NexusBuddyToolsParamConfig[];
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-/**
- * Tool parameter configuration
- */
-export interface NexusBuddyToolsParamConfig {
-    toolsParamConfigId: number;
-    paramName: string;
-    paramType: "QUERY" | "PATH" | "HEADER" | "BODY";
-    dataType: "STRING" | "NUMBER" | "BOOLEAN" | "OBJECT" | "ARRAY";
-    isRequired: boolean;
-    defaultValue?: unknown;
-    requestBodyJson?: unknown;
-    description?: string;
-    isActive: boolean;
-    toolsConfigId: number;
-    clientConfigId: number;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-/**
- * Tool execution request
- */
-export interface NexusBuddyToolExecutionRequest {
-    toolName: string;
-    arguments: Record<string, unknown>;
-    userId?: string;
-    orgId?: string;
-    context?: string;
-    permissions?: string[];
 }
 
 /**

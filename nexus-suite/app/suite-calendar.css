@@ -187,6 +187,28 @@
     color: var(--foreground);
 }
 
+/* Attendance kinds */
+.profile-attendance-calendar .fc-event[data-kind='present'] {
+    background-color: color-mix(in oklch, var(--chart-2) 14%, var(--card));
+    border-color: var(--chart-2);
+    color: var(--foreground);
+}
+.profile-attendance-calendar .fc-event[data-kind='absent'] {
+    background-color: color-mix(in oklch, var(--destructive) 12%, var(--card));
+    border-color: var(--destructive);
+    color: var(--foreground);
+}
+.profile-attendance-calendar .fc-event[data-kind='late'] {
+    background-color: color-mix(in oklch, var(--chart-4) 18%, var(--card));
+    border-color: var(--chart-4);
+    color: var(--foreground);
+}
+.profile-attendance-calendar .fc-event[data-kind='unknown'] {
+    background-color: color-mix(in oklch, var(--muted-foreground) 12%, var(--card));
+    border-color: var(--muted-foreground);
+    color: var(--foreground);
+}
+
 .dark .suite-calendar .fc-event {
     color: var(--foreground);
 }
@@ -206,5 +228,163 @@
     .suite-calendar .fc-toolbar {
         flex-direction: column;
         gap: 0.5rem;
+    }
+}
+
+.profile-attendance-calendar {
+    overflow: hidden;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    --fc-border-color: color-mix(in oklch, var(--border) 75%, transparent);
+}
+
+.profile-attendance-calendar .fc .fc-toolbar {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.profile-attendance-calendar .fc .fc-toolbar-title {
+    color: var(--foreground);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+}
+
+.profile-attendance-calendar .fc .fc-scrollgrid {
+    overflow: hidden;
+    border: 1px solid var(--fc-border-color);
+    border-radius: var(--radius-md);
+}
+
+.profile-attendance-calendar .fc .fc-col-header-cell {
+    background: color-mix(in oklch, var(--muted) 65%, var(--card));
+}
+
+.profile-attendance-calendar .fc .fc-col-header-cell-cushion {
+    padding: 0.65rem 0.25rem;
+    color: var(--muted-foreground);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.profile-attendance-calendar .fc .fc-daygrid-day-frame {
+    min-height: 6rem;
+    transition: background-color 150ms ease;
+}
+
+.profile-attendance-calendar .fc .fc-daygrid-day:hover .fc-daygrid-day-frame {
+    background: color-mix(in oklch, var(--accent) 45%, transparent);
+}
+
+.profile-attendance-calendar .fc .fc-daygrid-day-number {
+    display: inline-flex;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    margin: 0.25rem 0.35rem;
+    border-radius: 9999px;
+    color: var(--foreground);
+    font-size: 0.75rem;
+}
+
+.profile-attendance-calendar .fc .fc-day-other .fc-daygrid-day-number {
+    color: var(--muted-foreground);
+    opacity: 0.65;
+}
+
+.profile-attendance-calendar .fc .fc-day-today {
+    background: color-mix(in oklch, var(--primary) 5%, var(--card));
+}
+
+.profile-attendance-calendar .fc .fc-day-today .fc-daygrid-day-number {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    opacity: 1;
+}
+
+.profile-attendance-calendar .fc .fc-daygrid-event {
+    margin: 0.125rem 0.3rem;
+}
+
+.profile-attendance-calendar .fc .fc-event {
+    min-height: 1.5rem;
+    border-width: 1px;
+    border-radius: 9999px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+}
+
+.profile-attendance-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+}
+
+.profile-attendance-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.profile-attendance-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex: none;
+    border-radius: 9999px;
+}
+
+.profile-attendance-dot-present {
+    background: var(--chart-2);
+}
+
+.profile-attendance-dot-absent {
+    background: var(--destructive);
+}
+
+.profile-attendance-dot-late {
+    background: var(--chart-4);
+}
+
+.profile-attendance-dot-unknown {
+    background: var(--muted-foreground);
+}
+
+@media (max-width: 640px) {
+    .profile-attendance-calendar {
+        padding: 0.75rem;
+    }
+
+    .profile-attendance-calendar .fc .fc-toolbar {
+        align-items: flex-start;
+    }
+
+    .profile-attendance-calendar .fc .fc-toolbar-title {
+        font-size: 0.9375rem;
+    }
+
+    .profile-attendance-calendar .fc .fc-daygrid-day-frame {
+        min-height: 4.25rem;
+    }
+
+    .profile-attendance-calendar .fc .fc-daygrid-day-number {
+        min-width: 1.5rem;
+        min-height: 1.5rem;
+        margin: 0.15rem;
+    }
+
+    .profile-attendance-calendar .fc .fc-event {
+        padding-inline: 0.2rem;
+        font-size: 0.625rem;
     }
 }

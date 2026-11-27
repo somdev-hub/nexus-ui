@@ -1,6 +1,9 @@
 // ============================================================================
 // NEXUS BUDDY SERVICE - MCP + Tool Calling Support for Nexus-Suite
 // ============================================================================
+// This file contains only chat/conversation/health APIs.
+// All admin/config APIs (client configs, tools configs, param configs, seeder)
+// are handled in nexus-admin and have been removed from nexus-suite.
 
 import apiClient from "@/lib/api-client";
 import type {
@@ -8,9 +11,6 @@ import type {
     NexusBuddyChatResponse,
     NexusBuddyToolResult,
     NexusBuddyAvailableToolsResponse,
-    NexusBuddyClientConfig,
-    NexusBuddyToolsConfig,
-    NexusBuddyToolsParamConfig,
 } from "@/types/nexus-buddy";
 
 /**
@@ -26,8 +26,8 @@ export async function nexusBuddyChat(
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
+        const errorMsg = error instanceof Error
+            ? error.message
             : "Nexus Buddy chat failed";
         console.error("Nexus Buddy chat error:", error);
         throw new Error(errorMsg);
@@ -68,8 +68,8 @@ export async function* nexusBuddyStreamChat(
             yield decoder.decode(value);
         }
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
+        const errorMsg = error instanceof Error
+            ? error.message
             : "Stream failed";
         console.error("Nexus Buddy stream error:", error);
         throw new Error(errorMsg);
@@ -106,8 +106,8 @@ export async function executeNexusBuddyTool(params: {
         );
         return response.data.result;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
+        const errorMsg = error instanceof Error
+            ? error.message
             : "Tool execution failed";
         console.error("Tool execution error:", error);
         throw new Error(errorMsg);
@@ -124,8 +124,8 @@ export async function getAvailableTools(): Promise<NexusBuddyAvailableToolsRespo
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
+        const errorMsg = error instanceof Error
+            ? error.message
             : "Failed to fetch available tools";
         console.error("Fetch available tools error:", error);
         throw new Error(errorMsg);
@@ -142,433 +142,10 @@ export async function getToolsForContext(context: string): Promise<NexusBuddyAva
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
+        const errorMsg = error instanceof Error
+            ? error.message
             : "Failed to fetch available tools for context";
         console.error("Fetch context tools error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-// ============================================================================
-// CLIENT CONFIG APIs (for admin/management)
-// ============================================================================
-
-/**
- * Get all client configurations
- */
-export async function getNexusBuddyClientConfigs(
-    page = 0,
-    size = 20,
-    sortBy = "clientConfigId",
-    sortDir: "asc" | "desc" = "asc"
-): Promise<{
-    content: NexusBuddyClientConfig[];
-    totalPages: number;
-    totalElements: number;
-}> {
-    try {
-        const response = await apiClient.get<{
-            content: NexusBuddyClientConfig[];
-            totalPages: number;
-            totalElements: number;
-        }>(
-            `/nexusbuddy/admin/client-configs?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to fetch client configs";
-        console.error("Fetch client configs error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Get active client configurations (for tool authorization)
- */
-export async function getNexusBuddyActiveClientConfigs(
-    page = 0,
-    size = 100,
-    sortBy = "clientConfigId",
-    sortDir: "asc" | "desc" = "asc"
-): Promise<{
-    content: NexusBuddyClientConfig[];
-    totalPages: number;
-    totalElements: number;
-}> {
-    try {
-        const response = await apiClient.get<{
-            content: NexusBuddyClientConfig[];
-            totalPages: number;
-            totalElements: number;
-        }>(
-            `/nexusbuddy/admin/client-configs/active?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to fetch active client configs";
-        console.error("Fetch active client configs error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Create a new client configuration
- */
-export async function createNexusBuddyClientConfig(
-    payload: Omit<NexusBuddyClientConfig, "clientConfigId" | "createdOn" | "updatedOn">
-): Promise<NexusBuddyClientConfig> {
-    try {
-        const response = await apiClient.post<NexusBuddyClientConfig>(
-            "/nexusbuddy/admin/client-configs",
-            payload
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to create client config";
-        console.error("Create client config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Update a client configuration
- */
-export async function updateNexusBuddyClientConfig(
-    clientConfigId: number,
-    payload: Partial<NexusBuddyClientConfig>
-): Promise<NexusBuddyClientConfig> {
-    try {
-        const response = await apiClient.put<NexusBuddyClientConfig>(
-            `/nexusbuddy/admin/client-configs/${clientConfigId}`,
-            payload
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to update client config";
-        console.error("Update client config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Deactivate a client configuration
- */
-export async function deactivateNexusBuddyClientConfig(
-    clientConfigId: number
-): Promise<string> {
-    try {
-        const response = await apiClient.delete<string | { message: string }>(
-            `/nexusbuddy/admin/client-configs/${clientConfigId}`
-        );
-        if (typeof response.data === "string") {
-            return response.data;
-        }
-        return response.data?.message || "Client config deactivated successfully";
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to deactivate client config";
-        console.error("Deactivate client config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-// ============================================================================
-// TOOLS CONFIG APIs
-// ============================================================================
-
-/**
- * Get tools configurations
- */
-export async function getNexusBuddyToolsConfigs(
-    page = 0,
-    size = 20,
-    sortBy = "toolsConfigId",
-    sortDir: "asc" | "desc" = "asc"
-): Promise<{
-    content: NexusBuddyToolsConfig[];
-    totalPages: number;
-    totalElements: number;
-}> {
-    try {
-        const response = await apiClient.get<{
-            content: NexusBuddyToolsConfig[];
-            totalPages: number;
-            totalElements: number;
-        }>(
-            `/nexusbuddy/admin/tools-configs?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to fetch tools configs";
-        console.error("Fetch tools configs error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Get tools configs by client config ID
- */
-export async function getNexusBuddyToolsConfigsByClientConfigId(
-    clientConfigId: number,
-    page = 0,
-    size = 20,
-    sortBy = "toolsConfigId",
-    sortDir: "asc" | "desc" = "asc"
-): Promise<{
-    content: NexusBuddyToolsConfig[];
-    totalPages: number;
-    totalElements: number;
-}> {
-    try {
-        const response = await apiClient.get<{
-            content: NexusBuddyToolsConfig[];
-            totalPages: number;
-            totalElements: number;
-        }>(
-            `/nexusbuddy/admin/tools-configs/client/${clientConfigId}?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to fetch tools configs by client";
-        console.error("Fetch tools by client error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Create a tools configuration
- */
-export async function createNexusBuddyToolsConfig(
-    payload: Omit<NexusBuddyToolsConfig, "toolsConfigId" | "createdAt" | "updatedAt">
-): Promise<NexusBuddyToolsConfig> {
-    try {
-        const response = await apiClient.post<NexusBuddyToolsConfig>(
-            "/nexusbuddy/admin/tools-configs",
-            payload
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to create tools config";
-        console.error("Create tools config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Update a tools configuration
- */
-export async function updateNexusBuddyToolsConfig(
-    toolsConfigId: number,
-    payload: Partial<NexusBuddyToolsConfig>
-): Promise<NexusBuddyToolsConfig> {
-    try {
-        const response = await apiClient.put<NexusBuddyToolsConfig>(
-            `/nexusbuddy/admin/tools-configs/${toolsConfigId}`,
-            payload
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to update tools config";
-        console.error("Update tools config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Deactivate a tools configuration
- */
-export async function deactivateNexusBuddyToolsConfig(
-    toolsConfigId: number
-): Promise<string> {
-    try {
-        const response = await apiClient.delete<string | { message: string }>(
-            `/nexusbuddy/admin/tools-configs/${toolsConfigId}`
-        );
-        if (typeof response.data === "string") {
-            return response.data;
-        }
-        return response.data?.message || "Tools config deactivated successfully";
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to deactivate tools config";
-        console.error("Deactivate tools config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-// ============================================================================
-// TOOLS PARAM CONFIG APIs
-// ============================================================================
-
-/**
- * Get tools param configurations by tools config ID
- */
-export async function getNexusBuddyToolsParamConfigsByToolsConfigId(
-    toolsConfigId: number,
-    page = 0,
-    size = 20,
-    sortBy = "toolsParamConfigId",
-    sortDir: "asc" | "desc" = "asc"
-): Promise<{
-    content: NexusBuddyToolsParamConfig[];
-    totalPages: number;
-    totalElements: number;
-}> {
-    try {
-        const response = await apiClient.get<{
-            content: NexusBuddyToolsParamConfig[];
-            totalPages: number;
-            totalElements: number;
-        }>(
-            `/nexusbuddy/admin/tools-param-configs/${toolsConfigId}?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to fetch param configs";
-        console.error("Fetch param configs error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Create a param configuration
- */
-export async function createNexusBuddyToolsParamConfig(
-    payload: Omit<NexusBuddyToolsParamConfig, "toolsParamConfigId" | "createdAt" | "updatedAt">
-): Promise<NexusBuddyToolsParamConfig> {
-    try {
-        const response = await apiClient.post<NexusBuddyToolsParamConfig>(
-            "/nexusbuddy/admin/tools-param-configs",
-            payload
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to create param config";
-        console.error("Create param config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Update a param configuration
- */
-export async function updateNexusBuddyToolsParamConfig(
-    toolsParamConfigId: number,
-    payload: Partial<NexusBuddyToolsParamConfig>
-): Promise<NexusBuddyToolsParamConfig> {
-    try {
-        const response = await apiClient.put<NexusBuddyToolsParamConfig>(
-            `/nexusbuddy/admin/tools-param-configs/${toolsParamConfigId}`,
-            payload
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to update param config";
-        console.error("Update param config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Deactivate a param configuration
- */
-export async function deactivateNexusBuddyToolsParamConfig(
-    toolsParamConfigId: number
-): Promise<string> {
-    try {
-        const response = await apiClient.delete<string | { message: string }>(
-            `/nexusbuddy/admin/tools-param-configs/${toolsParamConfigId}`
-        );
-        if (typeof response.data === "string") {
-            return response.data;
-        }
-        return response.data?.message || "Param config deactivated successfully";
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to deactivate param config";
-        console.error("Deactivate param config error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-// ============================================================================
-// SEEDER APIs
-// ============================================================================
-
-/**
- * Seed Nexus Core AI Tools into NexusBuddy.
- * Creates client config and tools/params if they don't exist.
- * Idempotent - skips tools that already exist.
- */
-export async function seedNexusCoreAiTools(): Promise<{
-    clientConfigId: number;
-    clientName: string;
-    toolsCreated: number;
-    paramsCreated: number;
-    toolsSkipped: number;
-    createdTools: string[];
-    skippedTools: string[];
-}> {
-    try {
-        const response = await apiClient.post<{
-            clientConfigId: number;
-            clientName: string;
-            toolsCreated: number;
-            paramsCreated: number;
-            toolsSkipped: number;
-            createdTools: string[];
-            skippedTools: string[];
-        }>("/nexusbuddy/admin/seeder/nexus-core-ai-tools");
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to seed Nexus Core AI Tools";
-        console.error("Seed Nexus Core AI Tools error:", error);
-        throw new Error(errorMsg);
-    }
-}
-
-/**
- * Check seeding status.
- */
-export async function getSeedStatus(): Promise<{ message: string; customEndpoint: string; note: string }> {
-    try {
-        const response = await apiClient.get<{ message: string; customEndpoint: string; note: string }>(
-            "/nexusbuddy/admin/seeder/nexus-core-ai-tools/status"
-        );
-        return response.data;
-    } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
-            : "Failed to get seed status";
-        console.error("Get seed status error:", error);
         throw new Error(errorMsg);
     }
 }
@@ -710,8 +287,8 @@ export async function nexusBuddyHealthCheck(): Promise<{ status: string }> {
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error 
-            ? error.message 
+        const errorMsg = error instanceof Error
+            ? error.message
             : "Health check failed";
         console.error("Health check error:", error);
         throw new Error(errorMsg);

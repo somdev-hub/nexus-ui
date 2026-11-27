@@ -61,6 +61,12 @@ export interface ChatMessage {
     participantName: string;
     participantAvatar?: string;
   }>;
+  isDeleted?: boolean;
+  deletedForEveryone?: boolean;
+  isPinned?: boolean;
+  pinnedAt?: string;
+  pinnedBy?: number;
+  repliedToMessageId?: number;
 }
 
 export interface ChatConversation {
@@ -183,6 +189,14 @@ export interface WsStatusUpdateEvent {
   messageId: number;
   status: ChatMessage["chatMessageStatus"];
   conversationId?: number;
+}
+
+export interface WsMessageDeletedEvent {
+  messageId: number;
+  conversationId: number;
+  deletedBy: number;
+  deleteForEveryone: boolean;
+  deletedAt: string;
 }
 
 export interface WsConversationEvent {

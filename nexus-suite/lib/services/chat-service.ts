@@ -8,6 +8,7 @@ import type {
     CreateMessagePayload,
     User,
     WsConversationEvent,
+    WsMessageDeletedEvent,
     WsMessagePayload,
     WsPresenceEvent,
     WsStatusUpdateEvent,
@@ -348,6 +349,36 @@ class ChatApiService {
     }
   }
 
+  async deleteMessage(conversationId: number, messageId: number, participantId: number, orgId: number, deleteForEveryone: boolean): Promise<void> {
+    try {
+      const endpoint = deleteForEveryone
+        ? `${this.apiPath}/message/${messageId}?participantId=${participantId}&orgId=${orgId}&deleteForEveryone=true`
+        : `${this.apiPath}/message/${messageId}/clear?participantId=${participantId}&orgId=${orgId}`;
+      await apiClient.delete(endpoint);
+    } catch (error) {
+      console.error("[CHAT API] Error deleting message:", error);
+      throw error;
+    }
+  }
+
+  async pinMessage(conversationId: number, messageId: number, participantId: number, orgId: number): Promise<void> {
+    try {
+      await apiClient.post(`${this.apiPath}/message/${messageId}/pin?participantId=${participantId}&orgId=${orgId}`, {});
+    } catch (error) {
+      console.error("[CHAT API] Error pinning message:", error);
+      throw error;
+    }
+  }
+
+  async unpinMessage(conversationId: number, messageId: number, participantId: number, orgId: number): Promise<void> {
+    try {
+      await apiClient.post(`${this.apiPath}/message/${messageId}/unpin?participantId=${participantId}&orgId=${orgId}`, {});
+    } catch (error) {
+      console.error("[CHAT API] Error unpinning message:", error);
+      throw error;
+    }
+  }
+
   async deleteConversation(conversationId: number, participantId: number, orgId: number): Promise<void> {
     try {
       await apiClient.delete(`${this.apiPath}/conversation/${conversationId}?participantId=${participantId}&orgId=${orgId}`);
@@ -410,6 +441,68 @@ class ChatApiService {
       return response.data || [];
     } catch (error) {
       console.error("[CHAT API] Error searching users:", error);
+      throw error;
+    }
+  }
+
+  async getOrgUsers(orgId: number): Promise<User[]> {
+    try {
+      const response = await apiClient.get<any[]>(
+        `/iam/users/chat-contacts?orgId=${orgId}`
+      );
+      const content = response.data ?? [];
+      return content.map((u: any) => ({
+        id: u.id,
+          name: u.name,
+          email: u.email,
+          profilePhoto: u.profilePhoto,
+          orgId: u.orgId ?? orgId,
+          orgName: u.orgName,
+          orgType: u.orgType,
+          role: u.role,
+        }));
+    } catch (error) {
+      console.error("[CHAT API] Error fetching org users:", error);
+      throw error;
+    }
+  }
+
+  async getPartnerOrgs(orgId: number): Promise<{ orgId: number; orgName: string; users: User[] }[]> {
+    try {
+      const partnerships = await (await import("@/lib/services/partnerships-service")).getPartnerships({
+        status: "ACTIVE",
+        pageOffset: 100,
+      });
+      const content = (partnerships as any).content ?? [];
+      const partnerOrgIds = new Set<number>();
+      const orgNameMap = new Map<number, string>();
+      content.forEach((p: any) => {
+        const otherOrgId = p.primaryOrg === orgId ? p.secondaryOrg : p.primaryOrg;
+        const otherOrgName = p.primaryOrg === orgId ? p.secondaryOrgName : p.primaryOrgName;
+        if (otherOrgId) {
+          partnerOrgIds.add(otherOrgId);
+          orgNameMap.set(otherOrgId, otherOrgName || `Org ${otherOrgId}`);
+        }
+      });
+      const orgs: { orgId: number; orgName: string; users: User[] }[] = [];
+      for (const partnerOrgId of partnerOrgIds) {
+        try {
+          const users = await this.getOrgUsers(partnerOrgId);
+          const filtered = users
+            .map((u) => ({ ...u, orgName: orgNameMap.get(partnerOrgId) }))
+            .filter((u) => u.id !== undefined);
+          orgs.push({
+            orgId: partnerOrgId,
+            orgName: orgNameMap.get(partnerOrgId) || `Org ${partnerOrgId}`,
+            users: filtered,
+          });
+        } catch {
+          // skip
+        }
+      }
+      return orgs;
+    } catch (error) {
+      console.error("[CHAT API] Error fetching partner orgs:", error);
       throw error;
     }
   }
@@ -496,6 +589,53 @@ class ChatApiService {
             messageId: evt.messageId,
             status: evt.status,
             conversationId: evt.conversationId,
+          });
+        }
+      }
+    );
+  }
+
+  /**
+   * Subscribe to message deletion events
+   */
+  subscribeToMessageDeleted(
+    conversationId: number,
+    callback: (event: WsMessageDeletedEvent) => void
+  ): () => void {
+    return this.subscribeToWebSocket(
+      `/topic/conversations/${conversationId}`,
+      (data) => {
+        const evt = (data ?? {}) as WsConversationEvent & WsMessageDeletedEvent;
+        // Handle message deletion event
+        if (evt.messageId && evt.deletedAt && (evt.deleteForEveryone !== undefined || evt.deletedBy)) {
+          callback({
+            messageId: evt.messageId,
+            conversationId: evt.conversationId || conversationId,
+            deletedBy: evt.deletedBy,
+            deleteForEveryone: evt.deleteForEveryone ?? true,
+            deletedAt: evt.deletedAt,
+          });
+        }
+      }
+    );
+  }
+
+  /**
+   * Subscribe to pin/unpin events
+   */
+  subscribeToPinEvents(
+    conversationId: number,
+    callback: (event: { messageId: number; isPinned: boolean; participantId: number }) => void
+  ): () => void {
+    return this.subscribeToWebSocket(
+      `/topic/conversations/${conversationId}/pin`,
+      (data) => {
+        const evt = (data ?? {}) as { messageId?: number; isPinned?: boolean; participantId?: number };
+        if (evt.messageId && typeof evt.isPinned === "boolean" && evt.participantId) {
+          callback({
+            messageId: evt.messageId,
+            isPinned: evt.isPinned,
+            participantId: evt.participantId,
           });
         }
       }
