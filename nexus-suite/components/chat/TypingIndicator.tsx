@@ -1,18 +1,11 @@
 "use client";
 
-import type { ChatConversationParticipant } from "@/types/chat";
+import { useChatStore } from "@/store/chatStore";
 
-interface TypingIndicatorProps {
-  typingUsers: number[];
-  participants: ChatConversationParticipant[] | undefined;
-  currentUserId: number | null;
-}
+export function TypingIndicator() {
+  const typingUsers = useChatStore((s) => s.typingUsers);
+  const participants = useChatStore((s) => s.selectedConvDetails?.chatConversationParticipants);
 
-export function TypingIndicator({
-  typingUsers,
-  participants,
-  currentUserId,
-}: TypingIndicatorProps) {
   if (typingUsers.length === 0) return null;
 
   const getTypingUserNames = () => {

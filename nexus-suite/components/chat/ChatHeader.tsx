@@ -5,50 +5,31 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { ChatConversation, ChatConversationParticipant } from "@/types/chat";
+import type { ChatConversationParticipant } from "@/types/chat";
 import { IconDotsVertical } from "@tabler/icons-react";
 import { ArrowUpToLine, Download, Loader2, MessageSquare, Search, Trash2, Users } from "lucide-react";
+import { useChatStore, useChatUI, useChatActions } from "@/store/chatStore";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 
-interface ChatHeaderProps {
-  selectedConvDetails: ChatConversation | null;
-  selectedConv: ChatConversation | null;
-  userId: number | null;
-  orgId: number | null;
-  isClearingChat: boolean;
-  isDeletingConversation: boolean;
-  isDownloadingChat: boolean;
-  isSearchInChatOpen: boolean;
-  setIsSearchInChatOpen: (open: boolean) => void;
-  onClearChat: () => void;
-  onDeleteConversation: () => void;
-  onDownloadChat: () => void;
-  onOpenManageGroup: () => void;
-  onScrollToTop: () => void;
-}
+export function ChatHeader() {
+  const { userId: userIdStr, orgId: orgIdStr } = useUserMetadata();
+  const userId = userIdStr ? Number(userIdStr) : null;
+  const orgId = orgIdStr ? Number(orgIdStr) : null;
+  const selectedConvDetails = useChatStore((s) => s.selectedConvDetails);
+  const selectedConv = useChatStore((s) => {
+    const convs = s.conversations;
+    return convs.find(c => c.chatConversationId === s.selectedConvId) ?? null;
+  });
+  const ui = useChatUI();
+  const actions = useChatActions();
 
-export function ChatHeader({
-  selectedConvDetails,
-  selectedConv,
-  userId,
-  orgId,
-  isClearingChat,
-  isDeletingConversation,
-  isDownloadingChat,
-  isSearchInChatOpen,
-  setIsSearchInChatOpen,
-  onClearChat,
-  onDeleteConversation,
-  onDownloadChat,
-  onOpenManageGroup,
-  onScrollToTop,
-}: ChatHeaderProps) {
   const displayName = selectedConvDetails?.chatConversationName || selectedConv?.chatConversationName || selectedConv?.otherParticipantName || "Conversation";
   const avatarUrl = selectedConvDetails?.chatConversationAvatar || selectedConv?.otherParticipantAvatar;
   const isGroupChat = selectedConvDetails?.chatConversationType === "GROUP" || selectedConv?.chatConversationType === "GROUP";
   const avatarFallback = isGroupChat ? null : (selectedConvDetails?.chatConversationName?.charAt(0) || selectedConv?.otherParticipantName?.charAt(0) || displayName.charAt(0));
 
   const participants = selectedConvDetails?.chatConversationParticipants;
-  
+
   const getParticipantStatusText = (participants: ChatConversationParticipant[] | undefined, currentUserId: number | null): string => {
     if (!participants || !participants.length) return "";
 
@@ -89,16 +70,7 @@ export function ChatHeader({
     }
   };
 
-  const statusText = getParticipantStatusText(participants, userId);
-
-  const getOrgBadgeColor = (orgType?: string) => {
-    switch (orgType?.toUpperCase()) {
-      case "RETAILER": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "SUPPLIER": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "LOGISTICS": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
-    }
-  };
+  const statusText = getParticipantStatusText(participants, userId ?? null);
 
   return (
     <div className="flex items-center gap-3 p-3 border-b">
@@ -143,37 +115,37 @@ export function ChatHeader({
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuItem
-                  onClick={onClearChat}
-                  disabled={isClearingChat}
+                  onClick={() => actions.clearChatForSelf(selectedConvDetails!.chatConversationId, userId!, orgId!)}
+                  disabled={ui.isClearingChat}
                   className="flex items-center gap-2"
                 >
-                  {isClearingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                  {ui.isClearingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
                   Clear Chat (Self)
                 </DropdownMenuItem>
                 {(selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isAdmin ||
                   selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isChatCreator) && (
                     <DropdownMenuItem
-                      onClick={onDeleteConversation}
-                      disabled={isDeletingConversation}
+                      onClick={() => actions.setIsDeleteDialogOpen(true)}
+                      disabled={ui.isDeletingConversation}
                       className="flex items-center gap-2 text-destructive"
                     >
-                      {isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      {ui.isDeletingConversation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       {selectedConvDetails?.chatConversationType === "GROUP" ? "Delete Group" : "Delete Conversation"}
                     </DropdownMenuItem>
                   )}
                 <DropdownMenuItem
-                  onClick={onDownloadChat}
-                  disabled={isDownloadingChat}
+                  onClick={() => actions.downloadChat(selectedConvDetails!.chatConversationId, userId!, orgId!)}
+                  disabled={ui.isDownloadingChat}
                   className="flex items-center gap-2"
                 >
-                  {isDownloadingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {ui.isDownloadingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   Download Chat
                 </DropdownMenuItem>
                 {selectedConvDetails?.chatConversationType === "GROUP" &&
                   (selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isAdmin ||
                     selectedConvDetails?.chatConversationParticipants?.find((p) => p.participantId === userId)?.isChatCreator) && (
                       <DropdownMenuItem
-                        onClick={onOpenManageGroup}
+                        onClick={() => actions.setIsManageGroupOpen(true)}
                         className="flex items-center gap-2"
                       >
                         <Users className="h-4 w-4" />
@@ -181,14 +153,20 @@ export function ChatHeader({
                       </DropdownMenuItem>
                     )}
                 <DropdownMenuItem
-                  onClick={() => setIsSearchInChatOpen(true)}
+                  onClick={() => actions.setIsSearchInChatOpen(true)}
                   className="flex items-center gap-2"
                 >
                   <Search className="h-4 w-4" />
                   Search in Chat
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={onScrollToTop}
+                  onClick={() => {
+                    const scrollArea = document.querySelector('[data-messages-scroll]');
+                    const viewport = scrollArea?.querySelector('[data-slot="scroll-area-viewport"]');
+                    if (viewport) {
+                      viewport.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
                   className="flex items-center gap-2"
                 >
                   <ArrowUpToLine className="h-4 w-4" />

@@ -1,12 +1,17 @@
 "use client";
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { useRef, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 import { useUserMetadata } from "@/hooks/use-user-metadata";
 import { ChatInterface } from "./ChatInterface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+
+declare global {
+  interface Window {
+    __chatDialogOpen?: boolean;
+  }
+}
 
 const ChatDialog = ({
   showDialog,
@@ -18,15 +23,10 @@ const ChatDialog = ({
   initialConversationId?: number | null;
 }) => {
   const { isLoading } = useUserMetadata();
-  const renderCount = useRef(0);
-
-  useEffect(() => {
-    renderCount.current++;
-  });
 
   // Lock body scroll when dialog is open
   useEffect(() => {
-    (window as any).__chatDialogOpen = showDialog;
+    window.__chatDialogOpen = showDialog;
     if (showDialog) {
       document.body.style.overflow = "hidden";
       document.body.style.height = "100vh";
@@ -45,7 +45,7 @@ const ChatDialog = ({
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="w-[90vw] max-w-[1400px] h-[85vh] bg-background rounded-lg shadow-2xl flex overflow-hidden">
+        <div className="w-[90vw] max-w-350 h-[85vh] bg-background rounded-lg shadow-2xl flex overflow-hidden">
           <div className="w-80 border-r p-3 space-y-3">
             <div className="flex items-center justify-between mb-4">
               <Skeleton className="h-6 w-24" />
@@ -93,7 +93,7 @@ const ChatDialog = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setOpenChatDialog(false)}>
       <div
-        className="w-[90vw] max-w-[1400px] h-[85vh] bg-background rounded-lg shadow-2xl flex flex-col overflow-hidden"
+        className="w-[90vw] max-w-350 h-[85vh] bg-background rounded-lg shadow-2xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <VisuallyHidden>

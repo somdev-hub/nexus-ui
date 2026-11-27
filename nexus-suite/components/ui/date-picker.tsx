@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/popover';
 
 interface DatePickerProps {
+    id?: string;
     date?: Date;
     onDateChange?: (date: Date | undefined) => void;
     disabled?: (date: Date) => boolean;
@@ -23,6 +24,7 @@ interface DatePickerProps {
     className?: string;
     /** Allow selecting dates before today. Defaults to false. */
     allowPast?: boolean;
+    startMonth?: Date;
 }
 
 function pad(n: number): string {
@@ -30,6 +32,7 @@ function pad(n: number): string {
 }
 
 export function DatePicker({
+    id,
     date,
     onDateChange,
     disabled,
@@ -37,6 +40,7 @@ export function DatePicker({
     withTime = false,
     className,
     allowPast = false,
+    startMonth = new Date(2000, 0),
 }: DatePickerProps) {
     const [open, setOpen] = React.useState(false);
 
@@ -79,6 +83,7 @@ export function DatePicker({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
+                    id={id}
                     type="button"
                     variant="outline"
                     className={cn(
@@ -114,7 +119,7 @@ export function DatePicker({
                     defaultMonth={date}
                     onSelect={handleSelect}
                     captionLayout="dropdown"
-                    startMonth={new Date(2000, 0)}
+                    startMonth={startMonth}
                     endMonth={new Date(new Date().getFullYear() + 25, 11)}
                     disabled={(d) => {
                         if (!allowPast) {

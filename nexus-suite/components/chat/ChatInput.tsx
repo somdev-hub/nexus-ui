@@ -4,33 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Send, X } from "lucide-react";
 import { useEffect, useRef } from "react";
-import type { ChatMessage } from "@/types/chat";
+import { useChatStore, useChatActions } from "@/store/chatStore";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 
-interface ChatInputProps {
-  newMessage: string;
-  setNewMessage: (message: string) => void;
-  isSending: boolean;
-  replyingTo: ChatMessage | null;
-  onSendMessage: () => void;
-  onCancelReply: () => void;
-  wsConnected: boolean;
-  selectedConvId: number | null;
-  userId: number | null;
-  sendTypingIndicator: (convId: number, userId: number, isTyping: boolean) => void;
-}
+export function ChatInput() {
+  const { userId: userIdStr, orgId: orgIdStr } = useUserMetadata();
+  const userId = userIdStr ? Number(userIdStr) : null;
+  const orgId = orgIdStr ? Number(orgIdStr) : null;
+  const newMessage = useChatStore((s) => s.newMessage);
+  const isSending = useChatStore((s) => s.isSending);
+  const replyingTo = useChatStore((s) => s.replyingTo);
+  const wsConnected = useChatStore((s) => s.wsConnected);
+  const selectedConvId = useChatStore((s) => s.selectedConvId);
+  const actions = useChatActions();
 
-export function ChatInput({
-  newMessage,
-  setNewMessage,
-  isSending,
-  replyingTo,
-  onSendMessage,
-  onCancelReply,
-  wsConnected,
-  selectedConvId,
-  userId,
-  sendTypingIndicator,
-}: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,16 +27,18 @@ export function ChatInput({
   }, [replyingTo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewMessage(e.target.value);
+    actions.setNewMessage(e.target.value);
     if (wsConnected && selectedConvId && userId) {
-      sendTypingIndicator(selectedConvId, userId, true);
+      actions.sendTypingIndicator(selectedConvId, userId, true);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSendMessage();
+      if (selectedConvId && userId && orgId) {
+        actions.sendMessage(newMessage, selectedConvId, userId, orgId, replyingTo);
+      }
     }
   };
 
@@ -71,7 +60,7 @@ export function ChatInput({
               variant="ghost"
               size="icon"
               className="h-6 w-6 shrink-0"
-              onClick={onCancelReply}
+              onClick={() => actions.setReplyingTo(null)}
               aria-label="Cancel reply"
             >
               <X className="h-4 w-4" />
@@ -89,7 +78,11 @@ export function ChatInput({
           disabled={isSending}
           className="flex-1"
         />
-        <Button onClick={onSendMessage} disabled={!newMessage.trim() || isSending}>
+        <Button onClick={() => {
+          if (selectedConvId && userId && orgId) {
+            actions.sendMessage(newMessage, selectedConvId, userId, orgId, replyingTo);
+          }
+        }} disabled={!newMessage.trim() || isSending}>
           {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>

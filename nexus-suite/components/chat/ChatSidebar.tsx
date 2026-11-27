@@ -21,7 +21,7 @@ interface ChatSidebarProps {
   isLoadingConvs: boolean;
   selectedConvId: number | null;
   onSelectConversation: (convId: number) => void;
-  onCreateDirectChat: (conv: ChatConversation) => void;
+  onStartDirectChat: (user: User) => void;
 }
 
 export function ChatSidebar({
@@ -29,7 +29,7 @@ export function ChatSidebar({
   isLoadingConvs,
   selectedConvId,
   onSelectConversation,
-  onCreateDirectChat,
+  onStartDirectChat,
 }: ChatSidebarProps) {
   const { userId: userIdStr, orgId: orgIdStr, name: userName, avatar: userAvatar } = useUserMetadata();
   const userId = userIdStr ? Number(userIdStr) : null;
@@ -52,9 +52,9 @@ export function ChatSidebar({
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<User[]>([]);
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
   const [groupSearchResults, setGroupSearchResults] = useState<User[]>([]);
-  const [isGroupSearching, setIsGroupSearching] = useState(false);
+  const [isGroupSearching] = useState(false);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  const [creatingUserId, setCreatingUserId] = useState<number | null>(null);
+  const [creatingUserId] = useState<number | null>(null);
 
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -123,61 +123,11 @@ useEffect(() => {
 
 const handleCreateConversation = useCallback(async (targetUser: User) => {
     if (!userId || !orgId) return;
-
-    setCreatingUserId(targetUser.id);
-    try {
-      const conv = await chatService.createConversation(
-        {
-          chatConversationType: "DIRECT",
-          orgId: orgId,
-          participantIds: [userId, targetUser.id],
-          participants: [
-            {
-              participantId: userId,
-              participantName: userName || "Me",
-              participantEmail: "",
-              isChatCreator: true,
-              participantMob: "",
-              participantRole: "USER",
-              chatParticipantType: "MEMBER",
-              participantAvatar: userAvatar,
-              orgId: orgId,
-              orgName: undefined,
-              orgType: undefined,
-            },
-            {
-              participantId: targetUser.id,
-              participantName: targetUser.name,
-              participantEmail: targetUser.email,
-              isChatCreator: false,
-              participantMob: targetUser.phone || "",
-              participantRole: targetUser.role || "USER",
-              chatParticipantType: "MEMBER",
-              participantAvatar: targetUser.profilePhoto,
-              orgId: targetUser.orgId,
-              orgName: targetUser.orgName,
-              orgType: targetUser.orgType,
-            },
-          ],
-        },
-        orgId,
-        userId
-      );
-      onCreateDirectChat(conv);
-      onSelectConversation(conv.chatConversationId);
-      setIsSearchOpen(false);
-      setSearchQuery("");
-      setSearchResults([]);
-      toast({ title: `Chat started with ${targetUser.name}` });
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { description?: string; message?: string; serviceName?: string } }; message?: string };
-      const errorMsg = err?.response?.data?.description || err?.response?.data?.message || err?.message || "Failed to start chat";
-      console.error("Failed to create conversation:", JSON.stringify(err?.response?.data), e);
-      toast({ title: "Failed to start chat", description: errorMsg, variant: "destructive" });
-    } finally {
-      setCreatingUserId(null);
-    }
-  }, [userId, orgId, userName, userAvatar, toast, onCreateDirectChat, onSelectConversation]);
+    onStartDirectChat(targetUser);
+    setIsSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  }, [onStartDirectChat, userId, orgId]);
 
   const handleCreateGroup = useCallback(async () => {
     if (!userId || !orgId || !groupName.trim() || selectedGroupUsers.length === 0) return;
@@ -211,7 +161,6 @@ const handleCreateConversation = useCallback(async (targetUser: User) => {
         orgId,
         userId
       );
-      onCreateDirectChat(conv);
       onSelectConversation(conv.chatConversationId);
       setIsGroupDialogOpen(false);
       setGroupName("");
@@ -226,7 +175,7 @@ const handleCreateConversation = useCallback(async (targetUser: User) => {
     } finally {
       setIsCreatingGroup(false);
     }
-  }, [userId, orgId, userName, userAvatar, groupName, groupDescription, selectedGroupUsers, toast, onCreateDirectChat, onSelectConversation]);
+  }, [userId, orgId, userName, userAvatar, groupName, groupDescription, selectedGroupUsers, toast, onSelectConversation]);
 
   const getOrgBadgeColor = (orgType?: string) => {
     switch (orgType?.toUpperCase()) {

@@ -6,29 +6,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search } from "lucide-react";
-import type { ChatMessage } from "@/types/chat";
+import { useChatStore, useChatActions } from "@/store/chatStore";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 
-interface SearchInChatDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  searchResults: ChatMessage[];
-  isSearching: boolean;
-  onSearch: () => void;
-}
+export function SearchInChatDialog() {
+  const { userId: userIdStr, orgId: orgIdStr } = useUserMetadata();
+  const userId = userIdStr ? Number(userIdStr) : null;
+  const orgId = orgIdStr ? Number(orgIdStr) : null;
+  const selectedConvId = useChatStore((s) => s.selectedConvId);
+  const isOpen = useChatStore((s) => s.isSearchInChatOpen);
+  const searchQuery = useChatStore((s) => s.searchQueryInChat);
+  const searchResults = useChatStore((s) => s.searchResultsInChat);
+  const isSearching = useChatStore((s) => s.isSearchingInChat);
+  const actions = useChatActions();
 
-export function SearchInChatDialog({
-  isOpen,
-  onOpenChange,
-  searchQuery,
-  setSearchQuery,
-  searchResults,
-  isSearching,
-  onSearch,
-}: SearchInChatDialogProps) {
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={actions.setIsSearchInChatOpen}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Search in Chat</DialogTitle>
@@ -38,10 +31,10 @@ export function SearchInChatDialog({
             <Input
               placeholder="Search messages..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onSearch()}
+              onChange={(e) => actions.setSearchQueryInChat(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && selectedConvId && userId && orgId && actions.searchMessages(selectedConvId, userId, orgId, searchQuery)}
             />
-            <Button onClick={onSearch} disabled={!searchQuery.trim() || isSearching}>
+            <Button onClick={() => selectedConvId && userId && orgId && actions.searchMessages(selectedConvId, userId, orgId, searchQuery)} disabled={!searchQuery.trim() || isSearching || !selectedConvId || !userId || !orgId}>
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>

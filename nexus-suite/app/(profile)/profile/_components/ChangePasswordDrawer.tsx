@@ -44,7 +44,7 @@ export function ChangePasswordDrawer({
     <>
 {/* Change Password Drawer */}
 			<Drawer open={isPasswordDrawerOpen} onOpenChange={setIsPasswordDrawerOpen} direction="right">
-				<DrawerContent className="h-full w-full gap-0 border-l p-0 data-[swipe-direction=right]:w-full data-[swipe-direction=right]:sm:max-w-lg">
+				<DrawerContent className="h-auto w-[calc(100%-2rem)] gap-0 rounded-xl border bg-background p-0 data-[swipe-direction=right]:inset-y-4 data-[swipe-direction=right]:right-4 data-[swipe-direction=right]:w-[calc(100%-2rem)] data-[swipe-direction=right]:sm:max-w-lg">
 					<DrawerHeader className="border-b bg-muted/30 px-6 py-5 pr-12">
 						<div className="flex items-start gap-3">
 							<div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background text-primary shadow-sm">

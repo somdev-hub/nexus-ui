@@ -7,9 +7,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Edit, Loader2, X } from 'lucide-react';
 import type { UpdateProfileRequest } from '@/lib/services/user-profile-service';
 import { GENDER_OPTIONS } from './profile-utils';
+
+function toLocalDate(value: string | undefined): Date | undefined {
+	if (!value) return undefined;
+
+	const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+	if (!year || !month || !day) return undefined;
+
+	const date = new Date(year, month - 1, day);
+	return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+		? date
+		: undefined;
+}
+
+function toDateValue(date: Date | undefined): string {
+	if (!date) return '';
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
 
 export type EditProfileDrawerProps = {
   isEditDrawerOpen: boolean;
@@ -25,7 +46,7 @@ export function EditProfileDrawer({ isEditDrawerOpen, setIsEditDrawerOpen, editF
     <>
 {/* Edit Profile Drawer */}
 			<Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen} direction="right">
-				<DrawerContent className="h-full w-full gap-0 border-l p-0 data-[swipe-direction=right]:w-full data-[swipe-direction=right]:sm:max-w-xl">
+				<DrawerContent className="h-auto w-[calc(100%-2rem)] gap-0 rounded-xl border bg-background p-0 data-[swipe-direction=right]:inset-y-4 data-[swipe-direction=right]:right-4 data-[swipe-direction=right]:w-[calc(100%-2rem)] data-[swipe-direction=right]:sm:max-w-xl">
 					<DrawerHeader className="border-b bg-muted/30 px-6 py-5 pr-12">
 						<div className="flex items-start gap-3">
 							<div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background text-primary shadow-sm">
@@ -96,7 +117,7 @@ export function EditProfileDrawer({ isEditDrawerOpen, setIsEditDrawerOpen, editF
 									<div className="grid gap-2">
 										<Label htmlFor="gender">Gender</Label>
 										<Select value={editForm.gender} onValueChange={(v) => handleEditChange('gender', v)}>
-											<SelectTrigger id="gender" className="h-10 bg-background">
+											<SelectTrigger id="gender" className="h-10 bg-background w-full">
 												<SelectValue placeholder="Select gender" />
 											</SelectTrigger>
 											<SelectContent>
@@ -110,12 +131,14 @@ export function EditProfileDrawer({ isEditDrawerOpen, setIsEditDrawerOpen, editF
 									</div>
 									<div className="grid gap-2">
 										<Label htmlFor="dateOfBirth">Date of Birth</Label>
-										<Input
+										<DatePicker
 											id="dateOfBirth"
-											type="date"
+											date={toLocalDate(editForm.dateOfBirth)}
+											onDateChange={(date) => handleEditChange('dateOfBirth', toDateValue(date))}
+											allowPast
+											startMonth={new Date(1900, 0)}
+											placeholder="Select date of birth"
 											className="h-10 bg-background"
-											value={editForm.dateOfBirth}
-											onChange={(e) => handleEditChange('dateOfBirth', e.target.value)}
 										/>
 									</div>
 								</div>

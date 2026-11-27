@@ -14,6 +14,8 @@ import type {
     WsStatusUpdateEvent,
     WsTypingEvent
 } from "@/types/chat";
+import type { Partnership } from "@/types/partnerships";
+import type { PaginatedResponse } from "@/types/paginated-response";
 
 const CHAT_V2_PATH = "/iam/chat/v2";
 
@@ -64,7 +66,7 @@ class ChatApiService {
         chatConversationDescription: payload.chatConversationDescription,
         chatConversationType: payload.chatConversationType,
         orgId: orgId,
-        isInterOrg: payload.participantIds.some((id, idx) => {
+        isInterOrg: payload.participantIds.some(() => {
           const orgs = new Set(payload.participants?.map(p => p.orgId).filter(Boolean));
           return orgs.size > 1;
         }),
@@ -447,11 +449,11 @@ class ChatApiService {
 
   async getOrgUsers(orgId: number): Promise<User[]> {
     try {
-      const response = await apiClient.get<any[]>(
+      const response = await apiClient.get<User[]>(
         `/iam/users/chat-contacts?orgId=${orgId}`
       );
       const content = response.data ?? [];
-      return content.map((u: any) => ({
+      return content.map((u: User) => ({
         id: u.id,
           name: u.name,
           email: u.email,
@@ -469,14 +471,14 @@ class ChatApiService {
 
   async getPartnerOrgs(orgId: number): Promise<{ orgId: number; orgName: string; users: User[] }[]> {
     try {
-      const partnerships = await (await import("@/lib/services/partnerships-service")).getPartnerships({
+      const partnerships: PaginatedResponse<Partnership> = await (await import("@/lib/services/partnerships-service")).getPartnerships({
         status: "ACTIVE",
         pageOffset: 100,
       });
-      const content = (partnerships as any).content ?? [];
+      const content = partnerships.content ?? [];
       const partnerOrgIds = new Set<number>();
       const orgNameMap = new Map<number, string>();
-      content.forEach((p: any) => {
+      content.forEach((p: Partnership) => {
         const otherOrgId = p.primaryOrg === orgId ? p.secondaryOrg : p.primaryOrg;
         const otherOrgName = p.primaryOrg === orgId ? p.secondaryOrgName : p.primaryOrgName;
         if (otherOrgId) {

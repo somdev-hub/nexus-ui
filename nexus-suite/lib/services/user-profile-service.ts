@@ -121,8 +121,10 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
             profile.email = String(data.email || '');
             profile.phone = data.phone ? String(data.phone) : undefined;
             profile.address = data.address ? String(data.address) : undefined;
+            profile.personalEmail = data.personalEmail ? String(data.personalEmail) : undefined;
             profile.gender = data.gender ? String(data.gender) : undefined;
             profile.age = data.age ? Number(data.age) : undefined;
+            profile.dateOfBirth = data.dateOfBirth ? String(data.dateOfBirth) : undefined;
             profile.profilePhoto = data.profileImageUrl ? String(data.profileImageUrl) : undefined;
             profile.department = data.department ? String(data.department) : undefined;
             profile.jobTitle = data.jobTitle ? String(data.jobTitle) : undefined;
@@ -175,7 +177,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
  */
 export async function updateUserProfile(userId: string, data: UpdateProfileRequest): Promise<UserProfile> {
     try {
-        const response = await apiClient.post<UserProfile>(`/iam/users/update?userId=${userId}`, data);
+        const response = await apiClient.put<UserProfile>(`/iam/users/update?userId=${userId}`, data);
         return response.data;
     } catch (error: unknown) {
         const errorMsg = error instanceof Error
@@ -218,9 +220,10 @@ export async function changePassword(data: {
     confirmPassword: string;
 }): Promise<{ message: string }> {
     try {
+        const { currentPassword, newPassword } = data;
         const response = await apiClient.post<{ message: string }>(
             '/iam/users/update/password',
-            data
+            { currentPassword, newPassword }
         );
         return response.data;
     } catch (error: unknown) {

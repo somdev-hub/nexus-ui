@@ -1,25 +1,21 @@
 "use client";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import type { ChatConversation } from "@/types/chat";
+import { useChatStore, useChatActions } from "@/store/chatStore";
+import { useUserMetadata } from "@/hooks/use-user-metadata";
 
-interface DeleteConversationDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedConvDetails: ChatConversation | null;
-  isDeleting: boolean;
-  onConfirmDelete: () => void;
-}
+export function DeleteConversationDialog() {
+  const { userId: userIdStr, orgId: orgIdStr } = useUserMetadata();
+  const userId = userIdStr ? Number(userIdStr) : null;
+  const orgId = orgIdStr ? Number(orgIdStr) : null;
+  const selectedConvId = useChatStore((s) => s.selectedConvId);
+  const isOpen = useChatStore((s) => s.isDeleteDialogOpen);
+  const selectedConvDetails = useChatStore((s) => s.selectedConvDetails);
+  const isDeleting = useChatStore((s) => s.isDeletingConversation);
+  const actions = useChatActions();
 
-export function DeleteConversationDialog({
-  isOpen,
-  onOpenChange,
-  selectedConvDetails,
-  isDeleting,
-  onConfirmDelete,
-}: DeleteConversationDialogProps) {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+    <AlertDialog open={isOpen} onOpenChange={actions.setIsDeleteDialogOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -29,7 +25,7 @@ export function DeleteConversationDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={isDeleting}>
+          <AlertDialogAction onClick={() => actions.deleteConversation(selectedConvId!, userId!, orgId!)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={isDeleting}>
             {isDeleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
