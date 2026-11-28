@@ -54,12 +54,16 @@ interface ChatState {
     setIsManageGroupOpen: (open: boolean) => void;
     isSearchInChatOpen: boolean;
     setIsSearchInChatOpen: (open: boolean) => void;
+    isConversationDetailsOpen: boolean;
+    setIsConversationDetailsOpen: (open: boolean) => void;
     searchQueryInChat: string;
     setSearchQueryInChat: (query: string) => void;
     searchResultsInChat: ChatMessage[];
     setSearchResultsInChat: (results: ChatMessage[]) => void;
     isSearchingInChat: boolean;
     setIsSearchingInChat: (searching: boolean) => void;
+    scrollToMessageId: number | null;
+    setScrollToMessageId: (id: number | null) => void;
 
     isDeleteDialogOpen: boolean;
     setIsDeleteDialogOpen: (open: boolean) => void;
@@ -108,6 +112,18 @@ interface ChatState {
     creatingUserId: number | null;
     setCreatingUserId: (id: number | null) => void;
 
+    // New chat sheet
+    isNewChatSheetOpen: boolean;
+    setIsNewChatSheetOpen: (open: boolean) => void;
+    newChatStep: 'suggested' | 'select-users' | 'group-details';
+    setNewChatStep: (step: 'suggested' | 'select-users' | 'group-details') => void;
+    groupAvatar: File | null;
+    setGroupAvatar: (file: File | null) => void;
+    groupAvatarPreview: string | null;
+    setGroupAvatarPreview: (preview: string | null) => void;
+    groupAdmins: Set<number>;
+    setGroupAdmins: (admins: Set<number>) => void;
+
     // Group management
     manageGroupName: string;
     setManageGroupName: (name: string) => void;
@@ -139,6 +155,20 @@ interface ChatState {
     setIsSearching: (searching: boolean) => void;
     isSearchOpen: boolean;
     setIsSearchOpen: (open: boolean) => void;
+
+    // Org users / partners
+    orgUsers: User[];
+    setOrgUsers: (users: User[]) => void;
+    isLoadingOrgUsers: boolean;
+    setIsLoadingOrgUsers: (loading: boolean) => void;
+    contactTab: 'my' | 'partner';
+    setContactTab: (tab: 'my' | 'partner') => void;
+    partnerOrgs: { orgId: number; orgName: string; users: User[] }[];
+    setPartnerOrgs: (orgs: { orgId: number; orgName: string; users: User[] }[]) => void;
+    isLoadingPartners: boolean;
+    setIsLoadingPartners: (loading: boolean) => void;
+    loadOrgUsers: (orgId: number) => Promise<void>;
+    loadPartnerOrgs: (orgId: number) => Promise<void>;
 
     // Refs (not persisted)
     firstUnreadIndex: number;
@@ -173,7 +203,9 @@ interface ChatState {
         userId: number,
         orgId: number,
         userName: string | undefined,
-        userAvatar: string | undefined
+        userAvatar: string | undefined,
+        avatar?: File | null,
+        admins?: Set<number>
     ) => Promise<ChatConversation | null>;
     sendMessage: (
         text: string,
@@ -272,9 +304,11 @@ const initialState = {
     isSending: false,
     isManageGroupOpen: false,
     isSearchInChatOpen: false,
+    isConversationDetailsOpen: false,
     searchQueryInChat: '',
     searchResultsInChat: [],
     isSearchingInChat: false,
+    scrollToMessageId: null,
     isDeleteDialogOpen: false,
     isClearingChat: false,
     isDeletingConversation: false,
@@ -294,6 +328,11 @@ const initialState = {
     isGroupSearching: false,
     isCreatingGroup: false,
     creatingUserId: null,
+    isNewChatSheetOpen: false,
+    newChatStep: 'suggested' as const,
+    groupAvatar: null,
+    groupAvatarPreview: null,
+    groupAdmins: new Set<number>(),
     manageGroupName: '',
     manageGroupDescription: '',
     manageSearchQuery: '',
@@ -307,6 +346,11 @@ const initialState = {
     searchResults: [],
     isSearching: false,
     isSearchOpen: false,
+    orgUsers: [],
+    isLoadingOrgUsers: false,
+    contactTab: 'my' as const,
+    partnerOrgs: [],
+    isLoadingPartners: false,
     firstUnreadIndex: -1,
 };
 
@@ -381,11 +425,13 @@ export const useChatStore = create<ChatState>()(
             // UI State
             setIsManageGroupOpen: (open) => set({ isManageGroupOpen: open }),
             setIsSearchInChatOpen: (open) => set({ isSearchInChatOpen: open }),
+            setIsConversationDetailsOpen: (open) => set({ isConversationDetailsOpen: open }),
             setSearchQueryInChat: (query) => set({ searchQueryInChat: query }),
             setSearchResultsInChat: (results) =>
                 set({ searchResultsInChat: results }),
             setIsSearchingInChat: (searching) =>
                 set({ isSearchingInChat: searching }),
+            setScrollToMessageId: (id) => set({ scrollToMessageId: id }),
             setIsDeleteDialogOpen: (open) => set({ isDeleteDialogOpen: open }),
             setIsClearingChat: (clearing) => set({ isClearingChat: clearing }),
             setIsDeletingConversation: (deleting) =>
@@ -431,6 +477,13 @@ export const useChatStore = create<ChatState>()(
                 set({ isCreatingGroup: creating }),
             setCreatingUserId: (id) => set({ creatingUserId: id }),
 
+            // New chat sheet
+            setIsNewChatSheetOpen: (open) => set({ isNewChatSheetOpen: open }),
+            setNewChatStep: (step) => set({ newChatStep: step }),
+            setGroupAvatar: (file) => set({ groupAvatar: file }),
+            setGroupAvatarPreview: (preview) => set({ groupAvatarPreview: preview }),
+            setGroupAdmins: (admins) => set({ groupAdmins: admins }),
+
             // Group management
             setManageGroupName: (name) => set({ manageGroupName: name }),
             setManageGroupDescription: (desc) =>
@@ -446,11 +499,40 @@ export const useChatStore = create<ChatState>()(
                 set({ isSavingGroupDetails: saving }),
             setIsAddingMembers: (adding) => set({ isAddingMembers: adding }),
 
+            // Org users / partners
+            loadOrgUsers: async (orgId: number) => {
+                set({ isLoadingOrgUsers: true });
+                try {
+                    const users = await chatService.getOrgUsers(orgId);
+                    set({ orgUsers: users, isLoadingOrgUsers: false });
+                } catch (e) {
+                    console.error('Failed to load org users:', e);
+                    set({ isLoadingOrgUsers: false });
+                }
+            },
+            loadPartnerOrgs: async (orgId: number) => {
+                set({ isLoadingPartners: true });
+                try {
+                    const orgs = await chatService.getPartnerOrgs(orgId);
+                    set({ partnerOrgs: orgs, isLoadingPartners: false });
+                } catch (e) {
+                    console.error('Failed to load partner orgs:', e);
+                    set({ isLoadingPartners: false });
+                }
+            },
+
             // User search
             setSearchQuery: (query) => set({ searchQuery: query }),
             setSearchResults: (users) => set({ searchResults: users }),
             setIsSearching: (searching) => set({ isSearching: searching }),
             setIsSearchOpen: (open) => set({ isSearchOpen: open }),
+
+            // Org users / partners
+            setOrgUsers: (users) => set({ orgUsers: users }),
+            setIsLoadingOrgUsers: (loading) => set({ isLoadingOrgUsers: loading }),
+            setContactTab: (tab) => set({ contactTab: tab }),
+            setPartnerOrgs: (orgs) => set({ partnerOrgs: orgs }),
+            setIsLoadingPartners: (loading) => set({ isLoadingPartners: loading }),
 
             // Refs
             setFirstUnreadIndex: (index) => set({ firstUnreadIndex: index }),
@@ -603,8 +685,11 @@ export const useChatStore = create<ChatState>()(
                 userId,
                 orgId,
                 userName,
-                userAvatar
+                userAvatar,
+                avatar,
+                admins
             ) => {
+                set({ isCreatingGroup: true });
                 try {
                     const participants = [
                         {
@@ -619,6 +704,7 @@ export const useChatStore = create<ChatState>()(
                             orgId,
                             orgName: undefined,
                             orgType: undefined,
+                            isAdmin: true,
                         },
                         ...selectedGroupUsers.map((u) => ({
                             participantId: u.id,
@@ -632,6 +718,7 @@ export const useChatStore = create<ChatState>()(
                             orgId: u.orgId,
                             orgName: u.orgName,
                             orgType: u.orgType,
+                            isAdmin: admins?.has(u.id) ?? false,
                         })),
                     ];
                     const conv = await chatService.createConversation(
@@ -650,7 +737,8 @@ export const useChatStore = create<ChatState>()(
                             >,
                         },
                         orgId,
-                        userId
+                        userId,
+                        avatar ?? undefined
                     );
                     set((state) => ({
                         conversations: [conv, ...state.conversations],
@@ -659,6 +747,8 @@ export const useChatStore = create<ChatState>()(
                 } catch (e) {
                     console.error('Failed to create group:', e);
                     return null;
+                } finally {
+                    set({ isCreatingGroup: false });
                 }
             },
 
@@ -1211,7 +1301,7 @@ export const useChatStore = create<ChatState>()(
             },
 
             // Reset
-            resetChatState: () => set(initialState),
+            resetChatState: () => set(initialState as Partial<ChatState>),
         }),
         {
             name: 'chat-store',
@@ -1220,6 +1310,7 @@ export const useChatStore = create<ChatState>()(
                 // Only persist UI preferences, not message data
                 isManageGroupOpen: state.isManageGroupOpen,
                 isSearchInChatOpen: state.isSearchInChatOpen,
+                isConversationDetailsOpen: state.isConversationDetailsOpen,
                 searchQueryInChat: state.searchQueryInChat,
                 groupName: state.groupName,
                 groupDescription: state.groupDescription,
@@ -1243,6 +1334,7 @@ export const useChatUI = () =>
         useShallow((s) => ({
             isManageGroupOpen: s.isManageGroupOpen,
             isSearchInChatOpen: s.isSearchInChatOpen,
+            isConversationDetailsOpen: s.isConversationDetailsOpen,
             isDeleteDialogOpen: s.isDeleteDialogOpen,
             isClearingChat: s.isClearingChat,
             isDeletingConversation: s.isDeletingConversation,
@@ -1271,9 +1363,11 @@ export const useChatActions = () =>
             setIsSending: s.setIsSending,
             setIsManageGroupOpen: s.setIsManageGroupOpen,
             setIsSearchInChatOpen: s.setIsSearchInChatOpen,
+            setIsConversationDetailsOpen: s.setIsConversationDetailsOpen,
             setSearchQueryInChat: s.setSearchQueryInChat,
             setSearchResultsInChat: s.setSearchResultsInChat,
             setIsSearchingInChat: s.setIsSearchingInChat,
+            setScrollToMessageId: s.setScrollToMessageId,
             setIsDeleteDialogOpen: s.setIsDeleteDialogOpen,
             setIsClearingChat: s.setIsClearingChat,
             setIsDeletingConversation: s.setIsDeletingConversation,
@@ -1336,5 +1430,9 @@ export const useChatActions = () =>
             setSearchResults: s.setSearchResults,
             setIsSearching: s.setIsSearching,
             setIsSearchOpen: s.setIsSearchOpen,
+            // Org users / partners
+            loadOrgUsers: s.loadOrgUsers,
+            loadPartnerOrgs: s.loadPartnerOrgs,
+            setContactTab: s.setContactTab,
         }))
     );

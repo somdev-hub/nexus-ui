@@ -1,6 +1,5 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
@@ -14,40 +13,38 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2, Eye, EyeOff, Shield, X } from 'lucide-react';
+import { useProfileStore } from '@/store/profileStore';
 
-export type PasswordForm = {
-    currentPassword: string;
-    newPassword: string;
-    confirmPassword: string;
-};
+export function ChangePasswordDrawer() {
+    const isPasswordDrawerOpen = useProfileStore(
+        (state) => state.isPasswordDrawerOpen
+    );
+    const setIsPasswordDrawerOpen = useProfileStore(
+        (state) => state.setPasswordDrawerOpen
+    );
+    const passwordForm = useProfileStore((state) => state.passwordForm);
+    const setPasswordForm = useProfileStore((state) => state.setPasswordForm);
+    const showCurrentPassword = useProfileStore(
+        (state) => state.showCurrentPassword
+    );
+    const setShowCurrentPassword = useProfileStore(
+        (state) => state.setShowCurrentPassword
+    );
+    const showNewPassword = useProfileStore((state) => state.showNewPassword);
+    const setShowNewPassword = useProfileStore(
+        (state) => state.setShowNewPassword
+    );
+    const showConfirmPassword = useProfileStore(
+        (state) => state.showConfirmPassword
+    );
+    const setShowConfirmPassword = useProfileStore(
+        (state) => state.setShowConfirmPassword
+    );
+    const changePassword = useProfileStore((state) => state.changePassword);
+    const resetPasswordForm = useProfileStore(
+        (state) => state.resetPasswordForm
+    );
 
-export type ChangePasswordDrawerProps = {
-    isPasswordDrawerOpen: boolean;
-    setIsPasswordDrawerOpen: Dispatch<SetStateAction<boolean>>;
-    passwordForm: PasswordForm;
-    setPasswordForm: Dispatch<SetStateAction<PasswordForm>>;
-    showCurrentPassword: boolean;
-    setShowCurrentPassword: Dispatch<SetStateAction<boolean>>;
-    showNewPassword: boolean;
-    setShowNewPassword: Dispatch<SetStateAction<boolean>>;
-    showConfirmPassword: boolean;
-    setShowConfirmPassword: Dispatch<SetStateAction<boolean>>;
-    handleChangePassword: () => Promise<void>;
-};
-
-export function ChangePasswordDrawer({
-    isPasswordDrawerOpen,
-    setIsPasswordDrawerOpen,
-    passwordForm,
-    setPasswordForm,
-    showCurrentPassword,
-    setShowCurrentPassword,
-    showNewPassword,
-    setShowNewPassword,
-    showConfirmPassword,
-    setShowConfirmPassword,
-    handleChangePassword,
-}: ChangePasswordDrawerProps) {
     return (
         <>
             {/* Change Password Drawer */}
@@ -98,10 +95,7 @@ export function ChangePasswordDrawer({
                                     }
                                     value={passwordForm.currentPassword}
                                     onChange={(e) =>
-                                        setPasswordForm((prev) => ({
-                                            ...prev,
-                                            currentPassword: e.target.value,
-                                        }))
+                                        setPasswordForm('currentPassword', e.target.value)
                                     }
                                     placeholder="Enter current password"
                                 />
@@ -132,10 +126,7 @@ export function ChangePasswordDrawer({
                                     type={showNewPassword ? 'text' : 'password'}
                                     value={passwordForm.newPassword}
                                     onChange={(e) =>
-                                        setPasswordForm((prev) => ({
-                                            ...prev,
-                                            newPassword: e.target.value,
-                                        }))
+                                        setPasswordForm('newPassword', e.target.value)
                                     }
                                     placeholder="Enter new password (min 8 characters)"
                                 />
@@ -170,10 +161,7 @@ export function ChangePasswordDrawer({
                                     }
                                     value={passwordForm.confirmPassword}
                                     onChange={(e) =>
-                                        setPasswordForm((prev) => ({
-                                            ...prev,
-                                            confirmPassword: e.target.value,
-                                        }))
+                                        setPasswordForm('confirmPassword', e.target.value)
                                     }
                                     placeholder="Confirm new password"
                                 />
@@ -202,11 +190,7 @@ export function ChangePasswordDrawer({
                             variant="outline"
                             onClick={() => {
                                 setIsPasswordDrawerOpen(false);
-                                setPasswordForm({
-                                    currentPassword: '',
-                                    newPassword: '',
-                                    confirmPassword: '',
-                                });
+                                resetPasswordForm();
                                 setShowCurrentPassword(false);
                                 setShowNewPassword(false);
                                 setShowConfirmPassword(false);
@@ -214,7 +198,7 @@ export function ChangePasswordDrawer({
                         >
                             Cancel
                         </Button>
-                        <Button onClick={handleChangePassword}>
+                        <Button onClick={changePassword}>
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             Update Password
                         </Button>

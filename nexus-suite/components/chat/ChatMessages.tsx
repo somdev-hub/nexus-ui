@@ -50,9 +50,28 @@ export const ChatMessages = forwardRef<
     const ui = useChatUI();
     const actions = useChatActions();
     const firstUnreadIndex = useChatStore((s) => s.firstUnreadIndex);
+  const scrollToMessageId = useChatStore((s) => s.scrollToMessageId);
     const { toast } = useToast();
 
     const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+    // Scroll to a specific message when scrollToMessageId changes (from search results)
+    useEffect(() => {
+      if (scrollToMessageId) {
+        const timer = setTimeout(() => {
+          const element = messageRefs.current.get(scrollToMessageId);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.classList.add('bg-yellow-100/50', 'dark:bg-yellow-900/20');
+            setTimeout(() => {
+              element.classList.remove('bg-yellow-100/50', 'dark:bg-yellow-900/20');
+            }, 2000);
+          }
+          actions.setScrollToMessageId(null);
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }, [scrollToMessageId, actions]);
 
     // Scroll to bottom when messages change (show latest messages)
     useEffect(() => {
@@ -267,12 +286,7 @@ export const ChatMessages = forwardRef<
                                                         {participant.orgType}
                                                     </Badge>
                                                 )}
-                                                {msg.isPinned && (
-                                                    <Badge className="text-[9px] px-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 flex items-center gap-1">
-                                                        <Flag className="h-2.5 w-2.5" />
-                                                        Pinned
-                                                    </Badge>
-                                                )}
+                                                {/* Pinned badge removed - shown in pinned bar at top */}
                                                 {/* Message Action Menu - shows on hover of message row */}
                                                 <DropdownMenu
                                                     open={

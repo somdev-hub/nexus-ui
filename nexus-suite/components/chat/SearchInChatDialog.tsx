@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Search } from 'lucide-react';
 import { useChatStore, useChatActions } from '@/store/chatStore';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
+import { useEffect, useRef } from 'react';
 
 export function SearchInChatDialog() {
     const { userId: userIdStr, orgId: orgIdStr } = useUserMetadata();
@@ -24,6 +25,38 @@ export function SearchInChatDialog() {
     const searchResults = useChatStore((s) => s.searchResultsInChat);
     const isSearching = useChatStore((s) => s.isSearchingInChat);
     const actions = useChatActions();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Debounced search
+    useEffect(() => {
+        if (!isOpen || !selectedConvId || !userId || !orgId) return;
+        if (!searchQuery.trim()) {
+            actions.setSearchResultsInChat([]);
+            return;
+        }
+
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+
+        debounceRef.current = setTimeout(() => {
+            actions.searchMessages(selectedConvId, userId, orgId, searchQuery);
+        }, 300);
+
+        return () => {
+            if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+            }
+        };
+    }, [searchQuery, isOpen, selectedConvId, userId, orgId, actions]);
+
+    // Clear search state when dialog closes
+    useEffect(() => {
+        if (!isOpen) {
+            actions.setSearchQueryInChat('');
+            actions.setSearchResultsInChat([]);
+        }
+    }, [isOpen, actions]);
 
     return (
         <Dialog open={isOpen} onOpenChange={actions.setIsSearchInChatOpen}>
@@ -86,6 +119,10 @@ export function SearchInChatDialog() {
                                     <div
                                         key={msg.chatMessageId}
                                         className="p-3 border rounded-lg hover:bg-muted cursor-pointer"
+                                        onClick={() => {
+                                            actions.setScrollToMessageId(msg.chatMessageId);
+                                            actions.setIsSearchInChatOpen(false);
+                                        }}
                                     >
                                         <div className="flex items-center gap-2 mb-1">
                                             <Avatar className="h-6 w-6">

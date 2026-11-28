@@ -1,6 +1,5 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
@@ -23,7 +22,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Edit, Loader2, X } from 'lucide-react';
-import type { UpdateProfileRequest } from '@/lib/services/user-profile-service';
+import { useProfileStore } from '@/store/profileStore';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { GENDER_OPTIONS } from './profile-utils';
 
 function toLocalDate(value: string | undefined): Date | undefined {
@@ -48,26 +48,17 @@ function toDateValue(date: Date | undefined): string {
     return `${year}-${month}-${day}`;
 }
 
-export type EditProfileDrawerProps = {
-    isEditDrawerOpen: boolean;
-    setIsEditDrawerOpen: Dispatch<SetStateAction<boolean>>;
-    editForm: UpdateProfileRequest;
-    handleEditChange: (
-        field: keyof UpdateProfileRequest,
-        value: string
-    ) => void;
-    handleSaveProfile: () => Promise<void>;
-    saving: boolean;
-};
+export function EditProfileDrawer() {
+    const { userId } = useUserMetadata();
+    const isEditDrawerOpen = useProfileStore((state) => state.isEditDrawerOpen);
+    const setIsEditDrawerOpen = useProfileStore(
+        (state) => state.setEditDrawerOpen
+    );
+    const editForm = useProfileStore((state) => state.editForm);
+    const setEditForm = useProfileStore((state) => state.setEditForm);
+    const saving = useProfileStore((state) => state.saving);
+    const saveProfile = useProfileStore((state) => state.saveProfile);
 
-export function EditProfileDrawer({
-    isEditDrawerOpen,
-    setIsEditDrawerOpen,
-    editForm,
-    handleEditChange,
-    handleSaveProfile,
-    saving,
-}: EditProfileDrawerProps) {
     return (
         <>
             {/* Edit Profile Drawer */}
@@ -126,10 +117,7 @@ export function EditProfileDrawer({
                                         className="h-10 bg-background"
                                         value={editForm.name}
                                         onChange={(e) =>
-                                            handleEditChange(
-                                                'name',
-                                                e.target.value
-                                            )
+                                            setEditForm('name', e.target.value)
                                         }
                                         placeholder="e.g. Jane Doe"
                                     />
@@ -143,10 +131,7 @@ export function EditProfileDrawer({
                                             className="h-10 bg-background"
                                             value={editForm.phone}
                                             onChange={(e) =>
-                                                handleEditChange(
-                                                    'phone',
-                                                    e.target.value
-                                                )
+                                                setEditForm('phone', e.target.value)
                                             }
                                             placeholder="e.g. +91 98765 43210"
                                         />
@@ -161,7 +146,7 @@ export function EditProfileDrawer({
                                             className="h-10 bg-background"
                                             value={editForm.personalEmail}
                                             onChange={(e) =>
-                                                handleEditChange(
+                                                setEditForm(
                                                     'personalEmail',
                                                     e.target.value
                                                 )
@@ -176,7 +161,7 @@ export function EditProfileDrawer({
                                         <Select
                                             value={editForm.gender}
                                             onValueChange={(v) =>
-                                                handleEditChange('gender', v)
+                                                setEditForm('gender', v)
                                             }
                                         >
                                             <SelectTrigger
@@ -207,7 +192,7 @@ export function EditProfileDrawer({
                                                 editForm.dateOfBirth
                                             )}
                                             onDateChange={(date) =>
-                                                handleEditChange(
+                                                setEditForm(
                                                     'dateOfBirth',
                                                     toDateValue(date)
                                                 )
@@ -247,10 +232,7 @@ export function EditProfileDrawer({
                                     className="h-10 bg-background"
                                     value={editForm.address}
                                     onChange={(e) =>
-                                        handleEditChange(
-                                            'address',
-                                            e.target.value
-                                        )
+                                        setEditForm('address', e.target.value)
                                     }
                                     placeholder="e.g. Bangalore, India"
                                 />
@@ -265,7 +247,12 @@ export function EditProfileDrawer({
                         >
                             Cancel
                         </Button>
-                        <Button onClick={handleSaveProfile} disabled={saving}>
+                        <Button
+                            onClick={() => {
+                                if (userId) saveProfile(userId);
+                            }}
+                            disabled={saving}
+                        >
                             {saving ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,6 +1,5 @@
 'use client';
 
-import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
@@ -15,28 +14,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, Loader2, X } from 'lucide-react';
 import Image from 'next/image';
+import { useProfileStore } from '@/store/profileStore';
+import { useUserMetadata } from '@/hooks/use-user-metadata';
 
-export type ProfileImageDrawerProps = {
-    displayAvatar: string;
-    isImageDrawerOpen: boolean;
-    setIsImageDrawerOpen: Dispatch<SetStateAction<boolean>>;
-    avatarPreview: string | null;
-    setAvatarPreview: Dispatch<SetStateAction<string | null>>;
-    handleAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void;
-    handleUploadAvatar: () => Promise<void>;
-    uploadingAvatar: boolean;
-};
+export function ProfileImageDrawer() {
+    const { userId } = useUserMetadata();
+    const isImageDrawerOpen = useProfileStore(
+        (state) => state.isImageDrawerOpen
+    );
+    const setIsImageDrawerOpen = useProfileStore(
+        (state) => state.setImageDrawerOpen
+    );
+    const avatarPreview = useProfileStore((state) => state.avatarPreview);
+    const setAvatarPreview = useProfileStore((state) => state.setAvatarPreview);
+    const uploadingAvatar = useProfileStore((state) => state.uploadingAvatar);
+    const uploadAvatar = useProfileStore((state) => state.uploadAvatar);
 
-export function ProfileImageDrawer({
-    displayAvatar,
-    isImageDrawerOpen,
-    setIsImageDrawerOpen,
-    avatarPreview,
-    setAvatarPreview,
-    handleAvatarChange,
-    handleUploadAvatar,
-    uploadingAvatar,
-}: ProfileImageDrawerProps) {
     return (
         <>
             {/* Edit Profile Image Drawer */}
@@ -75,7 +68,7 @@ export function ProfileImageDrawer({
                         <div className="flex flex-col items-center gap-5">
                             <div className="relative">
                                 <Image
-                                    src={avatarPreview || displayAvatar}
+                                    src={avatarPreview || ''}
                                     alt="Profile Image Preview"
                                     width={150}
                                     height={150}
@@ -95,7 +88,26 @@ export function ProfileImageDrawer({
                                     id="avatar-upload"
                                     type="file"
                                     accept="image/*"
-                                    onChange={handleAvatarChange}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        if (!file.type.startsWith('image/')) {
+                                            return;
+                                        }
+
+                                        if (file.size > 5 * 1024 * 1024) {
+                                            return;
+                                        }
+
+                                        const reader = new FileReader();
+                                        reader.onload = (event) => {
+                                            setAvatarPreview(
+                                                event.target?.result as string
+                                            );
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }}
                                     className="h-10 cursor-pointer bg-background"
                                     disabled={uploadingAvatar}
                                 />
@@ -118,7 +130,15 @@ export function ProfileImageDrawer({
                             Cancel
                         </Button>
                         <Button
-                            onClick={handleUploadAvatar}
+                            onClick={() => {
+                                const fileInput = document.getElementById(
+                                    'avatar-upload'
+                                ) as HTMLInputElement;
+                                const file = fileInput?.files?.[0];
+                                if (file && userId) {
+                                    uploadAvatar(file, userId);
+                                }
+                            }}
                             disabled={uploadingAvatar || !avatarPreview}
                         >
                             {uploadingAvatar ? (
