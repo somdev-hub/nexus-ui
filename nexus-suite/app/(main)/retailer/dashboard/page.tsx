@@ -10,7 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getPartnerships } from '@/lib/services/partnerships-service';
 import { getPurchaseOrders } from '@/lib/services/purchase-orders-service';
-import { getGoodsReceipts, getInvoices } from '@/lib/services/procurement-extended-service';
+import {
+    getGoodsReceipts,
+    getInvoices,
+} from '@/lib/services/procurement-extended-service';
 import { getRetailerCoreShipments } from '@/lib/services/shipment-service';
 import {
     getRetailerConsignments,
@@ -77,7 +80,9 @@ export default function Page() {
                     getPurchaseOrders({ pageNo: 0, pageOffset: 5 }).catch(
                         () => null
                     ),
-                    getGoodsReceipts({ pageNo: 0, pageOffset: 5 }).catch(() => null),
+                    getGoodsReceipts({ pageNo: 0, pageOffset: 5 }).catch(
+                        () => null
+                    ),
                     getInvoices({ pageNo: 0, pageOffset: 5 }).catch(() => null),
                     getRetailerCoreShipments(0, 5).catch(() => null),
                     getRetailerConsignments().catch(() => []),
@@ -268,14 +273,17 @@ export default function Page() {
         vmis,
     } = data;
 
-    const poReceivedQuantity = (purchaseOrders?.content ?? []).reduce((sum, po) => {
-        return (
-            sum +
-            (po.lineItems ?? []).reduce((s, li) => {
-                return s + (li.quantityReceived ?? li.quantityOrdered ?? 0);
-            }, 0)
-        );
-    }, 0);
+    const poReceivedQuantity = (purchaseOrders?.content ?? []).reduce(
+        (sum, po) => {
+            return (
+                sum +
+                (po.lineItems ?? []).reduce((s, li) => {
+                    return s + (li.quantityReceived ?? li.quantityOrdered ?? 0);
+                }, 0)
+            );
+        },
+        0
+    );
 
     const consignmentQuantity = (consignments ?? []).reduce((sum, c) => {
         return sum + (c.quantityOnHand ?? c.quantityAvailable ?? 0);
@@ -286,14 +294,16 @@ export default function Page() {
     }, 0);
 
     const materialDistribution = [
-        { name: 'PO', value: poReceivedQuantity || (purchaseOrders?.content?.length ?? 0) },
+        {
+            name: 'PO',
+            value: poReceivedQuantity || (purchaseOrders?.content?.length ?? 0),
+        },
         {
             name: 'Consignment',
             value: consignmentQuantity || (consignments?.length ?? 0),
         },
         { name: 'VMI', value: vmiQuantity || (vmis?.length ?? 0) },
     ];
-
 
     // table data is prepared above as recentPoRows
 
@@ -303,7 +313,9 @@ export default function Page() {
                 <div className="@container/main flex flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
                         <SectionCards
-                            totalPurchaseOrders={purchaseOrders?.totalElements ?? 0}
+                            totalPurchaseOrders={
+                                purchaseOrders?.totalElements ?? 0
+                            }
                             totalPartnerships={partnerships.totalElements}
                             totalVmi={vmis.length}
                             totalConsignment={consignments.length}

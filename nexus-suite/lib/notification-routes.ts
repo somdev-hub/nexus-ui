@@ -10,46 +10,46 @@
 // receiving a notification about a goods receipt should land on the
 // supplier invoices page, not the retailer goods-receipts page.
 
-export type OrgType = "RETAILER" | "SUPPLIER" | "LOGISTICS" | string;
+export type OrgType = 'RETAILER' | 'SUPPLIER' | 'LOGISTICS' | string;
 
 export function resolveNotificationRoute(
     entityType: string,
     entityId: number,
     orgType?: OrgType
 ): string {
-    const isSupplier = orgType?.toUpperCase() === "SUPPLIER";
-    const isLogistics = orgType?.toUpperCase() === "LOGISTICS";
+    const isSupplier = orgType?.toUpperCase() === 'SUPPLIER';
+    const isLogistics = orgType?.toUpperCase() === 'LOGISTICS';
 
     switch (entityType) {
-        case "PURCHASE_ORDER":
+        case 'PURCHASE_ORDER':
             return isSupplier
                 ? `/supplier/orders/${entityId}`
                 : `/retailer/purchase-orders/${entityId}`;
-        case "SHIPMENT":
+        case 'SHIPMENT':
             return isSupplier
                 ? `/supplier/shipments/${entityId}`
                 : isLogistics
-                ? `/logistics/shipments/${entityId}`
-                : `/retailer/shipments/${entityId}`;
-        case "INVOICE":
+                  ? `/logistics/shipments/${entityId}`
+                  : `/retailer/shipments/${entityId}`;
+        case 'INVOICE':
             return isSupplier
                 ? `/supplier/invoices`
                 : `/retailer/procurement/invoices/${entityId}`;
-        case "GOODS_RECEIPT":
+        case 'GOODS_RECEIPT':
             return isSupplier
                 ? `/supplier/invoices`
                 : `/retailer/procurement/goods-receipts/${entityId}`;
-        case "SUPPLIER_QUOTATION":
+        case 'SUPPLIER_QUOTATION':
             return isSupplier
                 ? `/supplier/quotations/${entityId}`
                 : `/retailer/quotations/${entityId}`;
-        case "PARTNERSHIP":
+        case 'PARTNERSHIP':
             return isSupplier
                 ? `/supplier/partnership/management`
                 : `/retailer/partnerships/${entityId}`;
-        case "PAYMENT":
+        case 'PAYMENT':
             return `/retailer/payments/${entityId}`;
-        case "CHAT":
+        case 'CHAT':
             return `/chat`;
         default:
             return `/`;

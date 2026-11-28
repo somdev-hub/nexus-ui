@@ -248,7 +248,10 @@ export function PartnershipTable({
             })
             .catch(() => {
                 // Fall back to a blank form rather than blocking the edit.
-                toast({ title: 'Could not load current terms — editing blank', variant: 'destructive' });
+                toast({
+                    title: 'Could not load current terms — editing blank',
+                    variant: 'destructive',
+                });
                 setEditing({ id: partnership.partnershipId, initial: {} });
             });
     }, []);
@@ -273,7 +276,10 @@ export function PartnershipTable({
             toast({ title: 'Partnership terminated', variant: 'success' });
         } catch (error) {
             console.error('Failed to terminate partnership:', error);
-            toast({ title: 'Failed to terminate partnership', variant: 'destructive' });
+            toast({
+                title: 'Failed to terminate partnership',
+                variant: 'destructive',
+            });
         } finally {
             setTerminating(null);
         }

@@ -771,7 +771,6 @@ export default function LogisticsPartnershipsPage() {
         );
     };
 
-
     const partnershipColumns: ColumnDef<OrgPartnership>[] = [
         {
             accessorKey: 'partnershipId',
@@ -838,8 +837,7 @@ export default function LogisticsPartnershipsPage() {
                     String(
                         (p as unknown as Record<string, unknown>)
                             .partnershipTermType ?? ''
-                    )
-                        .toUpperCase() === 'LONG_TERM';
+                    ).toUpperCase() === 'LONG_TERM';
                 return (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -946,8 +944,7 @@ export default function LogisticsPartnershipsPage() {
         {
             id: 'quote',
             header: 'Quote',
-            accessorFn: (row) =>
-                String(row.quotationNumber ?? row.quotationId),
+            accessorFn: (row) => String(row.quotationNumber ?? row.quotationId),
             cell: ({ row }) => (
                 <span className="font-mono text-xs">
                     {row.original.quotationNumber ?? row.original.quotationId}

@@ -3,21 +3,21 @@
 
 /* Thin scrollbar for dialogs */
 .thin-scrollbar::-webkit-scrollbar {
-  width: 4px;
+    width: 4px;
 }
 .thin-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 2px;
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 2px;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.5);
+    background: rgba(128, 128, 128, 0.5);
 }
 .thin-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
 }
 
 @custom-variant dark (&:is(.dark *));

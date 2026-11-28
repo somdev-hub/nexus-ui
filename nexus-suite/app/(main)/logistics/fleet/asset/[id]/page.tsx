@@ -713,7 +713,11 @@ export default function AssetDetailPage() {
                                                                             }
                                                                             currency={
                                                                                 (
-                                                                                    s as { currency?: string | null }
+                                                                                    s as {
+                                                                                        currency?:
+                                                                                            | string
+                                                                                            | null;
+                                                                                    }
                                                                                 )
                                                                                     .currency
                                                                             }
@@ -920,8 +924,13 @@ export default function AssetDetailPage() {
                                                             <Money
                                                                 amount={m.cost}
                                                                 currency={
-                                                                    (m as { currency?: string | null })
-                                                                        .currency
+                                                                    (
+                                                                        m as {
+                                                                            currency?:
+                                                                                | string
+                                                                                | null;
+                                                                        }
+                                                                    ).currency
                                                                 }
                                                             />
                                                         </>

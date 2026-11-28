@@ -238,7 +238,9 @@ async function loadOptions({
         ),
         getOrgAddresses(String(ownOrgId ?? '')).catch(() => [] as OrgAddress[]),
         hasBuyer
-            ? getOrgAddresses(buyerOrgId as number).catch(() => [] as OrgAddress[])
+            ? getOrgAddresses(buyerOrgId as number).catch(
+                  () => [] as OrgAddress[]
+              )
             : Promise.resolve([] as OrgAddress[]),
     ]);
 

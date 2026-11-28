@@ -284,9 +284,7 @@ export default function LoadBoardPage() {
             header: 'Status',
             accessorFn: (row) => row.status ?? '',
             cell: ({ row }) => (
-                <Badge variant="secondary">
-                    {row.original.status ?? '—'}
-                </Badge>
+                <Badge variant="secondary">{row.original.status ?? '—'}</Badge>
             ),
         },
         {
@@ -343,8 +341,7 @@ export default function LoadBoardPage() {
                     <div className="whitespace-nowrap text-xs">
                         <div>P: {shortDate(s.pickupDate)}</div>
                         <div>
-                            D:{' '}
-                            {shortDate(s.deliveryDate ?? s.estimatedArrival)}
+                            D: {shortDate(s.deliveryDate ?? s.estimatedArrival)}
                         </div>
                     </div>
                 );
@@ -360,8 +357,8 @@ export default function LoadBoardPage() {
                     <div className="whitespace-nowrap text-xs">
                         <div>{s.totalWeight ?? '—'} kg</div>
                         <div className="text-muted-foreground">
-                            {s.totalVolume ?? '—'} m³ ·{' '}
-                            {s.totalPackages ?? '—'} pkgs
+                            {s.totalVolume ?? '—'} m³ · {s.totalPackages ?? '—'}{' '}
+                            pkgs
                         </div>
                     </div>
                 );
@@ -379,9 +376,7 @@ export default function LoadBoardPage() {
                         s.freightCost !== null ? (
                             <>
                                 {s.freightCost} {s.currency ?? 'USD'}
-                                {s.freightTerms
-                                    ? ` · ${s.freightTerms}`
-                                    : ''}
+                                {s.freightTerms ? ` · ${s.freightTerms}` : ''}
                             </>
                         ) : (
                             '—'
@@ -649,9 +644,7 @@ export default function LoadBoardPage() {
             header: 'Status',
             accessorFn: (row) => row.status ?? '',
             cell: ({ row }) => (
-                <Badge variant="default">
-                    {row.original.status ?? '—'}
-                </Badge>
+                <Badge variant="default">{row.original.status ?? '—'}</Badge>
             ),
         },
         {
@@ -846,13 +839,12 @@ export default function LoadBoardPage() {
                                     />
                                     <div className="pt-2">
                                         <span className="text-sm text-muted-foreground">
-                                            {loads?.totalElements ?? 0}{' '}
-                                            load(s)
+                                            {loads?.totalElements ?? 0} load(s)
                                         </span>
                                     </div>
                                 </>
                             )}
-                            </CardContent>
+                        </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="picked-up">
@@ -883,7 +875,7 @@ export default function LoadBoardPage() {
                                     </div>
                                 </>
                             )}
-                            </CardContent>
+                        </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="delivered">
@@ -914,7 +906,7 @@ export default function LoadBoardPage() {
                                     </div>
                                 </>
                             )}
-                            </CardContent>
+                        </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>

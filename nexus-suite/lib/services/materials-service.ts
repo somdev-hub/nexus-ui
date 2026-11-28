@@ -3,7 +3,7 @@ import type {
     Material,
     MaterialCreateRequest,
     MaterialFilter,
-    MaterialUpdateRequest
+    MaterialUpdateRequest,
 } from '@/types/materials';
 import { PaginatedResponse } from '@/types/paginated-response';
 
@@ -61,9 +61,7 @@ export async function getMaterials(
 }
 
 export async function getMaterialById(materialId: number): Promise<Material> {
-    const response = await apiClient.get<any>(
-        `${BASE_PATH}/${materialId}`
-    );
+    const response = await apiClient.get<any>(`${BASE_PATH}/${materialId}`);
     return toFrontendMaterial(response.data);
 }
 

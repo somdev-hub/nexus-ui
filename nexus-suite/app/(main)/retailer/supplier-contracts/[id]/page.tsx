@@ -302,8 +302,10 @@ const Page = () => {
                             )}
                             {(contract.status === 'DRAFT' ||
                                 contract.status === 'PENDING_APPROVAL' ||
-                                contract.status === 'PENDING_SUPPLIER_APPROVAL' ||
-                                contract.status === 'PENDING_LOGISTICS_APPROVAL') && (
+                                contract.status ===
+                                    'PENDING_SUPPLIER_APPROVAL' ||
+                                contract.status ===
+                                    'PENDING_LOGISTICS_APPROVAL') && (
                                 <>
                                     <Button
                                         onClick={() => setConfirmApprove(true)}
@@ -502,7 +504,11 @@ const Page = () => {
                                         Created
                                     </span>
                                     <span className="font-medium">
-                                        {contract.createdAt ? new Date(contract.createdAt).toLocaleString() : '-'}
+                                        {contract.createdAt
+                                            ? new Date(
+                                                  contract.createdAt
+                                              ).toLocaleString()
+                                            : '-'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
@@ -510,7 +516,11 @@ const Page = () => {
                                         Updated
                                     </span>
                                     <span className="font-medium">
-                                        {contract.updatedAt ? new Date(contract.updatedAt).toLocaleString() : '-'}
+                                        {contract.updatedAt
+                                            ? new Date(
+                                                  contract.updatedAt
+                                              ).toLocaleString()
+                                            : '-'}
                                     </span>
                                 </div>
                             </CardContent>

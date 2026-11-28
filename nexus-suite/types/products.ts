@@ -21,7 +21,11 @@ export interface Product {
     barcode?: string;
     sku?: string;
     tags?: string[];
-    materials?: { materialId: number; materialName?: string; quantity: number }[];
+    materials?: {
+        materialId: number;
+        materialName?: string;
+        quantity: number;
+    }[];
     createdAt: string;
     updatedAt: string;
     createdBy: string;

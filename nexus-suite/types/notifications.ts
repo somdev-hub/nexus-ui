@@ -4,7 +4,8 @@
 // The backend is the source of truth for the shape; if a field is added or
 // renamed there, it must be added or renamed here too.
 
-export type NotificationSeverity = 'INFO' | 'WARNING' | 'CRITICAL' | 'ACTION_REQUIRED';
+export type NotificationSeverity =
+    'INFO' | 'WARNING' | 'CRITICAL' | 'ACTION_REQUIRED';
 
 export interface NotificationMessage {
     notificationId: number;
@@ -41,4 +42,7 @@ export interface NotificationPush {
     ack?: NotificationAck;
 }
 
-export type NotificationRouteResolver = (entityType: string, entityId: number) => string;
+export type NotificationRouteResolver = (
+    entityType: string,
+    entityId: number
+) => string;

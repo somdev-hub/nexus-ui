@@ -19,42 +19,39 @@ export function NotificationBell() {
     const { user } = useAuth();
     const shownRef = useRef<Set<number>>(new Set());
     const [open, setOpen] = useState(false);
-    const {
-        unreadCount,
-        items,
-        markRead,
-        markAllRead,
-        sync,
-    } = useNotifications({
-        onNotification: (push) => {
-            if (push.message) {
-                const m = push.message;
-                if (shownRef.current.has(m.notificationId)) return;
-                shownRef.current.add(m.notificationId);
-                toast(m.title, {
-                    description: m.body,
-                    action: {
-                        label: 'Open',
-                        onClick: () => {
-                            if (m.entityType === 'CHAT') {
-                                window.dispatchEvent(
-                                    new CustomEvent('open-chat-dialog', {
-                                        detail: { conversationId: m.entityId },
-                                    })
+    const { unreadCount, items, markRead, markAllRead, sync } =
+        useNotifications({
+            onNotification: (push) => {
+                if (push.message) {
+                    const m = push.message;
+                    if (shownRef.current.has(m.notificationId)) return;
+                    shownRef.current.add(m.notificationId);
+                    toast(m.title, {
+                        description: m.body,
+                        action: {
+                            label: 'Open',
+                            onClick: () => {
+                                if (m.entityType === 'CHAT') {
+                                    window.dispatchEvent(
+                                        new CustomEvent('open-chat-dialog', {
+                                            detail: {
+                                                conversationId: m.entityId,
+                                            },
+                                        })
+                                    );
+                                    return;
+                                }
+                                window.location.href = resolveNotificationRoute(
+                                    m.entityType,
+                                    m.entityId,
+                                    user?.orgType
                                 );
-                                return;
-                            }
-                            window.location.href = resolveNotificationRoute(
-                                m.entityType,
-                                m.entityId,
-                                user?.orgType
-                            );
+                            },
                         },
-                    },
-                });
-            }
-        },
-    });
+                    });
+                }
+            },
+        });
 
     return (
         <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -73,14 +70,9 @@ export function NotificationBell() {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-                align="end"
-                className="w-80 p-0"
-            >
+            <DropdownMenuContent align="end" className="w-80 p-0">
                 <div className="flex items-center justify-between border-b px-3 py-2">
-                    <span className="text-sm font-medium">
-                        Notifications
-                    </span>
+                    <span className="text-sm font-medium">Notifications</span>
                     {unreadCount > 0 && (
                         <button
                             type="button"
@@ -107,12 +99,18 @@ export function NotificationBell() {
                             onClick={() => {
                                 markRead(item.notificationId);
                                 setOpen(false);
-                                if (item.entityType === "CHAT") {
+                                if (item.entityType === 'CHAT') {
                                     setTimeout(() => {
                                         window.dispatchEvent(
-                                            new CustomEvent("open-chat-dialog", {
-                                                detail: { conversationId: item.entityId },
-                                            })
+                                            new CustomEvent(
+                                                'open-chat-dialog',
+                                                {
+                                                    detail: {
+                                                        conversationId:
+                                                            item.entityId,
+                                                    },
+                                                }
+                                            )
                                         );
                                     }, 0);
                                     return;

@@ -26,10 +26,11 @@ export default function Page() {
             } catch (err: unknown) {
                 if (!isActive) return;
                 toast({
-                    title: err instanceof Error
-                        ? err.message
-                        : 'Failed to load products',
-                    variant: 'destructive'
+                    title:
+                        err instanceof Error
+                            ? err.message
+                            : 'Failed to load products',
+                    variant: 'destructive',
                 });
             } finally {
                 if (isActive) setIsLoading(false);

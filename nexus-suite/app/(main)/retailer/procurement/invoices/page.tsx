@@ -249,7 +249,9 @@ export default function InvoicesPage() {
             header: 'PO',
             accessorFn: (row) => row.poNumber || row.purchaseOrderId,
             cell: ({ row }) => (
-                <div>{row.original.poNumber || row.original.purchaseOrderId}</div>
+                <div>
+                    {row.original.poNumber || row.original.purchaseOrderId}
+                </div>
             ),
         },
         {

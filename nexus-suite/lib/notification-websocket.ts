@@ -91,13 +91,18 @@ class NotificationWebSocketService {
     }
 
     private isConnectionFailed(): boolean {
-        return this.rejectConnection !== null && this.resolveConnection === null;
+        return (
+            this.rejectConnection !== null && this.resolveConnection === null
+        );
     }
 
     private async attemptConnection(generation: number): Promise<void> {
         // Bail out if the connection was manually disconnected while we were
         // fetching the token.
-        if (this.isManualDisconnect || generation !== this.connectionGeneration) {
+        if (
+            this.isManualDisconnect ||
+            generation !== this.connectionGeneration
+        ) {
             console.log('[NOTIFICATION WS] Connection attempt cancelled');
             return;
         }
@@ -131,7 +136,9 @@ class NotificationWebSocketService {
                 this.isManualDisconnect ||
                 generation !== this.connectionGeneration
             ) {
-                console.log('[NOTIFICATION WS] Connection attempt cancelled after token fetch');
+                console.log(
+                    '[NOTIFICATION WS] Connection attempt cancelled after token fetch'
+                );
                 return;
             }
 
@@ -189,7 +196,9 @@ class NotificationWebSocketService {
             heartbeatOutgoing: HEARTBEAT_INTERVAL,
             onConnect: () => {
                 if (generation !== this.connectionGeneration) {
-                    console.log('[NOTIFICATION WS] Ignoring connect from a superseded connection');
+                    console.log(
+                        '[NOTIFICATION WS] Ignoring connect from a superseded connection'
+                    );
                     return;
                 }
                 if (this.connectionTimeoutHandle) {
@@ -203,8 +212,7 @@ class NotificationWebSocketService {
                 this.config?.onConnect?.();
             },
             onStompError: (frame: any) => {
-                const errorMsg =
-                    frame.headers['message'] || 'STOMP error';
+                const errorMsg = frame.headers['message'] || 'STOMP error';
                 console.error('[NOTIFICATION WS] STOMP error:', errorMsg);
                 this.handleConnectionError(new Error(errorMsg), generation);
             },
@@ -216,7 +224,9 @@ class NotificationWebSocketService {
             },
             onWebSocketClose: () => {
                 if (generation !== this.connectionGeneration) {
-                    console.log('[NOTIFICATION WS] Ignoring close from a superseded connection');
+                    console.log(
+                        '[NOTIFICATION WS] Ignoring close from a superseded connection'
+                    );
                     return;
                 }
                 console.log('[NOTIFICATION WS] WebSocket closed');
@@ -229,7 +239,9 @@ class NotificationWebSocketService {
             },
             onWebSocketError: (event: any) => {
                 if (generation !== this.connectionGeneration) {
-                    console.log('[NOTIFICATION WS] Ignoring error from a superseded connection');
+                    console.log(
+                        '[NOTIFICATION WS] Ignoring error from a superseded connection'
+                    );
                     return;
                 }
                 console.error('[NOTIFICATION WS] WebSocket error:', event);
@@ -257,7 +269,9 @@ class NotificationWebSocketService {
                 if (token && generation === this.connectionGeneration) {
                     // Reconnect with the new token. The STOMP client does not
                     // support hot-swapping credentials, so we reconnect.
-                    console.log('[NOTIFICATION WS] Token refreshed, reconnecting');
+                    console.log(
+                        '[NOTIFICATION WS] Token refreshed, reconnecting'
+                    );
                     this.client?.deactivate();
                     await this.attemptConnection(generation);
                 }
@@ -268,8 +282,13 @@ class NotificationWebSocketService {
     }
 
     private handleConnectionError(error: any, generation?: number): void {
-        if (generation !== undefined && generation !== this.connectionGeneration) {
-            console.log('[NOTIFICATION WS] Ignoring connection error from a superseded connection');
+        if (
+            generation !== undefined &&
+            generation !== this.connectionGeneration
+        ) {
+            console.log(
+                '[NOTIFICATION WS] Ignoring connection error from a superseded connection'
+            );
             return;
         }
         if (this.connectionTimeoutHandle) {
@@ -277,8 +296,7 @@ class NotificationWebSocketService {
             this.connectionTimeoutHandle = null;
         }
 
-        const errorMsg =
-            error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
         console.error('[NOTIFICATION WS] Connection error:', errorMsg);
 
         if (this.reconnectAttempts === 0) {
@@ -304,8 +322,7 @@ class NotificationWebSocketService {
         if (generation !== this.connectionGeneration) {
             return;
         }
-        const delay =
-            this.reconnectDelays[this.reconnectAttempts] ?? 16000;
+        const delay = this.reconnectDelays[this.reconnectAttempts] ?? 16000;
         this.reconnectAttempts++;
         console.log(
             `[NOTIFICATION WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`

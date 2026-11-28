@@ -75,8 +75,7 @@ export function MaterialTable({ materials }: MaterialTableProps) {
                         <Money
                             amount={row.getValue('unitPrice')}
                             currency={
-                                (row.original as { currency?: string })
-                                    .currency
+                                (row.original as { currency?: string }).currency
                             }
                         />
                     </div>

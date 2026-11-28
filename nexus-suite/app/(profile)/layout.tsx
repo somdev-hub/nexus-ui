@@ -35,11 +35,7 @@ function RouteLoadingBar() {
 }
 
 // Pages where floating chat should be disabled
-const DISABLE_CHAT_PAGES = [
-    '/login',
-    '/signup',
-    '/forgot-password',
-];
+const DISABLE_CHAT_PAGES = ['/login', '/signup', '/forgot-password'];
 
 export default function ProfileLayout({
     children,
@@ -47,18 +43,20 @@ export default function ProfileLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
-    
+
     // Don't show floating chat on auth pages
-    const shouldShowChat = !DISABLE_CHAT_PAGES.some(path => 
+    const shouldShowChat = !DISABLE_CHAT_PAGES.some((path) =>
         pathname.startsWith(path)
     );
 
     return (
         <SidebarProvider
-            style={{
-                '--sidebar-width': 'calc(var(--spacing) * 72)',
-                '--header-height': 'calc(var(--spacing) * 12)',
-            } as React.CSSProperties}
+            style={
+                {
+                    '--sidebar-width': 'calc(var(--spacing) * 72)',
+                    '--header-height': 'calc(var(--spacing) * 12)',
+                } as React.CSSProperties
+            }
         >
             <RouteLoadingBar key={pathname} />
             <AppSidebar variant="inset" />
@@ -66,21 +64,21 @@ export default function ProfileLayout({
                 <SiteHeader />
                 {children}
             </SidebarInset>
-            
+
             {/* Nexus Buddy Floating Chat - only on main app pages */}
             {shouldShowChat && (
                 <NexusBuddyFloatingChat
                     context="nexus-suite"
                     allowedTools={[
-                        "get_products",
-                        "get_product_details",
-                        "get_stock_levels",
-                        "get_purchase_orders",
-                        "get_purchase_order_details",
-                        "get_suppliers",
-                        "get_supplier_details",
-                        "get_shipments",
-                        "get_shipment_details"
+                        'get_products',
+                        'get_product_details',
+                        'get_stock_levels',
+                        'get_purchase_orders',
+                        'get_purchase_order_details',
+                        'get_suppliers',
+                        'get_supplier_details',
+                        'get_shipments',
+                        'get_shipment_details',
                     ]}
                 />
             )}

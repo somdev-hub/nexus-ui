@@ -212,7 +212,10 @@ export default function AppearanceSettingsPage() {
 
     const handleSave = async () => {
         if (!persistUserId) {
-            toast({ title: 'Sign in to save your appearance', variant: 'destructive' });
+            toast({
+                title: 'Sign in to save your appearance',
+                variant: 'destructive',
+            });
             return;
         }
         setSaving(true);
@@ -229,10 +232,13 @@ export default function AppearanceSettingsPage() {
             setSavedMode(currentMode);
             toast({ title: 'Appearance saved', variant: 'success' });
         } catch (error) {
-            toast({ title:
-                error instanceof Error
-                    ? error.message
-                    : 'Could not save appearance', variant: 'destructive' });
+            toast({
+                title:
+                    error instanceof Error
+                        ? error.message
+                        : 'Could not save appearance',
+                variant: 'destructive',
+            });
         } finally {
             setSaving(false);
         }

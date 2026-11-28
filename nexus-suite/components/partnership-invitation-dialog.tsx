@@ -149,7 +149,11 @@ export function PartnershipInvitationDialog({
                 );
             })
             .catch(() => {
-                if (active) toast({ title: 'Failed to load organizations', variant: 'destructive' });
+                if (active)
+                    toast({
+                        title: 'Failed to load organizations',
+                        variant: 'destructive',
+                    });
             })
             .finally(() => {
                 if (active) setDirectoryLoading(false);
@@ -206,7 +210,11 @@ export function PartnershipInvitationDialog({
                 );
             })
             .catch(() => {
-                if (active) toast({ title: 'Failed to load organizations', variant: 'destructive' });
+                if (active)
+                    toast({
+                        title: 'Failed to load organizations',
+                        variant: 'destructive',
+                    });
             })
             .finally(() => {
                 if (active) setDirectoryLoading(false);
@@ -219,13 +227,16 @@ export function PartnershipInvitationDialog({
     const handleSubmit = async () => {
         const orgId = locked ? lockedOrgId : Number(selectedOrgId);
         if (!Number.isFinite(orgId) || orgId < 1) {
-            toast({ title: 'Please select a counterparty organization', variant: 'destructive' });
+            toast({
+                title: 'Please select a counterparty organization',
+                variant: 'destructive',
+            });
             return;
         }
         if (pendingOrgIds.has(orgId)) {
             toast({
                 title: 'An invitation to this organization is already pending',
-                variant: 'destructive'
+                variant: 'destructive',
             });
             return;
         }

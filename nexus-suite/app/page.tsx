@@ -23,12 +23,7 @@ export default function Home() {
 
     // If authenticated but orgType missing (stale session from before fix), fetch it before redirecting
     useEffect(() => {
-        if (
-            !isLoading &&
-            isAuthenticated &&
-            orgId &&
-            !resolving
-        ) {
+        if (!isLoading && isAuthenticated && orgId && !resolving) {
             setResolving(true);
             getOrganizationById(orgId)
                 .then((org) => {

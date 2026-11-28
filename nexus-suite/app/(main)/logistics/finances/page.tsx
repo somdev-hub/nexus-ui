@@ -78,7 +78,10 @@ export default function LogisticsFinancesPage() {
         try {
             setSummary(await getLogisticsFinanceSummary(period));
         } catch (e) {
-            toast({ title: e instanceof Error ? e.message : 'Summary failed', variant: 'destructive' });
+            toast({
+                title: e instanceof Error ? e.message : 'Summary failed',
+                variant: 'destructive',
+            });
         }
     }, [period, toast]);
 
@@ -97,7 +100,10 @@ export default function LogisticsFinancesPage() {
                 })
             );
         } catch (e) {
-            toast({ title: e instanceof Error ? e.message : 'Transactions failed', variant: 'destructive' });
+            toast({
+                title: e instanceof Error ? e.message : 'Transactions failed',
+                variant: 'destructive',
+            });
         } finally {
             setTxnLoading(false);
         }
@@ -143,7 +149,10 @@ export default function LogisticsFinancesPage() {
             setTrips(t.trips ?? []);
             setStatements(s?.statements ?? []);
         } catch (e) {
-            toast({ title: e instanceof Error ? e.message : 'Billing failed', variant: 'destructive' });
+            toast({
+                title: e instanceof Error ? e.message : 'Billing failed',
+                variant: 'destructive',
+            });
         } finally {
             setBillingLoading(false);
         }

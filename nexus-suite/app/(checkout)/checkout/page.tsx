@@ -27,9 +27,12 @@ function CheckoutContent() {
                         intent.mockPayment?.transactionReference ??
                         `SUITE-${intent.intentId}`,
                 });
-                toast({ title: r.fullyCovered
-                    ? 'Settlement recorded — quote fully covered'
-                    : 'Settlement recorded — partial payment applied oldest-first', variant: 'success' });
+                toast({
+                    title: r.fullyCovered
+                        ? 'Settlement recorded — quote fully covered'
+                        : 'Settlement recorded — partial payment applied oldest-first',
+                    variant: 'success',
+                });
                 return;
             }
             if (!intent.invoiceId) return;
@@ -39,12 +42,18 @@ function CheckoutContent() {
                     `SUITE-${intent.intentId}`,
                 pmsPaymentId: intent.mockPaymentId,
             });
-            toast({ title: 'Invoice marked PAID in ledger', variant: 'success' });
+            toast({
+                title: 'Invoice marked PAID in ledger',
+                variant: 'success',
+            });
         } catch (e) {
-            toast({ title:
-                e instanceof Error
-                    ? `Paid, but ledger update failed: ${e.message}`
-                    : 'Paid, but ledger update failed', variant: 'destructive' });
+            toast({
+                title:
+                    e instanceof Error
+                        ? `Paid, but ledger update failed: ${e.message}`
+                        : 'Paid, but ledger update failed',
+                variant: 'destructive',
+            });
         }
     };
 

@@ -90,7 +90,10 @@ export default function SupplierContractDetailPage() {
                         ? err.message
                         : 'Failed to load contract'
                 );
-                toast({ title: 'Failed to load contract', variant: 'destructive' });
+                toast({
+                    title: 'Failed to load contract',
+                    variant: 'destructive',
+                });
             } finally {
                 if (active) setIsLoading(false);
             }
@@ -135,13 +138,20 @@ export default function SupplierContractDetailPage() {
                             decidedBy
                         );
             setContract(updated);
-            toast({ title: confirm === 'approve'
-                ? 'Contract approved'
-                : confirm === 'reject'
-                  ? 'Contract rejected'
-                  : 'Amendments requested', variant: 'success' });
+            toast({
+                title:
+                    confirm === 'approve'
+                        ? 'Contract approved'
+                        : confirm === 'reject'
+                          ? 'Contract rejected'
+                          : 'Amendments requested',
+                variant: 'success',
+            });
         } catch (err: unknown) {
-            toast({ title: err instanceof Error ? err.message : 'Action failed', variant: 'destructive' });
+            toast({
+                title: err instanceof Error ? err.message : 'Action failed',
+                variant: 'destructive',
+            });
         } finally {
             setBusy(false);
             setConfirm(null);

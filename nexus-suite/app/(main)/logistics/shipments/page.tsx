@@ -394,19 +394,12 @@ export default function LogisticsShipmentsPage() {
                 return (
                     <div className="flex flex-wrap gap-1">
                         <LoadingButton
-                            loading={
-                                busy === `ship-${s.shipmentId}-${next}`
-                            }
+                            loading={busy === `ship-${s.shipmentId}-${next}`}
                             size="sm"
                             variant="outline"
                             onClick={() =>
-                                withBusy(
-                                    `ship-${s.shipmentId}-${next}`,
-                                    () =>
-                                        handleTransition(
-                                            s.shipmentId,
-                                            next
-                                        )
+                                withBusy(`ship-${s.shipmentId}-${next}`, () =>
+                                    handleTransition(s.shipmentId, next)
                                 )
                             }
                         >
@@ -525,12 +518,8 @@ export default function LogisticsShipmentsPage() {
                                 <DropdownMenuItem
                                     disabled={busy === busyKey}
                                     onClick={() =>
-                                        withBusy(
-                                            busyKey,
-                                            () =>
-                                                resolveIncident(
-                                                    incident.incidentId
-                                                )
+                                        withBusy(busyKey, () =>
+                                            resolveIncident(incident.incidentId)
                                         )
                                     }
                                 >

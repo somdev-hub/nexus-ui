@@ -74,7 +74,7 @@ export function PartnershipEditDialog({
         } catch (err: unknown) {
             toast({
                 title: err instanceof Error ? err.message : 'Failed to update',
-                variant: 'destructive'
+                variant: 'destructive',
             });
         } finally {
             setSubmitting(false);

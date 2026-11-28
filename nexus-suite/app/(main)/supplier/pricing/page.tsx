@@ -271,14 +271,13 @@ export default function SupplierPricingPage() {
             id: 'contract',
             accessorFn: (row) =>
                 row.contractNumber ??
-                (row.contractId !== undefined
-                    ? String(row.contractId)
-                    : '-'),
+                (row.contractId !== undefined ? String(row.contractId) : '-'),
             header: 'Contract',
         },
         {
             id: 'validity',
-            accessorFn: (row) => `${row.validFrom ?? ''} → ${row.validTo ?? ''}`,
+            accessorFn: (row) =>
+                `${row.validFrom ?? ''} → ${row.validTo ?? ''}`,
             header: 'Validity',
             cell: ({ row }) => (
                 <div className="text-xs whitespace-nowrap">
@@ -307,7 +306,9 @@ export default function SupplierPricingPage() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                        <DropdownMenuItem
+                            onClick={() => openEdit(row.original)}
+                        >
                             <IconEdit className="mr-2 h-4 w-4" />
                             Edit
                         </DropdownMenuItem>

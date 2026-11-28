@@ -3,7 +3,7 @@ import type {
     LogisticsPartner,
     LogisticsPartnerCreateRequest,
     LogisticsPartnerFilter,
-    LogisticsPartnerUpdateRequest
+    LogisticsPartnerUpdateRequest,
 } from '@/types/logistics';
 import { PaginatedResponse } from '@/types/paginated-response';
 

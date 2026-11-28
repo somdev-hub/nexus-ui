@@ -67,649 +67,652 @@ import { useCallback, useEffect, useState } from 'react';
 const ACCESS_LEVELS = ['PUBLIC', 'PRIVATE', 'PARTNER_ONLY'];
 
 const emptyForm = {
-	name: '',
-	code: '',
-	category: '',
-	family: '',
-	sku: '',
-	basePrice: '',
-	unitOfMeasure: '',
-	currency: 'USD',
-	description: '',
-	attributes: '',
-	specifications: '',
-	accessLevel: 'PRIVATE',
-	allowedPartnerOrgIds: '',
+    name: '',
+    code: '',
+    category: '',
+    family: '',
+    sku: '',
+    basePrice: '',
+    unitOfMeasure: '',
+    currency: 'USD',
+    description: '',
+    attributes: '',
+    specifications: '',
+    accessLevel: 'PRIVATE',
+    allowedPartnerOrgIds: '',
 };
 
 export default function SupplierCatalogPage() {
-	const { toast } = useToast();
-	const [data, setData] = useState<PaginatedResponse<SupplierCatalog> | null>(
-		null
-	);
-	const [loading, setLoading] = useState(true);
-	const [search, setSearch] = useState('');
-	const [status, setStatus] = useState('all');
-	const [open, setOpen] = useState(false);
-	useQuickCreateIntent('supplier:catalog', () => setOpen(true));
-	const [form, setForm] = useState(emptyForm);
-	const [editing, setEditing] = useState<SupplierCatalog | null>(null);
-	const [editForm, setEditForm] = useState(emptyForm);
-	const [deleting, setDeleting] = useState<SupplierCatalog | null>(null);
-	const [saving, setSaving] = useState(false);
-	const [deleteBusy, setDeleteBusy] = useState(false);
+    const { toast } = useToast();
+    const [data, setData] = useState<PaginatedResponse<SupplierCatalog> | null>(
+        null
+    );
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('all');
+    const [open, setOpen] = useState(false);
+    useQuickCreateIntent('supplier:catalog', () => setOpen(true));
+    const [form, setForm] = useState(emptyForm);
+    const [editing, setEditing] = useState<SupplierCatalog | null>(null);
+    const [editForm, setEditForm] = useState(emptyForm);
+    const [deleting, setDeleting] = useState<SupplierCatalog | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [deleteBusy, setDeleteBusy] = useState(false);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		try {
-			const res = await getSupplierCatalogs({
-				page: 0,
-				size: 100,
-				search: search || undefined,
-				status: status === 'all' ? undefined : status,
-			});
-			setData(res);
-		} catch (e: unknown) {
-			toast({
-				title: e instanceof Error ? e.message : String(e),
-				variant: 'destructive',
-			});
-		} finally {
-			setLoading(false);
-		}
-	}, [search, status, toast]);
-	useEffect(() => {
-		load();
-	}, [load, status]);
-	useEffect(() => {
-		const t = setTimeout(load, 400);
-		return () => clearTimeout(t);
-	}, [load, search]);
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await getSupplierCatalogs({
+                page: 0,
+                size: 100,
+                search: search || undefined,
+                status: status === 'all' ? undefined : status,
+            });
+            setData(res);
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [search, status, toast]);
+    useEffect(() => {
+        load();
+    }, [load, status]);
+    useEffect(() => {
+        const t = setTimeout(load, 400);
+        return () => clearTimeout(t);
+    }, [load, search]);
 
-	const handleCreate = async () => {
-		if (saving) return;
-		setSaving(true);
-		try {
-			await createSupplierCatalog({
-				name: form.name,
-				code: form.code,
-				category: form.category || undefined,
-				family: form.family || undefined,
-				sku: form.sku || undefined,
-				basePrice: form.basePrice ? Number(form.basePrice) : undefined,
-				unitOfMeasure: form.unitOfMeasure || undefined,
-				currency: form.currency || 'USD',
-				description: form.description || undefined,
-				attributes: form.attributes || undefined,
-				specifications: form.specifications || undefined,
-				accessLevel: form.accessLevel,
-				allowedPartnerOrgIds:
-					form.accessLevel === 'PARTNER_ONLY' &&
-						form.allowedPartnerOrgIds
-						? form.allowedPartnerOrgIds
-						: undefined,
-			});
-			toast({ title: 'Catalog created', variant: 'success' });
-			setOpen(false);
-			setForm(emptyForm);
-			load();
-		} catch (e: unknown) {
-			toast({
-				title: e instanceof Error ? e.message : String(e),
-				variant: 'destructive',
-			});
-		} finally {
-			setSaving(false);
-		}
-	};
+    const handleCreate = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+            await createSupplierCatalog({
+                name: form.name,
+                code: form.code,
+                category: form.category || undefined,
+                family: form.family || undefined,
+                sku: form.sku || undefined,
+                basePrice: form.basePrice ? Number(form.basePrice) : undefined,
+                unitOfMeasure: form.unitOfMeasure || undefined,
+                currency: form.currency || 'USD',
+                description: form.description || undefined,
+                attributes: form.attributes || undefined,
+                specifications: form.specifications || undefined,
+                accessLevel: form.accessLevel,
+                allowedPartnerOrgIds:
+                    form.accessLevel === 'PARTNER_ONLY' &&
+                    form.allowedPartnerOrgIds
+                        ? form.allowedPartnerOrgIds
+                        : undefined,
+            });
+            toast({ title: 'Catalog created', variant: 'success' });
+            setOpen(false);
+            setForm(emptyForm);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
 
-	const openEdit = (c: SupplierCatalog) => {
-		setEditing(c);
-		setEditForm({
-			name: c.name ?? '',
-			code: c.code ?? '',
-			category: c.category ?? '',
-			family: c.family ?? '',
-			sku: c.sku ?? '',
-			basePrice:
-				c.basePrice !== undefined && c.basePrice !== null
-					? String(c.basePrice)
-					: '',
-			currency: c.currency ?? 'USD',
-			unitOfMeasure: c.unitOfMeasure ?? '',
-			description: c.description ?? '',
-			attributes: c.attributes ?? '',
-			specifications: c.specifications ?? '',
-			accessLevel: c.accessLevel ?? 'PRIVATE',
-			allowedPartnerOrgIds: '',
-		});
-	};
+    const openEdit = (c: SupplierCatalog) => {
+        setEditing(c);
+        setEditForm({
+            name: c.name ?? '',
+            code: c.code ?? '',
+            category: c.category ?? '',
+            family: c.family ?? '',
+            sku: c.sku ?? '',
+            basePrice:
+                c.basePrice !== undefined && c.basePrice !== null
+                    ? String(c.basePrice)
+                    : '',
+            currency: c.currency ?? 'USD',
+            unitOfMeasure: c.unitOfMeasure ?? '',
+            description: c.description ?? '',
+            attributes: c.attributes ?? '',
+            specifications: c.specifications ?? '',
+            accessLevel: c.accessLevel ?? 'PRIVATE',
+            allowedPartnerOrgIds: '',
+        });
+    };
 
-	const handleEdit = async () => {
-		if (!editing || saving) return;
-		setSaving(true);
-		try {
-			await updateSupplierCatalog(editing.catalogId, {
-				name: editForm.name,
-				code: editForm.code,
-				category: editForm.category || undefined,
-				family: editForm.family || undefined,
-				sku: editForm.sku || undefined,
-				basePrice: editForm.basePrice
-					? Number(editForm.basePrice)
-					: undefined,
-				unitOfMeasure: editForm.unitOfMeasure || undefined,
-				currency: editForm.currency || undefined,
-				description: editForm.description || undefined,
-				attributes: editForm.attributes || undefined,
-				specifications: editForm.specifications || undefined,
-				accessLevel: editForm.accessLevel,
-				allowedPartnerOrgIds:
-					editForm.accessLevel === 'PARTNER_ONLY' &&
-						editForm.allowedPartnerOrgIds
-						? editForm.allowedPartnerOrgIds
-						: undefined,
-			});
-			toast({ title: 'Catalog updated', variant: 'success' });
-			setEditing(null);
-			load();
-		} catch (e: unknown) {
-			toast({
-				title: e instanceof Error ? e.message : String(e),
-				variant: 'destructive',
-			});
-		} finally {
-			setSaving(false);
-		}
-	};
+    const handleEdit = async () => {
+        if (!editing || saving) return;
+        setSaving(true);
+        try {
+            await updateSupplierCatalog(editing.catalogId, {
+                name: editForm.name,
+                code: editForm.code,
+                category: editForm.category || undefined,
+                family: editForm.family || undefined,
+                sku: editForm.sku || undefined,
+                basePrice: editForm.basePrice
+                    ? Number(editForm.basePrice)
+                    : undefined,
+                unitOfMeasure: editForm.unitOfMeasure || undefined,
+                currency: editForm.currency || undefined,
+                description: editForm.description || undefined,
+                attributes: editForm.attributes || undefined,
+                specifications: editForm.specifications || undefined,
+                accessLevel: editForm.accessLevel,
+                allowedPartnerOrgIds:
+                    editForm.accessLevel === 'PARTNER_ONLY' &&
+                    editForm.allowedPartnerOrgIds
+                        ? editForm.allowedPartnerOrgIds
+                        : undefined,
+            });
+            toast({ title: 'Catalog updated', variant: 'success' });
+            setEditing(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
 
-	const transition = async (
-		id: number,
-		newStatus: string,
-		accessLevel?: string
-	) => {
-		try {
-			await transitionCatalogStatus(
-				id,
-				newStatus,
-				accessLevel ? { accessLevel } : undefined
-			);
-			toast({ title: `Moved to ${newStatus}`, variant: 'success' });
-			load();
-		} catch (e: unknown) {
-			toast({
-				title: e instanceof Error ? e.message : String(e),
-				variant: 'destructive',
-			});
-		}
-	};
+    const transition = async (
+        id: number,
+        newStatus: string,
+        accessLevel?: string
+    ) => {
+        try {
+            await transitionCatalogStatus(
+                id,
+                newStatus,
+                accessLevel ? { accessLevel } : undefined
+            );
+            toast({ title: `Moved to ${newStatus}`, variant: 'success' });
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        }
+    };
 
-	const handleDelete = async () => {
-		if (!deleting || deleteBusy) return;
-		setDeleteBusy(true);
-		try {
-			await deleteSupplierCatalog(deleting.catalogId);
-			toast({ title: 'Catalog deleted', variant: 'success' });
-			setDeleting(null);
-			load();
-		} catch (e: unknown) {
-			toast({
-				title: e instanceof Error ? e.message : String(e),
-				variant: 'destructive',
-			});
-		} finally {
-			setDeleteBusy(false);
-		}
-	};
+    const handleDelete = async () => {
+        if (!deleting || deleteBusy) return;
+        setDeleteBusy(true);
+        try {
+            await deleteSupplierCatalog(deleting.catalogId);
+            toast({ title: 'Catalog deleted', variant: 'success' });
+            setDeleting(null);
+            load();
+        } catch (e: unknown) {
+            toast({
+                title: e instanceof Error ? e.message : String(e),
+                variant: 'destructive',
+            });
+        } finally {
+            setDeleteBusy(false);
+        }
+    };
 
-	const rows = data?.content ?? [];
-	const columns: ColumnDef<SupplierCatalog>[] = [
-		{
-			accessorKey: 'name',
-			header: 'Name',
-			cell: ({ row }) => (
-				<div>
-					<div className="font-medium">{row.original.name}</div>
-					<div className="text-xs text-muted-foreground">
-						{row.original.code} • {row.original.sku}
-					</div>
-				</div>
-			),
-		},
-		{
-			id: 'hierarchy',
-			accessorFn: (row) =>
-				`${row.category ?? ''} → ${row.family ?? ''} → ${row.sku ?? ''}`,
-			header: 'Hierarchy',
-			cell: ({ row }) => (
-				<div className="text-xs">
-					{row.original.category} → {row.original.family} →{' '}
-					{row.original.sku}
-				</div>
-			),
-		},
-		{
-			id: 'basePrice',
-			accessorFn: (row) => row.basePrice ?? 0,
-			header: () => <div className="w-full text-right">Price</div>,
-			cell: ({ row }) => (
-				<div className="text-right">
-					{row.original.basePrice ? (
-						<Money
-							amount={row.original.basePrice}
-							currency={row.original.currency}
-						/>
-					) : (
-						'-'
-					)}
-				</div>
-			),
-		},
-		{
-			accessorKey: 'status',
-			header: 'Status',
-			cell: ({ row }) => (
-				<Badge
-					variant={
-						row.original.status === 'PUBLISHED'
-							? 'default'
-							: 'secondary'
-					}
-				>
-					{row.original.status}
-				</Badge>
-			),
-		},
-		{
-			accessorKey: 'accessLevel',
-			header: 'Access',
-			cell: ({ row }) => (
-				<Badge variant="outline">{row.original.accessLevel}</Badge>
-			),
-		},
-		{
-			id: 'actions',
-			cell: ({ row }) => {
-				const c = row.original;
-				return (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-							>
-								<IconDotsVertical />
-								<span className="sr-only">Open menu</span>
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-40">
-							<DropdownMenuItem onClick={() => openEdit(c)}>
-								<IconEdit className="mr-2 h-4 w-4" />
-								Edit
-							</DropdownMenuItem>
-							{c.status === 'DRAFT' && (
-								<DropdownMenuItem
-									onClick={() =>
-										transition(
-											c.catalogId,
-											'PUBLISHED',
-											c.accessLevel || 'PRIVATE'
-										)
-									}
-								>
-									<IconCircleCheckFilled className="mr-2 h-4 w-4" />
-									Publish
-								</DropdownMenuItem>
-							)}
-							{c.status === 'PUBLISHED' && (
-								<DropdownMenuItem
-									onClick={() =>
-										transition(c.catalogId, 'DRAFT')
-									}
-								>
-									<IconRotate className="mr-2 h-4 w-4" />
-									Unpublish
-								</DropdownMenuItem>
-							)}
-							{c.status !== 'ARCHIVED' && (
-								<DropdownMenuItem
-									onClick={() =>
-										transition(c.catalogId, 'ARCHIVED')
-									}
-								>
-									<IconArchive className="mr-2 h-4 w-4" />
-									Archive
-								</DropdownMenuItem>
-							)}
-							{c.status === 'ARCHIVED' && (
-								<DropdownMenuItem
-									onClick={() =>
-										transition(c.catalogId, 'DRAFT')
-									}
-								>
-									<IconRotate className="mr-2 h-4 w-4" />
-									Restore
-								</DropdownMenuItem>
-							)}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								variant="destructive"
-								onClick={() => setDeleting(c)}
-							>
-								<IconTrash className="mr-2 h-4 w-4" />
-								Delete
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				);
-			},
-		},
-	];
+    const rows = data?.content ?? [];
+    const columns: ColumnDef<SupplierCatalog>[] = [
+        {
+            accessorKey: 'name',
+            header: 'Name',
+            cell: ({ row }) => (
+                <div>
+                    <div className="font-medium">{row.original.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                        {row.original.code} • {row.original.sku}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            id: 'hierarchy',
+            accessorFn: (row) =>
+                `${row.category ?? ''} → ${row.family ?? ''} → ${row.sku ?? ''}`,
+            header: 'Hierarchy',
+            cell: ({ row }) => (
+                <div className="text-xs">
+                    {row.original.category} → {row.original.family} →{' '}
+                    {row.original.sku}
+                </div>
+            ),
+        },
+        {
+            id: 'basePrice',
+            accessorFn: (row) => row.basePrice ?? 0,
+            header: () => <div className="w-full text-right">Price</div>,
+            cell: ({ row }) => (
+                <div className="text-right">
+                    {row.original.basePrice ? (
+                        <Money
+                            amount={row.original.basePrice}
+                            currency={row.original.currency}
+                        />
+                    ) : (
+                        '-'
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge
+                    variant={
+                        row.original.status === 'PUBLISHED'
+                            ? 'default'
+                            : 'secondary'
+                    }
+                >
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: 'accessLevel',
+            header: 'Access',
+            cell: ({ row }) => (
+                <Badge variant="outline">{row.original.accessLevel}</Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const c = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                            >
+                                <IconDotsVertical />
+                                <span className="sr-only">Open menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => openEdit(c)}>
+                                <IconEdit className="mr-2 h-4 w-4" />
+                                Edit
+                            </DropdownMenuItem>
+                            {c.status === 'DRAFT' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        transition(
+                                            c.catalogId,
+                                            'PUBLISHED',
+                                            c.accessLevel || 'PRIVATE'
+                                        )
+                                    }
+                                >
+                                    <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                    Publish
+                                </DropdownMenuItem>
+                            )}
+                            {c.status === 'PUBLISHED' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        transition(c.catalogId, 'DRAFT')
+                                    }
+                                >
+                                    <IconRotate className="mr-2 h-4 w-4" />
+                                    Unpublish
+                                </DropdownMenuItem>
+                            )}
+                            {c.status !== 'ARCHIVED' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        transition(c.catalogId, 'ARCHIVED')
+                                    }
+                                >
+                                    <IconArchive className="mr-2 h-4 w-4" />
+                                    Archive
+                                </DropdownMenuItem>
+                            )}
+                            {c.status === 'ARCHIVED' && (
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        transition(c.catalogId, 'DRAFT')
+                                    }
+                                >
+                                    <IconRotate className="mr-2 h-4 w-4" />
+                                    Restore
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setDeleting(c)}
+                            >
+                                <IconTrash className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
 
-	const table = useTables<SupplierCatalog>({
-		data: rows,
-		columns,
-		getRowId: (row) => row.catalogId.toString(),
-	});
+    const table = useTables<SupplierCatalog>({
+        data: rows,
+        columns,
+        getRowId: (row) => row.catalogId.toString(),
+    });
 
-	const renderFormFields = (
-		value: typeof emptyForm,
-		setValue: (v: typeof emptyForm) => void
-	) => (
-		<>
-			<div className="grid grid-cols-3 gap-3">
-				<div className="grid gap-2">
-					<Label>Name</Label>
-					<Input
-						placeholder="e.g. Hydraulic Pump X200"
-						value={value.name}
-						onChange={(e) =>
-							setValue({ ...value, name: e.target.value })
-						}
-					/>
-				</div>
-				<div className="grid gap-2">
-					<Label>Code</Label>
-					<Input
-						placeholder="e.g. HYD-PMP-200"
-						value={value.code}
-						onChange={(e) =>
-							setValue({ ...value, code: e.target.value })
-						}
-					/>
-				</div>
+    const renderFormFields = (
+        value: typeof emptyForm,
+        setValue: (v: typeof emptyForm) => void
+    ) => (
+        <>
+            <div className="grid grid-cols-3 gap-3">
+                <div className="grid gap-2">
+                    <Label>Name</Label>
+                    <Input
+                        placeholder="e.g. Hydraulic Pump X200"
+                        value={value.name}
+                        onChange={(e) =>
+                            setValue({ ...value, name: e.target.value })
+                        }
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label>Code</Label>
+                    <Input
+                        placeholder="e.g. HYD-PMP-200"
+                        value={value.code}
+                        onChange={(e) =>
+                            setValue({ ...value, code: e.target.value })
+                        }
+                    />
+                </div>
 
-				<div className="grid gap-2">
-					<Label>SKU</Label>
-					<Input
-						placeholder="e.g. SKU-88231"
-						value={value.sku}
-						onChange={(e) =>
-							setValue({ ...value, sku: e.target.value })
-						}
-					/>
-				</div>
-			</div>
-			<div className="grid grid-cols-3 gap-3">
-				<div className="grid gap-2">
-					<Label>Category</Label>
-					<Input
-						value={value.category}
-						onChange={(e) =>
-							setValue({ ...value, category: e.target.value })
-						}
-						placeholder="Electronics"
-					/>
-				</div>
-				<div className="grid gap-2">
-					<Label>Family</Label>
-					<Input
-						value={value.family}
-						onChange={(e) =>
-							setValue({ ...value, family: e.target.value })
-						}
-						placeholder="Smartphones"
-					/>
-				</div>
-				<div className="grid gap-2">
-					<Label>Base Price</Label>
-					<Input
-						type="number"
-						placeholder="e.g. 1499.00"
-						value={value.basePrice}
-						onChange={(e) =>
-							setValue({ ...value, basePrice: e.target.value })
-						}
-					/>
-				</div>
-			</div>
-			<div className="grid grid-cols-3 gap-3">
-				<div className="grid gap-2">
-					<Label>Currency</Label>
-					<Select
-						value={value.currency || 'USD'}
-						onValueChange={(v) =>
-							setValue({ ...value, currency: v })
-						}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue placeholder="Select currency" />
-						</SelectTrigger>
-						<SelectContent>
-							{CURRENCIES.map((c) => (
-								<SelectItem key={c.code} value={c.code}>
-									{c.code} - {c.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-				<div className="grid gap-2">
-					<Label>Unit of Measure</Label>
-					<Input
-						placeholder="e.g. KG, PCS, LTR, MTR"
-						value={value.unitOfMeasure}
-						onChange={(e) =>
-							setValue({
-								...value,
-								unitOfMeasure: e.target.value,
-							})
-						}
-					/>
-				</div>
-				<div className="grid gap-2">
-					<Label>Access Level</Label>
-					<Select
-						value={value.accessLevel}
-						onValueChange={(v) =>
-							setValue({ ...value, accessLevel: v })
-						}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{ACCESS_LEVELS.map((a) => (
-								<SelectItem key={a} value={a}>
-									{a === 'PARTNER_ONLY' ? 'Partner-only' : a}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-			</div>
-			{value.accessLevel === 'PARTNER_ONLY' && (
-				<div className="grid gap-2">
-					<Label>Allowed Partner Org IDs (comma-separated)</Label>
-					<Input
-						placeholder="e.g. 12, 34"
-						value={value.allowedPartnerOrgIds}
-						onChange={(e) =>
-							setValue({
-								...value,
-								allowedPartnerOrgIds: e.target.value,
-							})
-						}
-					/>
-				</div>
-			)}
-			<div className="grid grid-cols-2 gap-3">
-				<div className="grid gap-2">
-					<Label>Attributes (JSON)</Label>
-					<Textarea
-						placeholder='e.g. {"color": "red", "weight": "2kg"}'
-						value={value.attributes}
-						onChange={(e) =>
-							setValue({ ...value, attributes: e.target.value })
-						}
-					/>
-				</div>
-				<div className="grid gap-2">
-					<Label>Specifications (JSON)</Label>
-					<Textarea
-						placeholder='e.g. {"power": "5kW", "voltage": "220V"}'
-						value={value.specifications}
-						onChange={(e) =>
-							setValue({ ...value, specifications: e.target.value })
-						}
-					/>
-				</div>
-			</div>
-			<div className="grid gap-2">
-				<Label>Description</Label>
-				<Textarea
-					placeholder="e.g. Heavy-duty hydraulic pump for industrial use"
-					value={value.description}
-					onChange={(e) =>
-						setValue({ ...value, description: e.target.value })
-					}
-				/>
-			</div>
-		</>
-	);
+                <div className="grid gap-2">
+                    <Label>SKU</Label>
+                    <Input
+                        placeholder="e.g. SKU-88231"
+                        value={value.sku}
+                        onChange={(e) =>
+                            setValue({ ...value, sku: e.target.value })
+                        }
+                    />
+                </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+                <div className="grid gap-2">
+                    <Label>Category</Label>
+                    <Input
+                        value={value.category}
+                        onChange={(e) =>
+                            setValue({ ...value, category: e.target.value })
+                        }
+                        placeholder="Electronics"
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label>Family</Label>
+                    <Input
+                        value={value.family}
+                        onChange={(e) =>
+                            setValue({ ...value, family: e.target.value })
+                        }
+                        placeholder="Smartphones"
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label>Base Price</Label>
+                    <Input
+                        type="number"
+                        placeholder="e.g. 1499.00"
+                        value={value.basePrice}
+                        onChange={(e) =>
+                            setValue({ ...value, basePrice: e.target.value })
+                        }
+                    />
+                </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+                <div className="grid gap-2">
+                    <Label>Currency</Label>
+                    <Select
+                        value={value.currency || 'USD'}
+                        onValueChange={(v) =>
+                            setValue({ ...value, currency: v })
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CURRENCIES.map((c) => (
+                                <SelectItem key={c.code} value={c.code}>
+                                    {c.code} - {c.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid gap-2">
+                    <Label>Unit of Measure</Label>
+                    <Input
+                        placeholder="e.g. KG, PCS, LTR, MTR"
+                        value={value.unitOfMeasure}
+                        onChange={(e) =>
+                            setValue({
+                                ...value,
+                                unitOfMeasure: e.target.value,
+                            })
+                        }
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label>Access Level</Label>
+                    <Select
+                        value={value.accessLevel}
+                        onValueChange={(v) =>
+                            setValue({ ...value, accessLevel: v })
+                        }
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ACCESS_LEVELS.map((a) => (
+                                <SelectItem key={a} value={a}>
+                                    {a === 'PARTNER_ONLY' ? 'Partner-only' : a}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            {value.accessLevel === 'PARTNER_ONLY' && (
+                <div className="grid gap-2">
+                    <Label>Allowed Partner Org IDs (comma-separated)</Label>
+                    <Input
+                        placeholder="e.g. 12, 34"
+                        value={value.allowedPartnerOrgIds}
+                        onChange={(e) =>
+                            setValue({
+                                ...value,
+                                allowedPartnerOrgIds: e.target.value,
+                            })
+                        }
+                    />
+                </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                    <Label>Attributes (JSON)</Label>
+                    <Textarea
+                        placeholder='e.g. {"color": "red", "weight": "2kg"}'
+                        value={value.attributes}
+                        onChange={(e) =>
+                            setValue({ ...value, attributes: e.target.value })
+                        }
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label>Specifications (JSON)</Label>
+                    <Textarea
+                        placeholder='e.g. {"power": "5kW", "voltage": "220V"}'
+                        value={value.specifications}
+                        onChange={(e) =>
+                            setValue({
+                                ...value,
+                                specifications: e.target.value,
+                            })
+                        }
+                    />
+                </div>
+            </div>
+            <div className="grid gap-2">
+                <Label>Description</Label>
+                <Textarea
+                    placeholder="e.g. Heavy-duty hydraulic pump for industrial use"
+                    value={value.description}
+                    onChange={(e) =>
+                        setValue({ ...value, description: e.target.value })
+                    }
+                />
+            </div>
+        </>
+    );
 
-	return (
-		<div className="p-4 lg:p-6 space-y-4">
-			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-semibold">
-					Catalog (Category → Family → SKU)
-				</h1>
-				<Dialog open={open} onOpenChange={setOpen}>
-					<DialogTrigger asChild>
-						<Button>
-							<Plus className="mr-2 h-4 w-4" />
-							Create Product
-						</Button>
-					</DialogTrigger>
-					<DialogContent className="max-h-[90vh] md:max-w-4xl overflow-y-auto">
-						<DialogHeader>
-							<DialogTitle>New Catalog Product</DialogTitle>
-						</DialogHeader>
-						<div className="grid gap-6">
-							{renderFormFields(form, setForm)}
-							<Button onClick={handleCreate} disabled={saving}>
-								{saving && (
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								)}
-								{saving ? 'Creating…' : 'Create'}
-							</Button>
-						</div>
-					</DialogContent>
-				</Dialog>
-			</div>
-			<Dialog
-				open={editing !== null}
-				onOpenChange={(v) => !v && setEditing(null)}
-			>
-				<DialogContent className="max-h-[90vh] md:max-w-4xl overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Edit Catalog Product</DialogTitle>
-					</DialogHeader>
-					<div className="grid gap-6">
-						{renderFormFields(editForm, setEditForm)}
-						<Button onClick={handleEdit} disabled={saving}>
-							{saving && (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							)}
-							{saving ? 'Saving…' : 'Save Changes'}
-						</Button>
-					</div>
-				</DialogContent>
-			</Dialog>
-			<AlertDialog
-				open={deleting !== null}
-				onOpenChange={(v) => !v && setDeleting(null)}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>
-							Delete catalog item?
-						</AlertDialogTitle>
-						<AlertDialogDescription>
-							This will permanently delete &ldquo;
-							{deleting?.name}&rdquo;. Published items must be
-							archived first.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel disabled={deleteBusy}>
-							Cancel
-						</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={handleDelete}
-							disabled={deleteBusy}
-						>
-							{deleteBusy && (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							)}
-							{deleteBusy ? 'Deleting…' : 'Delete'}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-			<Card className="p-4 gap-2">
-				<CardHeader className="p-0">
-					<CardTitle className="flex gap-2">
-						<Input
-							placeholder="Search name/code/sku"
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							className="max-w-sm"
-						/>
-						<Select value={status} onValueChange={setStatus}>
-							<SelectTrigger className="w-full">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Status</SelectItem>
-								<SelectItem value="DRAFT">DRAFT</SelectItem>
-								<SelectItem value="PUBLISHED">
-									PUBLISHED
-								</SelectItem>
-								<SelectItem value="ARCHIVED">
-									ARCHIVED
-								</SelectItem>
-							</SelectContent>
-						</Select>
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="p-0">
-					{loading ? (
-						<div className="space-y-2">
-							<Skeleton className="h-10 w-full" />
-							<Skeleton className="h-10 w-full" />
-							<Skeleton className="h-10 w-full" />
-							<Skeleton className="h-10 w-full" />
-						</div>
-					) : (
-						<CentralizedDataTable
-							table={table}
-							emptyMessage="No catalog items"
-						/>
-					)}
-				</CardContent>
-			</Card>
-		</div>
-	);
+    return (
+        <div className="p-4 lg:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-semibold">
+                    Catalog (Category → Family → SKU)
+                </h1>
+                <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Product
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-h-[90vh] md:max-w-4xl overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>New Catalog Product</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-6">
+                            {renderFormFields(form, setForm)}
+                            <Button onClick={handleCreate} disabled={saving}>
+                                {saving && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                {saving ? 'Creating…' : 'Create'}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+            <Dialog
+                open={editing !== null}
+                onOpenChange={(v) => !v && setEditing(null)}
+            >
+                <DialogContent className="max-h-[90vh] md:max-w-4xl overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Catalog Product</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-6">
+                        {renderFormFields(editForm, setEditForm)}
+                        <Button onClick={handleEdit} disabled={saving}>
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <AlertDialog
+                open={deleting !== null}
+                onOpenChange={(v) => !v && setDeleting(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete catalog item?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete &ldquo;
+                            {deleting?.name}&rdquo;. Published items must be
+                            archived first.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteBusy}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleteBusy}
+                        >
+                            {deleteBusy && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {deleteBusy ? 'Deleting…' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <Card className="p-4 gap-2">
+                <CardHeader className="p-0">
+                    <CardTitle className="flex gap-2">
+                        <Input
+                            placeholder="Search name/code/sku"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="max-w-sm"
+                        />
+                        <Select value={status} onValueChange={setStatus}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="DRAFT">DRAFT</SelectItem>
+                                <SelectItem value="PUBLISHED">
+                                    PUBLISHED
+                                </SelectItem>
+                                <SelectItem value="ARCHIVED">
+                                    ARCHIVED
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {loading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : (
+                        <CentralizedDataTable
+                            table={table}
+                            emptyMessage="No catalog items"
+                        />
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
 }

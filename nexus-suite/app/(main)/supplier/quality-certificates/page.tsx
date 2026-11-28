@@ -45,7 +45,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuickCreateIntent } from '@/lib/quick-create';
 
 export default function QualityCertsPage() {
-    const { toast } = useToast();    const [data, setData] =
+    const { toast } = useToast();
+    const [data, setData] =
         useState<PaginatedResponse<SupplierQualityCertificate> | null>(null);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
@@ -139,9 +140,7 @@ export default function QualityCertsPage() {
         {
             accessorKey: 'certificateType',
             header: 'Type',
-            cell: ({ row }) => (
-                <Badge>{row.original.certificateType}</Badge>
-            ),
+            cell: ({ row }) => <Badge>{row.original.certificateType}</Badge>,
         },
         {
             accessorKey: 'certificateNumber',
@@ -152,7 +151,9 @@ export default function QualityCertsPage() {
             accessorKey: 'dmsDocumentId',
             header: 'DMS',
             cell: ({ row }) => (
-                <div className="text-xs">{row.original.dmsDocumentId || '-'}</div>
+                <div className="text-xs">
+                    {row.original.dmsDocumentId || '-'}
+                </div>
             ),
         },
         {

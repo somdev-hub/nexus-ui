@@ -147,11 +147,7 @@ const columns: ColumnDef<Supplier>[] = [
     },
 ];
 
-export function SupplierTable({
-    suppliers,
-}: {
-    suppliers: Supplier[];
-}) {
+export function SupplierTable({ suppliers }: { suppliers: Supplier[] }) {
     const table = useTables<Supplier>({
         data: suppliers,
         columns,
@@ -166,6 +162,9 @@ export function SupplierTable({
     });
 
     return (
-        <CentralizedDataTable table={table} emptyMessage="No suppliers found." />
+        <CentralizedDataTable
+            table={table}
+            emptyMessage="No suppliers found."
+        />
     );
 }

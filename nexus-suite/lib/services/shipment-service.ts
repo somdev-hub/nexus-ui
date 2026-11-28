@@ -73,7 +73,9 @@ function buildQueryParams(filter: ShipmentFilter = {}): string {
 
 const DEFAULT_PAGE_SIZE = 20;
 
-export async function getSupplierReviewSummary(): Promise<SupplierReviewSummary[]> {
+export async function getSupplierReviewSummary(): Promise<
+    SupplierReviewSummary[]
+> {
     const res = await apiClient.get<SupplierReviewSummary[]>(
         `/iam/core/retailer/shipments/review-summary`
     );
@@ -84,8 +86,10 @@ export async function getShipmentReviews(
     filter: { pageNo?: number; pageOffset?: number } = {}
 ): Promise<PaginatedResponse<ShipmentReview>> {
     const params = new URLSearchParams();
-    if (filter.pageNo !== undefined) params.append('page', String(filter.pageNo));
-    if (filter.pageOffset !== undefined) params.append('size', String(filter.pageOffset));
+    if (filter.pageNo !== undefined)
+        params.append('page', String(filter.pageNo));
+    if (filter.pageOffset !== undefined)
+        params.append('size', String(filter.pageOffset));
     const query = params.toString();
     const url = query
         ? `/iam/core/retailer/shipments/reviews?${query}`

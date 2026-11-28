@@ -112,7 +112,10 @@ export default function OrganizationPage() {
             };
             localStorage.setItem('auth_user', JSON.stringify(updatedUser));
             sessionStorage.removeItem('signupPersonalData');
-            toast({ title: 'Account created successfully!', variant: 'success' });
+            toast({
+                title: 'Account created successfully!',
+                variant: 'success',
+            });
             router.push('/retailer/dashboard');
         } catch (err) {
             const errorMessage =

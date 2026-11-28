@@ -404,10 +404,16 @@ export function PurchaseOrderTable({
                     p.purchaseOrderId === po.purchaseOrderId ? next : p
                 )
             );
-            toast({ title: 'Purchase order submitted for approval', variant: 'success' });
+            toast({
+                title: 'Purchase order submitted for approval',
+                variant: 'success',
+            });
         } catch (error) {
             console.error('Failed to submit purchase order:', error);
-            toast({ title: 'Failed to submit purchase order', variant: 'destructive' });
+            toast({
+                title: 'Failed to submit purchase order',
+                variant: 'destructive',
+            });
         } finally {
             setConfirming(null);
         }
@@ -427,10 +433,16 @@ export function PurchaseOrderTable({
                     p.purchaseOrderId === po.purchaseOrderId ? next : p
                 )
             );
-            toast({ title: 'Purchase order sent to supplier', variant: 'success' });
+            toast({
+                title: 'Purchase order sent to supplier',
+                variant: 'success',
+            });
         } catch (error) {
             console.error('Failed to send purchase order:', error);
-            toast({ title: 'Failed to send purchase order', variant: 'destructive' });
+            toast({
+                title: 'Failed to send purchase order',
+                variant: 'destructive',
+            });
         } finally {
             setConfirming(null);
         }
@@ -447,7 +459,10 @@ export function PurchaseOrderTable({
             toast({ title: 'Purchase order deleted', variant: 'success' });
         } catch (error) {
             console.error('Failed to delete purchase order:', error);
-            toast({ title: 'Failed to delete purchase order', variant: 'destructive' });
+            toast({
+                title: 'Failed to delete purchase order',
+                variant: 'destructive',
+            });
         } finally {
             setConfirming(null);
         }

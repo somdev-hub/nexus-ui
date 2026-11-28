@@ -204,7 +204,11 @@
     color: var(--foreground);
 }
 .profile-attendance-calendar .fc-event[data-kind='unknown'] {
-    background-color: color-mix(in oklch, var(--muted-foreground) 12%, var(--card));
+    background-color: color-mix(
+        in oklch,
+        var(--muted-foreground) 12%,
+        var(--card)
+    );
     border-color: var(--muted-foreground);
     color: var(--foreground);
 }

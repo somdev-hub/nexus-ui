@@ -113,11 +113,12 @@ const SupplierMarketPage = () => {
             setLoadError(null);
             // Parallel fetch: org directory (all suppliers) + public catalog
             // browse. Joined client-side below by org id.
-            const [dirResult, browseResult, reviewResult] = await Promise.allSettled([
-                getSupplierDirectory(''),
-                browseSupplierCatalog({ pageNo: 0, pageOffset: 100 }),
-                getSupplierReviewSummary(),
-            ]);
+            const [dirResult, browseResult, reviewResult] =
+                await Promise.allSettled([
+                    getSupplierDirectory(''),
+                    browseSupplierCatalog({ pageNo: 0, pageOffset: 100 }),
+                    getSupplierReviewSummary(),
+                ]);
             if (isActive) {
                 void loadSentInvitations();
             }
@@ -387,17 +388,28 @@ const SupplierMarketPage = () => {
                                                             {entry.trustScore}
                                                         </Badge>
                                                     ) : null}
-                                                     {reviewSummaryMap.get(entry.id) ? (
-                                                         <Badge
-                                                             variant="secondary"
-                                                             className="flex items-center gap-1"
-                                                         >
-                                                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                                             {reviewSummaryMap.get(entry.id)!.avgRating?.toFixed(1)}
-                                                             {' '}
-                                                             ({reviewSummaryMap.get(entry.id)!.reviewCount})
-                                                         </Badge>
-                                                     ) : null}
+                                                    {reviewSummaryMap.get(
+                                                        entry.id
+                                                    ) ? (
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="flex items-center gap-1"
+                                                        >
+                                                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                                            {reviewSummaryMap
+                                                                .get(entry.id)!
+                                                                .avgRating?.toFixed(
+                                                                    1
+                                                                )}{' '}
+                                                            (
+                                                            {
+                                                                reviewSummaryMap.get(
+                                                                    entry.id
+                                                                )!.reviewCount
+                                                            }
+                                                            )
+                                                        </Badge>
+                                                    ) : null}
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="flex flex-1 flex-col gap-3 p-0">

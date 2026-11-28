@@ -156,9 +156,7 @@ export default function VariantsPage() {
                     <DropdownMenuContent align="end" className="w-40">
                         <DropdownMenuItem
                             variant="destructive"
-                            onClick={() =>
-                                handleDelete(row.original.variantId)
-                            }
+                            onClick={() => handleDelete(row.original.variantId)}
                         >
                             <IconTrash className="mr-2 h-4 w-4" />
                             Delete

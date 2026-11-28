@@ -135,7 +135,11 @@ export default function SignupPage() {
                                         <div className="relative">
                                             <FormControl>
                                                 <Input
-                                                    type={showPassword ? 'text' : 'password'}
+                                                    type={
+                                                        showPassword
+                                                            ? 'text'
+                                                            : 'password'
+                                                    }
                                                     placeholder="••••••••"
                                                     disabled={isLoading}
                                                     {...field}
@@ -143,7 +147,11 @@ export default function SignupPage() {
                                             </FormControl>
                                             <button
                                                 type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
+                                                onClick={() =>
+                                                    setShowPassword(
+                                                        !showPassword
+                                                    )
+                                                }
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                                                 aria-label="Toggle password visibility"
                                             >
@@ -167,7 +175,11 @@ export default function SignupPage() {
                                         <div className="relative">
                                             <FormControl>
                                                 <Input
-                                                    type={showConfirmPassword ? 'text' : 'password'}
+                                                    type={
+                                                        showConfirmPassword
+                                                            ? 'text'
+                                                            : 'password'
+                                                    }
                                                     placeholder="••••••••"
                                                     disabled={isLoading}
                                                     {...field}
@@ -175,7 +187,11 @@ export default function SignupPage() {
                                             </FormControl>
                                             <button
                                                 type="button"
-                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                onClick={() =>
+                                                    setShowConfirmPassword(
+                                                        !showConfirmPassword
+                                                    )
+                                                }
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                                                 aria-label="Toggle password visibility"
                                             >

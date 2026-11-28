@@ -589,15 +589,11 @@ export default function SupplierInvoicesPage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem
-                                onClick={() => setViewingGr(g)}
-                            >
+                            <DropdownMenuItem onClick={() => setViewingGr(g)}>
                                 <IconEye className="mr-2 h-4 w-4" />
                                 View
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => createFromGr(g)}
-                            >
+                            <DropdownMenuItem onClick={() => createFromGr(g)}>
                                 <IconPlus className="mr-2 h-4 w-4" />
                                 Create Invoice
                             </DropdownMenuItem>
@@ -649,10 +645,7 @@ export default function SupplierInvoicesPage() {
             header: () => <div className="w-full text-right">Amount</div>,
             cell: ({ row }) => (
                 <div className="text-right">
-                    {fmtMoney(
-                        row.original.totalAmount,
-                        row.original.currency
-                    )}
+                    {fmtMoney(row.original.totalAmount, row.original.currency)}
                 </div>
             ),
         },

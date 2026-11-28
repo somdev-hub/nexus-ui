@@ -92,10 +92,7 @@ export default function Page() {
                                     including delivered history
                                 </p>
                             </div>
-                            <Select
-                                value={status}
-                                onValueChange={setStatus}
-                            >
+                            <Select value={status} onValueChange={setStatus}>
                                 <SelectTrigger className="w-full md:w-56">
                                     <SelectValue placeholder="All statuses" />
                                 </SelectTrigger>

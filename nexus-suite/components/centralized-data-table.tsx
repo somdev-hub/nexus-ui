@@ -62,10 +62,7 @@ function isNumericColumn(
     if (!firstRow || !column.accessorFn) {
         return false;
     }
-    const rawValue = column.accessorFn(
-        firstRow.original,
-        firstRow.index
-    );
+    const rawValue = column.accessorFn(firstRow.original, firstRow.index);
     const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
     return !Number.isNaN(numeric) && rawValue !== null && rawValue !== '';
 }
@@ -121,7 +118,9 @@ export function TableRowActions<TData>({
                 {actions.map((action, index) => (
                     <React.Fragment key={index}>
                         <DropdownMenuItem
-                            variant={action.destructive ? 'destructive' : 'default'}
+                            variant={
+                                action.destructive ? 'destructive' : 'default'
+                            }
                         >
                             {action.icon ? (
                                 <action.icon className="mr-2 h-4 w-4" />
@@ -184,7 +183,10 @@ export function CentralizedDataTable<TData extends object>({
 
                                     const renderHeaderContent = () => {
                                         const headerDef = column.columnDef;
-                                        if (typeof headerDef.header === 'function') {
+                                        if (
+                                            typeof headerDef.header ===
+                                            'function'
+                                        ) {
                                             return flexRender(
                                                 headerDef.header,
                                                 header.getContext()
@@ -193,7 +195,8 @@ export function CentralizedDataTable<TData extends object>({
                                         return (
                                             <>
                                                 {String(
-                                                    headerDef.header ?? column.id
+                                                    headerDef.header ??
+                                                        column.id
                                                 )}
                                             </>
                                         );
@@ -217,18 +220,23 @@ export function CentralizedDataTable<TData extends object>({
                                                         variant="ghost"
                                                         size="sm"
                                                         className={`h-6 w-6 shrink-0 p-0 text-muted-foreground hover:text-foreground ${
-                                                            sortState === 'asc' ||
+                                                            sortState ===
+                                                                'asc' ||
                                                             sortState === 'desc'
                                                                 ? 'opacity-100'
                                                                 : 'opacity-0 group-hover:opacity-100'
                                                         }`}
                                                         onClick={sortToggle}
                                                         aria-label={`Sort by ${String(
-                                                            column.columnDef.header ?? column.id
+                                                            column.columnDef
+                                                                .header ??
+                                                                column.id
                                                         )}`}
                                                     >
                                                         <SortIndicator
-                                                            sortState={sortState}
+                                                            sortState={
+                                                                sortState
+                                                            }
                                                         />
                                                     </Button>
                                                 </div>
@@ -312,7 +320,10 @@ export function CentralizedDataTable<TData extends object>({
                                 </SelectTrigger>
                                 <SelectContent side="top">
                                     {pageSizeOptions.map((option) => (
-                                        <SelectItem key={option} value={`${option}`}>
+                                        <SelectItem
+                                            key={option}
+                                            value={`${option}`}
+                                        >
                                             {option}
                                         </SelectItem>
                                     ))}

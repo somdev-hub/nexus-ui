@@ -1,10 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
-import { IconDotsVertical, IconEdit, IconTrash, IconTruck } from '@tabler/icons-react';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconTrash,
+    IconTruck,
+} from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ConsignmentStock } from '@/types/supplier';
-import type { SupplierCatalog, ProductVariant, SupplierPriceTier } from '@/types/supplier';
+import type {
+    SupplierCatalog,
+    ProductVariant,
+    SupplierPriceTier,
+} from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,8 +55,17 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
-import { getSupplierCatalogs, getVariants, getPriceTiers } from '@/lib/services/supplier-catalog-service';
-import { getOrgAddresses, formatOrgAddress, orgAddressOptionLabel, type OrgAddress } from '@/lib/services/org-profile-service';
+import {
+    getSupplierCatalogs,
+    getVariants,
+    getPriceTiers,
+} from '@/lib/services/supplier-catalog-service';
+import {
+    getOrgAddresses,
+    formatOrgAddress,
+    orgAddressOptionLabel,
+    type OrgAddress,
+} from '@/lib/services/org-profile-service';
 import apiClient from '@/lib/api-client';
 import {
     getConsignments,
@@ -67,9 +85,7 @@ const buildConsignmentColumns = (
         accessorKey: 'consignmentNumber',
         header: 'Consignment #',
         cell: ({ row }) => (
-            <div className="font-medium">
-                {row.original.consignmentNumber}
-            </div>
+            <div className="font-medium">{row.original.consignmentNumber}</div>
         ),
     },
     {
@@ -107,9 +123,7 @@ const buildConsignmentColumns = (
         accessorFn: (row) => row.quantityOnHand ?? 0,
         header: () => <div className="w-full text-right">On Hand</div>,
         cell: ({ row }) => (
-            <div className="text-right">
-                {row.original.quantityOnHand}
-            </div>
+            <div className="text-right">{row.original.quantityOnHand}</div>
         ),
     },
     {
@@ -117,9 +131,7 @@ const buildConsignmentColumns = (
         accessorFn: (row) => row.quantityAvailable ?? 0,
         header: () => <div className="w-full text-right">Available</div>,
         cell: ({ row }) => (
-            <div className="text-right">
-                {row.original.quantityAvailable}
-            </div>
+            <div className="text-right">{row.original.quantityAvailable}</div>
         ),
     },
     {
@@ -186,15 +198,21 @@ export default function ConsignmentPage() {
     const [pickupAddressId, setPickupAddressId] = useState('');
     const [deliveryAddressId, setDeliveryAddressId] = useState('');
     const [fillQuantity, setFillQuantity] = useState('');
-    const [supplierAddresses, setSupplierAddresses] = useState<OrgAddress[]>([]);
-    const [retailerAddresses, setRetailerAddresses] = useState<OrgAddress[]>([]);
+    const [supplierAddresses, setSupplierAddresses] = useState<OrgAddress[]>(
+        []
+    );
+    const [retailerAddresses, setRetailerAddresses] = useState<OrgAddress[]>(
+        []
+    );
     const [editCatalogId, setEditCatalogId] = useState('');
     const [editVariantId, setEditVariantId] = useState('');
     const [editPriceTierId, setEditPriceTierId] = useState('');
     const [editQty, setEditQty] = useState('');
     const [editNotes, setEditNotes] = useState('');
     const [editVariants, setEditVariants] = useState<ProductVariant[]>([]);
-    const [editPriceTiers, setEditPriceTiers] = useState<SupplierPriceTier[]>([]);
+    const [editPriceTiers, setEditPriceTiers] = useState<SupplierPriceTier[]>(
+        []
+    );
     const [retailers, setRetailers] = useState<
         { orgId: number; label: string }[]
     >([]);
@@ -205,12 +223,16 @@ export default function ConsignmentPage() {
 
     useEffect(() => {
         if (!orgId) return;
-        getOrgAddresses(orgId).then(setSupplierAddresses).catch(() => {});
+        getOrgAddresses(orgId)
+            .then(setSupplierAddresses)
+            .catch(() => {});
     }, [orgId]);
 
     useEffect(() => {
         if (!filling?.retailerOrgId) return;
-        getOrgAddresses(filling.retailerOrgId).then(setRetailerAddresses).catch(() => {});
+        getOrgAddresses(filling.retailerOrgId)
+            .then(setRetailerAddresses)
+            .catch(() => {});
     }, [filling]);
 
     const [deleting, setDeleting] = useState<ConsignmentStock | null>(null);
@@ -246,7 +268,13 @@ export default function ConsignmentPage() {
                 const seen = new Map<number, string>();
                 for (const p of res.content ?? []) {
                     if (p.status === 'TERMINATED') continue;
-                    if (String((p as { partnershipType?: unknown }).partnershipType ?? '').toUpperCase() === 'LOGISTICS') continue;
+                    if (
+                        String(
+                            (p as { partnershipType?: unknown })
+                                .partnershipType ?? ''
+                        ).toUpperCase() === 'LOGISTICS'
+                    )
+                        continue;
                     const isPrimary =
                         Number.isFinite(own) &&
                         p.primaryOrgId !== undefined &&
@@ -337,7 +365,9 @@ export default function ConsignmentPage() {
                 ]);
                 if (!active) return;
                 setEditVariants(Array.isArray(vs) ? vs : (vs.content ?? []));
-                setEditPriceTiers(Array.isArray(pts) ? pts : (pts.content ?? []));
+                setEditPriceTiers(
+                    Array.isArray(pts) ? pts : (pts.content ?? [])
+                );
             } catch {
                 if (active) {
                     setEditVariants([]);
@@ -357,12 +387,16 @@ export default function ConsignmentPage() {
         let active = true;
         (async () => {
             try {
-                const res = await apiClient.get<{ hasActiveContract?: boolean }>(
+                const res = await apiClient.get<{
+                    hasActiveContract?: boolean;
+                }>(
                     `/iam/core/retailer/supplier-contracts/check?retailerOrgId=${form.retailerOrgId}&contractType=CONSIGNMENT`
                 );
                 if (!active) return;
                 if (!res.data?.hasActiveContract) {
-                    setContractError('No active CONSIGNMENT contract with this retailer.');
+                    setContractError(
+                        'No active CONSIGNMENT contract with this retailer.'
+                    );
                 } else {
                     setContractError('');
                 }
@@ -383,7 +417,9 @@ export default function ConsignmentPage() {
                 retailerOrgId: Number(form.retailerOrgId),
                 catalogId: form.catalogId ? Number(form.catalogId) : undefined,
                 variantId: form.variantId ? Number(form.variantId) : undefined,
-                priceTierId: form.priceTierId ? Number(form.priceTierId) : undefined,
+                priceTierId: form.priceTierId
+                    ? Number(form.priceTierId)
+                    : undefined,
                 quantityOnHand: Number(form.quantityOnHand),
             });
             toast({ title: 'Consignment created', variant: 'success' });
@@ -406,7 +442,9 @@ export default function ConsignmentPage() {
                 retailerOrgId: Number(editing.retailerOrgId),
                 catalogId: editCatalogId ? Number(editCatalogId) : undefined,
                 variantId: editVariantId ? Number(editVariantId) : undefined,
-                priceTierId: editPriceTierId ? Number(editPriceTierId) : undefined,
+                priceTierId: editPriceTierId
+                    ? Number(editPriceTierId)
+                    : undefined,
                 quantityOnHand: Number(editQty),
                 notes: editNotes || undefined,
             });
@@ -527,15 +565,24 @@ export default function ConsignmentPage() {
                             <div className="grid gap-2">
                                 <Label>Catalog Item</Label>
                                 <Select
-                                    value={form.catalogId ? String(form.catalogId) : ''}
-                                    onValueChange={(v) => setForm({ ...form, catalogId: v })}
+                                    value={
+                                        form.catalogId
+                                            ? String(form.catalogId)
+                                            : ''
+                                    }
+                                    onValueChange={(v) =>
+                                        setForm({ ...form, catalogId: v })
+                                    }
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Select catalog item" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {catalogs.map((c) => (
-                                            <SelectItem key={c.catalogId} value={String(c.catalogId)}>
+                                            <SelectItem
+                                                key={c.catalogId}
+                                                value={String(c.catalogId)}
+                                            >
                                                 {c.name} ({c.code})
                                             </SelectItem>
                                         ))}
@@ -545,16 +592,26 @@ export default function ConsignmentPage() {
                             <div className="grid gap-2">
                                 <Label>Variant</Label>
                                 <Select
-                                    value={form.variantId ? String(form.variantId) : ''}
-                                    onValueChange={(v) => setForm({ ...form, variantId: v })}
+                                    value={
+                                        form.variantId
+                                            ? String(form.variantId)
+                                            : ''
+                                    }
+                                    onValueChange={(v) =>
+                                        setForm({ ...form, variantId: v })
+                                    }
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Select variant (optional)" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {variants.map((v, i) => (
-                                            <SelectItem key={v.variantId ?? i} value={String(v.variantId)}>
-                                                {v.variantValue} ({v.variantType})
+                                            <SelectItem
+                                                key={v.variantId ?? i}
+                                                value={String(v.variantId)}
+                                            >
+                                                {v.variantValue} (
+                                                {v.variantType})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -563,16 +620,26 @@ export default function ConsignmentPage() {
                             <div className="grid gap-2">
                                 <Label>Price Tier</Label>
                                 <Select
-                                    value={form.priceTierId ? String(form.priceTierId) : ''}
-                                    onValueChange={(v) => setForm({ ...form, priceTierId: v })}
+                                    value={
+                                        form.priceTierId
+                                            ? String(form.priceTierId)
+                                            : ''
+                                    }
+                                    onValueChange={(v) =>
+                                        setForm({ ...form, priceTierId: v })
+                                    }
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Select price tier (optional)" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {priceTiers.map((t, i) => (
-                                            <SelectItem key={t.tierId ?? i} value={String(t.tierId)}>
-                                                {t.tierName ?? `Tier ${t.tierId}`}
+                                            <SelectItem
+                                                key={t.tierId ?? i}
+                                                value={String(t.tierId)}
+                                            >
+                                                {t.tierName ??
+                                                    `Tier ${t.tierId}`}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -592,8 +659,15 @@ export default function ConsignmentPage() {
                                     }
                                 />
                             </div>
-                            {contractError && <p className="text-sm text-red-600">{contractError}</p>}
-                            <Button onClick={handleCreate} disabled={saving || !!contractError}>
+                            {contractError && (
+                                <p className="text-sm text-red-600">
+                                    {contractError}
+                                </p>
+                            )}
+                            <Button
+                                onClick={handleCreate}
+                                disabled={saving || !!contractError}
+                            >
                                 {saving && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
@@ -603,86 +677,160 @@ export default function ConsignmentPage() {
                     </DialogContent>
                 </Dialog>
             </div>
-            <Dialog open={editing !== null} onOpenChange={(v) => !v && setEditing(null)}>
+            <Dialog
+                open={editing !== null}
+                onOpenChange={(v) => !v && setEditing(null)}
+            >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Edit Consignment ({editing?.consignmentNumber})</DialogTitle>
+                        <DialogTitle>
+                            Edit Consignment ({editing?.consignmentNumber})
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label>Catalog Item</Label>
-                            <Select value={editCatalogId} onValueChange={setEditCatalogId}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Select catalog item" /></SelectTrigger>
+                            <Select
+                                value={editCatalogId}
+                                onValueChange={setEditCatalogId}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select catalog item" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     {catalogs.map((c) => (
-                                        <SelectItem key={c.catalogId} value={String(c.catalogId)}>{c.name} ({c.code})</SelectItem>
+                                        <SelectItem
+                                            key={c.catalogId}
+                                            value={String(c.catalogId)}
+                                        >
+                                            {c.name} ({c.code})
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid gap-2">
                             <Label>Variant</Label>
-                            <Select value={editVariantId} onValueChange={setEditVariantId}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Select variant (optional)" /></SelectTrigger>
+                            <Select
+                                value={editVariantId}
+                                onValueChange={setEditVariantId}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select variant (optional)" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     {editVariants.map((v, i) => (
-                                        <SelectItem key={v.variantId ?? i} value={String(v.variantId)}>{v.variantValue} ({v.variantType})</SelectItem>
+                                        <SelectItem
+                                            key={v.variantId ?? i}
+                                            value={String(v.variantId)}
+                                        >
+                                            {v.variantValue} ({v.variantType})
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid gap-2">
                             <Label>Price Tier</Label>
-                            <Select value={editPriceTierId} onValueChange={setEditPriceTierId}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Select price tier (optional)" /></SelectTrigger>
+                            <Select
+                                value={editPriceTierId}
+                                onValueChange={setEditPriceTierId}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select price tier (optional)" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     {editPriceTiers.map((t, i) => (
-                                        <SelectItem key={t.tierId ?? i} value={String(t.tierId)}>{t.tierName ?? `Tier ${t.tierId}`}</SelectItem>
+                                        <SelectItem
+                                            key={t.tierId ?? i}
+                                            value={String(t.tierId)}
+                                        >
+                                            {t.tierName ?? `Tier ${t.tierId}`}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid gap-2">
                             <Label>Quantity On Hand</Label>
-                            <Input type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+                            <Input
+                                type="number"
+                                value={editQty}
+                                onChange={(e) => setEditQty(e.target.value)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Notes</Label>
-                            <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+                            <Textarea
+                                value={editNotes}
+                                onChange={(e) => setEditNotes(e.target.value)}
+                            />
                         </div>
                         <Button onClick={handleEdit} disabled={saving}>
-                            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {saving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Save
                         </Button>
                     </div>
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={filling !== null} onOpenChange={(v) => !v && setFilling(null)}>
+            <Dialog
+                open={filling !== null}
+                onOpenChange={(v) => !v && setFilling(null)}
+            >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Fill Consignment ({filling?.consignmentNumber})</DialogTitle>
+                        <DialogTitle>
+                            Fill Consignment ({filling?.consignmentNumber})
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label>Catalog Item</Label>
-                            <Input value={filling?.catalogName || filling?.catalogId || ''} disabled />
+                            <Input
+                                value={
+                                    filling?.catalogName ||
+                                    filling?.catalogId ||
+                                    ''
+                                }
+                                disabled
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Variant</Label>
-                            <Input value={filling?.variantValue || filling?.variantId || ''} disabled />
+                            <Input
+                                value={
+                                    filling?.variantValue ||
+                                    filling?.variantId ||
+                                    ''
+                                }
+                                disabled
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Price Tier</Label>
-                            <Input value={filling?.priceTierId || ''} disabled />
+                            <Input
+                                value={filling?.priceTierId || ''}
+                                disabled
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Pickup Address</Label>
-                            <Select value={pickupAddressId} onValueChange={setPickupAddressId}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Select pickup address" /></SelectTrigger>
+                            <Select
+                                value={pickupAddressId}
+                                onValueChange={setPickupAddressId}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select pickup address" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     {supplierAddresses.map((a) => (
-                                        <SelectItem key={a.orgAddressId} value={String(a.orgAddressId)}>
+                                        <SelectItem
+                                            key={a.orgAddressId}
+                                            value={String(a.orgAddressId)}
+                                        >
                                             {orgAddressOptionLabel(a)}
                                         </SelectItem>
                                     ))}
@@ -691,11 +839,19 @@ export default function ConsignmentPage() {
                         </div>
                         <div className="grid gap-2">
                             <Label>Delivery Address</Label>
-                            <Select value={deliveryAddressId} onValueChange={setDeliveryAddressId}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                            <Select
+                                value={deliveryAddressId}
+                                onValueChange={setDeliveryAddressId}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select delivery address" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     {retailerAddresses.map((a) => (
-                                        <SelectItem key={a.orgAddressId} value={String(a.orgAddressId)}>
+                                        <SelectItem
+                                            key={a.orgAddressId}
+                                            value={String(a.orgAddressId)}
+                                        >
                                             {orgAddressOptionLabel(a)}
                                         </SelectItem>
                                     ))}
@@ -704,38 +860,79 @@ export default function ConsignmentPage() {
                         </div>
                         <div className="grid gap-2">
                             <Label>Quantity</Label>
-                            <Input type="number" placeholder="e.g. 100" value={fillQuantity} onChange={(e) => setFillQuantity(e.target.value)} min="1" />
+                            <Input
+                                type="number"
+                                placeholder="e.g. 100"
+                                value={fillQuantity}
+                                onChange={(e) =>
+                                    setFillQuantity(e.target.value)
+                                }
+                                min="1"
+                            />
                         </div>
-                        <Button onClick={async () => {
-                            if (!filling) return;
-    const fillQty = Number(fillQuantity);
-                            if (!fillQty || fillQty <= 0) {
-                                toast({ title: 'Quantity is required', variant: 'destructive' });
-                                return;
-                            }
-                            const pickup = supplierAddresses.find((a) => String(a.orgAddressId) === pickupAddressId);
-                            const delivery = retailerAddresses.find((a) => String(a.orgAddressId) === deliveryAddressId);
-                            try {
-                                setFillingBusy(true);
-                                await fillConsignment(
-                                    filling.consignmentId,
-                                    pickup ? formatOrgAddress(pickup) : undefined,
-                                    delivery ? formatOrgAddress(delivery) : undefined,
-                                    fillQty
+                        <Button
+                            onClick={async () => {
+                                if (!filling) return;
+                                const fillQty = Number(fillQuantity);
+                                if (!fillQty || fillQty <= 0) {
+                                    toast({
+                                        title: 'Quantity is required',
+                                        variant: 'destructive',
+                                    });
+                                    return;
+                                }
+                                const pickup = supplierAddresses.find(
+                                    (a) =>
+                                        String(a.orgAddressId) ===
+                                        pickupAddressId
                                 );
-                                toast({ title: 'Consignment shipment generated', variant: 'success' });
-                                setFilling(null);
-                                load();
-                            } catch (e) {
-                                toast({
-                                    title: e instanceof Error ? e.message : String(e),
-                                    variant: 'destructive',
-                                });
-                            } finally {
-                                setFillingBusy(false);
+                                const delivery = retailerAddresses.find(
+                                    (a) =>
+                                        String(a.orgAddressId) ===
+                                        deliveryAddressId
+                                );
+                                try {
+                                    setFillingBusy(true);
+                                    await fillConsignment(
+                                        filling.consignmentId,
+                                        pickup
+                                            ? formatOrgAddress(pickup)
+                                            : undefined,
+                                        delivery
+                                            ? formatOrgAddress(delivery)
+                                            : undefined,
+                                        fillQty
+                                    );
+                                    toast({
+                                        title: 'Consignment shipment generated',
+                                        variant: 'success',
+                                    });
+                                    setFilling(null);
+                                    load();
+                                } catch (e) {
+                                    toast({
+                                        title:
+                                            e instanceof Error
+                                                ? e.message
+                                                : String(e),
+                                        variant: 'destructive',
+                                    });
+                                } finally {
+                                    setFillingBusy(false);
+                                }
+                            }}
+                            disabled={
+                                fillingBusy ||
+                                !fillQuantity ||
+                                Number(fillQuantity) <= 0
                             }
-                        }} disabled={fillingBusy || !fillQuantity || Number(fillQuantity) <= 0}>
-                            {fillingBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <IconTruck className="mr-2 h-4 w-4" />} Fill Consignment
+                        >
+                            {fillingBusy ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <IconTruck className="mr-2 h-4 w-4" />
+                            )}{' '}
+                            Fill Consignment
                         </Button>
                     </div>
                 </DialogContent>

@@ -473,7 +473,9 @@ export default function SupplierShipmentsPage() {
                         </DropdownMenuItem>
                         {row.original.status === 'DRAFT' && (
                             <DropdownMenuItem
-                                onClick={() => setHandoverShipment(row.original)}
+                                onClick={() =>
+                                    setHandoverShipment(row.original)
+                                }
                             >
                                 <IconMapPin className="mr-2 h-4 w-4" />
                                 Handover
@@ -489,14 +491,18 @@ export default function SupplierShipmentsPage() {
         data: shipments,
         columns: shipmentColumns,
         getRowId: (row, index) =>
-            row.shipmentId !== undefined ? String(row.shipmentId) : String(index),
+            row.shipmentId !== undefined
+                ? String(row.shipmentId)
+                : String(index),
     });
 
     const coreShipmentsTable = useTables<SupplierShipment>({
         data: coreShipments,
         columns: coreShipmentColumns,
         getRowId: (row, index) =>
-            row.shipmentId !== undefined ? String(row.shipmentId) : String(index),
+            row.shipmentId !== undefined
+                ? String(row.shipmentId)
+                : String(index),
         manualPagination: true,
         pageCount: corePageCount,
         pagination: corePagination,
@@ -528,9 +534,7 @@ export default function SupplierShipmentsPage() {
 
             <Card className="p-4 gap-2 min-w-0">
                 <CardHeader className="p-0">
-                    <CardTitle>
-                        My Shipments ({totalShipments})
-                    </CardTitle>
+                    <CardTitle>My Shipments ({totalShipments})</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 min-w-0">
                     {loading ? (

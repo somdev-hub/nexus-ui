@@ -53,11 +53,7 @@ import {
     type PreviewableAsset,
 } from '@/components/asset-preview-dialog';
 import { useToast } from '@/hooks/use-toast';
-import {
-    IconDotsVertical,
-    IconEye,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconDotsVertical, IconEye, IconTrash } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useTables } from '@/hooks/use-tables';
 
@@ -238,8 +234,7 @@ export default function DigitalAssetsPage() {
                                     setPreview({
                                         assetId: a.assetId,
                                         name:
-                                            a.fileName ??
-                                            `Asset #${a.assetId}`,
+                                            a.fileName ?? `Asset #${a.assetId}`,
                                         url: a.dmsDocumentUrl,
                                         type: a.assetType,
                                     })

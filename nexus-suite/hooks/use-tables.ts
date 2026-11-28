@@ -50,7 +50,11 @@ export interface UseTablesOptions<TData> {
     /** Enables row selection. Defaults to false. */
     enableRowSelection?: boolean;
     /** Stable row id resolver. */
-    getRowId?: (originalRow: TData, index: number, parent?: Row<TData>) => string;
+    getRowId?: (
+        originalRow: TData,
+        index: number,
+        parent?: Row<TData>
+    ) => string;
     /**
      * Use manual (server-side) pagination. When true, `data` must already be
      * the current page and `pageCount` must be supplied.
@@ -112,15 +116,15 @@ export function useTables<TData>({
         },
         [activePagination, pagination, onPaginationChange]
     );
-    const [rowSelectionState, setRowSelection] = React.useState<RowSelectionState>(
-        rowSelection ?? {}
-    );
+    const [rowSelectionState, setRowSelection] =
+        React.useState<RowSelectionState>(rowSelection ?? {});
     const [columnVisibilityState, setColumnVisibility] =
         React.useState<VisibilityState>(columnVisibility ?? {});
     const [columnFiltersState, setColumnFilters] =
         React.useState<ColumnFiltersState>(columnFilters ?? []);
-    const [globalFilterState, setGlobalFilter] =
-        React.useState<string>(globalFilter ?? '');
+    const [globalFilterState, setGlobalFilter] = React.useState<string>(
+        globalFilter ?? ''
+    );
 
     const table = useReactTable({
         data,

@@ -7,14 +7,16 @@ import { ProfileImageDrawer } from './ProfileImageDrawer';
 import type { ChangePasswordDrawerProps } from './ChangePasswordDrawer';
 import { ChangePasswordDrawer } from './ChangePasswordDrawer';
 
-export type ProfileDrawersProps = EditProfileDrawerProps & ProfileImageDrawerProps & ChangePasswordDrawerProps;
+export type ProfileDrawersProps = EditProfileDrawerProps &
+    ProfileImageDrawerProps &
+    ChangePasswordDrawerProps;
 
 export function ProfileDrawers(props: ProfileDrawersProps) {
-  return (
-    <>
-      <EditProfileDrawer {...props} />
-      <ProfileImageDrawer {...props} />
-      <ChangePasswordDrawer {...props} />
-    </>
-  );
+    return (
+        <>
+            <EditProfileDrawer {...props} />
+            <ProfileImageDrawer {...props} />
+            <ChangePasswordDrawer {...props} />
+        </>
+    );
 }

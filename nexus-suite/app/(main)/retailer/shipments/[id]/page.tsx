@@ -40,7 +40,8 @@ const STATUS_COLOR: Record<string, string> = {
     IN_TRANSIT: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
     OUT_FOR_DELIVERY: 'bg-purple-50 text-purple-700 border border-purple-200',
     DELIVERED: 'bg-green-50 text-green-700 border border-green-200',
-    PARTIALLY_DELIVERED: 'bg-orange-50 text-orange-700 border border-orange-200',
+    PARTIALLY_DELIVERED:
+        'bg-orange-50 text-orange-700 border border-orange-200',
     EXCEPTION: 'bg-red-50 text-red-700 border border-red-200',
     CANCELLED: 'bg-slate-50 text-slate-700 border border-slate-200',
     CLOSED: 'bg-slate-100 text-slate-600 border border-slate-200',
@@ -55,7 +56,10 @@ export default function RetailerShipmentDetailPage() {
     const [asns, setAsns] = useState<AsnDocument[]>([]);
     const [asnLoading, setAsnLoading] = useState(false);
     const [openReceive, setOpenReceive] = useState(false);
-    const [sourceContext, setSourceContext] = useState<Record<string, unknown> | null>(null);
+    const [sourceContext, setSourceContext] = useState<Record<
+        string,
+        unknown
+    > | null>(null);
     const [sourceLoading, setSourceLoading] = useState(false);
     const [receiving, setReceiving] = useState(false);
     const [pod, setPod] = useState<any>(null);
@@ -67,12 +71,18 @@ export default function RetailerShipmentDetailPage() {
         try {
             const [s, t] = await Promise.all([
                 getShipmentById(shipmentId),
-                getTrackingEvents(shipmentId, 0, 50).catch(() => ({ content: [] } as any)),
+                getTrackingEvents(shipmentId, 0, 50).catch(
+                    () => ({ content: [] }) as any
+                ),
             ]);
             setShipment(s);
-            setTracking(Array.isArray(t.content) ? t.content : (Array.isArray(t) ? t : []));
+            setTracking(
+                Array.isArray(t.content) ? t.content : Array.isArray(t) ? t : []
+            );
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to load shipment');
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to load shipment'
+            );
         } finally {
             setIsLoading(false);
         }
@@ -114,7 +124,11 @@ export default function RetailerShipmentDetailPage() {
             const ctx = await getGoodsReceiptSource(shipment.shipmentId);
             setSourceContext(ctx);
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to load shipment source');
+            toast.error(
+                e instanceof Error
+                    ? e.message
+                    : 'Failed to load shipment source'
+            );
         } finally {
             setSourceLoading(false);
         }
@@ -129,7 +143,9 @@ export default function RetailerShipmentDetailPage() {
             const quantity = sourceContext.quantity as number | undefined;
             const supplierId = sourceContext.supplierId as number | undefined;
             if (!materialId || !quantity || !supplierId) {
-                throw new Error('Shipment source is missing material/supplier/quantity');
+                throw new Error(
+                    'Shipment source is missing material/supplier/quantity'
+                );
             }
             await createGoodsReceipt({
                 shipmentId: shipment.shipmentId,
@@ -142,8 +158,11 @@ export default function RetailerShipmentDetailPage() {
                         materialId,
                         lineNumber: 1,
                         quantityReceived: quantity,
-                        unitOfMeasure: (sourceContext.unitOfMeasure as string) || undefined,
-                        description: sourceContext.materialName as string | undefined,
+                        unitOfMeasure:
+                            (sourceContext.unitOfMeasure as string) ||
+                            undefined,
+                        description: sourceContext.materialName as
+                            string | undefined,
                     },
                 ],
             });
@@ -152,7 +171,11 @@ export default function RetailerShipmentDetailPage() {
             setSourceContext(null);
             load();
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to create goods receipt');
+            toast.error(
+                e instanceof Error
+                    ? e.message
+                    : 'Failed to create goods receipt'
+            );
         } finally {
             setReceiving(false);
         }
@@ -177,14 +200,11 @@ export default function RetailerShipmentDetailPage() {
             {
                 id: 'asnNumber',
                 header: 'ASN Number',
-                accessorFn: (row) =>
-                    String(row.asnNumber ?? row.asnId ?? ''),
+                accessorFn: (row) => String(row.asnNumber ?? row.asnId ?? ''),
                 cell: ({ row }) => (
                     <div className="font-mono text-xs">
                         {String(
-                            row.original.asnNumber ??
-                                row.original.asnId ??
-                                '—'
+                            row.original.asnNumber ?? row.original.asnId ?? '—'
                         )}
                     </div>
                 ),
@@ -194,9 +214,7 @@ export default function RetailerShipmentDetailPage() {
                 header: 'Status',
                 accessorFn: (row) => String(row.status ?? ''),
                 cell: ({ row }) => (
-                    <Badge>
-                        {String(row.original.status ?? '—')}
-                    </Badge>
+                    <Badge>{String(row.original.status ?? '—')}</Badge>
                 ),
             },
             {
@@ -285,44 +303,69 @@ export default function RetailerShipmentDetailPage() {
                         <CardContent className="p-3 space-y-2 text-sm">
                             <div className="grid gap-2">
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Number</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Number
+                                    </p>
                                     <p className="font-mono font-medium">
                                         {shipment.shipmentNumber}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Type</p>
-                                    <Badge variant="secondary" className="text-xs">
+                                    <p className="text-muted-foreground text-xs">
+                                        Type
+                                    </p>
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-xs"
+                                    >
                                         {shipment.referenceType ?? '—'}
                                     </Badge>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Status</p>
-                                    <Badge className={STATUS_COLOR[shipment.status] ?? 'bg-muted'}>
+                                    <p className="text-muted-foreground text-xs">
+                                        Status
+                                    </p>
+                                    <Badge
+                                        className={
+                                            STATUS_COLOR[shipment.status] ??
+                                            'bg-muted'
+                                        }
+                                    >
                                         {shipment.status}
                                     </Badge>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Mode</p>
-                                    <p className="font-medium">{shipment.mode ?? '—'}</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Mode
+                                    </p>
+                                    <p className="font-medium">
+                                        {shipment.mode ?? '—'}
+                                    </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Supplier</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Supplier
+                                    </p>
                                     <p className="font-medium truncate">
                                         {shipment.supplierOrgName ?? '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Material</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Material
+                                    </p>
                                     <p className="font-medium truncate">
-                                        {shipment.materialName ?? shipment.materialId ?? '—'}
+                                        {shipment.materialName ??
+                                            shipment.materialId ??
+                                            '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Dispatched Qty</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Dispatched Qty
+                                    </p>
                                     <p className="font-mono font-medium">
-                                        {shipment.shippedQuantity ?? '—'}
-                                        {' '}
+                                        {shipment.shippedQuantity ?? '—'}{' '}
                                         {shipment.quantityUom ?? ''}
                                     </p>
                                 </div>
@@ -337,37 +380,55 @@ export default function RetailerShipmentDetailPage() {
                         <CardContent className="p-3 space-y-2 text-sm">
                             <div className="grid gap-2">
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Pickup</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Pickup
+                                    </p>
                                     <p className="font-medium truncate">
-                                        {shipment.pickupLocation ?? shipment.pickupAddress ?? '—'}
+                                        {shipment.pickupLocation ??
+                                            shipment.pickupAddress ??
+                                            '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Delivery</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Delivery
+                                    </p>
                                     <p className="font-medium truncate">
-                                        {shipment.deliveryLocation ?? shipment.deliveryAddress ?? '—'}
+                                        {shipment.deliveryLocation ??
+                                            shipment.deliveryAddress ??
+                                            '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Pickup Date</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Pickup Date
+                                    </p>
                                     <p className="font-medium">
                                         {shipment.pickupDate ?? '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Delivery Date</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Delivery Date
+                                    </p>
                                     <p className="font-medium">
                                         {shipment.deliveryDate ?? '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">ETA</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        ETA
+                                    </p>
                                     <p className="font-medium">
-                                        {shipment.estimatedArrival ?? shipment.deliveryDate ?? '—'}
+                                        {shipment.estimatedArrival ??
+                                            shipment.deliveryDate ??
+                                            '—'}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-xs">Tracking</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        Tracking
+                                    </p>
                                     <p className="font-mono text-xs truncate">
                                         {shipment.trackingNumber ?? '—'}
                                     </p>
@@ -381,14 +442,19 @@ export default function RetailerShipmentDetailPage() {
                             <CardTitle>Received at</CardTitle>
                         </CardHeader>
                         <CardContent className="p-3 space-y-2 text-sm">
-                            <div className="grid gap-2">
-                            </div>
+                            <div className="grid gap-2"></div>
                             {pod ? (
                                 <div className="pt-2 border-t">
-                                    <p className="text-muted-foreground text-xs">POD</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        POD
+                                    </p>
                                     <p className="text-sm">
-                                        {pod.signatureUrl ? 'Signature captured' : 'No signature'}
-                                        {pod.receivedByName ? ` — ${pod.receivedByName}` : ''}
+                                        {pod.signatureUrl
+                                            ? 'Signature captured'
+                                            : 'No signature'}
+                                        {pod.receivedByName
+                                            ? ` — ${pod.receivedByName}`
+                                            : ''}
                                     </p>
                                 </div>
                             ) : (
@@ -408,7 +474,9 @@ export default function RetailerShipmentDetailPage() {
                     {/* ASNs */}
                     <Card className="col-span-full">
                         <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Advance Shipping Notices (ASN)</CardTitle>
+                            <CardTitle>
+                                Advance Shipping Notices (ASN)
+                            </CardTitle>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -420,8 +488,8 @@ export default function RetailerShipmentDetailPage() {
                         </CardHeader>
                         <CardContent className="p-0 space-y-3">
                             <p className="text-sm text-muted-foreground">
-                                Dispatch notices linked to this shipment. Expand a row for
-                                quantities, carrier and ETA.
+                                Dispatch notices linked to this shipment. Expand
+                                a row for quantities, carrier and ETA.
                             </p>
                             {asnLoading && asns.length === 0 ? (
                                 <div className="p-4">
@@ -432,10 +500,8 @@ export default function RetailerShipmentDetailPage() {
                                     No ASN linked to this shipment yet.
                                 </div>
                             ) : (
-                                <CentralizedDataTable
-                                    table={asnTable}
-                                />
-                                )}
+                                <CentralizedDataTable table={asnTable} />
+                            )}
                         </CardContent>
                     </Card>
 
@@ -451,27 +517,33 @@ export default function RetailerShipmentDetailPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {tracking.slice().reverse().map((event, i) => (
-                                        <div
-                                            key={i}
-                                            className="flex gap-3 rounded-lg border p-3 text-sm"
-                                        >
-                                            <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                                                <IconFileText className="h-4 w-4" />
+                                    {tracking
+                                        .slice()
+                                        .reverse()
+                                        .map((event, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex gap-3 rounded-lg border p-3 text-sm"
+                                            >
+                                                <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                                                    <IconFileText className="h-4 w-4" />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <p className="font-medium whitespace-nowrap">
+                                                        {event.eventType ?? '—'}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground truncate">
+                                                        {event.description ??
+                                                            '—'}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {event.eventTimestamp ??
+                                                            event.createdAt ??
+                                                            '—'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col min-w-0">
-                                                <p className="font-medium whitespace-nowrap">
-                                                    {event.eventType ?? '—'}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {event.description ?? '—'}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {event.eventTimestamp ?? event.createdAt ?? '—'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             )}
                         </CardContent>
@@ -479,13 +551,19 @@ export default function RetailerShipmentDetailPage() {
                 </div>
             )}
             {/* Receive goods dialog */}
-            <Dialog open={openReceive} onOpenChange={(v) => !v && setOpenReceive(false)}>
+            <Dialog
+                open={openReceive}
+                onOpenChange={(v) => !v && setOpenReceive(false)}
+            >
                 <DialogContent className="md:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Receive Goods</DialogTitle>
                         <DialogDescription>
                             Create a goods receipt for shipment{' '}
-                            <span className="font-mono">{shipment?.shipmentNumber ?? ''}</span>.
+                            <span className="font-mono">
+                                {shipment?.shipmentNumber ?? ''}
+                            </span>
+                            .
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -494,41 +572,59 @@ export default function RetailerShipmentDetailPage() {
                         ) : sourceContext ? (
                             <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
                                 <div>
-                                    <p className="text-muted-foreground">Shipment</p>
+                                    <p className="text-muted-foreground">
+                                        Shipment
+                                    </p>
                                     <p className="font-mono font-medium">
                                         {shipment?.shipmentNumber ?? ''}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground">Supplier</p>
+                                    <p className="text-muted-foreground">
+                                        Supplier
+                                    </p>
                                     <p className="font-medium">
-                                        {String(sourceContext.supplierName ?? '—')}
+                                        {String(
+                                            sourceContext.supplierName ?? '—'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground">Material</p>
+                                    <p className="text-muted-foreground">
+                                        Material
+                                    </p>
                                     <p className="font-medium">
-                                        {String(sourceContext.materialName ?? '—')}
+                                        {String(
+                                            sourceContext.materialName ?? '—'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground">Dispatched Qty</p>
+                                    <p className="text-muted-foreground">
+                                        Dispatched Qty
+                                    </p>
                                     <p className="font-mono font-medium">
-                                        {String(sourceContext.quantity ?? '—')}
-                                        {' '}
-                                        {String(sourceContext.unitOfMeasure ?? '')}
+                                        {String(sourceContext.quantity ?? '—')}{' '}
+                                        {String(
+                                            sourceContext.unitOfMeasure ?? ''
+                                        )}
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">ASN</p>
                                     <p className="font-medium text-sm">
-                                        {String(sourceContext.asnNumber ?? sourceContext.asnId ?? '—')}
+                                        {String(
+                                            sourceContext.asnNumber ??
+                                                sourceContext.asnId ??
+                                                '—'
+                                        )}
                                     </p>
                                 </div>
                             </div>
                         ) : (
                             <p className="text-muted-foreground text-sm">
-                                Shipment source not available — cannot create a receipt yet.
+                                Shipment source not available — cannot create a
+                                receipt yet.
                             </p>
                         )}
                         <Button
@@ -542,18 +638,25 @@ export default function RetailerShipmentDetailPage() {
             </Dialog>
 
             {/* ASN detail dialog */}
-            <Dialog open={viewAsn !== null} onOpenChange={(v) => !v && setViewAsn(null)}>
+            <Dialog
+                open={viewAsn !== null}
+                onOpenChange={(v) => !v && setViewAsn(null)}
+            >
                 <DialogContent className="md:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>
                             ASN {viewAsn?.asnNumber ?? viewAsn?.asnId ?? ''}
                         </DialogTitle>
-                        <DialogDescription>Dispatch notice detail.</DialogDescription>
+                        <DialogDescription>
+                            Dispatch notice detail.
+                        </DialogDescription>
                     </DialogHeader>
                     {viewAsn && (
                         <div className="grid gap-3 rounded-md border p-3 text-sm sm:grid-cols-2">
                             <div>
-                                <p className="text-muted-foreground">ASN Number</p>
+                                <p className="text-muted-foreground">
+                                    ASN Number
+                                </p>
                                 <p className="font-mono font-medium">
                                     {viewAsn.asnNumber ?? viewAsn.asnId}
                                 </p>
@@ -563,20 +666,30 @@ export default function RetailerShipmentDetailPage() {
                                 <Badge>{viewAsn.status}</Badge>
                             </div>
                             <div>
-                                <p className="text-muted-foreground">Shipment</p>
+                                <p className="text-muted-foreground">
+                                    Shipment
+                                </p>
                                 <p className="font-mono text-xs">
-                                    {viewAsn.shipmentNumber ?? viewAsn.shipmentId ?? '—'}
+                                    {viewAsn.shipmentNumber ??
+                                        viewAsn.shipmentId ??
+                                        '—'}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground">Material</p>
+                                <p className="text-muted-foreground">
+                                    Material
+                                </p>
                                 <p className="font-medium">
                                     {viewAsn.materialName ?? '—'}
-                                    {viewAsn.unitOfMeasure ? ` (${viewAsn.unitOfMeasure})` : ''}
+                                    {viewAsn.unitOfMeasure
+                                        ? ` (${viewAsn.unitOfMeasure})`
+                                        : ''}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground">Shipped / Ordered</p>
+                                <p className="text-muted-foreground">
+                                    Shipped / Ordered
+                                </p>
                                 <p className="font-mono text-xs">
                                     {viewAsn.shippedQuantity ?? 0} /
                                     {viewAsn.orderedQuantity ?? 0}
@@ -589,7 +702,9 @@ export default function RetailerShipmentDetailPage() {
                                 </p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground">Tracking</p>
+                                <p className="text-muted-foreground">
+                                    Tracking
+                                </p>
                                 <p className="font-mono text-xs">
                                     {viewAsn.trackingNumber ?? '—'}
                                 </p>

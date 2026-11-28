@@ -94,19 +94,21 @@ export function DatePicker({
                 >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {date ? (
-                        withTime
-                            ? date.toLocaleString('en-US', {
-                                  month: 'short',
-                                  day: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                              })
-                            : date.toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: '2-digit',
-                                  year: 'numeric',
-                              })
+                        withTime ? (
+                            date.toLocaleString('en-US', {
+                                month: 'short',
+                                day: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                            })
+                        ) : (
+                            date.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: '2-digit',
+                                year: 'numeric',
+                            })
+                        )
                     ) : (
                         <span>{placeholder}</span>
                     )}

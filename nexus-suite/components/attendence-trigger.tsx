@@ -160,10 +160,11 @@ const AttendenceTrigger = () => {
                 error
             );
             toast({
-                title: error instanceof Error
-                    ? error.message
-                    : 'Unable to load attendance details',
-                variant: 'destructive'
+                title:
+                    error instanceof Error
+                        ? error.message
+                        : 'Unable to load attendance details',
+                variant: 'destructive',
             });
             setAttendance(null);
         } finally {
@@ -183,7 +184,7 @@ const AttendenceTrigger = () => {
         if (!userId) {
             toast({
                 title: 'Not authenticated - Please log in to update attendance',
-                variant: 'destructive'
+                variant: 'destructive',
             });
             return;
         }
@@ -191,7 +192,7 @@ const AttendenceTrigger = () => {
         if (!Number.isFinite(numericId)) {
             toast({
                 title: `Invalid userId: ${String(userId)}`,
-                variant: 'destructive'
+                variant: 'destructive',
             });
             return;
         }
@@ -201,15 +202,16 @@ const AttendenceTrigger = () => {
             setAttendance(mapToggleResponseToQuickUpdate(response));
             toast({
                 title: response.message || 'Attendance updated',
-                variant: 'success'
+                variant: 'success',
             });
         } catch (error) {
             console.error('[SiteHeader] Failed to toggle attendance:', error);
             toast({
-                title: error instanceof Error
-                    ? error.message
-                    : 'Unable to update attendance',
-                variant: 'destructive'
+                title:
+                    error instanceof Error
+                        ? error.message
+                        : 'Unable to update attendance',
+                variant: 'destructive',
             });
         } finally {
             setIsTogglingAttendance(false);

@@ -59,7 +59,10 @@ export async function fillConsignment(
     return res.data;
 }
 
-export async function updateConsignment(id: number, data: Partial<ConsignmentStock>) {
+export async function updateConsignment(
+    id: number,
+    data: Partial<ConsignmentStock>
+) {
     const res = await apiClient.put<any>(`${CONS_BASE}/${id}/update`, data);
     return res.data;
 }

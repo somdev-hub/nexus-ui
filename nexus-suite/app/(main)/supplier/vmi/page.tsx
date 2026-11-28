@@ -1,10 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
-import { IconDotsVertical, IconEdit, IconRefresh, IconTrash } from '@tabler/icons-react';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconRefresh,
+    IconTrash,
+} from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { VmiConfig, VmiSuggestion } from '@/types/supplier';
-import type { SupplierCatalog, ProductVariant, SupplierPriceTier } from '@/types/supplier';
+import type {
+    SupplierCatalog,
+    ProductVariant,
+    SupplierPriceTier,
+} from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +53,11 @@ import {
 } from '@/components/ui/select';
 import { useUserMetadata } from '@/hooks/use-user-metadata';
 import { getSupplierPartnerships } from '@/lib/services/org-partnerships-service';
-import { getSupplierCatalogs, getVariants, getPriceTiers } from '@/lib/services/supplier-catalog-service';
+import {
+    getSupplierCatalogs,
+    getVariants,
+    getPriceTiers,
+} from '@/lib/services/supplier-catalog-service';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -120,9 +133,7 @@ const buildVmiColumns = (
         accessorFn: (row) => row.reorderPoint ?? 0,
         header: () => <div className="w-full text-right">Reorder Point</div>,
         cell: ({ row }) => (
-            <div className="text-right">
-                {row.original.reorderPoint ?? '—'}
-            </div>
+            <div className="text-right">{row.original.reorderPoint ?? '—'}</div>
         ),
     },
     {
@@ -171,9 +182,7 @@ const buildVmiColumns = (
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                        onClick={() => onReplenish(row.original)}
-                    >
+                    <DropdownMenuItem onClick={() => onReplenish(row.original)}>
                         <IconRefresh className="mr-2 h-4 w-4" />
                         Replenish
                     </DropdownMenuItem>
@@ -248,7 +257,13 @@ export default function VmiPage() {
                 const seen = new Map<number, string>();
                 for (const p of res.content ?? []) {
                     if (p.status === 'TERMINATED') continue;
-                    if (String((p as { partnershipType?: unknown }).partnershipType ?? '').toUpperCase() === 'LOGISTICS') continue;
+                    if (
+                        String(
+                            (p as { partnershipType?: unknown })
+                                .partnershipType ?? ''
+                        ).toUpperCase() === 'LOGISTICS'
+                    )
+                        continue;
                     const isPrimary =
                         Number.isFinite(own) &&
                         p.primaryOrgId !== undefined &&
@@ -332,12 +347,16 @@ export default function VmiPage() {
         let active = true;
         (async () => {
             try {
-                const res = await apiClient.get<{ hasActiveContract?: boolean }>(
+                const res = await apiClient.get<{
+                    hasActiveContract?: boolean;
+                }>(
                     `/iam/core/retailer/supplier-contracts/check?retailerOrgId=${form.retailerOrgId}&contractType=VMI`
                 );
                 if (!active) return;
                 if (!res.data?.hasActiveContract) {
-                    setContractError('No active VMI contract with this retailer.');
+                    setContractError(
+                        'No active VMI contract with this retailer.'
+                    );
                 } else {
                     setContractError('');
                 }
@@ -504,7 +523,10 @@ export default function VmiPage() {
                     </SelectTrigger>
                     <SelectContent>
                         {catalogs.map((c) => (
-                            <SelectItem key={c.catalogId} value={String(c.catalogId)}>
+                            <SelectItem
+                                key={c.catalogId}
+                                value={String(c.catalogId)}
+                            >
                                 {c.name} ({c.code})
                             </SelectItem>
                         ))}
@@ -522,7 +544,10 @@ export default function VmiPage() {
                     </SelectTrigger>
                     <SelectContent>
                         {variants.map((v, i) => (
-                            <SelectItem key={v.variantId ?? i} value={String(v.variantId)}>
+                            <SelectItem
+                                key={v.variantId ?? i}
+                                value={String(v.variantId)}
+                            >
                                 {v.variantValue} ({v.variantType})
                             </SelectItem>
                         ))}
@@ -533,14 +558,19 @@ export default function VmiPage() {
                 <Label>Price Tier</Label>
                 <Select
                     value={value.priceTierId ? String(value.priceTierId) : ''}
-                    onValueChange={(v) => setValue({ ...value, priceTierId: v })}
+                    onValueChange={(v) =>
+                        setValue({ ...value, priceTierId: v })
+                    }
                 >
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select price tier (optional)" />
                     </SelectTrigger>
                     <SelectContent>
                         {priceTiers.map((t, i) => (
-                            <SelectItem key={t.tierId ?? i} value={String(t.tierId)}>
+                            <SelectItem
+                                key={t.tierId ?? i}
+                                value={String(t.tierId)}
+                            >
                                 {t.tierName ?? `Tier ${t.tierId}`}
                             </SelectItem>
                         ))}
@@ -638,8 +668,15 @@ export default function VmiPage() {
                         </DialogHeader>
                         <div className="grid gap-6">
                             {renderFields(form, setForm)}
-                            {contractError && <p className="text-sm text-red-600">{contractError}</p>}
-                            <Button onClick={handleCreate} disabled={saving || !!contractError}>
+                            {contractError && (
+                                <p className="text-sm text-red-600">
+                                    {contractError}
+                                </p>
+                            )}
+                            <Button
+                                onClick={handleCreate}
+                                disabled={saving || !!contractError}
+                            >
                                 {saving && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
@@ -709,7 +746,12 @@ export default function VmiPage() {
                                 >
                                     <div>
                                         <div className="text-sm font-medium">
-                                            VMI #{s.vmiId} - {s.catalogName || s.materialName || `Material ${s.materialId}`} (Available {s.available} / Reorder {s.reorderPoint})
+                                            VMI #{s.vmiId} -{' '}
+                                            {s.catalogName ||
+                                                s.materialName ||
+                                                `Material ${s.materialId}`}{' '}
+                                            (Available {s.available} / Reorder{' '}
+                                            {s.reorderPoint})
                                         </div>
                                         <div className="text-xs text-muted-foreground">
                                             Available {s.available} / Reorder{' '}

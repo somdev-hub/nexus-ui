@@ -55,9 +55,13 @@ export default function OrganizationSettingsPage() {
                 setDisplayCurrency(current);
             } catch (err: unknown) {
                 if (!active) return;
-                toast({ title: err instanceof Error
-                    ? err.message
-                    : 'Failed to load organization settings', variant: 'destructive' });
+                toast({
+                    title:
+                        err instanceof Error
+                            ? err.message
+                            : 'Failed to load organization settings',
+                    variant: 'destructive',
+                });
             } finally {
                 if (active) setLoading(false);
             }
@@ -76,9 +80,13 @@ export default function OrganizationSettingsPage() {
             setDisplayCurrency(currency);
             toast({ title: 'Default currency updated', variant: 'success' });
         } catch (err: unknown) {
-            toast({ title: err instanceof Error
-                ? err.message
-                : 'Failed to update default currency', variant: 'destructive' });
+            toast({
+                title:
+                    err instanceof Error
+                        ? err.message
+                        : 'Failed to update default currency',
+                variant: 'destructive',
+            });
         } finally {
             setSaving(false);
         }

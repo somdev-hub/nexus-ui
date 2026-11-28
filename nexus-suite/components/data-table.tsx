@@ -255,7 +255,8 @@ export function DataTable({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            {table.getAllColumns()
+                            {table
+                                .getAllColumns()
                                 .filter(
                                     (column) =>
                                         typeof column.accessorFn !==
@@ -287,7 +288,10 @@ export function DataTable({
                 value="outline"
                 className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
             >
-                <CentralizedDataTable table={table} emptyMessage="No results." />
+                <CentralizedDataTable
+                    table={table}
+                    emptyMessage="No results."
+                />
             </TabsContent>
             <TabsContent
                 value="past-performance"
@@ -423,10 +427,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                             <div className="flex flex-col gap-3">
                                 <Label htmlFor="type">Type</Label>
                                 <Select defaultValue={item.type}>
-                                    <SelectTrigger
-                                        id="type"
-                                        className="w-full"
-                                    >
+                                    <SelectTrigger id="type" className="w-full">
                                         <SelectValue placeholder="Select a type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -439,14 +440,18 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                                         <SelectItem value="Technical Approach">
                                             Technical Approach
                                         </SelectItem>
-                                        <SelectItem value="Design">Design</SelectItem>
+                                        <SelectItem value="Design">
+                                            Design
+                                        </SelectItem>
                                         <SelectItem value="Capabilities">
                                             Capabilities
                                         </SelectItem>
                                         <SelectItem value="Focus Documents">
                                             Focus Documents
                                         </SelectItem>
-                                        <SelectItem value="Narrative">Narrative</SelectItem>
+                                        <SelectItem value="Narrative">
+                                            Narrative
+                                        </SelectItem>
                                         <SelectItem value="Cover Page">
                                             Cover Page
                                         </SelectItem>
@@ -463,7 +468,9 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                                         <SelectValue placeholder="Select a status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Done">Done</SelectItem>
+                                        <SelectItem value="Done">
+                                            Done
+                                        </SelectItem>
                                         <SelectItem value="In Progress">
                                             In Progress
                                         </SelectItem>
@@ -487,10 +494,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                         <div className="flex flex-col gap-3">
                             <Label htmlFor="reviewer">Reviewer</Label>
                             <Select defaultValue={item.reviewer}>
-                                <SelectTrigger
-                                    id="reviewer"
-                                    className="w-full"
-                                >
+                                <SelectTrigger id="reviewer" className="w-full">
                                     <SelectValue placeholder="Select a reviewer" />
                                 </SelectTrigger>
                                 <SelectContent>

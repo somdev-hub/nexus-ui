@@ -365,8 +365,10 @@ export default function AnalyticsPage() {
                                 <CentralizedDataTable
                                     table={milestoneTable}
                                     hidePagination={
-                                        ((visibility?.milestones ??
-                                            []) as Milestone[]).length <= 1
+                                        (
+                                            (visibility?.milestones ??
+                                                []) as Milestone[]
+                                        ).length <= 1
                                     }
                                     emptyMessage="No milestones"
                                 />
@@ -376,21 +378,18 @@ export default function AnalyticsPage() {
                                     <p className="font-medium text-sm">
                                         Bottlenecks
                                     </p>
-                                    {visibility.bottlenecks?.map(
-                                        (b, i) => (
-                                            <Badge
-                                                key={i}
-                                                variant="destructive"
-                                                className="mr-2"
-                                            >
-                                                {b.stage}: {b.delay}
-                                            </Badge>
-                                        )
-                                    )}
+                                    {visibility.bottlenecks?.map((b, i) => (
+                                        <Badge
+                                            key={i}
+                                            variant="destructive"
+                                            className="mr-2"
+                                        >
+                                            {b.stage}: {b.delay}
+                                        </Badge>
+                                    ))}
                                 </div>
                             )}
-                            {(visibility.trackingTimeline?.length ?? 0) >
-                                0 && (
+                            {(visibility.trackingTimeline?.length ?? 0) > 0 && (
                                 <div>
                                     <p className="font-medium text-sm">
                                         Tracking

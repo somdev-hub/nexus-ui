@@ -102,7 +102,9 @@ export interface UploadAvatarResponse {
 export async function getUserProfile(userId: string): Promise<UserProfile> {
     try {
         const [employeeResponse, orgResponse] = await Promise.allSettled([
-            apiClient.get<Record<string, unknown>>(`/iam/organizations/employee/details?userId=${userId}`),
+            apiClient.get<Record<string, unknown>>(
+                `/iam/organizations/employee/details?userId=${userId}`
+            ),
             apiClient.get<{
                 orgName: string;
                 orgId: number;
@@ -114,22 +116,39 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
         const profile: UserProfile = {} as UserProfile;
 
-        if (employeeResponse.status === 'fulfilled' && employeeResponse.value.data) {
+        if (
+            employeeResponse.status === 'fulfilled' &&
+            employeeResponse.value.data
+        ) {
             const data = employeeResponse.value.data;
             profile.id = String(data.empId || data.id || userId);
             profile.name = String(data.fullName || data.name || '');
             profile.email = String(data.email || '');
             profile.phone = data.phone ? String(data.phone) : undefined;
             profile.address = data.address ? String(data.address) : undefined;
-            profile.personalEmail = data.personalEmail ? String(data.personalEmail) : undefined;
+            profile.personalEmail = data.personalEmail
+                ? String(data.personalEmail)
+                : undefined;
             profile.gender = data.gender ? String(data.gender) : undefined;
             profile.age = data.age ? Number(data.age) : undefined;
-            profile.dateOfBirth = data.dateOfBirth ? String(data.dateOfBirth) : undefined;
-            profile.profilePhoto = data.profileImageUrl ? String(data.profileImageUrl) : undefined;
-            profile.department = data.department ? String(data.department) : undefined;
-            profile.jobTitle = data.jobTitle ? String(data.jobTitle) : undefined;
-            profile.joiningDate = data.joiningDate ? String(data.joiningDate) : undefined;
-            profile.annualSalary = data.annualSalary ? Number(data.annualSalary) : undefined;
+            profile.dateOfBirth = data.dateOfBirth
+                ? String(data.dateOfBirth)
+                : undefined;
+            profile.profilePhoto = data.profileImageUrl
+                ? String(data.profileImageUrl)
+                : undefined;
+            profile.department = data.department
+                ? String(data.department)
+                : undefined;
+            profile.jobTitle = data.jobTitle
+                ? String(data.jobTitle)
+                : undefined;
+            profile.joiningDate = data.joiningDate
+                ? String(data.joiningDate)
+                : undefined;
+            profile.annualSalary = data.annualSalary
+                ? Number(data.annualSalary)
+                : undefined;
             profile.role = data.role ? String(data.role) : 'USER';
 
             // Parse nested arrays
@@ -140,7 +159,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
                 profile.hrDocuments = data.hrDocuments as HrDocument[];
             }
             if (Array.isArray(data.attendanceRecords)) {
-                profile.attendanceRecords = data.attendanceRecords as AttendanceRecord[];
+                profile.attendanceRecords =
+                    data.attendanceRecords as AttendanceRecord[];
             }
             if (Array.isArray(data.leaveRecords)) {
                 profile.leaveRecords = data.leaveRecords as LeaveRecord[];
@@ -164,9 +184,10 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
         return profile;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : 'Failed to fetch user profile';
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to fetch user profile';
         console.error('Get user profile error:', error);
         throw new Error(errorMsg);
     }
@@ -175,14 +196,21 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 /**
  * Update current user's profile
  */
-export async function updateUserProfile(userId: string, data: UpdateProfileRequest): Promise<UserProfile> {
+export async function updateUserProfile(
+    userId: string,
+    data: UpdateProfileRequest
+): Promise<UserProfile> {
     try {
-        const response = await apiClient.put<UserProfile>(`/iam/users/update?userId=${userId}`, data);
+        const response = await apiClient.put<UserProfile>(
+            `/iam/users/update?userId=${userId}`,
+            data
+        );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : 'Failed to update user profile';
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to update user profile';
         console.error('Update user profile error:', error);
         throw new Error(errorMsg);
     }
@@ -191,7 +219,10 @@ export async function updateUserProfile(userId: string, data: UpdateProfileReque
 /**
  * Upload user avatar
  */
-export async function uploadAvatar(file: File, userId: string): Promise<UploadAvatarResponse> {
+export async function uploadAvatar(
+    file: File,
+    userId: string
+): Promise<UploadAvatarResponse> {
     try {
         const formData = new FormData();
         formData.append('file', file);
@@ -203,9 +234,8 @@ export async function uploadAvatar(file: File, userId: string): Promise<UploadAv
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : 'Failed to upload avatar';
+        const errorMsg =
+            error instanceof Error ? error.message : 'Failed to upload avatar';
         console.error('Upload avatar error:', error);
         throw new Error(errorMsg);
     }
@@ -227,9 +257,10 @@ export async function changePassword(data: {
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : 'Failed to change password';
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to change password';
         console.error('Change password error:', error);
         throw new Error(errorMsg);
     }

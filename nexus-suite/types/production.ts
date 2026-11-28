@@ -1,8 +1,5 @@
 export type ProductionStatus =
-    | 'PLANNED'
-    | 'IN_PROGRESS'
-    | 'COMPLETED'
-    | 'CANCELLED';
+    'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export interface ProductionMaterial {
     productionOrderMaterialId: number;

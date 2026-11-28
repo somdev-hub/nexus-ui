@@ -5,13 +5,13 @@
 // All admin/config APIs (client configs, tools configs, param configs, seeder)
 // are handled in nexus-admin and have been removed from nexus-suite.
 
-import apiClient from "@/lib/api-client";
+import apiClient from '@/lib/api-client';
 import type {
     NexusBuddyChatRequest,
     NexusBuddyChatResponse,
     NexusBuddyToolResult,
     NexusBuddyAvailableToolsResponse,
-} from "@/types/nexus-buddy";
+} from '@/types/nexus-buddy';
 
 /**
  * Chat with Nexus Buddy - supports MCP tool calling
@@ -21,15 +21,14 @@ export async function nexusBuddyChat(
 ): Promise<NexusBuddyChatResponse> {
     try {
         const response = await apiClient.post<NexusBuddyChatResponse>(
-            "/nexusbuddy/api/chat",
+            '/nexusbuddy/api/chat',
             request
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : "Nexus Buddy chat failed";
-        console.error("Nexus Buddy chat error:", error);
+        const errorMsg =
+            error instanceof Error ? error.message : 'Nexus Buddy chat failed';
+        console.error('Nexus Buddy chat error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -42,12 +41,12 @@ export async function* nexusBuddyStreamChat(
 ): AsyncGenerator<string> {
     try {
         const response = await fetch(
-            "/api/proxy?path=/nexusbuddy/api/chat/stream",
+            '/api/proxy?path=/nexusbuddy/api/chat/stream',
             {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(request),
-                credentials: "include"
+                credentials: 'include',
             }
         );
 
@@ -59,7 +58,7 @@ export async function* nexusBuddyStreamChat(
         const decoder = new TextDecoder();
 
         if (!reader) {
-            throw new Error("No reader available for streaming");
+            throw new Error('No reader available for streaming');
         }
 
         while (true) {
@@ -68,10 +67,9 @@ export async function* nexusBuddyStreamChat(
             yield decoder.decode(value);
         }
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : "Stream failed";
-        console.error("Nexus Buddy stream error:", error);
+        const errorMsg =
+            error instanceof Error ? error.message : 'Stream failed';
+        console.error('Nexus Buddy stream error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -92,7 +90,7 @@ export async function executeNexusBuddyTool(params: {
         // Call backend Spring Boot endpoint directly
         // The backend validates user/org permissions and executes the tool
         const response = await apiClient.post<{ result: unknown }>(
-            "/nexusbuddy/api/tools/execute",
+            '/nexusbuddy/api/tools/execute',
             {
                 toolName: params.toolName,
                 arguments: params.arguments,
@@ -101,15 +99,14 @@ export async function executeNexusBuddyTool(params: {
                     orgId: params.orgId,
                     context: params.context,
                     permissions: params.permissions,
-                }
+                },
             }
         );
         return response.data.result;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : "Tool execution failed";
-        console.error("Tool execution error:", error);
+        const errorMsg =
+            error instanceof Error ? error.message : 'Tool execution failed';
+        console.error('Tool execution error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -120,14 +117,15 @@ export async function executeNexusBuddyTool(params: {
 export async function getAvailableTools(): Promise<NexusBuddyAvailableToolsResponse> {
     try {
         const response = await apiClient.get<NexusBuddyAvailableToolsResponse>(
-            "/nexusbuddy/api/tools/available"
+            '/nexusbuddy/api/tools/available'
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : "Failed to fetch available tools";
-        console.error("Fetch available tools error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to fetch available tools';
+        console.error('Fetch available tools error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -135,17 +133,20 @@ export async function getAvailableTools(): Promise<NexusBuddyAvailableToolsRespo
 /**
  * Get available tools for a specific context (with guardrails)
  */
-export async function getToolsForContext(context: string): Promise<NexusBuddyAvailableToolsResponse> {
+export async function getToolsForContext(
+    context: string
+): Promise<NexusBuddyAvailableToolsResponse> {
     try {
         const response = await apiClient.get<NexusBuddyAvailableToolsResponse>(
             `/nexusbuddy/api/tools/available?context=${encodeURIComponent(context)}`
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : "Failed to fetch available tools for context";
-        console.error("Fetch context tools error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to fetch available tools for context';
+        console.error('Fetch context tools error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -170,15 +171,20 @@ export interface ServerConversation {
 /**
  * Get all conversations for a user.
  */
-export async function getConversations(userId: string): Promise<ServerConversation[]> {
+export async function getConversations(
+    userId: string
+): Promise<ServerConversation[]> {
     try {
         const response = await apiClient.get<ServerConversation[]>(
             `/nexusbuddy/api/conversations?userId=${encodeURIComponent(userId)}`
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : "Failed to get conversations";
-        console.error("Get conversations error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to get conversations';
+        console.error('Get conversations error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -186,15 +192,21 @@ export async function getConversations(userId: string): Promise<ServerConversati
 /**
  * Get a specific conversation by ID.
  */
-export async function getConversation(id: number, userId: string): Promise<ServerConversation> {
+export async function getConversation(
+    id: number,
+    userId: string
+): Promise<ServerConversation> {
     try {
         const response = await apiClient.get<ServerConversation>(
             `/nexusbuddy/api/conversations/${id}?userId=${encodeURIComponent(userId)}`
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : "Failed to get conversation";
-        console.error("Get conversation error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to get conversation';
+        console.error('Get conversation error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -212,13 +224,16 @@ export async function createConversation(payload: {
 }): Promise<ServerConversation> {
     try {
         const response = await apiClient.post<ServerConversation>(
-            "/nexusbuddy/api/conversations",
+            '/nexusbuddy/api/conversations',
             payload
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : "Failed to create conversation";
-        console.error("Create conversation error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to create conversation';
+        console.error('Create conversation error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -226,13 +241,16 @@ export async function createConversation(payload: {
 /**
  * Update a conversation.
  */
-export async function updateConversation(id: number, payload: {
-    userId: string;
-    title?: string;
-    messagesJson?: string;
-    backendConversationId?: string;
-    context?: string;
-}): Promise<ServerConversation> {
+export async function updateConversation(
+    id: number,
+    payload: {
+        userId: string;
+        title?: string;
+        messagesJson?: string;
+        backendConversationId?: string;
+        context?: string;
+    }
+): Promise<ServerConversation> {
     try {
         const response = await apiClient.put<ServerConversation>(
             `/nexusbuddy/api/conversations/${id}`,
@@ -240,8 +258,11 @@ export async function updateConversation(id: number, payload: {
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : "Failed to update conversation";
-        console.error("Update conversation error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to update conversation';
+        console.error('Update conversation error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -249,12 +270,20 @@ export async function updateConversation(id: number, payload: {
 /**
  * Delete a conversation.
  */
-export async function deleteServerConversation(id: number, userId: string): Promise<void> {
+export async function deleteServerConversation(
+    id: number,
+    userId: string
+): Promise<void> {
     try {
-        await apiClient.delete(`/nexusbuddy/api/conversations/${id}?userId=${encodeURIComponent(userId)}`);
+        await apiClient.delete(
+            `/nexusbuddy/api/conversations/${id}?userId=${encodeURIComponent(userId)}`
+        );
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : "Failed to delete conversation";
-        console.error("Delete conversation error:", error);
+        const errorMsg =
+            error instanceof Error
+                ? error.message
+                : 'Failed to delete conversation';
+        console.error('Delete conversation error:', error);
         throw new Error(errorMsg);
     }
 }
@@ -269,7 +298,7 @@ export async function deleteServerConversation(id: number, userId: string): Prom
 export async function checkNexusBuddyHealth(): Promise<boolean> {
     try {
         const response = await apiClient.get<{ status: string }>(
-            "/nexusbuddy/api/chat/health"
+            '/nexusbuddy/api/chat/health'
         );
         return response.status === 200;
     } catch {
@@ -283,14 +312,13 @@ export async function checkNexusBuddyHealth(): Promise<boolean> {
 export async function nexusBuddyHealthCheck(): Promise<{ status: string }> {
     try {
         const response = await apiClient.get<{ status: string }>(
-            "/nexusbuddy/api/chat/health"
+            '/nexusbuddy/api/chat/health'
         );
         return response.data;
     } catch (error: unknown) {
-        const errorMsg = error instanceof Error
-            ? error.message
-            : "Health check failed";
-        console.error("Health check error:", error);
+        const errorMsg =
+            error instanceof Error ? error.message : 'Health check failed';
+        console.error('Health check error:', error);
         throw new Error(errorMsg);
     }
 }

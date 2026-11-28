@@ -81,7 +81,10 @@ interface Product {
 const createColumns = (
     onDelete: (productId: number, productCode: string) => void,
     onDuplicate: (product: Product) => void,
-    toast: (options: { title: string; variant: 'default' | 'destructive' | 'success' | 'warning' | 'info' }) => void
+    toast: (options: {
+        title: string;
+        variant: 'default' | 'destructive' | 'success' | 'warning' | 'info';
+    }) => void
 ): ColumnDef<Product>[] => [
     {
         accessorKey: 'productName',
@@ -169,7 +172,7 @@ const createColumns = (
                             if (!id) {
                                 toast({
                                     title: 'Product ID missing — please refresh the list',
-                                    variant: 'destructive'
+                                    variant: 'destructive',
                                 });
                                 return;
                             }
@@ -185,7 +188,7 @@ const createColumns = (
                             if (!id) {
                                 toast({
                                     title: 'Product ID missing — please refresh the list',
-                                    variant: 'destructive'
+                                    variant: 'destructive',
                                 });
                                 return;
                             }
@@ -241,42 +244,54 @@ export function ProductTable({
             setData((prev) => prev.filter((p) => p.productId !== productId));
             toast({ title: 'Product deleted', variant: 'success' });
         } catch {
-            toast({ title: 'Failed to delete product. Please try again.', variant: 'destructive' });
+            toast({
+                title: 'Failed to delete product. Please try again.',
+                variant: 'destructive',
+            });
         } finally {
             setConfirmingDelete(null);
         }
     }, [confirmingDelete, toast]);
 
-    const handleDuplicate = React.useCallback(async (product: Product) => {
-        const copyCode = `${product.productCode || 'PRD'}-COPY-${Date.now().toString().slice(-6)}`;
-        try {
-            const created = await createProduct({
-                productCode: copyCode,
-                productName: `${product.productName} (Copy)`,
-                description: product.description,
-                category: product.category,
-                subCategory: product.subCategory,
-                brand: product.brand,
-                unitOfMeasure: product.unitOfMeasure,
-                unitPrice: product.unitPrice,
-                currency: product.currency,
-                taxRate: product.taxRate,
-                isActive: product.isActive,
-                minOrderQuantity: product.minOrderQuantity,
-                maxOrderQuantity: product.maxOrderQuantity,
-                leadTimeDays: product.leadTimeDays,
-                weight: product.weight,
-                dimensions: product.dimensions,
-                barcode: undefined,
-                sku: undefined,
-                tags: product.tags,
-            });
-            setData((prev) => [created, ...prev]);
-            toast({ title: `Duplicated as ${created.productCode}`, variant: 'success' });
-        } catch {
-            toast({ title: 'Failed to duplicate product. Please try again.', variant: 'destructive' });
-        }
-    }, [toast]);
+    const handleDuplicate = React.useCallback(
+        async (product: Product) => {
+            const copyCode = `${product.productCode || 'PRD'}-COPY-${Date.now().toString().slice(-6)}`;
+            try {
+                const created = await createProduct({
+                    productCode: copyCode,
+                    productName: `${product.productName} (Copy)`,
+                    description: product.description,
+                    category: product.category,
+                    subCategory: product.subCategory,
+                    brand: product.brand,
+                    unitOfMeasure: product.unitOfMeasure,
+                    unitPrice: product.unitPrice,
+                    currency: product.currency,
+                    taxRate: product.taxRate,
+                    isActive: product.isActive,
+                    minOrderQuantity: product.minOrderQuantity,
+                    maxOrderQuantity: product.maxOrderQuantity,
+                    leadTimeDays: product.leadTimeDays,
+                    weight: product.weight,
+                    dimensions: product.dimensions,
+                    barcode: undefined,
+                    sku: undefined,
+                    tags: product.tags,
+                });
+                setData((prev) => [created, ...prev]);
+                toast({
+                    title: `Duplicated as ${created.productCode}`,
+                    variant: 'success',
+                });
+            } catch {
+                toast({
+                    title: 'Failed to duplicate product. Please try again.',
+                    variant: 'destructive',
+                });
+            }
+        },
+        [toast]
+    );
 
     const requestDelete = React.useCallback(
         (productId: number, productCode: string) => {

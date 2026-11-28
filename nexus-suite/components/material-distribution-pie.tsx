@@ -38,9 +38,7 @@ export function MaterialDistributionPie({
                 ? data.filter((d) => (d.value ?? 0) > 0)
                 : [];
         const source =
-            filtered.length > 0
-                ? filtered
-                : [{ name: 'No data', value: 1 }];
+            filtered.length > 0 ? filtered : [{ name: 'No data', value: 1 }];
         return source.map((item, index) => ({
             ...item,
             fill: `var(--color-${item.name})`,

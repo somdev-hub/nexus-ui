@@ -26,6 +26,9 @@ export async function createWarehouse(data: Partial<Warehouse>) {
 }
 
 export async function setProductionCapacity(capacity: number) {
-    const res = await apiClient.post<any>(`${BASE}/capacity?capacity=${capacity}`, {});
+    const res = await apiClient.post<any>(
+        `${BASE}/capacity?capacity=${capacity}`,
+        {}
+    );
     return res.data;
 }

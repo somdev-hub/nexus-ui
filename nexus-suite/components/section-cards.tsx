@@ -41,8 +41,7 @@ export function SectionCards({
 }: SectionCardsProps) {
     const resolvedTotalPurchaseOrders =
         totalPurchaseOrders ?? totalPO ?? totalPOs ?? 0;
-    const resolvedTotalVmi =
-        totalVmi ?? totalVmis ?? vmiCount ?? vmi ?? 0;
+    const resolvedTotalVmi = totalVmi ?? totalVmis ?? vmiCount ?? vmi ?? 0;
     const resolvedTotalConsignment =
         totalConsignment ??
         totalConsignments ??
@@ -112,8 +111,7 @@ export function SectionCards({
                 </CardHeader>
                 <CardFooter className="flex-col items-start gap-1.5 text-sm p-0">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                        VMI configurations{' '}
-                        <IconTrendingUp className="size-4" />
+                        VMI configurations <IconTrendingUp className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
                         Vendor managed inventory
@@ -135,8 +133,7 @@ export function SectionCards({
                 </CardHeader>
                 <CardFooter className="flex-col items-start gap-1.5 text-sm p-0">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                        Consignment stock{' '}
-                        <IconTrendingUp className="size-4" />
+                        Consignment stock <IconTrendingUp className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
                         Consignment inventory

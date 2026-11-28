@@ -214,9 +214,7 @@ const Page = () => {
         {
             accessorKey: 'partnershipType',
             header: 'Type',
-            cell: ({ row }) => (
-                <div>{row.original.partnershipType ?? '—'}</div>
-            ),
+            cell: ({ row }) => <div>{row.original.partnershipType ?? '—'}</div>,
         },
         {
             accessorKey: 'status',

@@ -139,176 +139,183 @@ export default function SupplierOrdersPage() {
         }));
         load();
     };
-    const columns = useMemo<ColumnDef<SupplierOrder>[]>(() => [
-        {
-            accessorKey: 'poNumber',
-            header: 'PO Number',
-            cell: ({ row }) => (
-                <div className="font-medium">{row.original.poNumber}</div>
-            ),
-        },
-        {
-            id: 'buyer',
-            header: 'Buyer',
-            cell: ({ row }) => {
-                const o = row.original;
-                return (
-                    o.buyerOrgName ||
-                    o.buyerOrg?.name ||
-                    (o.buyerOrgId !== undefined ? `Org #${o.buyerOrgId}` : '-')
-                );
+    const columns = useMemo<ColumnDef<SupplierOrder>[]>(
+        () => [
+            {
+                accessorKey: 'poNumber',
+                header: 'PO Number',
+                cell: ({ row }) => (
+                    <div className="font-medium">{row.original.poNumber}</div>
+                ),
             },
-        },
-        {
-            id: 'orderDate',
-            header: 'Order Date',
-            cell: ({ row }) => {
-                const o = row.original;
-                return (
+            {
+                id: 'buyer',
+                header: 'Buyer',
+                cell: ({ row }) => {
+                    const o = row.original;
+                    return (
+                        o.buyerOrgName ||
+                        o.buyerOrg?.name ||
+                        (o.buyerOrgId !== undefined
+                            ? `Org #${o.buyerOrgId}`
+                            : '-')
+                    );
+                },
+            },
+            {
+                id: 'orderDate',
+                header: 'Order Date',
+                cell: ({ row }) => {
+                    const o = row.original;
+                    return (
+                        <div className="whitespace-nowrap">
+                            {o.orderDate
+                                ? new Date(o.orderDate).toLocaleDateString()
+                                : o.createdAt
+                                  ? new Date(o.createdAt).toLocaleDateString()
+                                  : '-'}
+                        </div>
+                    );
+                },
+            },
+            {
+                id: 'expectedDelivery',
+                header: 'Expected Delivery',
+                cell: ({ row }) => (
                     <div className="whitespace-nowrap">
-                        {o.orderDate
-                            ? new Date(o.orderDate).toLocaleDateString()
-                            : o.createdAt
-                              ? new Date(o.createdAt).toLocaleDateString()
-                              : '-'}
+                        {row.original.expectedDeliveryDate
+                            ? new Date(
+                                  row.original.expectedDeliveryDate
+                              ).toLocaleDateString()
+                            : '-'}
                     </div>
-                );
+                ),
             },
-        },
-        {
-            id: 'expectedDelivery',
-            header: 'Expected Delivery',
-            cell: ({ row }) => (
-                <div className="whitespace-nowrap">
-                    {row.original.expectedDeliveryDate
-                        ? new Date(
-                              row.original.expectedDeliveryDate
-                          ).toLocaleDateString()
-                        : '-'}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'status',
-            header: 'Status',
-            cell: ({ row }) => <Badge>{row.original.status}</Badge>,
-        },
-        {
-            accessorKey: 'totalAmount',
-            header: () => <div className="w-full text-right">Total</div>,
-            cell: ({ row }) => (
-                <div className="text-right">
-                    <Money
-                        amount={row.original.totalAmount}
-                        currency={row.original.currency}
-                    />
-                </div>
-            ),
-        },
-        {
-            id: 'paymentTerms',
-            header: 'Payment Terms',
-            cell: ({ row }) => row.original.paymentTerms || '-',
-        },
-        {
-            id: 'asn',
-            header: 'ASN / Shipment',
-            cell: ({ row }) => {
-                const o = row.original;
-                const sessionShip = shipmentByPo[o.purchaseOrderId];
-                const asnNumber =
-                    o.asnNumber ??
-                    sessionShip?.shipmentNumber ??
-                    o.shipmentNumber ??
-                    '—';
-                return (
-                    <div className="font-mono text-xs">
-                        {asnNumber}
-                        {o.remainingQuantity !== undefined && (
-                            <div className="mt-0.5 text-[11px] text-muted-foreground">
-                                {o.totalShippedQuantity ?? 0} shipped
-                                {o.remainingQuantity > 0
-                                    ? ` · ${o.remainingQuantity} left`
-                                    : ' · complete'}
-                            </div>
-                        )}
+            {
+                accessorKey: 'status',
+                header: 'Status',
+                cell: ({ row }) => <Badge>{row.original.status}</Badge>,
+            },
+            {
+                accessorKey: 'totalAmount',
+                header: () => <div className="w-full text-right">Total</div>,
+                cell: ({ row }) => (
+                    <div className="text-right">
+                        <Money
+                            amount={row.original.totalAmount}
+                            currency={row.original.currency}
+                        />
                     </div>
-                );
+                ),
             },
-        },
-        {
-            id: 'actions',
-            cell: ({ row }) => {
-                const o = row.original;
-                const sessionShip = shipmentByPo[o.purchaseOrderId];
-                const podShipmentId =
-                    sessionShip?.shipmentId ?? o.shipmentId ?? null;
-                return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-                            >
-                                <IconDotsVertical />
-                                <span className="sr-only">Open menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem asChild>
-                                <Link href={`/supplier/orders/${o.purchaseOrderId}`}>
-                                    <IconEye className="mr-2 h-4 w-4" />
-                                    View
-                                </Link>
-                            </DropdownMenuItem>
-                            {o.status === 'SENT_TO_SUPPLIER' && (
-                                <DropdownMenuItem
-                                    onClick={() => {
-                                        setAckNotes('');
-                                        setAckOrder(o);
-                                    }}
-                                >
-                                    <IconCircleCheckFilled className="mr-2 h-4 w-4" />
-                                    Acknowledge
-                                </DropdownMenuItem>
+            {
+                id: 'paymentTerms',
+                header: 'Payment Terms',
+                cell: ({ row }) => row.original.paymentTerms || '-',
+            },
+            {
+                id: 'asn',
+                header: 'ASN / Shipment',
+                cell: ({ row }) => {
+                    const o = row.original;
+                    const sessionShip = shipmentByPo[o.purchaseOrderId];
+                    const asnNumber =
+                        o.asnNumber ??
+                        sessionShip?.shipmentNumber ??
+                        o.shipmentNumber ??
+                        '—';
+                    return (
+                        <div className="font-mono text-xs">
+                            {asnNumber}
+                            {o.remainingQuantity !== undefined && (
+                                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                    {o.totalShippedQuantity ?? 0} shipped
+                                    {o.remainingQuantity > 0
+                                        ? ` · ${o.remainingQuantity} left`
+                                        : ' · complete'}
+                                </div>
                             )}
-                            {(o.status === 'ACKNOWLEDGED' ||
-                                o.status === 'PARTIALLY_RECEIVED' ||
-                                o.status === 'AWAITING_PICKUP' ||
-                                o.status === 'PICKED_UP') &&
-                                (o.remainingQuantity === undefined ||
-                                    o.remainingQuantity > 0) && (
-                                    <DropdownMenuItem
-                                        onClick={() => setPartialOrder(o)}
+                        </div>
+                    );
+                },
+            },
+            {
+                id: 'actions',
+                cell: ({ row }) => {
+                    const o = row.original;
+                    const sessionShip = shipmentByPo[o.purchaseOrderId];
+                    const podShipmentId =
+                        sessionShip?.shipmentId ?? o.shipmentId ?? null;
+                    return (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                                >
+                                    <IconDotsVertical />
+                                    <span className="sr-only">Open menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={`/supplier/orders/${o.purchaseOrderId}`}
                                     >
-                                        <IconTruck className="mr-2 h-4 w-4" />
-                                        Partial Ship
+                                        <IconEye className="mr-2 h-4 w-4" />
+                                        View
+                                    </Link>
+                                </DropdownMenuItem>
+                                {o.status === 'SENT_TO_SUPPLIER' && (
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            setAckNotes('');
+                                            setAckOrder(o);
+                                        }}
+                                    >
+                                        <IconCircleCheckFilled className="mr-2 h-4 w-4" />
+                                        Acknowledge
                                     </DropdownMenuItem>
                                 )}
-                            {podShipmentId !== null && (
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        setPodOpen({
-                                            shipmentId: podShipmentId,
-                                            asnNumber:
-                                                o.asnNumber ??
-                                                sessionShip?.shipmentNumber ??
-                                                o.shipmentNumber ??
-                                                String(o.purchaseOrderId),
-                                        })
-                                    }
-                                >
-                                    <IconPackage className="mr-2 h-4 w-4" />
-                                    POD
-                                </DropdownMenuItem>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                );
+                                {(o.status === 'ACKNOWLEDGED' ||
+                                    o.status === 'PARTIALLY_RECEIVED' ||
+                                    o.status === 'AWAITING_PICKUP' ||
+                                    o.status === 'PICKED_UP') &&
+                                    (o.remainingQuantity === undefined ||
+                                        o.remainingQuantity > 0) && (
+                                        <DropdownMenuItem
+                                            onClick={() => setPartialOrder(o)}
+                                        >
+                                            <IconTruck className="mr-2 h-4 w-4" />
+                                            Partial Ship
+                                        </DropdownMenuItem>
+                                    )}
+                                {podShipmentId !== null && (
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setPodOpen({
+                                                shipmentId: podShipmentId,
+                                                asnNumber:
+                                                    o.asnNumber ??
+                                                    sessionShip?.shipmentNumber ??
+                                                    o.shipmentNumber ??
+                                                    String(o.purchaseOrderId),
+                                            })
+                                        }
+                                    >
+                                        <IconPackage className="mr-2 h-4 w-4" />
+                                        POD
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    );
+                },
             },
-        },
-    ], [shipmentByPo]);
+        ],
+        [shipmentByPo]
+    );
     const table = useTables<SupplierOrder>({
         data: data?.content ?? [],
         columns,

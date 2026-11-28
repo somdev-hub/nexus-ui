@@ -80,7 +80,13 @@ export default function SupplierContractsPage() {
             const res = await getSupplierContractsForSupplier(0, 100);
             setContracts(res.content ?? []);
         } catch (err: unknown) {
-            toast({ title: err instanceof Error ? err.message : 'Failed to load contracts', variant: 'destructive' });
+            toast({
+                title:
+                    err instanceof Error
+                        ? err.message
+                        : 'Failed to load contracts',
+                variant: 'destructive',
+            });
         } finally {
             setIsLoading(false);
         }
@@ -124,13 +130,20 @@ export default function SupplierContractsPage() {
                             decidedBy
                         );
             refreshContract(updated);
-            toast({ title: action === 'approve'
-                ? 'Contract approved'
-                : action === 'reject'
-                  ? 'Contract rejected'
-                  : 'Amendments requested', variant: 'success' });
+            toast({
+                title:
+                    action === 'approve'
+                        ? 'Contract approved'
+                        : action === 'reject'
+                          ? 'Contract rejected'
+                          : 'Amendments requested',
+                variant: 'success',
+            });
         } catch (err: unknown) {
-            toast({ title: err instanceof Error ? err.message : 'Action failed', variant: 'destructive' });
+            toast({
+                title: err instanceof Error ? err.message : 'Action failed',
+                variant: 'destructive',
+            });
         } finally {
             setBusy(false);
             setConfirm(null);
@@ -221,12 +234,11 @@ export default function SupplierContractsPage() {
                                 <span className="sr-only">Open menu</span>
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            align="end"
-                            className="w-40"
-                        >
+                        <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem asChild>
-                                <Link href={`/supplier/contracts/${c.contractId}`}>
+                                <Link
+                                    href={`/supplier/contracts/${c.contractId}`}
+                                >
                                     <IconEye className="mr-2 h-4 w-4" />
                                     View
                                 </Link>

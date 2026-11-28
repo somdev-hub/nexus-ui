@@ -101,7 +101,9 @@ export default function ReviewsPage() {
             qualityScore: '80',
             expectedDelivery: exp,
             actualDelivery: act,
-            expectedQuantity: String(s.shippedQuantity ?? s.orderedQuantity ?? 0),
+            expectedQuantity: String(
+                s.shippedQuantity ?? s.orderedQuantity ?? 0
+            ),
             actualQuantity: String(s.shippedQuantity ?? s.orderedQuantity ?? 0),
             comments: '',
         });
@@ -127,7 +129,9 @@ export default function ReviewsPage() {
             setReviewing(null);
             load();
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Failed to submit review');
+            toast.error(
+                e instanceof Error ? e.message : 'Failed to submit review'
+            );
         } finally {
             setSubmitting(false);
         }
@@ -145,7 +149,9 @@ export default function ReviewsPage() {
             header: 'Supplier',
             accessorFn: (row) => row.supplierName ?? row.supplierOrgId,
             cell: ({ row }) => (
-                <div>{row.original.supplierName || row.original.supplierOrgId}</div>
+                <div>
+                    {row.original.supplierName || row.original.supplierOrgId}
+                </div>
             ),
         },
         {
@@ -157,9 +163,14 @@ export default function ReviewsPage() {
         {
             id: 'qty',
             header: 'Qty',
-            accessorFn: (row) => row.shippedQuantity ?? row.orderedQuantity ?? 0,
+            accessorFn: (row) =>
+                row.shippedQuantity ?? row.orderedQuantity ?? 0,
             cell: ({ row }) => (
-                <div>{row.original.shippedQuantity ?? row.original.orderedQuantity ?? '—'}</div>
+                <div>
+                    {row.original.shippedQuantity ??
+                        row.original.orderedQuantity ??
+                        '—'}
+                </div>
             ),
         },
         {
@@ -188,7 +199,9 @@ export default function ReviewsPage() {
             header: 'Shipment',
             accessorFn: (row) => row.shipmentNumber ?? row.shipmentId,
             cell: ({ row }) => (
-                <div>{row.original.shipmentNumber || row.original.shipmentId}</div>
+                <div>
+                    {row.original.shipmentNumber || row.original.shipmentId}
+                </div>
             ),
         },
         {
@@ -272,16 +285,17 @@ export default function ReviewsPage() {
             </div>
 
             <div>
-                <h2 className="text-lg font-semibold mb-2">
-                    Previous reviews
-                </h2>
+                <h2 className="text-lg font-semibold mb-2">Previous reviews</h2>
                 <CentralizedDataTable
                     table={reviewTable}
                     emptyMessage="No previous reviews"
                 />
             </div>
 
-            <Dialog open={reviewing !== null} onOpenChange={(v) => !v && setReviewing(null)}>
+            <Dialog
+                open={reviewing !== null}
+                onOpenChange={(v) => !v && setReviewing(null)}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Review Delivery</DialogTitle>
@@ -295,7 +309,10 @@ export default function ReviewsPage() {
                                         key={n}
                                         type="button"
                                         onClick={() =>
-                                            setReviewForm({ ...reviewForm, rating: String(n) })
+                                            setReviewForm({
+                                                ...reviewForm,
+                                                rating: String(n),
+                                            })
                                         }
                                     >
                                         <Star
@@ -317,7 +334,10 @@ export default function ReviewsPage() {
                                 max="100"
                                 value={reviewForm.qualityScore}
                                 onChange={(e) =>
-                                    setReviewForm({ ...reviewForm, qualityScore: e.target.value })
+                                    setReviewForm({
+                                        ...reviewForm,
+                                        qualityScore: e.target.value,
+                                    })
                                 }
                             />
                         </div>
@@ -395,7 +415,10 @@ export default function ReviewsPage() {
                                 type="number"
                                 value={reviewForm.expectedQuantity}
                                 onChange={(e) =>
-                                    setReviewForm({ ...reviewForm, expectedQuantity: e.target.value })
+                                    setReviewForm({
+                                        ...reviewForm,
+                                        expectedQuantity: e.target.value,
+                                    })
                                 }
                             />
                         </div>
@@ -405,7 +428,10 @@ export default function ReviewsPage() {
                                 type="number"
                                 value={reviewForm.actualQuantity}
                                 onChange={(e) =>
-                                    setReviewForm({ ...reviewForm, actualQuantity: e.target.value })
+                                    setReviewForm({
+                                        ...reviewForm,
+                                        actualQuantity: e.target.value,
+                                    })
                                 }
                             />
                         </div>
@@ -414,13 +440,19 @@ export default function ReviewsPage() {
                             <Textarea
                                 value={reviewForm.comments}
                                 onChange={(e) =>
-                                    setReviewForm({ ...reviewForm, comments: e.target.value })
+                                    setReviewForm({
+                                        ...reviewForm,
+                                        comments: e.target.value,
+                                    })
                                 }
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setReviewing(null)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setReviewing(null)}
+                        >
                             Cancel
                         </Button>
                         <Button onClick={submitReview} disabled={submitting}>

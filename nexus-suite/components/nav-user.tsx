@@ -126,9 +126,7 @@ export function NavUser({
                                 Appearance
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                onClick={() =>
-                                    router.push('/profile')
-                                }
+                                onClick={() => router.push('/profile')}
                             >
                                 <IconUserCircle />
                                 Account

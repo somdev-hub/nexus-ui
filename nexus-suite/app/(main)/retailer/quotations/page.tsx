@@ -142,9 +142,7 @@ export default function RetailerQuotationsPage() {
             cell: ({ row }) => (
                 <div className="text-xs whitespace-nowrap">
                     {row.original.validFrom
-                        ? new Date(
-                              row.original.validFrom
-                          ).toLocaleDateString()
+                        ? new Date(row.original.validFrom).toLocaleDateString()
                         : '—'}{' '}
                     →{' '}
                     {row.original.validTo
@@ -211,7 +209,9 @@ export default function RetailerQuotationsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
                             <DropdownMenuItem asChild>
-                                <Link href={`/retailer/quotations/${q.quotationId}`}>
+                                <Link
+                                    href={`/retailer/quotations/${q.quotationId}`}
+                                >
                                     <IconEye className="mr-2 h-4 w-4" />
                                     View
                                 </Link>
@@ -219,9 +219,7 @@ export default function RetailerQuotationsPage() {
                             {q.status === 'SENT' && (
                                 <>
                                     <DropdownMenuItem
-                                        disabled={
-                                            acceptingId === q.quotationId
-                                        }
+                                        disabled={acceptingId === q.quotationId}
                                         onSelect={() =>
                                             handleAccept(q.quotationId)
                                         }
@@ -233,9 +231,7 @@ export default function RetailerQuotationsPage() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         variant="destructive"
-                                        disabled={
-                                            rejectingId === q.quotationId
-                                        }
+                                        disabled={rejectingId === q.quotationId}
                                         onSelect={() =>
                                             handleReject(q.quotationId)
                                         }

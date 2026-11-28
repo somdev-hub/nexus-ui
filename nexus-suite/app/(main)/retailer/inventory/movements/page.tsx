@@ -76,9 +76,7 @@ export default function MovementsPage() {
         {
             accessorKey: 'batchNumber',
             header: 'Batch',
-            cell: ({ row }) => (
-                <div>{row.original.batchNumber || '—'}</div>
-            ),
+            cell: ({ row }) => <div>{row.original.batchNumber || '—'}</div>,
         },
         {
             accessorKey: 'createdAt',
@@ -116,10 +114,7 @@ export default function MovementsPage() {
                     Audit trail · FR-RET-013 (batch/expiry tracked)
                 </p>
             </div>
-            <CentralizedDataTable
-                table={table}
-                emptyMessage="No movements"
-            />
+            <CentralizedDataTable table={table} emptyMessage="No movements" />
         </div>
     );
 }

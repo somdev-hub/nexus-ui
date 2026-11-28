@@ -59,7 +59,8 @@ const Page = () => {
                         <div className="flex justify-between w-full">
                             <h2 className="text-lg font-semibold">Materials</h2>
                             <span className="text-sm text-muted-foreground">
-                                Materials are created automatically when a purchase order is received.
+                                Materials are created automatically when a
+                                purchase order is received.
                             </span>
                         </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">

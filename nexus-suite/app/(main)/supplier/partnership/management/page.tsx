@@ -504,7 +504,9 @@ export default function SupplierPartnershipsPage() {
                             <DropdownMenuItem
                                 variant="destructive"
                                 disabled={busyId === row.original.partnershipId}
-                                onClick={() => setConfirmTerminate(row.original)}
+                                onClick={() =>
+                                    setConfirmTerminate(row.original)
+                                }
                             >
                                 <IconTrash className="mr-2 h-4 w-4" />
                                 Terminate
@@ -568,7 +570,9 @@ export default function SupplierPartnershipsPage() {
                             <>
                                 <DropdownMenuItem
                                     variant="destructive"
-                                    disabled={busyId === row.original.quotationId}
+                                    disabled={
+                                        busyId === row.original.quotationId
+                                    }
                                     onClick={() =>
                                         respondQuotation(row.original, 'REJECT')
                                     }
@@ -577,7 +581,9 @@ export default function SupplierPartnershipsPage() {
                                     Reject
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                    disabled={busyId === row.original.quotationId}
+                                    disabled={
+                                        busyId === row.original.quotationId
+                                    }
                                     onClick={() =>
                                         respondQuotation(row.original, 'ACCEPT')
                                     }
@@ -791,7 +797,8 @@ export default function SupplierPartnershipsPage() {
                                 busyId === confirmTerminate?.partnershipId
                             }
                             onClick={() => {
-                                if (confirmTerminate) void terminate(confirmTerminate);
+                                if (confirmTerminate)
+                                    void terminate(confirmTerminate);
                             }}
                         >
                             Confirm

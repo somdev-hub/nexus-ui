@@ -223,25 +223,26 @@ function notifyServerError(error: AxiosError) {
     if (typeof window === 'undefined') return;
     const status = error.response?.status;
     if (status === undefined || status < 500) return;
-    
+
     // Suppress toasts for NexusBuddy service (chat) - handled by chat UI
     const url = error.config?.url ?? '';
     if (url.includes('nexusbuddy')) return;
-    
+
     // Suppress toasts for chat conversation details - handled by ChatInterface component
     if (url.includes('iam/chat/v2/conversation/')) return;
-    
+
     const data = error.response?.data as
-        { message?: unknown; error?: unknown; description?: unknown } | undefined;
+        | { message?: unknown; error?: unknown; description?: unknown }
+        | undefined;
     // Prefer 'description' (user-friendly), then 'message', then 'error'
     let message =
         typeof data?.description === 'string' && data.description.trim()
             ? data.description
             : typeof data?.message === 'string' && data.message.trim()
-                ? data.message
-                : typeof data?.error === 'string' && data.error.trim()
-                  ? data.error
-                  : 'Something went wrong on the server. Please try again.';
+              ? data.message
+              : typeof data?.error === 'string' && data.error.trim()
+                ? data.error
+                : 'Something went wrong on the server. Please try again.';
     if (message.length > 220) message = `${message.slice(0, 217)}…`;
     const rawUrl = error.config?.url ?? '';
     const path = rawUrl.startsWith('?path=')

@@ -885,7 +885,8 @@ export default function FleetPage() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         disabled={
-                                            busy === `driver-leave-${d.driverId}`
+                                            busy ===
+                                            `driver-leave-${d.driverId}`
                                         }
                                         onClick={() =>
                                             withBusy(
@@ -980,7 +981,9 @@ export default function FleetPage() {
             header: 'Type',
             cell: ({ row }) => (
                 <Badge
-                    variant={row.original.isBreakdown ? 'destructive' : 'outline'}
+                    variant={
+                        row.original.isBreakdown ? 'destructive' : 'outline'
+                    }
                 >
                     {row.original.maintenanceType}
                 </Badge>
@@ -1049,7 +1052,9 @@ export default function FleetPage() {
                             {(m.status === 'SCHEDULED' ||
                                 m.status === 'OVERDUE') && (
                                 <DropdownMenuItem
-                                    disabled={busy === `maint-${m.maintenanceId}`}
+                                    disabled={
+                                        busy === `maint-${m.maintenanceId}`
+                                    }
                                     onClick={() =>
                                         withBusy(
                                             `maint-${m.maintenanceId}`,
@@ -1069,7 +1074,9 @@ export default function FleetPage() {
                             )}
                             {m.status === 'IN_PROGRESS' && (
                                 <DropdownMenuItem
-                                    disabled={busy === `maint-${m.maintenanceId}`}
+                                    disabled={
+                                        busy === `maint-${m.maintenanceId}`
+                                    }
                                     onClick={() =>
                                         withBusy(
                                             `maint-${m.maintenanceId}`,
@@ -1093,7 +1100,8 @@ export default function FleetPage() {
                                 <DropdownMenuItem
                                     variant="destructive"
                                     disabled={
-                                        busy === `maint-cancel-${m.maintenanceId}`
+                                        busy ===
+                                        `maint-cancel-${m.maintenanceId}`
                                     }
                                     onClick={() =>
                                         withBusy(
@@ -1114,7 +1122,9 @@ export default function FleetPage() {
                             )}
                             <DropdownMenuItem
                                 variant="destructive"
-                                disabled={busy === `maint-del-${m.maintenanceId}`}
+                                disabled={
+                                    busy === `maint-del-${m.maintenanceId}`
+                                }
                                 onClick={() =>
                                     withBusy(
                                         `maint-del-${m.maintenanceId}`,
@@ -1850,7 +1860,7 @@ export default function FleetPage() {
                                     emptyMessage="No assets"
                                 />
                             )}
-                            </CardContent>
+                        </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="drivers">
@@ -1874,7 +1884,7 @@ export default function FleetPage() {
                                     emptyMessage="No drivers"
                                 />
                             )}
-                            </CardContent>
+                        </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="maintenance">
@@ -1893,7 +1903,7 @@ export default function FleetPage() {
                                     emptyMessage="No maintenance records"
                                 />
                             )}
-                            </CardContent>
+                        </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>

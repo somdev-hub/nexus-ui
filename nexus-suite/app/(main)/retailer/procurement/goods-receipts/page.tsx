@@ -142,8 +142,7 @@ function AsnDetailDialog({
                         ASN {String(asn?.asnNumber ?? asn?.asnId ?? '')}
                     </DialogTitle>
                     <DialogDescription>
-                        Dispatch details — carrier, route, load and PO
-                        coverage.
+                        Dispatch details — carrier, route, load and PO coverage.
                     </DialogDescription>
                 </DialogHeader>
                 {asn && (
@@ -289,7 +288,10 @@ export default function GoodsReceiptsPage() {
 
     // Shipment-based receipt source
     const [shipmentOptions, setShipmentOptions] = useState<Shipment[]>([]);
-    const [shipmentSource, setShipmentSource] = useState<Record<string, unknown> | null>(null);
+    const [shipmentSource, setShipmentSource] = useState<Record<
+        string,
+        unknown
+    > | null>(null);
     const [shipmentSourceLoading, setShipmentSourceLoading] = useState(false);
 
     // Allowed next statuses per current GR status (backend-validated too).
@@ -439,7 +441,8 @@ export default function GoodsReceiptsPage() {
                 const r = await getRetailerCoreShipments(0, 200);
                 const opts = (r.content ?? []).filter(
                     (s) =>
-                        s.status === 'DELIVERED' || s.status === 'PARTIALLY_DELIVERED'
+                        s.status === 'DELIVERED' ||
+                        s.status === 'PARTIALLY_DELIVERED'
                 );
                 if (active) setShipmentOptions(opts);
             } catch {
@@ -556,11 +559,15 @@ export default function GoodsReceiptsPage() {
                 resolvedSupplierId === undefined ||
                 !Number.isFinite(resolvedSupplierId)
             ) {
-                toast.error('Selected PO has no supplier — cannot create receipt');
+                toast.error(
+                    'Selected PO has no supplier — cannot create receipt'
+                );
                 return;
             }
             if (!form.poLineItemId || !form.quantityReceived) {
-                toast.error('PO Line Item ID and received quantity are required');
+                toast.error(
+                    'PO Line Item ID and received quantity are required'
+                );
                 return;
             }
         } else {
@@ -593,7 +600,9 @@ export default function GoodsReceiptsPage() {
                 : resolvedSupplierId;
             const quantity = Number(form.quantityReceived);
             await createGoodsReceipt({
-                purchaseOrderId: isShipment ? undefined : Number(form.purchaseOrderId),
+                purchaseOrderId: isShipment
+                    ? undefined
+                    : Number(form.purchaseOrderId),
                 shipmentId,
                 supplierId,
                 grNumber: form.grNumber.trim() || undefined,
@@ -610,8 +619,8 @@ export default function GoodsReceiptsPage() {
                                   unitOfMeasure:
                                       shipmentSource!.unitOfMeasure ??
                                       undefined,
-                                  description: shipmentSource!.materialName ??
-                                      undefined,
+                                  description:
+                                      shipmentSource!.materialName ?? undefined,
                               }
                             : {
                                   poLineItemId: Number(form.poLineItemId),
@@ -791,7 +800,9 @@ export default function GoodsReceiptsPage() {
             header: 'PO',
             accessorFn: (row) => row.poNumber || row.purchaseOrderId,
             cell: ({ row }) => (
-                <div>{row.original.poNumber || row.original.purchaseOrderId}</div>
+                <div>
+                    {row.original.poNumber || row.original.purchaseOrderId}
+                </div>
             ),
         },
         {
@@ -908,7 +919,9 @@ export default function GoodsReceiptsPage() {
             accessorFn: (row) => String(row.asnNumber ?? row.asnId ?? ''),
             cell: ({ row }) => (
                 <div className="font-mono">
-                    {String(row.original.asnNumber ?? row.original.asnId ?? '—')}
+                    {String(
+                        row.original.asnNumber ?? row.original.asnId ?? '—'
+                    )}
                 </div>
             ),
             enableHiding: false,
@@ -916,11 +929,14 @@ export default function GoodsReceiptsPage() {
         {
             id: 'poNumber',
             header: 'PO',
-            accessorFn: (row) => String(row.poNumber ?? row.purchaseOrderId ?? ''),
+            accessorFn: (row) =>
+                String(row.poNumber ?? row.purchaseOrderId ?? ''),
             cell: ({ row }) => (
                 <div className="font-mono text-xs">
                     {String(
-                        row.original.poNumber ?? row.original.purchaseOrderId ?? '—'
+                        row.original.poNumber ??
+                            row.original.purchaseOrderId ??
+                            '—'
                     )}
                 </div>
             ),
@@ -977,7 +993,9 @@ export default function GoodsReceiptsPage() {
             cell: ({ row }) => (
                 <div className="whitespace-nowrap text-xs">
                     {row.original.estimatedArrival
-                        ? new Date(row.original.estimatedArrival).toLocaleString()
+                        ? new Date(
+                              row.original.estimatedArrival
+                          ).toLocaleString()
                         : '—'}
                 </div>
             ),
@@ -1053,7 +1071,8 @@ export default function GoodsReceiptsPage() {
                                         onValueChange={(v) =>
                                             setForm((f) => ({
                                                 ...f,
-                                                sourceType: v as 'PO' | 'SHIPMENT',
+                                                sourceType: v as
+                                                    'PO' | 'SHIPMENT',
                                                 purchaseOrderId: '',
                                                 shipmentId: '',
                                                 poLineItemId: '',
@@ -1064,7 +1083,8 @@ export default function GoodsReceiptsPage() {
                                         <SelectTrigger className="w-full">
                                             <SelectValue
                                                 placeholder={
-                                                    form.sourceType === 'SHIPMENT'
+                                                    form.sourceType ===
+                                                    'SHIPMENT'
                                                         ? 'Shipment receipt'
                                                         : 'PO receipt'
                                                 }
@@ -1074,8 +1094,12 @@ export default function GoodsReceiptsPage() {
                                             <SelectItem key="PO" value="PO">
                                                 Purchase Order
                                             </SelectItem>
-                                            <SelectItem key="SHIPMENT" value="SHIPMENT">
-                                                Core Shipment (Consignment / VMI)
+                                            <SelectItem
+                                                key="SHIPMENT"
+                                                value="SHIPMENT"
+                                            >
+                                                Core Shipment (Consignment /
+                                                VMI)
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -1135,11 +1159,12 @@ export default function GoodsReceiptsPage() {
                                             <SelectTrigger className="w-full">
                                                 <SelectValue
                                                     placeholder={
-                                                        shipmentOptions.length === 0
+                                                        shipmentOptions.length ===
+                                                        0
                                                             ? 'No delivered shipments'
                                                             : shipmentSourceLoading
-                                                            ? 'Loading source…'
-                                                            : 'Select shipment'
+                                                              ? 'Loading source…'
+                                                              : 'Select shipment'
                                                     }
                                                 />
                                             </SelectTrigger>
@@ -1147,11 +1172,17 @@ export default function GoodsReceiptsPage() {
                                                 {shipmentOptions.map((s) => (
                                                     <SelectItem
                                                         key={s.shipmentId}
-                                                        value={String(s.shipmentId)}
+                                                        value={String(
+                                                            s.shipmentId
+                                                        )}
                                                     >
-                                                        {s.shipmentNumber}{' '}
-                                                        - {s.referenceType ?? 'core'}
-                                                        ({s.supplierOrgName ?? '—'})
+                                                        {s.shipmentNumber} -{' '}
+                                                        {s.referenceType ??
+                                                            'core'}
+                                                        (
+                                                        {s.supplierOrgName ??
+                                                            '—'}
+                                                        )
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -1159,12 +1190,20 @@ export default function GoodsReceiptsPage() {
                                         {shipmentSource && (
                                             <p className="text-xs text-muted-foreground">
                                                 Material:{' '}
-                                                {String(shipmentSource.materialName ?? '—')}
-                                                {shipmentSource.unitOfMeasure ? ` • ${
-                                                    shipmentSource.unitOfMeasure
-                                                }` : ''}{' '}
+                                                {String(
+                                                    shipmentSource.materialName ??
+                                                        '—'
+                                                )}
+                                                {shipmentSource.unitOfMeasure
+                                                    ? ` • ${
+                                                          shipmentSource.unitOfMeasure
+                                                      }`
+                                                    : ''}{' '}
                                                 • Dispatched:{' '}
-                                                {String(shipmentSource.quantity ?? '—')}
+                                                {String(
+                                                    shipmentSource.quantity ??
+                                                        '—'
+                                                )}
                                             </p>
                                         )}
                                     </div>
@@ -1377,7 +1416,9 @@ export default function GoodsReceiptsPage() {
                                 </div>
                                 {viewing.shipmentId ? (
                                     <div>
-                                        <p className="text-muted-foreground">Shipment</p>
+                                        <p className="text-muted-foreground">
+                                            Shipment
+                                        </p>
                                         <p className="font-medium font-mono">
                                             {viewing.shipmentId}
                                         </p>
@@ -1682,7 +1723,10 @@ export default function GoodsReceiptsPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-            <AsnDetailDialog asn={asnViewing} onClose={() => setAsnViewing(null)} />
+            <AsnDetailDialog
+                asn={asnViewing}
+                onClose={() => setAsnViewing(null)}
+            />
         </div>
     );
 }

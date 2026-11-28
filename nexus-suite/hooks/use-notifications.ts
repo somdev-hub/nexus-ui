@@ -35,7 +35,9 @@ export interface NotificationState {
  * reconnect the hook re-subscribes and re-issues `sync`, so nothing is
  * missed.
  */
-export function useNotifications(options: UseNotificationsOptions = {}): NotificationState {
+export function useNotifications(
+    options: UseNotificationsOptions = {}
+): NotificationState {
     const { user } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
     const CHAT_NOTIFICATIONS_KEY = 'chat_notifications';
@@ -57,7 +59,9 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
         }
     }
 
-    const [items, setItems] = useState<NotificationMessage[]>(() => loadChatNotifications());
+    const [items, setItems] = useState<NotificationMessage[]>(() =>
+        loadChatNotifications()
+    );
 
     useEffect(() => {
         saveChatNotifications(items.filter((i) => i.entityType === 'CHAT'));
@@ -75,62 +79,79 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
         onNotificationRef.current = options.onNotification;
     }, [options.onNotification]);
 
-    const handlePush = useCallback(
-        (push: NotificationPush) => {
-            console.log('[NOTIFICATIONS] handlePush called:', push.type, push);
-            switch (push.type) {
-                case 'MESSAGE':
-                    if (push.message) {
-                        // Suppress chat notifications while the chat dialog is open.
+    const handlePush = useCallback((push: NotificationPush) => {
+        console.log('[NOTIFICATIONS] handlePush called:', push.type, push);
+        switch (push.type) {
+            case 'MESSAGE':
+                if (push.message) {
+                    // Suppress chat notifications while the chat dialog is open.
+                    if (
+                        push.message.entityType === 'CHAT' &&
+                        (window as any).__chatDialogOpen
+                    ) {
+                        return;
+                    }
+                    console.log(
+                        '[NOTIFICATIONS] New message notification:',
+                        push.message.title
+                    );
+                    onNotificationRef.current?.(push);
+                    setItems((prev) => {
+                        // Dedupe by notificationId.
                         if (
-                            push.message.entityType === 'CHAT' &&
-                            (window as any).__chatDialogOpen
+                            prev.some(
+                                (i) =>
+                                    i.notificationId ===
+                                    push.message!.notificationId
+                            )
                         ) {
-                            return;
+                            return prev;
                         }
-                        console.log('[NOTIFICATIONS] New message notification:', push.message.title);
-                        onNotificationRef.current?.(push);
-                        setItems((prev) => {
-                            // Dedupe by notificationId.
-                            if (prev.some((i) => i.notificationId === push.message!.notificationId)) {
-                                return prev;
-                            }
-                            const next = [push.message!, ...prev];
-                            if (push.message!.entityType === 'CHAT') {
-                                saveChatNotifications(next.filter((i) => i.entityType === 'CHAT'));
-                            }
-                            return next;
-                        });
-                        setUnreadCount((c) => c + 1);
-                    }
-                    break;
-                case 'SNAPSHOT':
-                    if (push.snapshot) {
-                        const chatItems = loadChatNotifications();
-                        const merged = [...chatItems, ...push.snapshot.items];
-                        setItems(merged);
-                        setUnreadCount(push.snapshot.unreadCount + chatItems.length);
-                    }
-                    break;
-                case 'ACK':
-                    if (push.ack) {
-                        setUnreadCount(push.ack.unreadCount);
-                    }
-                    break;
-                default:
-                    console.warn('[NOTIFICATIONS] Unknown push type:', push.type);
-            }
-        },
-        []
-    );
+                        const next = [push.message!, ...prev];
+                        if (push.message!.entityType === 'CHAT') {
+                            saveChatNotifications(
+                                next.filter((i) => i.entityType === 'CHAT')
+                            );
+                        }
+                        return next;
+                    });
+                    setUnreadCount((c) => c + 1);
+                }
+                break;
+            case 'SNAPSHOT':
+                if (push.snapshot) {
+                    const chatItems = loadChatNotifications();
+                    const merged = [...chatItems, ...push.snapshot.items];
+                    setItems(merged);
+                    setUnreadCount(
+                        push.snapshot.unreadCount + chatItems.length
+                    );
+                }
+                break;
+            case 'ACK':
+                if (push.ack) {
+                    setUnreadCount(push.ack.unreadCount);
+                }
+                break;
+            default:
+                console.warn('[NOTIFICATIONS] Unknown push type:', push.type);
+        }
+    }, []);
 
     useEffect(() => {
         mountedRef.current = true;
 
-        console.log('[NOTIFICATIONS] Effect running. user:', user?.id, 'orgId:', orgId);
+        console.log(
+            '[NOTIFICATIONS] Effect running. user:',
+            user?.id,
+            'orgId:',
+            orgId
+        );
 
         if (!user || !orgId) {
-            console.log('[NOTIFICATIONS] No user or orgId, skipping connection');
+            console.log(
+                '[NOTIFICATIONS] No user or orgId, skipping connection'
+            );
             return;
         }
 
@@ -139,28 +160,42 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
                 await notificationWebSocketService.connect({
                     organizationId: orgId,
                     onConnect: () => {
-                        console.log('[NOTIFICATIONS] onConnect fired, orgId:', orgId);
+                        console.log(
+                            '[NOTIFICATIONS] onConnect fired, orgId:',
+                            orgId
+                        );
                         if (!mountedRef.current) return;
                         setIsConnected(true);
                         setError(null);
 
                         // Subscribe to live notifications for this organisation.
                         const orgTopic = `/topic/nexus/notifications/org/${orgId}`;
-                        console.log('[NOTIFICATIONS] Subscribing to:', orgTopic);
+                        console.log(
+                            '[NOTIFICATIONS] Subscribing to:',
+                            orgTopic
+                        );
                         notificationWebSocketService.subscribe(
                             orgTopic,
                             (data: any) => {
-                                console.log('[NOTIFICATIONS] Received on org topic:', data);
+                                console.log(
+                                    '[NOTIFICATIONS] Received on org topic:',
+                                    data
+                                );
                                 handlePush({ type: 'MESSAGE', message: data });
                             }
                         );
 
                         // Subscribe to the private queue (snapshot + acks).
-                        console.log('[NOTIFICATIONS] Subscribing to private queue');
+                        console.log(
+                            '[NOTIFICATIONS] Subscribing to private queue'
+                        );
                         notificationWebSocketService.subscribe(
                             '/user/queue/nexus/notifications',
                             (data: any) => {
-                                console.log('[NOTIFICATIONS] Received on private queue:', data);
+                                console.log(
+                                    '[NOTIFICATIONS] Received on private queue:',
+                                    data
+                                );
                                 handlePush(data as NotificationPush);
                             }
                         );
@@ -197,29 +232,34 @@ export function useNotifications(options: UseNotificationsOptions = {}): Notific
         };
     }, [user, orgId, handlePush]);
 
-    const markRead = useCallback((notificationId: number) => {
-        const item = items.find((i) => i.notificationId === notificationId);
-        if (item?.entityType === 'CHAT') {
-            // Remove persisted chat notification locally
-            const remaining = loadChatNotifications().filter((i) => i.notificationId !== notificationId);
-            saveChatNotifications(remaining);
-            setItems((prev) => prev.filter((i) => i.notificationId !== notificationId));
+    const markRead = useCallback(
+        (notificationId: number) => {
+            const item = items.find((i) => i.notificationId === notificationId);
+            if (item?.entityType === 'CHAT') {
+                // Remove persisted chat notification locally
+                const remaining = loadChatNotifications().filter(
+                    (i) => i.notificationId !== notificationId
+                );
+                saveChatNotifications(remaining);
+                setItems((prev) =>
+                    prev.filter((i) => i.notificationId !== notificationId)
+                );
+                setUnreadCount((c) => Math.max(0, c - 1));
+                return;
+            }
+            notificationWebSocketService.send(
+                '/app/nexus/notifications/ws/mark-read',
+                { notificationId }
+            );
+            setItems((prev) =>
+                prev.map((it) =>
+                    it.notificationId === notificationId ? { ...it } : it
+                )
+            );
             setUnreadCount((c) => Math.max(0, c - 1));
-            return;
-        }
-        notificationWebSocketService.send(
-            '/app/nexus/notifications/ws/mark-read',
-            { notificationId }
-        );
-        setItems((prev) =>
-            prev.map((it) =>
-                it.notificationId === notificationId
-                    ? { ...it }
-                    : it
-            )
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-    }, [items]);
+        },
+        [items]
+    );
 
     const markAllRead = useCallback(() => {
         notificationWebSocketService.send(

@@ -242,9 +242,7 @@ export default function QuotationsPage() {
             cell: ({ row }) => (
                 <div className="text-xs whitespace-nowrap">
                     {row.original.validFrom
-                        ? new Date(
-                              row.original.validFrom
-                          ).toLocaleDateString()
+                        ? new Date(row.original.validFrom).toLocaleDateString()
                         : '-'}{' '}
                     →{' '}
                     {row.original.validTo
@@ -266,11 +264,12 @@ export default function QuotationsPage() {
                                 ).toLocaleDateString()}
                             </div>
                             <div className="text-muted-foreground">
-                                {new Date(row.original.createdAt)
-                                    .toLocaleTimeString([], {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                    })}
+                                {new Date(
+                                    row.original.createdAt
+                                ).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                })}
                             </div>
                         </>
                     ) : (
@@ -309,15 +308,15 @@ export default function QuotationsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem asChild>
-                                <Link href={`/supplier/quotations/${q.quotationId}`}>
+                                <Link
+                                    href={`/supplier/quotations/${q.quotationId}`}
+                                >
                                     <IconEye className="mr-2 h-4 w-4" />
                                     View
                                 </Link>
                             </DropdownMenuItem>
                             {q.status === 'DRAFT' && (
-                                <DropdownMenuItem
-                                    onClick={() => setEditing(q)}
-                                >
+                                <DropdownMenuItem onClick={() => setEditing(q)}>
                                     <IconEdit className="mr-2 h-4 w-4" />
                                     Edit
                                 </DropdownMenuItem>

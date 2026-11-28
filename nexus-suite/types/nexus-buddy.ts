@@ -25,7 +25,7 @@ export interface NexusBuddyToolCall {
     id: string;
     name: string;
     arguments: Record<string, unknown>;
-    status: "pending" | "in_progress" | "completed" | "failed";
+    status: 'pending' | 'in_progress' | 'completed' | 'failed';
     result?: unknown;
     error?: string;
 }
@@ -36,7 +36,7 @@ export interface NexusBuddyToolCall {
 export interface NexusBuddyChatRequest {
     message: string;
     history?: Array<{
-        role: "user" | "assistant" | "system" | "tool";
+        role: 'user' | 'assistant' | 'system' | 'tool';
         content: string;
         toolCalls?: NexusBuddyToolCall[];
         toolResults?: Record<string, unknown>;
@@ -50,10 +50,10 @@ export interface NexusBuddyChatRequest {
     metadata?: {
         userId?: string;
         orgId?: string;
-        context?: string;  // e.g., "product-123", "order-456", "dashboard"
-        permissions?: string[];  // User's actual permissions
-        allowedTools?: string[];  // Explicit allowlist of tools this session can use
-        page?: string;  // Current page context
+        context?: string; // e.g., "product-123", "order-456", "dashboard"
+        permissions?: string[]; // User's actual permissions
+        allowedTools?: string[]; // Explicit allowlist of tools this session can use
+        page?: string; // Current page context
     };
 }
 
@@ -75,7 +75,7 @@ export interface NexusBuddyChatResponse {
         name: string;
         arguments: Record<string, unknown>;
     }>;
-    finishReason?: "tool_calls" | "stop" | "length" | "error";
+    finishReason?: 'tool_calls' | 'stop' | 'length' | 'error';
 }
 
 /**
@@ -106,11 +106,11 @@ export interface NexusBuddyAvailableToolsResponse {
  */
 export interface ChatMessage {
     id: string;
-    role: "user" | "assistant" | "system" | "tool";
+    role: 'user' | 'assistant' | 'system' | 'tool';
     content: string;
     timestamp: Date;
     conversationId?: string;
     isStreaming?: boolean;
     toolCall?: NexusBuddyToolCall;
-    status?: "sending" | "sent" | "delivered" | "read" | "error";
+    status?: 'sending' | 'sent' | 'delivered' | 'read' | 'error';
 }

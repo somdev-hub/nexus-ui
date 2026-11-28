@@ -118,17 +118,26 @@ export async function getRetailerConsignments(): Promise<ConsignmentStock[]> {
 }
 
 export async function consumeConsignment(id: number, quantity: number) {
-    const res = await apiClient.post<any>(`/iam/core/retailer/consignment/${id}/consume?quantity=${quantity}`, {});
+    const res = await apiClient.post<any>(
+        `/iam/core/retailer/consignment/${id}/consume?quantity=${quantity}`,
+        {}
+    );
     return res.data;
 }
 
 export async function returnConsignment(id: number, quantity: number) {
-    const res = await apiClient.post<any>(`/iam/core/retailer/consignment/${id}/return?quantity=${quantity}`, {});
+    const res = await apiClient.post<any>(
+        `/iam/core/retailer/consignment/${id}/return?quantity=${quantity}`,
+        {}
+    );
     return res.data;
 }
 
 export async function receiveConsignment(id: number, quantity: number) {
-    const res = await apiClient.post<any>(`/iam/core/retailer/consignment/${id}/receive?quantity=${quantity}`, {});
+    const res = await apiClient.post<any>(
+        `/iam/core/retailer/consignment/${id}/receive?quantity=${quantity}`,
+        {}
+    );
     return res.data;
 }
 

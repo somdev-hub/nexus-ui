@@ -50,9 +50,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import {
-    updateSupplierContractStatus,
-} from '@/lib/services/supplier-contracts-service';
+import { updateSupplierContractStatus } from '@/lib/services/supplier-contracts-service';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Field } from './ui/field';
@@ -254,7 +252,8 @@ const buildColumns = (
                     )}
                     {(row.original.status === 'PENDING_APPROVAL' ||
                         row.original.status === 'PENDING_SUPPLIER_APPROVAL' ||
-                        row.original.status === 'PENDING_LOGISTICS_APPROVAL') && (
+                        row.original.status ===
+                            'PENDING_LOGISTICS_APPROVAL') && (
                         <DropdownMenuItem
                             onClick={() => onApprove?.(row.original)}
                         >
@@ -294,10 +293,16 @@ export function SupplierContractTable({
                     c.contractId === confirming.contractId ? updated : c
                 )
             );
-            toast({ title: 'Contract submitted for approval', variant: 'success' });
+            toast({
+                title: 'Contract submitted for approval',
+                variant: 'success',
+            });
         } catch (error) {
             console.error('Failed to submit contract:', error);
-            toast({ title: 'Failed to submit contract', variant: 'destructive' });
+            toast({
+                title: 'Failed to submit contract',
+                variant: 'destructive',
+            });
         } finally {
             setConfirming(null);
         }

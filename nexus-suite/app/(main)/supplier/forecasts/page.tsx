@@ -1,7 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
-import { IconDotsVertical, IconEdit, IconSend, IconTrash } from '@tabler/icons-react';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconSend,
+    IconTrash,
+} from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CollaborativeForecast } from '@/types/supplier';
 import type { PaginatedResponse } from '@/types/paginated-response';
@@ -443,7 +448,9 @@ export default function ForecastsPage() {
         data: forecasts,
         columns,
         getRowId: (row, index) =>
-            row.forecastId !== undefined ? String(row.forecastId) : String(index),
+            row.forecastId !== undefined
+                ? String(row.forecastId)
+                : String(index),
     });
     return (
         <div className="p-4 lg:p-6 space-y-4">

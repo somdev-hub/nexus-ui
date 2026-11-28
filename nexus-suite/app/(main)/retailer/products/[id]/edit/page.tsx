@@ -141,13 +141,17 @@ const EditPage = () => {
                     getProductById(productId),
                     getProductCategories(),
                     getProductBrands(),
-                    getMaterials({ pageNo: 0, pageOffset: 100 }).then((r) => r.content),
+                    getMaterials({ pageNo: 0, pageOffset: 100 }).then(
+                        (r) => r.content
+                    ),
                 ]);
                 setProduct(productData);
                 setCategories(cats);
                 setBrands(brnds);
                 setMaterials(mats);
-                const ids = (productData.materials ?? []).map((m) => m.materialId);
+                const ids = (productData.materials ?? []).map(
+                    (m) => m.materialId
+                );
                 setMaterialIds(ids);
                 const qtyMap: Record<number, string> = {};
                 (productData.materials ?? []).forEach((m) => {
@@ -854,34 +858,88 @@ const EditPage = () => {
                                     {/* Materials */}
                                     <Card className="p-4 gap-2">
                                         <CardHeader>
-                                            <CardTitle>Materials (from received POs)</CardTitle>
+                                            <CardTitle>
+                                                Materials (from received POs)
+                                            </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2 p-0">
                                             <p className="text-sm text-muted-foreground">
-                                                Select materials received via purchase orders to include in this product.
+                                                Select materials received via
+                                                purchase orders to include in
+                                                this product.
                                             </p>
                                             <div className="max-h-48 overflow-auto border rounded-md p-2 space-y-1">
                                                 {materials.length === 0 && (
-                                                    <p className="text-sm text-muted-foreground">No materials available yet.</p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        No materials available
+                                                        yet.
+                                                    </p>
                                                 )}
                                                 {materials.map((m) => {
-                                                    const checked = materialIds.includes(m.materialId);
+                                                    const checked =
+                                                        materialIds.includes(
+                                                            m.materialId
+                                                        );
                                                     return (
-                                                        <div key={m.materialId} className="flex items-center gap-2 text-sm">
+                                                        <div
+                                                            key={m.materialId}
+                                                            className="flex items-center gap-2 text-sm"
+                                                        >
                                                             <label className="flex items-center gap-2 flex-1">
                                                                 <Checkbox
-                                                                    checked={checked}
-                                                                    onCheckedChange={(v) => {
+                                                                    checked={
+                                                                        checked
+                                                                    }
+                                                                    onCheckedChange={(
+                                                                        v
+                                                                    ) => {
                                                                         if (v) {
-                                                                            setMaterialIds((ids) => [...ids, m.materialId]);
-                                                                            setMaterialQty((q) => ({ ...q, [m.materialId]: q[m.materialId] || '1' }));
+                                                                            setMaterialIds(
+                                                                                (
+                                                                                    ids
+                                                                                ) => [
+                                                                                    ...ids,
+                                                                                    m.materialId,
+                                                                                ]
+                                                                            );
+                                                                            setMaterialQty(
+                                                                                (
+                                                                                    q
+                                                                                ) => ({
+                                                                                    ...q,
+                                                                                    [m.materialId]:
+                                                                                        q[
+                                                                                            m
+                                                                                                .materialId
+                                                                                        ] ||
+                                                                                        '1',
+                                                                                })
+                                                                            );
                                                                         } else {
-                                                                            setMaterialIds((ids) => ids.filter((id) => id !== m.materialId));
+                                                                            setMaterialIds(
+                                                                                (
+                                                                                    ids
+                                                                                ) =>
+                                                                                    ids.filter(
+                                                                                        (
+                                                                                            id
+                                                                                        ) =>
+                                                                                            id !==
+                                                                                            m.materialId
+                                                                                    )
+                                                                            );
                                                                         }
                                                                     }}
                                                                 />
                                                                 <span>
-                                                                    {m.materialName} ({m.materialCode})
+                                                                    {
+                                                                        m.materialName
+                                                                    }{' '}
+                                                                    (
+                                                                    {
+                                                                        m.materialCode
+                                                                    }
+                                                                    )
                                                                 </span>
                                                             </label>
                                                             {checked && (
@@ -890,9 +948,26 @@ const EditPage = () => {
                                                                     min="1"
                                                                     step="1"
                                                                     className="w-20"
-                                                                    value={materialQty[m.materialId] || '1'}
-                                                                    onChange={(e) =>
-                                                                        setMaterialQty((q) => ({ ...q, [m.materialId]: e.target.value }))
+                                                                    value={
+                                                                        materialQty[
+                                                                            m
+                                                                                .materialId
+                                                                        ] || '1'
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        setMaterialQty(
+                                                                            (
+                                                                                q
+                                                                            ) => ({
+                                                                                ...q,
+                                                                                [m.materialId]:
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                            })
+                                                                        )
                                                                     }
                                                                 />
                                                             )}

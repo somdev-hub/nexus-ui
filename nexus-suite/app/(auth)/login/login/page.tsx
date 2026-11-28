@@ -133,7 +133,11 @@ export default function LoginPage() {
                                         <div className="relative">
                                             <FormControl>
                                                 <Input
-                                                    type={showPassword ? 'text' : 'password'}
+                                                    type={
+                                                        showPassword
+                                                            ? 'text'
+                                                            : 'password'
+                                                    }
                                                     placeholder="••••••••"
                                                     disabled={isLoading}
                                                     {...field}
@@ -141,7 +145,11 @@ export default function LoginPage() {
                                             </FormControl>
                                             <button
                                                 type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
+                                                onClick={() =>
+                                                    setShowPassword(
+                                                        !showPassword
+                                                    )
+                                                }
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                                                 aria-label="Toggle password visibility"
                                             >
